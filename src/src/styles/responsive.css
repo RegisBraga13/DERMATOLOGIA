@@ -1,0 +1,39 @@
+@media (max-width: 980px) {
+  .dashboard { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .layout { grid-template-columns: 1fr; }
+  .side {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .nav-button {
+    margin: 0;
+    justify-content: center;
+    text-align: center;
+    flex-direction: column;
+    font-size: 11px;
+  }
+  .record-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .container { padding: 14px; }
+  .dashboard { grid-template-columns: 1fr; }
+  .dash-button { min-height: 116px; }
+  .grid, .grid.three { grid-template-columns: 1fr; }
+  .side {
+    grid-template-columns: repeat(5, 76px);
+    overflow-x: auto;
+    padding-bottom: 10px;
+  }
+  .nav-button { min-width: 76px; }
+  .panel-title { flex-direction: column; }
+  .actions button { flex: 1 1 150px; }
+}
