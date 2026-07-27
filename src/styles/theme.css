@@ -1595,6 +1595,13 @@ textarea {
   padding-block: 13px;
 }
 
+textarea.evolution-textarea {
+  min-height: 300px;
+  overflow-y: hidden;
+  resize: none;
+  line-height: 1.32;
+}
+
 input::placeholder,
 textarea::placeholder {
   color: color-mix(in srgb, var(--muted) 82%, transparent);

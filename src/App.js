@@ -891,7 +891,8 @@ function selectFieldWithOther(name, labelText, options, value = "") {
 
 function textarea(name, labelText, value = "", placeholder = "", rows = "") {
   const rowsAttr = rows ? ` rows="${rows}"` : "";
-  return `<label>${labelText}<textarea name="${name}"${rowsAttr} placeholder="${escapeAttr(placeholder)}">${escapeHtml(value || "")}</textarea></label>`;
+  const evolutionAttrs = name === "evolution" ? ` class="evolution-textarea" data-auto-expand="true" rows="12"` : rowsAttr;
+  return `<label>${labelText}<textarea name="${name}"${evolutionAttrs} placeholder="${escapeAttr(placeholder)}">${escapeHtml(value || "")}</textarea></label>`;
 }
 
 function voiceTextarea(name, labelText, value = "", placeholder = "") {
@@ -1080,12 +1081,24 @@ function bindGlobalEvents() {
 
 function bindViewEvents() {
   bindAutoDraft();
+  bindAutoExpandingTextareas();
   bindMedicationLookup();
   bindPatientForm();
   bindConsultForm();
   bindReturnForm();
   bindRecord();
   bindActions();
+}
+
+function bindAutoExpandingTextareas() {
+  app.querySelectorAll("textarea[data-auto-expand='true']").forEach(field => {
+    const resize = () => {
+      field.style.height = "auto";
+      field.style.height = `${Math.max(field.scrollHeight, 300)}px`;
+    };
+    resize();
+    field.addEventListener("input", resize);
+  });
 }
 
 function bindMedicationLookup() {
