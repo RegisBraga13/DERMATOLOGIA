@@ -1678,7 +1678,9 @@ function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = null, i
       "Organize os fatos em ordem cronologica e valorize tanto os achados registrados quanto as ausencias explicitamente documentadas.",
       "Diferencie negacao expressa de dado nao preenchido: nunca presuma normalidade ou ausencia de sintoma a partir de um campo vazio.",
       "Produza texto corrido em paragrafos, sem listas, titulos, nomes de campos, Markdown ou asteriscos.",
-      "Inicie diretamente por: Paciente [nome], [idade] anos, [estado civil], [ocupacao], com queixa de [sintomas] ha [duracao]. Em seguida, integre toda a anamnese e os antecedentes relevantes.",
+      "Inicie diretamente pelo nome, sem usar a palavra Paciente: [nome], [idade] anos, [estado civil], [religiao], [grau de instrucao], [ocupacao].",
+      "Registre a situacao laboral exclusivamente como Em atividade ou No momento, afastado do trabalho, conforme os dados.",
+      "Nao utilize em nenhuma parte as expressoes Durante o rastreio, No rastreio ou Quanto ao. Descreva os achados diretamente.",
       "Apresente o exame em um novo paragrafo iniciado por: No exame psiquico, apresenta-se [...].",
       "Elimine repeticoes e palavras desnecessarias, sem omitir dados clinicamente relevantes.",
       "No exame psiquico, descreva os achados de forma direta e integrada ao texto.",
@@ -2335,18 +2337,18 @@ function evolutionPatientIdentification(patient = {}) {
   const details = [
     age ? `${age} anos` : "",
     patient.estadoCivil ? genderedCivilStatus(patient.estadoCivil, patient.sexo) : "",
+    patient.religiao ? lowerFirst(professionalReligion(patient.religiao)) : "",
+    patient.escolaridade ? lowerFirst(professionalEducation(patient.escolaridade)) : "",
     occupation ? lowerFirst(occupation) : ""
   ].filter(Boolean);
-  const name = patient.nome?.trim();
-  const identification = `Paciente${name ? ` ${name}` : ""}${details.length ? `, ${details.join(", ")}` : ""}`;
-  const socialDetails = [
-    patient.escolaridade ? `possui ${lowerFirst(professionalEducation(patient.escolaridade))}` : "",
-    patient.religiao ? `declara-se ${lowerFirst(professionalReligion(patient.religiao))}` : ""
-  ].filter(Boolean);
+  const name = patient.nome?.trim() || "Nome não informado";
+  const identification = `${name}${details.length ? `, ${details.join(", ")}` : ""}`;
+  const workStatus = occupation
+    ? (isAwayFromWork ? "No momento, afastado do trabalho" : "Em atividade")
+    : "";
   return [
     identification,
-    isAwayFromWork ? "Está afastado do trabalho" : "",
-    socialDetails.length ? `${capitalizeFirst(formatPlainList(socialDetails))}` : ""
+    workStatus
   ].filter(Boolean).join(". ");
 }
 
@@ -2395,15 +2397,15 @@ function professionalStructuredAnamnesisText(form = {}) {
   const impact = professionalList(form.impacto);
   const parts = [
     mania ? (/nega sintomas relacionados/i.test(mania)
-      ? "Durante o rastreio de sintomas de ativação do humor, negou sintomas relacionados."
-      : `Durante o rastreio de sintomas de ativação do humor, relatou ${lowerFirst(mania)}.`) : "",
-    sleep ? `Quanto ao sono, relatou ${lowerFirst(sleep)}.` : "",
-    appetite ? `Quanto ao apetite e ao peso, relatou ${lowerFirst(appetite)}.` : "",
-    depression ? `No rastreio depressivo, assinalou ${lowerFirst(depression)}.` : "",
-    psychosis ? `No rastreio psicótico e de paranoia, registrou ${lowerFirst(psychosis)}.` : "",
+      ? "Nega sintomas relacionados à ativação do humor."
+      : `Relata sintomas de ativação do humor: ${lowerFirst(mania)}.`) : "",
+    sleep ? `Relata ${lowerFirst(sleep)}.` : "",
+    appetite ? `Apresenta ${lowerFirst(appetite)}.` : "",
+    depression ? `Apresenta ${lowerFirst(depression)}.` : "",
+    psychosis ? `Apresenta ${lowerFirst(psychosis)}.` : "",
     risks ? (/nega ideação, plano ou intenção suicida/i.test(risks)
-      ? "Quanto ao risco, negou ideação, plano ou intenção suicida."
-      : `Quanto ao risco, registrou-se ${lowerFirst(risks)}.`) : "",
+      ? "Nega ideação, plano ou intenção suicida."
+      : `Apresenta ${lowerFirst(risks)}.`) : "",
     form.riscoSuicidioRazoesViver ? protectiveFactorSentence(form.riscoSuicidioRazoesViver) : "",
     form.riscoSuicidioRazoesParaViver ? `As razões para viver incluem ${lowerFirst(professionalClinicalTerms(stripFinalPeriod(form.riscoSuicidioRazoesParaViver)))}.` : "",
     factors ? (normalizeText(factors).includes("sem fator claro")
@@ -2584,7 +2586,7 @@ function returnAnamnesisSection(form, previous) {
   const parts = [
     previous ? `Retorna apos avaliacao registrada em ${new Date(previous.createdAt || Date.now()).toLocaleDateString("pt-BR")}.` : "Comparece para retorno psiquiatrico.",
     form.estadoGeral ? `Refere evolucao global ${form.estadoGeral.toLowerCase()} desde a ultima avaliacao.` : "",
-    form.sintomasPrincipais ? `Quanto aos sintomas principais, informa ${lowerFirst(stripFinalPeriod(form.sintomasPrincipais))}.` : "",
+    form.sintomasPrincipais ? `Relata como sintomas principais ${lowerFirst(stripFinalPeriod(form.sintomasPrincipais))}.` : "",
     form.sonoRetorno ? `Sono descrito como ${lowerFirst(stripFinalPeriod(form.sonoRetorno))}.` : "",
     form.humorRetorno ? `Humor predominante ${lowerFirst(stripFinalPeriod(form.humorRetorno))}.` : "",
     form.ansiedadeRetorno ? `Ansiedade ${lowerFirst(stripFinalPeriod(form.ansiedadeRetorno))}.` : "",
@@ -2600,9 +2602,9 @@ function returnAnamnesisSection(form, previous) {
 
 function structuredAnamnesisText(form) {
   const parts = [
-    joinWithOutro(form.maniaHipomaniaSintomas, form.maniaHipomaniaSintomasOutro) ? `Durante o rastreio de sintomas de ativacao do humor, foram registrados: ${lowerFirst(joinWithOutro(form.maniaHipomaniaSintomas, form.maniaHipomaniaSintomasOutro))}.` : "",
+    joinWithOutro(form.maniaHipomaniaSintomas, form.maniaHipomaniaSintomasOutro) ? `Relata sintomas de ativacao do humor: ${lowerFirst(joinWithOutro(form.maniaHipomaniaSintomas, form.maniaHipomaniaSintomasOutro))}.` : "",
     joinValues(form.ansiedadeSintomas)
-      ? `No rastreio ansioso, foram assinalados: ${lowerFirst(joinValues(form.ansiedadeSintomas))}.`
+      ? `Apresenta sintomas ansiosos: ${lowerFirst(joinValues(form.ansiedadeSintomas))}.`
       : positiveChoiceText(form, [
       ["ansiedadeFaltaControle", "dificuldade de controlar preocupacoes"],
       ["ansiedadePreocupacaoExcessiva", "preocupacao excessiva"],
@@ -2611,15 +2613,15 @@ function structuredAnamnesisText(form) {
       ["ansiedadeAgitacao", "inquietacao psicomotora"],
       ["ansiedadeIrritabilidade", "irritabilidade"],
       ["ansiedadeSintomasFisicos", "sintomas autonomicos associados"]
-    ], "No rastreio ansioso, observam-se"),
+    ], "Apresenta sintomas ansiosos:"),
     joinValues(form.sonoCaracteristicas)
-      ? `Quanto ao sono, foram assinalados: ${lowerFirst(joinValues(form.sonoCaracteristicas))}.`
+      ? `Relata ${lowerFirst(joinValues(form.sonoCaracteristicas))}.`
       : "",
     joinValues(form.apetiteCaracteristicas)
-      ? `Quanto ao apetite e ao peso, foram assinalados: ${lowerFirst(joinValues(form.apetiteCaracteristicas))}.`
+      ? `Apresenta ${lowerFirst(joinValues(form.apetiteCaracteristicas))}.`
       : "",
     joinValues(form.depressaoSintomas)
-      ? `No rastreio depressivo, foram assinalados: ${lowerFirst(joinValues(form.depressaoSintomas))}.`
+      ? `Apresenta sintomas depressivos: ${lowerFirst(joinValues(form.depressaoSintomas))}.`
       : positiveChoiceText(form, [
       ["depressaoPoucoInteressePrazer", "anedonia ou reducao de interesse"],
       ["depressaoDesanimoDesesperanca", "desanimo e desesperanca"],
@@ -2630,13 +2632,13 @@ function structuredAnamnesisText(form) {
       ["depressaoFalaLenta", "lentificacao da fala"],
       ["depressaoAgitacao", "agitacao psicomotora"],
       ["depressaoAutoestimaRuinaEstorvo", "baixa autoestima, ideias de ruina ou sentimento de estorvo"]
-    ], "No rastreio depressivo, foram assinalados"),
+    ], "Apresenta sintomas depressivos:"),
     joinWithOutro(form.psicoseSintomas, form.psicoseSintomasOutro)
-      ? `No rastreio psicotico e de paranoia, foram registrados: ${lowerFirst(joinWithOutro(form.psicoseSintomas, form.psicoseSintomasOutro))}.`
+      ? `Apresenta sintomas psicoticos ou paranoides: ${lowerFirst(joinWithOutro(form.psicoseSintomas, form.psicoseSintomasOutro))}.`
       : positiveChoiceText(form, [
       ["sintomasPsicoticosParanoiaObservado", "ideacao paranoide ou persecutoria"],
       ["sintomasPsicoticosVozesRuidos", "percepcao auditiva incomum"]
-    ], "No rastreio psicotico, foram registrados"),
+    ], "Apresenta sintomas psicoticos:"),
     form.sintomasPsicoticosOutro ? `Outros sintomas psicoticos relatados: ${stripFinalPeriod(form.sintomasPsicoticosOutro)}.` : "",
     riskText(form)
   ].filter(Boolean);
@@ -2658,7 +2660,7 @@ function riskText(form) {
   const risks = joinValues(form.riscoSuicidioIndicadores) || formatClinicalList(legacyRisks);
   const impediments = form.riscoSuicidioRazoesViver ? ` O que impede a acao hoje: ${stripFinalPeriod(form.riscoSuicidioRazoesViver)}.` : "";
   const reasons = form.riscoSuicidioRazoesParaViver ? ` Razoes para viver registradas: ${stripFinalPeriod(form.riscoSuicidioRazoesParaViver)}.` : "";
-  return `${risks ? `Quanto ao risco, registra-se ${lowerFirst(risks)}.` : ""}${impediments}${reasons}`.trim();
+  return `${risks ? `Apresenta ${lowerFirst(risks)}.` : ""}${impediments}${reasons}`.trim();
 }
 
 function clinicalAntecedentsSection(form) {
@@ -2668,7 +2670,7 @@ function clinicalAntecedentsSection(form) {
     joinWithOutro(form.medicos, form.medicosOutro) ? `Antecedentes medicos: ${stripFinalPeriod(joinWithOutro(form.medicos, form.medicosOutro))}.` : "",
     joinWithOutro(form.familiares, form.familiaresOutro) ? `Historico familiar positivo para ${lowerFirst(joinWithOutro(form.familiares, form.familiaresOutro))}.` : "",
     joinWithOutro(form.substancias, form.substanciasOutro) ? `Relata uso/habitos relacionados a ${lowerFirst(joinWithOutro(form.substancias, form.substanciasOutro))}.` : "",
-    joinWithOutro(form.usoSubstanciasComportamentos, form.usoSubstanciasComportamentosOutro) ? `No rastreio de substancias e comportamentos aditivos, foram registrados: ${lowerFirst(joinWithOutro(form.usoSubstanciasComportamentos, form.usoSubstanciasComportamentosOutro))}.` : ""
+    joinWithOutro(form.usoSubstanciasComportamentos, form.usoSubstanciasComportamentosOutro) ? `Apresenta habitos, uso de substancias ou comportamentos aditivos: ${lowerFirst(joinWithOutro(form.usoSubstanciasComportamentos, form.usoSubstanciasComportamentosOutro))}.` : ""
   ].filter(Boolean);
   return polishClinicalText(parts.join(" ") || "Sem antecedentes ou habitos relevantes informados ate o momento.");
 }
@@ -2782,7 +2784,7 @@ function returnStoryText(form, previous) {
   const parts = [
     previous ? `Retorna apos registro previo de ${new Date(previous.createdAt || Date.now()).toLocaleDateString("pt-BR")}.` : "Comparece para retorno psiquiatrico.",
     form.estadoGeral ? `Desde a ultima avaliacao, refere evolucao global: ${form.estadoGeral.toLowerCase()}.` : "",
-    form.sintomasPrincipais ? `Quanto aos sintomas principais, informa: ${form.sintomasPrincipais.toLowerCase()}.` : "",
+    form.sintomasPrincipais ? `Relata como sintomas principais: ${form.sintomasPrincipais.toLowerCase()}.` : "",
     form.sonoRetorno ? `Sono: ${form.sonoRetorno.toLowerCase()}.` : "",
     form.humorRetorno ? `Humor predominante: ${form.humorRetorno.toLowerCase()}.` : "",
     form.ansiedadeRetorno ? `Ansiedade: ${form.ansiedadeRetorno.toLowerCase()}.` : "",
@@ -3182,6 +3184,10 @@ function recordReportText(entry = {}) {
 function shouldRefreshEvolutionNarrative(value = "") {
   const text = String(value || "");
   return [
+    /^\s*Paciente\s+/i,
+    /Durante o rastreio/i,
+    /Quanto ao\s+/i,
+    /No rastreio (depressivo|psicótico)/i,
     /foram registrados:/i,
     /foram assinalados:/i,
     /registra-se nega/i,
