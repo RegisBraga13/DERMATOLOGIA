@@ -501,7 +501,7 @@ function clinicalPage(title, body, scope = "", showActions = true) {
 
 function consultationPageBody(form, patient) {
   const qphda = form.qphda || [form.queixa && `QP: ${form.queixa}`, form.historia && `HDA: ${form.historia}`].filter(Boolean).join("\n\n");
-  if (consultationPage === "anamnese") return clinicalPage("A. Anamnese", `
+  if (consultationPage === "anamnese") return clinicalPage("Anamnese", `
     <div class="clinical-card qphda-card">
       <h4>QP e HDA</h4>
       ${voiceTextarea("qphda", "Queixa principal (QP) e historia da doenca atual (HDA)", qphda, "Registrar QP nas palavras do paciente e HDA com cronologia dos sintomas, relacao temporal com eventos vitais, sintomas fisicos associados, fatores desencadeantes e de piora, fatores de melhora, uso de substancias, sintomas positivos e negativos, impacto funcional e tratamentos previos.")}
@@ -511,7 +511,7 @@ function consultationPageBody(form, patient) {
       </div>
     </div>
     ${anamnesisQuestionGuide()}
-    <div class="clinical-card">
+    <div class="clinical-card antecedents-card">
       <h4>Antecedentes pessoais e familiares</h4>
       ${chips("psiPrevios", "Diagnosticos psiquiatricos previos", optionGroups.psiPrevios, form.psiPrevios)}
       ${chips("tratamentos", "Tratamentos previos", optionGroups.tratamentos, form.tratamentos)}
@@ -522,13 +522,13 @@ function consultationPageBody(form, patient) {
     ${chips("fatoresMelhora", "Fatores de melhora", optionGroups.fatoresMelhora, form.fatoresMelhora)}
     ${chips("impacto", "Impacto funcional", optionGroups.impacto, form.impacto)}
   `, "consultation");
-  if (consultationPage === "psiquico") return clinicalPage("B. Exame psiquico", mentalExamBody(form), "consultation");
-  if (consultationPage === "neurologico") return clinicalPage("D. Exame fisico e neurologico", neurologicExamBody(form), "consultation");
-  if (consultationPage === "diagnostico") return clinicalPage("C. Diagnostico e diferenciais", diagnosisModule(form), "consultation");
-  if (consultationPage === "tratamento") return clinicalPage("D. Tratamento e orientacoes", treatmentModule(form), "consultation");
-  if (consultationPage === "evolucao") return clinicalPage("E. Evolucao do Paciente", evolutionBody(form, patient), "consultation");
+  if (consultationPage === "psiquico") return clinicalPage("Exame psiquico", mentalExamBody(form), "consultation");
+  if (consultationPage === "neurologico") return clinicalPage("Exame fisico e neurologico", neurologicExamBody(form), "consultation");
+  if (consultationPage === "diagnostico") return clinicalPage("Diagnostico e diferenciais", diagnosisModule(form), "consultation");
+  if (consultationPage === "tratamento") return clinicalPage("Tratamento e orientacoes", treatmentModule(form), "consultation");
+  if (consultationPage === "evolucao") return clinicalPage("Evolucao do Paciente", evolutionBody(form, patient), "consultation");
   if (consultationPage === "medicamentos") return clinicalPage("Apêndice · Medicamentos", medicationBody(form), "consultation", false);
-  return clinicalPage("E. Evolucao do Paciente", evolutionBody(form, patient), "consultation");
+  return clinicalPage("Evolucao do Paciente", evolutionBody(form, patient), "consultation");
 }
 
 function returnPageBody(form, patient, previous) {
@@ -557,7 +557,7 @@ function returnAssessmentBody(form) {
 }
 
 function mentalExam(form) {
-  return section("B. Exame psiquico", mentalExamBody(form), false);
+  return section("Exame psiquico", mentalExamBody(form), false);
 }
 
 function mentalExamBody(form) {
@@ -588,8 +588,8 @@ function neurologicExamBody(form) {
 
 function diagnosisTreatment(form) {
   return `
-    ${section("E. Diagnostico e diferenciais", diagnosisModule(form))}
-    ${section("F. Tratamento e orientacoes", treatmentModule(form))}
+    ${section("Diagnostico e diferenciais", diagnosisModule(form))}
+    ${section("Tratamento e orientacoes", treatmentModule(form))}
   `;
 }
 
@@ -804,7 +804,7 @@ function medicationNameLinks(name = "") {
 }
 
 function evolutionModule(form, patient, previous = null, isReturn = false) {
-  return section(isReturn ? "Evolucao do Retorno" : "E. Evolucao do Paciente", evolutionBody(form, patient, previous, isReturn), true);
+  return section(isReturn ? "Evolucao do Retorno" : "Evolucao do Paciente", evolutionBody(form, patient, previous, isReturn), true);
 }
 
 function evolutionBody(form, patient, previous = null, isReturn = false) {
