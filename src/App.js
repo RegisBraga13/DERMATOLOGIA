@@ -551,7 +551,8 @@ function returnAssessmentBody(form) {
       ${selectField("adesao", "Adesao ao tratamento", ["Regular", "Parcial", "Irregular", "Interrompeu medicacao", "Uso em dose diferente da prescrita", "Esquecimentos frequentes", "Nao iniciou tratamento"], form.adesao)}
     </div>
     ${chips("efeitos", "Efeitos colaterais", ["Nenhum", "Sonolencia", "Insonia", "Nauseas", "Tremores", "Boca seca", "Constipacao", "Diarreia", "Disfuncao sexual", "Ganho de peso", "Perda de peso", "Acatisia", "Rigidez", "Discinesia", "Tontura", "Cefaleia", "Outro"], form.efeitos)}
-    ${chips("eventos", "Eventos relevantes", ["Conflito familiar", "Conflito conjugal", "Problemas profissionais", "Problemas academicos", "Luto", "Internamento", "Urgencia/emergencia", "Uso de alcool/drogas", "Ideacao suicida", "Tentativa de suicidio", "Autoagressao", "Sintomas psicoticos", "Episodio de agitacao", "Outro"], form.eventos)}
+    ${chips("eventos", "Eventos relevantes no retorno", ["Nenhum", "Conflito familiar", "Conflito conjugal", "Problemas profissionais", "Problemas academicos", "Luto", "Internamento", "Urgencia/emergencia", "Uso de alcool/drogas", "Ideacao suicida", "Tentativa de suicidio", "Autoagressao", "Sintomas psicoticos", "Episodio de agitacao", "Outro"], form.eventos)}
+    ${chips("condutaMedicamentoRetorno", "Medicamento", ["Manter dose", "Aumentar dose", "Diminuir dose", "Retirar", "Trocar medicamento", "Acrescentar medicamento"], form.condutaMedicamentoRetorno)}
     ${textarea("observacoesRetorno", "Observacoes clinicas do retorno", form.observacoesRetorno)}
   `;
 }
@@ -1159,9 +1160,9 @@ function bindAutoDraft() {
   forms.forEach(form => {
     form.addEventListener("input", () => updateDraftFromForm(form));
     form.addEventListener("change", event => {
-      if (["maniaHipomaniaSintomas", "psicoseSintomas", "riscoSuicidioIndicadores"].includes(event.target?.name) && event.target.checked) {
+      if (["maniaHipomaniaSintomas", "psicoseSintomas", "riscoSuicidioIndicadores", "eventos"].includes(event.target?.name) && event.target.checked) {
         const options = form.querySelectorAll(`input[name='${event.target.name}']`);
-        const denialOptions = ["Nega sintomas relacionados", "Nega ideacao, plano ou intencao suicida"];
+        const denialOptions = ["Nega sintomas relacionados", "Nega ideacao, plano ou intencao suicida", "Nenhum"];
         if (denialOptions.includes(event.target.value)) {
           options.forEach(option => { if (option !== event.target) option.checked = false; });
         } else {
@@ -2391,6 +2392,7 @@ function returnAnamnesisSection(form, previous) {
     form.adesao ? `Adesao ao tratamento ${lowerFirst(stripFinalPeriod(form.adesao))}.` : "",
     joinValues(form.efeitos) ? `Efeitos colaterais registrados: ${joinValues(form.efeitos)}.` : "",
     joinValues(form.eventos) ? `Eventos relevantes no periodo: ${joinValues(form.eventos)}.` : "",
+    joinValues(form.condutaMedicamentoRetorno) ? `Conduta medicamentosa no retorno: ${joinValues(form.condutaMedicamentoRetorno)}.` : "",
     form.observacoesRetorno ? `Observacoes clinicas adicionais: ${stripFinalPeriod(form.observacoesRetorno)}.` : ""
   ].filter(Boolean);
   return parts.join(" ") || "Dados de retorno ainda nao preenchidos.";
@@ -2588,6 +2590,7 @@ function returnStoryText(form, previous) {
     form.adesao ? `Adesao ao tratamento: ${form.adesao.toLowerCase()}.` : "",
     joinValues(form.efeitos) ? `Efeitos colaterais registrados: ${joinValues(form.efeitos)}.` : "",
     joinValues(form.eventos) ? `Eventos relevantes no periodo: ${joinValues(form.eventos)}.` : "",
+    joinValues(form.condutaMedicamentoRetorno) ? `Conduta medicamentosa no retorno: ${joinValues(form.condutaMedicamentoRetorno)}.` : "",
     form.observacoesRetorno ? `Observacoes clinicas adicionais: ${form.observacoesRetorno}` : ""
   ].filter(Boolean);
   return parts.join(" ");
@@ -2898,9 +2901,8 @@ function defaultConsultation() {
 }
 
 function defaultReturn() {
-  const count = state.returns.filter(item => item.patientId === selectedPatientId).length + 1;
   const previousEntryId = consultationsForPatient(selectedPatientId)[0]?.id || "";
-  return { patientId: selectedPatientId, label: `Retorno ${count}`, type: "return", previousEntryId };
+  return { patientId: selectedPatientId, label: "Retorno", type: "return", previousEntryId };
 }
 
 function getPatient() {

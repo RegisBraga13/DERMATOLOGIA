@@ -2,7 +2,16 @@ const KEY = "regis_psiquiatr_ia_v1";
 
 export function loadState() {
   try {
-    return JSON.parse(localStorage.getItem(KEY)) || { patients: [], consultations: [], returns: [] };
+    const state = JSON.parse(localStorage.getItem(KEY)) || { patients: [], consultations: [], returns: [] };
+    let changed = false;
+    (state.returns || []).forEach(entry => {
+      if (/^Retorno\s+\d+$/i.test(entry.label || "")) {
+        entry.label = "Retorno";
+        changed = true;
+      }
+    });
+    if (changed) localStorage.setItem(KEY, JSON.stringify(state));
+    return state;
   } catch {
     return { patients: [], consultations: [], returns: [] };
   }
