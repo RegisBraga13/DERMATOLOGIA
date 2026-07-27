@@ -113,7 +113,7 @@ const consultationPages = [
   ["psiquico", "Exame psiquico"],
   ["diagnostico", "Diagnostico"],
   ["tratamento", "Tratamento"],
-  ["evolucao", "Evolucao"],
+  ["evolucao", "Historia Clinica"],
   ["medicamentos", "Medicamentos"]
 ];
 const returnPages = [
@@ -615,9 +615,9 @@ function consultationPageBody(form, patient) {
   if (consultationPage === "neurologico") return clinicalPage("Exame fisico e neurologico", neurologicExamBody(form), "consultation");
   if (consultationPage === "diagnostico") return clinicalPage("Diagnostico e diferenciais", diagnosisModule(form), "consultation");
   if (consultationPage === "tratamento") return clinicalPage("Tratamento e orientacoes", treatmentModule(form), "consultation");
-  if (consultationPage === "evolucao") return clinicalPage("Evolucao do Paciente", evolutionBody(form, patient), "consultation");
+  if (consultationPage === "evolucao") return clinicalPage("Historia Clinica", evolutionBody(form, patient), "consultation");
   if (consultationPage === "medicamentos") return clinicalPage("Apêndice · Medicamentos", medicationBody(form), "consultation", false);
-  return clinicalPage("Evolucao do Paciente", evolutionBody(form, patient), "consultation");
+  return clinicalPage("Historia Clinica", evolutionBody(form, patient), "consultation");
 }
 
 function returnPageBody(form, patient, previous) {
@@ -689,7 +689,6 @@ function diagnosisModule(form) {
       <p class="online-status">Auxilio inicial ao psiquiatra, elaborado a partir da anamnese completa e do exame psiquico. As opcoes nao constituem diagnostico e exigem revisao clinica.</p>
       <div class="actions">
         <button class="primary" type="button" data-action="generate-diagnosis">Gerar 6 hipoteses</button>
-        <button class="secondary" type="button" data-action="copy-ai-prompt" data-prompt-kind="diagnosis">Copiar prompt para IA</button>
       </div>
       ${aiStatus ? `<p class="online-status">${escapeHtml(aiStatus)}</p>` : ""}
     </div>
@@ -751,7 +750,6 @@ function treatmentModule(form) {
       <p class="online-status">Auxilio ao psiquiatra. A prescricao e a conduta final dependem da avaliacao clinica, contraindicações, interacoes e decisao medica.</p>
       <div class="actions">
         <button class="primary" type="button" data-action="generate-treatment">Gerar opções de tratamento</button>
-        <button class="secondary" type="button" data-action="copy-ai-prompt" data-prompt-kind="treatment">Copiar prompt para IA</button>
       </div>
       ${form.treatmentStatus ? `<p class="online-status">${escapeHtml(form.treatmentStatus)}</p>` : ""}
     </div>
@@ -886,7 +884,7 @@ function medicationNameLinks(name = "") {
 }
 
 function evolutionModule(form, patient, previous = null, isReturn = false) {
-  return section(isReturn ? "Evolucao do Retorno" : "Evolucao do Paciente", evolutionBody(form, patient, previous, isReturn), true);
+  return section(isReturn ? "Evolucao do Retorno" : "Historia Clinica", evolutionBody(form, patient, previous, isReturn), true);
 }
 
 function evolutionBody(form, patient, previous = null, isReturn = false) {
@@ -899,11 +897,10 @@ function evolutionBody(form, patient, previous = null, isReturn = false) {
   const generatedEvolution = buildEvolutionNarrative(form, patient, previous, isReturn);
   return `
     <div class="actions">
-      <button class="primary" type="button" data-action="generate-evolution">Atualizar evolução</button>
-      <button class="secondary" type="button" data-action="copy-ai-prompt" data-prompt-kind="evolution">Copiar prompt para IA</button>
+      <button class="primary" type="button" data-action="generate-evolution">${isReturn ? "Atualizar evolução" : "Atualizar história clínica"}</button>
     </div>
     ${form.aiStatus ? `<p class="online-status">${escapeHtml(form.aiStatus)}</p>` : ""}
-    ${textarea("evolution", "Evolução clínica final", evolution || generatedEvolution)}
+    ${textarea("evolution", isReturn ? "Evolução clínica final" : "História clínica final", evolution || generatedEvolution)}
   `;
 }
 
@@ -923,12 +920,6 @@ function medicalRecord() {
     <div class="record-grid">
       <div>
         ${field("recordSearch", "Busca por palavra-chave, diagnostico, medicamento ou data", draft.recordQuery || "")}
-        <div class="section" style="padding:14px;margin-top:12px">
-          <h3>Identificacao</h3>
-          <p>${escapeHtml(patient.nome || "")}, ${escapeHtml(calculateAge(patient.nascimento) || "idade nao calculada")} anos, ${escapeHtml(patient.sexo || "")}</p>
-          <p>${escapeHtml(patient.telefone || "")} | ${escapeHtml(patient.email || "")}</p>
-          <p>${escapeHtml([patient.endereco, patient.numero, patient.bairro, patient.cidade, patient.estado].filter(Boolean).join(", "))}</p>
-        </div>
       </div>
       <div class="timeline">
         ${all.length ? all.map(entry => `
@@ -1423,7 +1414,6 @@ function bindActions() {
       if (action === "generate-treatment") await generateTreatmentFromClinicalData(element);
       if (action === "generate-evolution") await generateEvolutionFromClinicalData(element);
       if (action === "generate-medication-ai") await generateMedicationFromClinicalData(element);
-      if (action === "copy-ai-prompt") copyClinicalAiPrompt(element);
       if (action === "fill-medication-info") await fillMedicationInfo(element);
       if (action === "clear-medication-lookup") clearMedicationLookup();
       if (action === "clear-patient") { draft.patient = {}; render(); }
@@ -1767,23 +1757,6 @@ function clinicalAiTextFromResult(kind, result) {
     ].join("\n\n");
   }
   return "";
-}
-
-async function copyClinicalAiPrompt(element) {
-  const formElement = element.closest("form");
-  if (formElement) updateDraftFromForm(formElement);
-  const scope = view === "return" ? "return" : "consultation";
-  const target = scope === "return" ? draft.return : draft.consultation;
-  const previous = scope === "return" ? latestEntry(selectedPatientId) : null;
-  const patient = getPatient() || {};
-  const prompt = buildClinicalAiPrompt(element.dataset.promptKind, target || {}, patient, previous, scope === "return");
-  try {
-    if (!navigator.clipboard) throw new Error("clipboard unavailable");
-    await navigator.clipboard.writeText(prompt);
-    alert("Prompt clínico copiado.");
-  } catch {
-    alert("Nao foi possivel copiar automaticamente. Selecione e copie o texto manualmente apos gerar o rascunho.");
-  }
 }
 
 async function fillMedicationInfo(element) {
@@ -3370,19 +3343,44 @@ function pdfEntry(id, type) {
 }
 
 function recordReportText(entry = {}) {
-  const storedEvolution = shouldRefreshEvolutionNarrative(entry.evolution)
+  const patient = getPatient() || {};
+  const previous = entry.type === "return"
+    ? previousEntryForReturn(entry, entry.patientId)
+    : null;
+  const shouldRebuild = shouldRefreshEvolutionNarrative(entry.evolution)
     || (entry.evolutionAutoGenerated && entry.type !== "return")
-    ? buildEvolutionNarrative(entry, getPatient() || {})
+    || (entry.type === "return" && (
+      entry.evolutionAutoGenerated
+      || returnEvolutionContainsIdentity(entry.evolution, patient)
+    ));
+  const storedEvolution = shouldRebuild
+    ? buildEvolutionNarrative(entry, patient, previous, entry.type === "return")
     : entry.evolution;
   const evolution = entry.type === "return"
-    ? removeReturnBoilerplate(normalizeEvolutionNarrative(storedEvolution))
+    ? longitudinalReturnNarrative(entry, removeReturnBoilerplate(normalizeEvolutionNarrative(storedEvolution)))
     : normalizeEvolutionNarrative(storedEvolution);
   const report = normalizeEvolutionNarrative([
     evolution,
-    entry.observacoesRetorno ? `Observações do retorno: ${stripFinalPeriod(entry.observacoesRetorno)}.` : "",
+    entry.type !== "return" && entry.observacoesRetorno ? `Observações: ${stripFinalPeriod(entry.observacoesRetorno)}.` : "",
     !evolution ? anamnesisText(entry) : ""
   ].filter(Boolean).join("\n\n"));
   return (entry.type === "return" ? removeReturnBoilerplate(report) : report) || "Registro sem evolução.";
+}
+
+function longitudinalReturnNarrative(entry = {}, evolution = "") {
+  const previous = previousEntryForReturn(entry, entry.patientId);
+  const previousDate = previous?.createdAt
+    ? new Date(previous.createdAt).toLocaleDateString("pt-BR")
+    : "";
+  const reference = `Paciente retorna após registro prévio${previousDate ? ` de ${previousDate}` : ""}`;
+  const normalized = normalizeEvolutionNarrative(evolution);
+  const withFinding = normalized.match(/^Paciente retornou com\s+([\s\S]+)$/i);
+  if (withFinding) return `${reference}, com ${lowerFirst(withFinding[1])}`;
+  const complement = normalized
+    .replace(/^Paciente retornou para acompanhamento clínico\.\s*/i, "")
+    .replace(/^Paciente retornou\.\s*/i, "")
+    .trim();
+  return `${reference}.${complement ? ` ${complement}` : ""}`;
 }
 
 function shouldRefreshEvolutionNarrative(value = "") {
