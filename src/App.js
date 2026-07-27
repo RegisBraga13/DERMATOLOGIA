@@ -17,6 +17,91 @@ let modal = null;
 let pendingViewAfterPatient = "";
 let activeVoiceRecognition = null;
 let activeVoiceButton = null;
+const RECORD_SEARCH_TEXT_CACHE = new WeakMap();
+const ENTRY_TIMESTAMP_CACHE = new WeakMap();
+const MENTAL_EXAM_KEYS = Object.freeze([
+  "aparencia",
+  "consciencia",
+  "atencao",
+  "orientacao",
+  "memoria",
+  "sensopercepcao",
+  "pensamentoCursoForma",
+  "pensamentoConteudo",
+  "linguagem",
+  "humor",
+  "afeto",
+  "psicomotricidadeVontade",
+  "juizoCritico"
+]);
+const NORMAL_MENTAL_EXAM_FINDINGS = Object.freeze({
+  aparencia: "apresenta aparencia cuidada, atitude colaborativa e contato visual adequado",
+  consciencia: "consciente",
+  atencao: "com atencao preservada",
+  orientacao: "orientado no tempo e no espaco",
+  memoria: "com funcoes mnesicas preservadas",
+  sensopercepcao: "sem alteracoes sensoperceptivas",
+  pensamentoCursoForma: "pensamento com curso e forma preservados",
+  pensamentoConteudo: "sem alteracoes relevantes do conteudo do pensamento",
+  linguagem: "com fala espontanea, coerente e compreensivel",
+  humor: "eutimico",
+  afeto: "afeto congruente e modulado",
+  psicomotricidadeVontade: "psicomotricidade e vontade sem alteracoes relevantes",
+  juizoCritico: "com juizo critico preservado"
+});
+const PROFESSIONAL_TERM_REPLACEMENTS = Object.freeze([
+  [/\bnao\b/gi, "não"],
+  [/\bideacao\b/gi, "ideação"],
+  [/\bintencao\b/gi, "intenção"],
+  [/\bativacao\b/gi, "ativação"],
+  [/\bperseguicao\b/gi, "perseguição"],
+  [/\breferencia\b/gi, "referência"],
+  [/\bdesconfianca\b/gi, "desconfiança"],
+  [/\bvozes ou ruidos\b/gi, "vozes ou ruídos"],
+  [/\bdesorganizado\b/gi, "desorganizado"],
+  [/\bsensacao\b/gi, "sensação"],
+  [/\binterferencia\b/gi, "interferência"],
+  [/\bpensamento psicotico\b/gi, "pensamento psicótico"],
+  [/\bpsicotico\b/gi, "psicótico"],
+  [/\bconcentracao\b/gi, "concentração"],
+  [/\balucinacao\b/gi, "alucinação"],
+  [/\bdelirio\b/gi, "delírio"],
+  [/\bdoenca\b/gi, "doença"],
+  [/\bespaco\b/gi, "espaço"],
+  [/\bnegacao\b/gi, "negação"],
+  [/\bcritica\b/gi, "crítica"],
+  [/\bfuncoes mnesicas\b/gi, "funções mnésicas"],
+  [/\bantipsicotico\b/gi, "antipsicótico"],
+  [/\bprejuizo\b/gi, "prejuízo"],
+  [/\bhabitos\b/gi, "hábitos"]
+]);
+const EVOLUTION_REFRESH_PATTERNS = Object.freeze([
+  /^\s*Paciente\s+/i,
+  /Durante o rastreio/i,
+  /Quanto ao\s+/i,
+  /No rastreio (depressivo|psicótico)/i,
+  /foram registrados:/i,
+  /foram assinalados:/i,
+  /registra-se nega/i,
+  /associa[cç][aã]o com sem fator claro/i,
+  /antecedentes m[eé]dicos de nega/i,
+  /exame ps[ií]quico, apresenta-se/i
+]);
+const RETURN_BOILERPLATE_PHRASES = Object.freeze([
+  "Sem antecedentes relevantes informados.",
+  "Sem antecedentes ou habitos relevantes informados ate o momento.",
+  "Sem alterações descritas no exame psíquico.",
+  "Paciente sem alteracoes descritas no exame psiquico.",
+  "Hipóteses diagnósticas não selecionadas.",
+  "Conduta médica e exames não registrados."
+]);
+const HTML_ESCAPE_ENTITIES = Object.freeze({
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#039;"
+});
 const consultationPages = [
   ["anamnese", "Anamnese"],
   ["psiquico", "Exame psiquico"],
@@ -825,7 +910,10 @@ function medicalRecord() {
   const patient = getPatient();
   if (!patient) return emptyPatientMessage("Prontuario");
   const query = (draft.recordQuery || "").toLowerCase();
-  const all = entriesForPatient(patient.id).filter(entry => JSON.stringify(entry).toLowerCase().includes(query));
+  const patientEntries = entriesForPatient(patient.id);
+  const all = query
+    ? patientEntries.filter(entry => recordSearchText(entry).includes(query))
+    : patientEntries;
   return `
     <div class="panel-title">
       <div><h2>Prontuario Longitudinal</h2><p>${escapeHtml(patient.nome)} | consultas, retornos, diagnosticos e evolucoes.</p></div>
@@ -2484,33 +2572,10 @@ function protectiveFactorSentence(value = "") {
 }
 
 function professionalClinicalTerms(value = "") {
-  const replacements = [
-    [/\bnao\b/gi, "não"],
-    [/\bideacao\b/gi, "ideação"],
-    [/\bintencao\b/gi, "intenção"],
-    [/\bativacao\b/gi, "ativação"],
-    [/\bperseguicao\b/gi, "perseguição"],
-    [/\breferencia\b/gi, "referência"],
-    [/\bdesconfianca\b/gi, "desconfiança"],
-    [/\bvozes ou ruidos\b/gi, "vozes ou ruídos"],
-    [/\bdesorganizado\b/gi, "desorganizado"],
-    [/\bsensacao\b/gi, "sensação"],
-    [/\binterferencia\b/gi, "interferência"],
-    [/\bpensamento psicotico\b/gi, "pensamento psicótico"],
-    [/\bpsicotico\b/gi, "psicótico"],
-    [/\bconcentracao\b/gi, "concentração"],
-    [/\balucinacao\b/gi, "alucinação"],
-    [/\bdelirio\b/gi, "delírio"],
-    [/\bdoenca\b/gi, "doença"],
-    [/\bespaco\b/gi, "espaço"],
-    [/\bnegacao\b/gi, "negação"],
-    [/\bcritica\b/gi, "crítica"],
-    [/\bfuncoes mnesicas\b/gi, "funções mnésicas"],
-    [/\bantipsicotico\b/gi, "antipsicótico"],
-    [/\bprejuizo\b/gi, "prejuízo"],
-    [/\bhabitos\b/gi, "hábitos"]
-  ];
-  return replacements.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), String(value || ""));
+  return PROFESSIONAL_TERM_REPLACEMENTS.reduce(
+    (text, [pattern, replacement]) => text.replace(pattern, replacement),
+    String(value || "")
+  );
 }
 
 function genderedCivilStatus(value = "", sex = "") {
@@ -2905,7 +2970,7 @@ function joinWithOutro(value, otherValue = "") {
 }
 
 function mentalExamKeys() {
-  return ["aparencia", "consciencia", "atencao", "orientacao", "memoria", "sensopercepcao", "pensamentoCursoForma", "pensamentoConteudo", "linguagem", "humor", "afeto", "psicomotricidadeVontade", "juizoCritico"];
+  return MENTAL_EXAM_KEYS;
 }
 
 function clinicalMentalValues(form = {}, key = "") {
@@ -2919,22 +2984,7 @@ function clinicalMentalValues(form = {}, key = "") {
 }
 
 function normalMentalExamFinding(key = "") {
-  const findings = {
-    aparencia: "apresenta aparencia cuidada, atitude colaborativa e contato visual adequado",
-    consciencia: "consciente",
-    atencao: "com atencao preservada",
-    orientacao: "orientado no tempo e no espaco",
-    memoria: "com funcoes mnesicas preservadas",
-    sensopercepcao: "sem alteracoes sensoperceptivas",
-    pensamentoCursoForma: "pensamento com curso e forma preservados",
-    pensamentoConteudo: "sem alteracoes relevantes do conteudo do pensamento",
-    linguagem: "com fala espontanea, coerente e compreensivel",
-    humor: "eutimico",
-    afeto: "afeto congruente e modulado",
-    psicomotricidadeVontade: "psicomotricidade e vontade sem alteracoes relevantes",
-    juizoCritico: "com juizo critico preservado"
-  };
-  return findings[key] || "";
+  return NORMAL_MENTAL_EXAM_FINDINGS[key] || "";
 }
 
 function clinicalValueList(value, otherValue = "") {
@@ -3136,15 +3186,33 @@ function getPatient() {
 }
 
 function entriesForPatient(patientId) {
-  return [...state.consultations, ...state.returns]
+  return state.consultations.concat(state.returns)
     .filter(entry => entry.patientId === patientId)
-    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    .sort(compareEntriesNewestFirst);
 }
 
 function consultationsForPatient(patientId) {
   return state.consultations
     .filter(entry => entry.patientId === patientId)
-    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    .sort(compareEntriesNewestFirst);
+}
+
+function compareEntriesNewestFirst(a, b) {
+  return entryTimestamp(b) - entryTimestamp(a);
+}
+
+function entryTimestamp(entry) {
+  if (ENTRY_TIMESTAMP_CACHE.has(entry)) return ENTRY_TIMESTAMP_CACHE.get(entry);
+  const timestamp = new Date(entry.createdAt || 0).getTime();
+  ENTRY_TIMESTAMP_CACHE.set(entry, timestamp);
+  return timestamp;
+}
+
+function recordSearchText(entry) {
+  if (RECORD_SEARCH_TEXT_CACHE.has(entry)) return RECORD_SEARCH_TEXT_CACHE.get(entry);
+  const searchText = JSON.stringify(entry).toLowerCase();
+  RECORD_SEARCH_TEXT_CACHE.set(entry, searchText);
+  return searchText;
 }
 
 function previousEntryForReturn(form = {}, patientId = selectedPatientId) {
@@ -3207,30 +3275,11 @@ function recordReportText(entry = {}) {
 
 function shouldRefreshEvolutionNarrative(value = "") {
   const text = String(value || "");
-  return [
-    /^\s*Paciente\s+/i,
-    /Durante o rastreio/i,
-    /Quanto ao\s+/i,
-    /No rastreio (depressivo|psicótico)/i,
-    /foram registrados:/i,
-    /foram assinalados:/i,
-    /registra-se nega/i,
-    /associa[cç][aã]o com sem fator claro/i,
-    /antecedentes m[eé]dicos de nega/i,
-    /exame ps[ií]quico, apresenta-se/i
-  ].some(pattern => pattern.test(text));
+  return EVOLUTION_REFRESH_PATTERNS.some(pattern => pattern.test(text));
 }
 
 function removeReturnBoilerplate(value = "") {
-  const phrases = [
-    "Sem antecedentes relevantes informados.",
-    "Sem antecedentes ou habitos relevantes informados ate o momento.",
-    "Sem alterações descritas no exame psíquico.",
-    "Paciente sem alteracoes descritas no exame psiquico.",
-    "Hipóteses diagnósticas não selecionadas.",
-    "Conduta médica e exames não registrados."
-  ];
-  return phrases.reduce((text, phrase) => text.replaceAll(phrase, " "), value)
+  return RETURN_BOILERPLATE_PHRASES.reduce((text, phrase) => text.replaceAll(phrase, " "), value)
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -3427,7 +3476,7 @@ function setVoiceStatus(button, message, state = "") {
 }
 
 function escapeHtml(value) {
-  return String(value || "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]));
+  return String(value || "").replace(/[&<>"']/g, char => HTML_ESCAPE_ENTITIES[char]);
 }
 
 function escapeAttr(value) {
