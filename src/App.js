@@ -3004,12 +3004,18 @@ async function copyEvolution() {
 
 function printEvolution() {
   const text = normalizeEvolutionNarrative(app.querySelector("[name='evolution']")?.value);
-  exportTextAsPdf("Evolucao medica", text);
+  const patient = getPatient();
+  const title = patient?.nome ? `Evolução médica — ${patient.nome}` : "Evolução médica";
+  exportTextAsPdf(title, text, `${patient?.nome || "Paciente"} - Evolução médica`);
 }
 
 function pdfEntry(id, type) {
   const entry = findEntry(id, type);
-  exportTextAsPdf(entry?.label || "Evolucao", recordReportText(entry));
+  if (!entry) return;
+  const patient = getPatient();
+  const title = `${entry.label || "Evolução"}${patient?.nome ? ` — ${patient.nome}` : ""}`;
+  const date = new Date(entry.createdAt || Date.now()).toLocaleDateString("pt-BR").replaceAll("/", "-");
+  exportTextAsPdf(title, recordReportText(entry), `${patient?.nome || "Paciente"} - ${entry.label || "Evolução"} - ${date}`);
 }
 
 function recordReportText(entry = {}) {
