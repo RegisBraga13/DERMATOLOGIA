@@ -1,7 +1,7 @@
 import { optionGroups } from "./data/examOptions.js?v=tratamento-1";
 import { medications } from "./data/medications.js?v=medicamentos-1";
 import { fetchCep } from "./services/cepService.js";
-import { exportTextAsPdf } from "./services/pdfService.js";
+import { exportTextAsPdf } from "./services/pdfService.js?v=pdf-download-2";
 import { loadState, saveState, uid } from "./services/storageService.js";
 
 const app = document.querySelector("#app");
