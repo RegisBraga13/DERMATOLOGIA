@@ -1663,6 +1663,8 @@ function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = null, i
       "Organize os fatos em ordem cronologica e valorize tanto os achados registrados quanto as ausencias explicitamente documentadas.",
       "Diferencie negacao expressa de dado nao preenchido: nunca presuma normalidade ou ausencia de sintoma a partir de um campo vazio.",
       "Produza texto corrido em paragrafos, sem listas, titulos, nomes de campos, Markdown ou asteriscos.",
+      "Inicie diretamente por: Paciente [nome], [idade] anos, [estado civil], [ocupacao], com queixa de [sintomas] ha [duracao]. Em seguida, integre toda a anamnese e os antecedentes relevantes.",
+      "Apresente o exame em um novo paragrafo iniciado por: No exame psiquico, apresenta-se [...].",
       "Elimine repeticoes e palavras desnecessarias, sem omitir dados clinicamente relevantes.",
       "No exame psiquico, descreva os achados de forma direta e integrada ao texto.",
       "Use apenas as hipoteses assinaladas pelo psiquiatra e, na conduta, apenas o preenchimento medico e os exames solicitados."
@@ -2280,25 +2282,63 @@ function treatmentPlanForDiagnosis(diagnosisText) {
 }
 
 function buildEvolutionNarrative(form, patient = {}, previous = null, isReturn = false) {
-  const identity = stripFinalPeriod(conciseIdentityText(patient));
   const complaint = stripFinalPeriod(conciseComplaintText(form, isReturn));
   const history = stripFinalPeriod(conciseHdaText(form, previous, isReturn));
-  const antecedents = stripFinalPeriod(conciseAntecedentsText(form));
-  const mentalExam = stripFinalPeriod(conciseMentalExamText(form));
-  const diagnosis = stripFinalPeriod(conciseDiagnosticText(form));
-  const treatment = stripFinalPeriod(conciseTreatmentText(form));
-  const attendance = isReturn
-    ? `Em retorno, paciente refere ${lowerFirst(complaint)}. ${history}.`
-    : `Em atendimento atual, paciente refere ${lowerFirst(complaint)}. ${history}.`;
+  const structuredAnamnesis = isReturn ? "" : structuredAnamnesisText(form);
+  const factors = joinWithOutro(form.fatores, form.fatoresOutro);
+  const improvements = joinWithOutro(form.fatoresMelhora, form.fatoresMelhoraOutro);
+  const impact = joinValues(form.impacto);
+  const antecedents = evolutionAntecedentsText(form);
+  const mentalFindings = mentalStateFindings(form);
+  const diagnosis = selectedDiagnosisText(form) || form.diagnosticoSelecionadoResumo || form.diagnosticoManual || "";
+  const selectedExams = requestedExamsText(form) || form.examesLaboratoriais;
+  const treatment = [
+    form.condutaMedica ? cleanClinicalLine(form.condutaMedica) : "",
+    selectedExams ? `Foram solicitados ${cleanClinicalLine(selectedExams)}` : ""
+  ].filter(Boolean).join(". ");
+
+  const historyParts = [
+    history && normalizeText(history) !== normalizeText(complaint) ? `${history}.` : "",
+    structuredAnamnesis,
+    factors ? `O quadro apresenta associação com ${lowerFirst(factors)}.` : "",
+    improvements ? improvementSentence(improvements) : "",
+    impact ? `Há impacto funcional ${lowerFirst(impact)}.` : "",
+    antecedents
+  ].filter(Boolean).join(" ");
+
+  const opening = isReturn
+    ? `${evolutionPatientIdentification(patient)} comparece em retorno. ${historyParts}`
+    : `${evolutionPatientIdentification(patient)}, com queixa de ${lowerFirst(complaint)}. ${historyParts}`;
 
   return normalizeEvolutionNarrative([
-    `${identity}.`,
-    attendance,
-    `Quanto aos antecedentes, ${lowerFirst(antecedents)}.`,
-    `Ao exame psíquico, ${lowerFirst(mentalExam)}.`,
-    `${diagnosis}.`,
-    `${treatment}.`
-  ].join(" "));
+    opening,
+    mentalFindings.length ? `No exame psíquico, apresenta-se ${formatClinicalList(mentalFindings)}.` : "",
+    diagnosis ? `Consideram-se as hipóteses diagnósticas assinaladas de ${stripFinalPeriod(diagnosis)}.` : "",
+    treatment ? `${stripFinalPeriod(treatment)}.` : ""
+  ].filter(Boolean).join("\n\n"));
+}
+
+function evolutionPatientIdentification(patient = {}) {
+  const age = calculateAge(patient.nascimento);
+  const details = [
+    age ? `${age} anos` : "",
+    patient.estadoCivil ? patient.estadoCivil.toLowerCase() : "",
+    patient.ocupacao ? lowerFirst(patient.ocupacao) : ""
+  ].filter(Boolean);
+  const name = patient.nome?.trim();
+  return `Paciente${name ? ` ${name}` : ""}${details.length ? `, ${details.join(", ")}` : ""}`;
+}
+
+function evolutionAntecedentsText(form = {}) {
+  const parts = [
+    joinWithOutro(form.psiPrevios, form.psiPreviosOutro) ? `Apresenta antecedentes psiquiátricos de ${lowerFirst(joinWithOutro(form.psiPrevios, form.psiPreviosOutro))}.` : "",
+    joinWithOutro(form.tratamentos, form.tratamentosOutro) ? `Realizou tratamentos prévios com ${lowerFirst(joinWithOutro(form.tratamentos, form.tratamentosOutro))}.` : "",
+    joinWithOutro(form.medicos, form.medicosOutro) ? `Apresenta antecedentes médicos de ${lowerFirst(joinWithOutro(form.medicos, form.medicosOutro))}.` : "",
+    joinWithOutro(form.familiares, form.familiaresOutro) ? `Há antecedentes familiares de ${lowerFirst(joinWithOutro(form.familiares, form.familiaresOutro))}.` : "",
+    joinWithOutro(form.substancias, form.substanciasOutro) ? `Relata hábitos ou uso de substâncias relacionados a ${lowerFirst(joinWithOutro(form.substancias, form.substanciasOutro))}.` : "",
+    joinWithOutro(form.usoSubstanciasComportamentos, form.usoSubstanciasComportamentosOutro) ? `Foram registrados hábitos, substâncias ou comportamentos aditivos: ${lowerFirst(joinWithOutro(form.usoSubstanciasComportamentos, form.usoSubstanciasComportamentosOutro))}.` : ""
+  ].filter(Boolean);
+  return parts.join(" ");
 }
 
 function conciseIdentityText(patient = {}) {
@@ -2960,12 +3000,29 @@ function pdfEntry(id, type) {
 }
 
 function recordReportText(entry = {}) {
-  const evolution = normalizeEvolutionNarrative(entry.evolution);
-  return normalizeEvolutionNarrative([
+  const evolution = entry.type === "return"
+    ? removeReturnBoilerplate(normalizeEvolutionNarrative(entry.evolution))
+    : normalizeEvolutionNarrative(entry.evolution);
+  const report = normalizeEvolutionNarrative([
     evolution,
     entry.observacoesRetorno ? `Observações do retorno: ${stripFinalPeriod(entry.observacoesRetorno)}.` : "",
     !evolution ? anamnesisText(entry) : ""
-  ].filter(Boolean).join("\n\n")) || "Registro sem evolução.";
+  ].filter(Boolean).join("\n\n"));
+  return (entry.type === "return" ? removeReturnBoilerplate(report) : report) || "Registro sem evolução.";
+}
+
+function removeReturnBoilerplate(value = "") {
+  const phrases = [
+    "Sem antecedentes relevantes informados.",
+    "Sem antecedentes ou habitos relevantes informados ate o momento.",
+    "Sem alterações descritas no exame psíquico.",
+    "Paciente sem alteracoes descritas no exame psiquico.",
+    "Hipóteses diagnósticas não selecionadas.",
+    "Conduta médica e exames não registrados."
+  ];
+  return phrases.reduce((text, phrase) => text.replaceAll(phrase, " "), value)
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function normalizeEvolutionNarrative(value = "") {
