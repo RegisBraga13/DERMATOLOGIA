@@ -642,19 +642,13 @@ function returnPageBody(form, patient, previous) {
 
 function returnAssessmentBody(form) {
   return `
-    <div class="grid">
-      ${selectField("estadoGeral", "Estado geral desde a ultima consulta", optionGroups.retorno, form.estadoGeral)}
-      ${selectField("sintomasPrincipais", "Sintomas principais", ["Remissao completa", "Melhora importante", "Melhora parcial", "Sem alteracao", "Piora", "Novos sintomas"], form.sintomasPrincipais)}
-      ${selectField("sonoRetorno", "Sono", ["Melhorou", "Sem mudanca", "Piorou", "Insonia inicial", "Insonia intermediaria", "Despertar precoce", "Hipersonia", "Reducao da necessidade de sono"], form.sonoRetorno)}
-      ${selectField("humorRetorno", "Humor", ["Eutimico", "Deprimido", "Ansioso", "Irritavel", "Euforico", "Disforico", "Oscilante"], form.humorRetorno)}
-      ${selectField("ansiedadeRetorno", "Ansiedade", ["Ausente", "Leve", "Moderada", "Grave", "Crises de panico", "Evitacao"], form.ansiedadeRetorno)}
-      ${selectField("funcionalidade", "Funcionalidade", ["Preservada", "Parcialmente prejudicada", "Muito prejudicada", "Incapacidade laboral", "Incapacidade academica", "Prejuizo social", "Prejuizo familiar"], form.funcionalidade)}
-      ${selectField("adesao", "Adesao ao tratamento", ["Regular", "Parcial", "Irregular", "Interrompeu medicacao", "Uso em dose diferente da prescrita", "Esquecimentos frequentes", "Nao iniciou tratamento"], form.adesao)}
-    </div>
-    ${chips("efeitos", "Efeitos colaterais", ["Nenhum", "Sonolencia", "Insonia", "Nauseas", "Tremores", "Boca seca", "Constipacao", "Diarreia", "Disfuncao sexual", "Ganho de peso", "Perda de peso", "Acatisia", "Rigidez", "Discinesia", "Tontura", "Cefaleia", "Outro"], form.efeitos)}
-    ${chips("eventos", "Eventos relevantes no retorno", ["Nenhum", "Conflito familiar", "Conflito conjugal", "Problemas profissionais", "Problemas academicos", "Luto", "Internamento", "Urgencia/emergencia", "Uso de alcool/drogas", "Ideacao suicida", "Tentativa de suicidio", "Autoagressao", "Sintomas psicoticos", "Episodio de agitacao", "Outro"], form.eventos)}
-    ${chips("condutaMedicamentoRetorno", "Medicamento", ["Manter dose", "Aumentar dose", "Diminuir dose", "Retirar", "Trocar medicamento", "Acrescentar medicamento"], form.condutaMedicamentoRetorno)}
-    ${textarea("observacoesRetorno", "Observacoes clinicas do retorno", form.observacoesRetorno)}
+    ${chips("evolucaoClinicaRetorno", "Evolucao clinica", ["Remissao ou melhora", "Estavel", "Piora", "Novos sintomas", "Outro"], form.evolucaoClinicaRetorno)}
+    ${chips("sonoRetorno", "Sono", ["Adequado e reparador", "Insonia", "Hipersonia", "Reducao da necessidade de sono", "Outro"], form.sonoRetorno)}
+    ${chips("humorAnsiedadeRetorno", "Humor e ansiedade", ["Eutimico", "Deprimido", "Ansioso", "Irritavel", "Elevado ou oscilante", "Crise de panico", "Outro"], form.humorAnsiedadeRetorno)}
+    ${chips("adesao", "Adesao ao tratamento", ["Adequada", "Parcial ou irregular", "Nao iniciou ou interrompeu", "Outro"], form.adesao)}
+    ${chips("efeitos", "Efeitos colaterais", ["Nenhum", "Sedacao ou sonolencia", "Sintomas gastrointestinais", "Alteracao de peso ou metabolica", "Efeitos motores", "Disfuncao sexual", "Outro"], form.efeitos)}
+    ${chips("funcionalidadeEventosRetorno", "Funcionalidade e eventos relevantes", ["Nenhum", "Prejuizo funcional", "Conflito, estressor ou luto", "Urgencia ou internacao", "Risco ou autoagressao", "Outro"], form.funcionalidadeEventosRetorno)}
+    ${chips("condutaMedicamentoRetorno", "Medicamento", ["Manter dose", "Aumentar dose", "Diminuir dose", "Retirar", "Trocar medicamento", "Acrescentar medicamento", "Outro"], form.condutaMedicamentoRetorno)}
   `;
 }
 
@@ -1284,7 +1278,7 @@ function bindAutoDraft() {
   forms.forEach(form => {
     form.addEventListener("input", () => updateDraftFromForm(form));
     form.addEventListener("change", event => {
-      if (["maniaHipomaniaSintomas", "psicoseSintomas", "riscoSuicidioIndicadores", "eventos"].includes(event.target?.name) && event.target.checked) {
+      if (["maniaHipomaniaSintomas", "psicoseSintomas", "riscoSuicidioIndicadores", "eventos", "efeitos", "funcionalidadeEventosRetorno"].includes(event.target?.name) && event.target.checked) {
         const options = form.querySelectorAll(`input[name='${event.target.name}']`);
         const denialOptions = ["Nega sintomas relacionados", "Nega ideacao, plano ou intencao suicida", "Nenhum"];
         if (denialOptions.includes(event.target.value)) {
@@ -2441,7 +2435,10 @@ function buildEvolutionNarrative(form, patient = {}, previous = null, isReturn =
 function professionalTreatmentText(form = {}, isReturn = false) {
   const medications = professionalSelectedTreatmentItems(form.tratamentoMedicamentosSelecionados, form.tratamentoMedicamentoso);
   const approaches = professionalSelectedTreatmentItems(form.abordagensSelecionadas, form.abordagensTerapeuticas);
-  const returnMedicationActions = professionalList(form.condutaMedicamentoRetorno);
+  const returnMedicationActions = professionalListWithOther(
+    form.condutaMedicamentoRetorno,
+    form.condutaMedicamentoRetornoOutro
+  );
   const physicianPlan = professionalClinicalTerms(stripFinalPeriod(form.condutaMedica || ""));
   const selectedExams = professionalClinicalTerms(requestedExamsText(form) || form.examesLaboratoriais || "");
   const sentences = [
@@ -2617,7 +2614,12 @@ function conciseIdentityText(patient = {}) {
 }
 
 function conciseComplaintText(form = {}, isReturn = false) {
-  if (isReturn) return stripFinalPeriod(form.sintomasPrincipais || form.observacoesRetorno || "Queixa de retorno não informada");
+  if (isReturn) return stripFinalPeriod(
+    joinWithOutro(form.evolucaoClinicaRetorno, form.evolucaoClinicaRetornoOutro)
+    || form.sintomasPrincipais
+    || form.observacoesRetorno
+    || "Queixa de retorno não informada"
+  );
   const qphda = anamnesisText(form);
   return cleanClinicalLine(form.queixa || firstLineFromQphda(qphda) || "Queixa principal não informada");
 }
@@ -2694,18 +2696,22 @@ function clinicalAnamnesisSection(form, previous = null, isReturn = false) {
 }
 
 function returnAnamnesisSection(form, previous) {
+  const clinicalEvolution = joinWithOutro(form.evolucaoClinicaRetorno, form.evolucaoClinicaRetornoOutro);
+  const sleep = joinWithOutro(form.sonoRetorno, form.sonoRetornoOutro);
+  const moodAndAnxiety = joinWithOutro(form.humorAnsiedadeRetorno, form.humorAnsiedadeRetornoOutro);
+  const adherence = joinWithOutro(form.adesao, form.adesaoOutro);
+  const adverseEffects = joinWithOutro(form.efeitos, form.efeitosOutro);
+  const functionalityAndEvents = joinWithOutro(form.funcionalidadeEventosRetorno, form.funcionalidadeEventosRetornoOutro);
+  const medicationPlan = joinWithOutro(form.condutaMedicamentoRetorno, form.condutaMedicamentoRetornoOutro);
   const parts = [
     previous ? `Retorna apos avaliacao registrada em ${new Date(previous.createdAt || Date.now()).toLocaleDateString("pt-BR")}.` : "Comparece para retorno psiquiatrico.",
-    form.estadoGeral ? `Refere evolucao global ${form.estadoGeral.toLowerCase()} desde a ultima avaliacao.` : "",
-    form.sintomasPrincipais ? `Relata como sintomas principais ${lowerFirst(stripFinalPeriod(form.sintomasPrincipais))}.` : "",
-    form.sonoRetorno ? `Sono descrito como ${lowerFirst(stripFinalPeriod(form.sonoRetorno))}.` : "",
-    form.humorRetorno ? `Humor predominante ${lowerFirst(stripFinalPeriod(form.humorRetorno))}.` : "",
-    form.ansiedadeRetorno ? `Ansiedade ${lowerFirst(stripFinalPeriod(form.ansiedadeRetorno))}.` : "",
-    form.funcionalidade ? `Funcionalidade ${lowerFirst(stripFinalPeriod(form.funcionalidade))}.` : "",
-    form.adesao ? `Adesao ao tratamento ${lowerFirst(stripFinalPeriod(form.adesao))}.` : "",
-    joinValues(form.efeitos) ? `Efeitos colaterais registrados: ${joinValues(form.efeitos)}.` : "",
-    joinValues(form.eventos) ? `Eventos relevantes no periodo: ${joinValues(form.eventos)}.` : "",
-    joinValues(form.condutaMedicamentoRetorno) ? `Conduta medicamentosa no retorno: ${joinValues(form.condutaMedicamentoRetorno)}.` : "",
+    clinicalEvolution ? `Evolucao clinica: ${lowerFirst(clinicalEvolution)}.` : (form.estadoGeral || form.sintomasPrincipais ? `Evolucao clinica: ${lowerFirst([form.estadoGeral, form.sintomasPrincipais].filter(Boolean).join(", "))}.` : ""),
+    sleep ? `Sono: ${lowerFirst(sleep)}.` : "",
+    moodAndAnxiety ? `Humor e ansiedade: ${lowerFirst(moodAndAnxiety)}.` : (form.humorRetorno || form.ansiedadeRetorno ? `Humor e ansiedade: ${lowerFirst([form.humorRetorno, form.ansiedadeRetorno].filter(Boolean).join(", "))}.` : ""),
+    adherence ? `Adesao ao tratamento: ${lowerFirst(adherence)}.` : "",
+    adverseEffects ? `Efeitos colaterais: ${lowerFirst(adverseEffects)}.` : "",
+    functionalityAndEvents ? `Funcionalidade e eventos relevantes: ${lowerFirst(functionalityAndEvents)}.` : (form.funcionalidade || joinValues(form.eventos) ? `Funcionalidade e eventos relevantes: ${lowerFirst([form.funcionalidade, joinValues(form.eventos)].filter(Boolean).join(", "))}.` : ""),
+    medicationPlan ? `Conduta medicamentosa no retorno: ${lowerFirst(medicationPlan)}.` : "",
     form.observacoesRetorno ? `Observacoes clinicas adicionais: ${stripFinalPeriod(form.observacoesRetorno)}.` : ""
   ].filter(Boolean);
   return parts.join(" ") || "Dados de retorno ainda nao preenchidos.";
@@ -2892,18 +2898,22 @@ function consultationStoryText(form) {
 }
 
 function returnStoryText(form, previous) {
+  const clinicalEvolution = joinWithOutro(form.evolucaoClinicaRetorno, form.evolucaoClinicaRetornoOutro);
+  const sleep = joinWithOutro(form.sonoRetorno, form.sonoRetornoOutro);
+  const moodAndAnxiety = joinWithOutro(form.humorAnsiedadeRetorno, form.humorAnsiedadeRetornoOutro);
+  const adherence = joinWithOutro(form.adesao, form.adesaoOutro);
+  const adverseEffects = joinWithOutro(form.efeitos, form.efeitosOutro);
+  const functionalityAndEvents = joinWithOutro(form.funcionalidadeEventosRetorno, form.funcionalidadeEventosRetornoOutro);
+  const medicationPlan = joinWithOutro(form.condutaMedicamentoRetorno, form.condutaMedicamentoRetornoOutro);
   const parts = [
     previous ? `Retorna apos registro previo de ${new Date(previous.createdAt || Date.now()).toLocaleDateString("pt-BR")}.` : "Comparece para retorno psiquiatrico.",
-    form.estadoGeral ? `Desde a ultima avaliacao, refere evolucao global: ${form.estadoGeral.toLowerCase()}.` : "",
-    form.sintomasPrincipais ? `Relata como sintomas principais: ${form.sintomasPrincipais.toLowerCase()}.` : "",
-    form.sonoRetorno ? `Sono: ${form.sonoRetorno.toLowerCase()}.` : "",
-    form.humorRetorno ? `Humor predominante: ${form.humorRetorno.toLowerCase()}.` : "",
-    form.ansiedadeRetorno ? `Ansiedade: ${form.ansiedadeRetorno.toLowerCase()}.` : "",
-    form.funcionalidade ? `Funcionalidade: ${form.funcionalidade.toLowerCase()}.` : "",
-    form.adesao ? `Adesao ao tratamento: ${form.adesao.toLowerCase()}.` : "",
-    joinValues(form.efeitos) ? `Efeitos colaterais registrados: ${joinValues(form.efeitos)}.` : "",
-    joinValues(form.eventos) ? `Eventos relevantes no periodo: ${joinValues(form.eventos)}.` : "",
-    joinValues(form.condutaMedicamentoRetorno) ? `Conduta medicamentosa no retorno: ${joinValues(form.condutaMedicamentoRetorno)}.` : "",
+    clinicalEvolution ? `Evolucao clinica: ${lowerFirst(clinicalEvolution)}.` : (form.estadoGeral || form.sintomasPrincipais ? `Evolucao clinica: ${lowerFirst([form.estadoGeral, form.sintomasPrincipais].filter(Boolean).join(", "))}.` : ""),
+    sleep ? `Sono: ${lowerFirst(sleep)}.` : "",
+    moodAndAnxiety ? `Humor e ansiedade: ${lowerFirst(moodAndAnxiety)}.` : (form.humorRetorno || form.ansiedadeRetorno ? `Humor e ansiedade: ${lowerFirst([form.humorRetorno, form.ansiedadeRetorno].filter(Boolean).join(", "))}.` : ""),
+    adherence ? `Adesao ao tratamento: ${lowerFirst(adherence)}.` : "",
+    adverseEffects ? `Efeitos colaterais: ${lowerFirst(adverseEffects)}.` : "",
+    functionalityAndEvents ? `Funcionalidade e eventos relevantes: ${lowerFirst(functionalityAndEvents)}.` : (form.funcionalidade || joinValues(form.eventos) ? `Funcionalidade e eventos relevantes: ${lowerFirst([form.funcionalidade, joinValues(form.eventos)].filter(Boolean).join(", "))}.` : ""),
+    medicationPlan ? `Conduta medicamentosa no retorno: ${lowerFirst(medicationPlan)}.` : "",
     form.observacoesRetorno ? `Observacoes clinicas adicionais: ${form.observacoesRetorno}` : ""
   ].filter(Boolean);
   return parts.join(" ");
