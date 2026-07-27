@@ -527,6 +527,7 @@ function returnForm() {
     </div>
     <form id="return-form">
       ${isSavedEntry ? recordReturnAction("Retorno anterior aberto para revisao") : ""}
+      ${returnRecordAccessPanel(form, patient.id)}
       ${returnConsultationAccessPanel(form, patient.id)}
       <div class="warning">Resumo anterior: ${previous ? escapeHtml(previous.label) + " - " + escapeHtml((normalizeEvolutionNarrative(previous.evolution) || anamnesisText(previous)).slice(0, 180)) : "sem registros anteriores."}</div>
       ${formPageTabs("return")}
@@ -545,6 +546,21 @@ function consultationAccessPanel(consultations, form) {
           ${escapeHtml(entry.label)}
         </button>
       `).join("")}
+    </div>
+  </div>`;
+}
+
+function returnRecordAccessPanel(form, patientId) {
+  const returns = returnsForPatient(patientId);
+  return `<div class="clinical-card record-access">
+    <h4>Retornos salvos deste paciente</h4>
+    <div class="actions">
+      <button class="secondary" type="button" data-action="new-return">Novo retorno</button>
+      ${returns.length ? returns.map(entry => `
+        <button class="secondary ${entry.id === form.id ? "active" : ""}" type="button" data-action="edit-entry" data-id="${entry.id}" data-type="return">
+          ${escapeHtml(entry.label)} · ${new Date(entry.createdAt || Date.now()).toLocaleString("pt-BR")}
+        </button>
+      `).join("") : `<span class="record-empty-state">Nenhum retorno salvo.</span>`}
     </div>
   </div>`;
 }
@@ -1126,6 +1142,11 @@ function pageStepActions(scope) {
   const recordLabel = current.id
     ? (scope === "return" ? "Atualizar retorno" : "Atualizar consulta")
     : (scope === "return" ? "Salvar retorno" : "Salvar consulta");
+  if (scope === "return" && nextPage) {
+    return `<div class="actions page-actions">
+      <button class="primary" type="button" data-action="save-next-page" data-scope="return">Salvar e avançar</button>
+    </div>`;
+  }
   return `<div class="actions page-actions">
     ${nextPage ? `<button class="primary" type="button" data-action="save-next-page" data-scope="${scope}">Salvar pagina e avancar</button>` : ""}
     <button class="secondary" type="submit">${recordLabel}</button>
@@ -1379,6 +1400,7 @@ function bindActions() {
       if (action === "edit-current-patient") { view = "patient"; draft.patient = structuredClone(getPatient()); render(); }
       if (action === "edit-entry") editEntry(element.dataset.id, element.dataset.type);
       if (action === "new-consultation") { draft.consultation = defaultConsultation(); consultationPage = "anamnese"; render(); }
+      if (action === "new-return") { draft.return = defaultReturn(); returnPage = "evolucao-retorno"; render(); }
       if (action === "back-to-record") { view = "record"; render(); }
       if (action === "pdf-entry") pdfEntry(element.dataset.id, element.dataset.type);
       if (action === "delete-entry") deleteEntry(element.dataset.id, element.dataset.type);
@@ -3193,6 +3215,12 @@ function entriesForPatient(patientId) {
 
 function consultationsForPatient(patientId) {
   return state.consultations
+    .filter(entry => entry.patientId === patientId)
+    .sort(compareEntriesNewestFirst);
+}
+
+function returnsForPatient(patientId) {
+  return state.returns
     .filter(entry => entry.patientId === patientId)
     .sort(compareEntriesNewestFirst);
 }
