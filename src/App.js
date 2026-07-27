@@ -2339,7 +2339,30 @@ function evolutionPatientIdentification(patient = {}) {
   ].filter(Boolean);
   const name = patient.nome?.trim();
   const identification = `Paciente${name ? ` ${name}` : ""}${details.length ? `, ${details.join(", ")}` : ""}`;
-  return `${identification}${isAwayFromWork ? ", está afastado do trabalho" : ""}`;
+  const socialDetails = [
+    patient.escolaridade ? `possui ${lowerFirst(professionalEducation(patient.escolaridade))}` : "",
+    patient.religiao ? `declara-se ${lowerFirst(professionalReligion(patient.religiao))}` : ""
+  ].filter(Boolean);
+  return [
+    identification,
+    isAwayFromWork ? "Está afastado do trabalho" : "",
+    socialDetails.length ? `${capitalizeFirst(formatPlainList(socialDetails))}` : ""
+  ].filter(Boolean).join(". ");
+}
+
+function professionalEducation(value = "") {
+  return professionalClinicalTerms(value)
+    .replace(/^fundamental\b/i, "ensino fundamental")
+    .replace(/^medio\b/i, "ensino médio")
+    .replace(/^superior\b/i, "ensino superior")
+    .replace(/\bpos-graduacao\b/gi, "pós-graduação");
+}
+
+function professionalReligion(value = "") {
+  return professionalClinicalTerms(value)
+    .replace(/\bsem religiao\b/gi, "sem religião")
+    .replace(/\bcatolica\b/gi, "católica")
+    .replace(/\bagnostico\b/gi, "agnóstico");
 }
 
 function evolutionAntecedentsText(form = {}) {
