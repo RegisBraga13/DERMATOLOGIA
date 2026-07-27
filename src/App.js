@@ -729,8 +729,6 @@ function medicationBody(form) {
     <div class="medication-reference">
       <header class="medication-reference-head">
         <span class="eyebrow">CONSULTA FARMACOLÓGICA · BRASIL</span>
-        <h3>Medicamentos</h3>
-        <p>Resultados brasileiros e em português aparecem primeiro. Digite o princípio ativo, nome genérico ou comercial.</p>
       </header>
       <div class="medication-search-shell">
         <span class="medication-search-icon" aria-hidden="true">⌕</span>
