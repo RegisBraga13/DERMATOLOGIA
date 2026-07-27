@@ -1684,7 +1684,8 @@ function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = null, i
       "Apresente o exame em um novo paragrafo iniciado por: No exame psiquico, apresenta-se [...].",
       "Elimine repeticoes e palavras desnecessarias, sem omitir dados clinicamente relevantes.",
       "No exame psiquico, descreva os achados de forma direta e integrada ao texto.",
-      "Use apenas as hipoteses assinaladas pelo psiquiatra e, na conduta, apenas o preenchimento medico e os exames solicitados."
+      "Use apenas as hipoteses assinaladas pelo psiquiatra.",
+      "Finalize com o tratamento efetivamente selecionado ou registrado: medicamentos, medidas nao farmacologicas, ajustes do medico e exames solicitados. Omita categorias sem registro."
     ],
     medication: [
       "Preencha somente os campos solicitados sobre o medicamento informado.",
@@ -1719,6 +1720,8 @@ function clinicalEvolutionPromptData(form = {}, patient = {}, previous = null, i
     `Antecedentes: ${conciseAntecedentsText(form)}.`,
     `Exame psiquico: ${conciseMentalExamText(form)}.`,
     `HD/Hipoteses assinaladas: ${conciseDiagnosticText(form)}.`,
+    `Tratamento medicamentoso selecionado: ${professionalSelectedTreatmentItems(form.tratamentoMedicamentosSelecionados, form.tratamentoMedicamentoso) || "nao informado"}.`,
+    `Medidas nao farmacologicas selecionadas: ${professionalSelectedTreatmentItems(form.abordagensSelecionadas, form.abordagensTerapeuticas) || "nao informado"}.`,
     `Preenchimento pelo medico: ${cleanClinicalLine(form.condutaMedica || "") || "nao informado"}.`,
     `Exames solicitados: ${cleanClinicalLine(requestedExamsText(form) || form.examesLaboratoriais || "") || "nao informado"}.`
   ].join("\n");
@@ -2305,11 +2308,7 @@ function buildEvolutionNarrative(form, patient = {}, previous = null, isReturn =
   const antecedents = evolutionAntecedentsText(form);
   const mentalFindings = mentalStateFindings(form);
   const diagnosis = selectedDiagnosisText(form) || form.diagnosticoSelecionadoResumo || form.diagnosticoManual || "";
-  const selectedExams = requestedExamsText(form) || form.examesLaboratoriais;
-  const treatment = [
-    form.condutaMedica ? cleanClinicalLine(form.condutaMedica) : "",
-    selectedExams ? `Foram solicitados ${cleanClinicalLine(selectedExams)}` : ""
-  ].filter(Boolean).join(". ");
+  const treatment = professionalTreatmentText(form, isReturn);
 
   const opening = isReturn
     ? `${evolutionPatientIdentification(patient)} comparece em retorno. ${history}.`
@@ -2325,8 +2324,33 @@ function buildEvolutionNarrative(form, patient = {}, previous = null, isReturn =
     antecedents,
     mentalFindings.length ? `No exame psíquico, apresenta ${formatPlainList(mentalFindings.map(professionalMentalFinding))}.` : "",
     diagnosis ? `Consideram-se as hipóteses diagnósticas assinaladas de ${stripFinalPeriod(diagnosis)}.` : "",
-    treatment ? `${stripFinalPeriod(treatment)}.` : ""
+    treatment
   ].filter(Boolean).join("\n\n"));
+}
+
+function professionalTreatmentText(form = {}, isReturn = false) {
+  const medications = professionalSelectedTreatmentItems(form.tratamentoMedicamentosSelecionados, form.tratamentoMedicamentoso);
+  const approaches = professionalSelectedTreatmentItems(form.abordagensSelecionadas, form.abordagensTerapeuticas);
+  const returnMedicationActions = professionalList(form.condutaMedicamentoRetorno);
+  const physicianPlan = professionalClinicalTerms(stripFinalPeriod(form.condutaMedica || ""));
+  const selectedExams = professionalClinicalTerms(requestedExamsText(form) || form.examesLaboratoriais || "");
+  const sentences = [
+    medications ? `O tratamento medicamentoso selecionado inclui ${lowerFirst(medications)}.` : "",
+    approaches ? `Como medidas não farmacológicas, foram selecionadas ${lowerFirst(approaches)}.` : "",
+    isReturn && returnMedicationActions ? `A conduta medicamentosa definida no retorno inclui ${lowerFirst(returnMedicationActions)}.` : "",
+    physicianPlan ? `A conduta médica registrada consiste em ${lowerFirst(physicianPlan)}.` : "",
+    selectedExams ? `Foram solicitados ${lowerFirst(selectedExams)}.` : ""
+  ].filter(Boolean);
+  return sentences.join(" ");
+}
+
+function professionalSelectedTreatmentItems(selected, fallback = "") {
+  const values = arrayValue(selected);
+  const items = values.length ? values : treatmentOptionLines(fallback);
+  return formatPlainList(items.map(item => professionalClinicalTerms(stripFinalPeriod(item))
+    .replace(/\s*\|\s*/g, ", ")
+    .replace(/\s+/g, " ")
+    .trim()));
 }
 
 function evolutionPatientIdentification(patient = {}) {
