@@ -1470,6 +1470,30 @@ textarea:focus {
   }
 }
 
+.evolution-standard {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+
+.evolution-standard strong {
+  font-family: var(--font-editorial);
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.evolution-standard span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+textarea[name="evolution"] {
+  min-height: 520px;
+  font-size: 16px;
+  line-height: 1.75;
+}
+
 @media (max-width: 640px) {
   .dashboard-intro h2 { font-size: clamp(34px, 11vw, 48px); }
   .dashboard-metrics > div { border-right: 0; }

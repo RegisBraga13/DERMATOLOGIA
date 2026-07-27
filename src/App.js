@@ -811,12 +811,16 @@ function evolutionBody(form, patient, previous = null, isReturn = false) {
   const evolution = outdatedEvolutionText(form.evolution) ? "" : (form.evolution || "");
   const generatedEvolution = buildEvolutionNarrative(form, patient, previous, isReturn);
   return `
+    <div class="info-box evolution-standard">
+      <strong>Evolução médico-psiquiátrica em modelo SOAP</strong>
+      <span>Texto técnico, objetivo, impessoal e cronológico. Achados presentes, negativas explícitas e dados não informados são diferenciados.</span>
+    </div>
     <div class="actions">
-      <button class="primary" type="button" data-action="generate-evolution">Atualizar evolução</button>
+      <button class="primary" type="button" data-action="generate-evolution">Gerar evolução SOAP</button>
       <button class="secondary" type="button" data-action="copy-ai-prompt" data-prompt-kind="evolution">Copiar prompt para IA</button>
     </div>
     ${form.aiStatus ? `<p class="online-status">${escapeHtml(form.aiStatus)}</p>` : ""}
-    ${textarea("evolution", "Evolução clínica final", evolution || generatedEvolution)}
+    ${textarea("evolution", "Evolução médica final — narrativa SOAP", evolution || generatedEvolution)}
   `;
 }
 
@@ -1657,10 +1661,16 @@ function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = null, i
       "Sinalize necessidade de verificacao medica de contraindicações, interacoes, gestacao, funcao renal/hepatica e monitorizacao quando pertinente."
     ],
     evolution: [
-      "Transforme os dados brutos em uma Evolucao Clinica formal, fluida, tecnica e profissional.",
-      "Use apenas informacoes clinicamente necessarias, sem repeticoes e sem copiar nomes de campos dentro do texto.",
-      "No exame psiquico, escreva achados diretos, por exemplo: memoria preservada, humor depressivo; nao escreva Memoria: memoria preservada.",
-      "Em HD, use apenas as hipoteses assinaladas pelo psiquiatra. Em Tratamento, use apenas Preenchimento pelo medico e exames solicitados."
+      "Redija uma evolucao medico-psiquiatrica narrativa-descritiva, formal, tecnica, denotativa, objetiva e concisa.",
+      "Utilize terminologia cientifica rigorosa e redacao impessoal, em terceira pessoa do singular ou voz passiva.",
+      "Organize obrigatoriamente em SOAP: S — Subjetivo; O — Objetivo; A — Avaliacao; P — Plano.",
+      "Preserve a cronologia informada. Priorize acontecimentos das ultimas 24 horas quando esse recorte estiver documentado; caso contrario, declare que nao ha recorte temporal de 24 horas registrado.",
+      "Valorize tanto dados positivos quanto ausencias clinicamente relevantes. Diferencie negacao explicita (por exemplo, paciente nega ideacao suicida) de dado nao informado.",
+      "Nunca interprete campo vazio como normalidade, ausencia de sintoma ou negacao. Use expressoes como nao informado, nao avaliado ou nao registrado.",
+      "Nao repita informacoes entre secoes e nao reproduza mecanicamente os nomes dos campos.",
+      "No exame psiquico, converta os itens assinalados em descricao tecnica direta e coerente.",
+      "Em Avaliacao, use exclusivamente as hipoteses assinaladas pelo psiquiatra. Se nao houver hipotese assinalada, registre essa ausencia.",
+      "Em Plano, use exclusivamente ajustes/condutas registrados pelo medico e exames solicitados. Nao acrescente recomendacoes, medicamentos ou doses."
     ],
     medication: [
       "Preencha somente os campos solicitados sobre o medicamento informado.",
@@ -1689,14 +1699,16 @@ function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = null, i
 
 function clinicalEvolutionPromptData(form = {}, patient = {}, previous = null, isReturn = false) {
   return [
-    `Identidade: ${conciseIdentityText(patient)}.`,
-    `Queixa principal: ${conciseComplaintText(form, isReturn)}.`,
-    `HDA: ${conciseHdaText(form, previous, isReturn)}.`,
-    `Antecedentes: ${conciseAntecedentsText(form)}.`,
-    `Exame psiquico: ${conciseMentalExamText(form)}.`,
-    `HD/Hipoteses assinaladas: ${conciseDiagnosticText(form)}.`,
-    `Preenchimento pelo medico: ${cleanClinicalLine(form.condutaMedica || "") || "nao informado"}.`,
-    `Exames solicitados: ${cleanClinicalLine(requestedExamsText(form) || form.examesLaboratoriais || "") || "nao informado"}.`
+    `Identificacao: ${conciseIdentityText(patient)}.`,
+    `Tipo de atendimento: ${isReturn ? "retorno" : "consulta inicial/nova consulta"}.`,
+    `Recorte temporal: ${evolutionTimeframeText(form, previous, isReturn)}.`,
+    `Dados subjetivos registrados: ${clinicalAnamnesisSection(form, previous, isReturn)}`,
+    `Antecedentes registrados: ${conciseAntecedentsText(form)}.`,
+    `Dados objetivos — exame psiquico: ${clinicalMentalExamSection(form)}`,
+    "Dados objetivos — sinais vitais e exame fisico: nao registrados neste formulario.",
+    `Avaliacao — hipoteses assinaladas: ${selectedDiagnosisText(form) || "nenhuma hipotese assinalada pelo medico"}.`,
+    `Plano — conduta/ajustes do medico: ${cleanClinicalLine(form.condutaMedica || "") || "nao registrados"}.`,
+    `Plano — exames solicitados: ${cleanClinicalLine(requestedExamsText(form) || form.examesLaboratoriais || "") || "nenhum exame registrado"}.`
   ].join("\n");
 }
 
@@ -1779,19 +1791,21 @@ function promptResponseFormat(kind) {
     ].join("\n");
   }
   return [
-    "**Identidade**",
+    "**S — Subjetivo**",
     "",
-    "**Queixa principal**",
+    "Narrativa cronológica do relato, sintomas, negativas explícitas e antecedentes pertinentes.",
     "",
-    "**HDA**",
+    "**O — Objetivo**",
     "",
-    "**Antecedentes**",
+    "Exame psíquico e demais dados objetivos efetivamente registrados.",
     "",
-    "**Exame Psiquico**",
+    "**A — Avaliação**",
     "",
-    "**HD**",
+    "Somente hipóteses assinaladas pelo médico ou registro de que não foram assinaladas.",
     "",
-    "**Tratamento**"
+    "**P — Plano**",
+    "",
+    "Somente condutas médicas e exames registrados."
   ].join("\n");
 }
 
@@ -2286,14 +2300,55 @@ function treatmentPlanForDiagnosis(diagnosisText) {
 
 function buildEvolutionNarrative(form, patient = {}, previous = null, isReturn = false) {
   return [
-    markdownEvolutionItem("Identidade", conciseIdentityText(patient)),
-    markdownEvolutionItem("Queixa principal", conciseComplaintText(form, isReturn)),
-    markdownEvolutionItem("HDA", conciseHdaText(form, previous, isReturn)),
-    markdownEvolutionItem("Antecedentes", conciseAntecedentsText(form)),
-    markdownEvolutionItem("Exame Psíquico", conciseMentalExamText(form)),
-    markdownEvolutionItem("HD", conciseDiagnosticText(form)),
-    markdownEvolutionItem("Tratamento", conciseTreatmentText(form))
+    markdownEvolutionItem("S — Subjetivo", soapSubjectiveText(form, patient, previous, isReturn)),
+    markdownEvolutionItem("O — Objetivo", soapObjectiveText(form)),
+    markdownEvolutionItem("A — Avaliação", soapAssessmentText(form)),
+    markdownEvolutionItem("P — Plano", soapPlanText(form))
   ].join("\n\n");
+}
+
+function evolutionTimeframeText(form = {}, previous = null, isReturn = false) {
+  if (isReturn && previous) {
+    const date = new Date(previous.createdAt || Date.now()).toLocaleDateString("pt-BR");
+    return `evolucao desde o registro anterior de ${date}; nao ha delimitacao especifica das ultimas 24 horas, salvo quando descrita no relato`;
+  }
+  return "atendimento atual; nao ha recorte especifico das ultimas 24 horas documentado";
+}
+
+function soapSubjectiveText(form = {}, patient = {}, previous = null, isReturn = false) {
+  const identity = conciseIdentityText(patient);
+  const narrative = clinicalAnamnesisSection(form, previous, isReturn);
+  const antecedents = conciseAntecedentsText(form);
+  const timeframe = evolutionTimeframeText(form, previous, isReturn);
+  return polishClinicalText(
+    `${identity}. ${narrative} Antecedentes pertinentes: ${lowerFirst(antecedents)}. ` +
+    `Recorte temporal: ${timeframe}.`
+  );
+}
+
+function soapObjectiveText(form = {}) {
+  const mentalExam = clinicalMentalExamSection(form);
+  return polishClinicalText(
+    `Ao exame psíquico, ${lowerFirst(mentalExam)} ` +
+    "Sinais vitais e dados de exame físico não foram registrados neste formulário."
+  );
+}
+
+function soapAssessmentText(form = {}) {
+  const selected = selectedDiagnosisText(form);
+  return selected
+    ? polishClinicalText(`Mantêm-se como hipóteses assinaladas pelo médico: ${selected}.`)
+    : "Não há hipótese diagnóstica assinalada pelo médico até o presente registro.";
+}
+
+function soapPlanText(form = {}) {
+  const medicalPlan = cleanClinicalLine(form.condutaMedica || "");
+  const exams = cleanClinicalLine(requestedExamsText(form) || form.examesLaboratoriais || "");
+  const planParts = [
+    medicalPlan ? `Registrada a seguinte conduta médica: ${medicalPlan}.` : "Não há conduta médica registrada.",
+    exams ? `Foram solicitados os seguintes exames: ${exams}.` : "Não há exames solicitados registrados."
+  ];
+  return polishClinicalText(planParts.join(" "));
 }
 
 function markdownEvolutionItem(title, body) {
@@ -2333,7 +2388,7 @@ function conciseMentalExamText(form = {}) {
     .flatMap(key => clinicalMentalValues(form, key))
     .map(cleanClinicalLine)
     .filter(Boolean);
-  return findings.length ? formatClinicalList(findings) : "Sem alterações descritas no exame psíquico";
+  return findings.length ? formatClinicalList(findings) : "Não há achados do exame psíquico registrados neste formulário";
 }
 
 function conciseDiagnosticText(form = {}) {
@@ -2489,7 +2544,7 @@ function clinicalMentalExamSection(form) {
     clinicalMentalGroupSentence(form, "psicomotricidadeVontade", "Psicomotricidade e vontade"),
     clinicalMentalGroupSentence(form, "juizoCritico", "Juizo critico")
   ].filter(Boolean);
-  return polishClinicalText(sentences.join(" ") || "Paciente sem alteracoes descritas no exame psiquico.");
+  return polishClinicalText(sentences.join(" ") || "Nao ha achados do exame psiquico registrados neste formulario.");
 }
 
 function clinicalMentalGroupSentence(form, key, label) {
