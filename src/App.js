@@ -687,10 +687,12 @@ function diagnosisModule(form) {
     <div class="diagnosis-ai-panel">
       <h4>Hipoteses diagnosticas geradas por IA</h4>
       <p class="online-status">Auxilio inicial ao psiquiatra, elaborado a partir da anamnese completa e do exame psiquico. As opcoes nao constituem diagnostico e exigem revisao clinica.</p>
+      ${aiModeSelector(form.aiMode)}
       <div class="actions">
         <button class="primary" type="button" data-action="generate-diagnosis">Gerar 6 hipoteses</button>
       </div>
       ${aiStatus ? `<p class="online-status">${escapeHtml(aiStatus)}</p>` : ""}
+      ${ragSourcesView(form.ragSources)}
     </div>
     <textarea hidden name="diagnosticoManual">${escapeHtml(selectedText)}</textarea>
     <textarea hidden name="diagnosticoAiOpcoes">${escapeHtml(mainOptions.join("\n"))}</textarea>
@@ -734,6 +736,20 @@ function diagnosisAiStatusText(message = "") {
   return message;
 }
 
+function aiModeSelector(value = "current") {
+  return `<fieldset class="ai-mode-selector">
+    <legend>Fonte da resposta</legend>
+    <label><input type="radio" name="aiMode" value="current" ${value !== "rag" ? "checked" : ""} /><span>IA atual</span><small>Modelo e regras clinicas atuais</small></label>
+    <label><input type="radio" name="aiMode" value="rag" ${value === "rag" ? "checked" : ""} /><span>RAG com literatura</span><small>Restringe a resposta às fontes indexadas</small></label>
+  </fieldset>`;
+}
+
+function ragSourcesView(sources = []) {
+  if (!Array.isArray(sources) || !sources.length) return "";
+  return `<details class="rag-sources"><summary>${sources.length} fonte(s) recuperada(s)</summary><ol>${sources.map(source => `
+    <li><strong>${escapeHtml(source.filename || "Fonte")}</strong><span>Relevancia: ${Math.round(Number(source.score || 0) * 100)}%</span></li>`).join("")}</ol></details>`;
+}
+
 function medicationModule(form) {
   return section("Medicamentos", medicationBody(form));
 }
@@ -748,10 +764,12 @@ function treatmentModule(form) {
     <div class="diagnosis-ai-panel">
       <h4>Sugestoes de tratamento geradas por IA</h4>
       <p class="online-status">Auxilio ao psiquiatra. A prescricao e a conduta final dependem da avaliacao clinica, contraindicações, interacoes e decisao medica.</p>
+      ${aiModeSelector(form.aiMode)}
       <div class="actions">
         <button class="primary" type="button" data-action="generate-treatment">Gerar opções de tratamento</button>
       </div>
       ${form.treatmentStatus ? `<p class="online-status">${escapeHtml(form.treatmentStatus)}</p>` : ""}
+      ${ragSourcesView(form.ragSources)}
     </div>
     <div class="treatment-card-grid">
       <div class="treatment-card">
@@ -1508,7 +1526,7 @@ async function generateDiagnosisFromClinicalData(element) {
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result } = await requestClinicalAi("diagnosis", buildClinicalAiPrompt("diagnosis", context.target, context.patient, context.previous, context.isReturn));
+    const { result, sources, mode } = await requestClinicalAi("diagnosis", buildClinicalAiPrompt("diagnosis", context.target, context.patient, context.previous, context.isReturn), context.target?.aiMode, buildRagQuery("diagnosis", context.target));
     const localSuggestion = buildDiagnosticSuggestion(context.target || {});
     const localOptions = [
       ...localSuggestion.diagnosticoAiOpcoes.split("\n"),
@@ -1528,10 +1546,14 @@ async function generateDiagnosisFromClinicalData(element) {
       diagnosticoSelecionado: selectedDoctorOptions,
       diagnosticoManual: selectedDoctorOptions.join("\n"),
       diferenciais: "",
+      ragSources: sources,
+      aiMode: mode,
       aiStatus: "3 hipoteses principais e 3 outras hipoteses geradas. Assinale as opcoes clinicamente pertinentes."
     };
   } catch (error) {
-    suggestion = { ...buildDiagnosticSuggestion(target || {}), aiStatus: "6 hipoteses locais aplicadas como contingencia. Revise clinicamente." };
+    suggestion = target?.aiMode === "rag"
+      ? { ragSources: [], aiStatus: `RAG indisponivel: ${error.message}` }
+      : { ...buildDiagnosticSuggestion(target || {}), aiStatus: "6 hipoteses locais aplicadas como contingencia. Revise clinicamente." };
   }
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
   else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
@@ -1552,7 +1574,7 @@ async function generateTreatmentFromClinicalData(element) {
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result } = await requestClinicalAi("treatment", buildClinicalAiPrompt("treatment", context.target, context.patient, context.previous, context.isReturn));
+    const { result, sources, mode } = await requestClinicalAi("treatment", buildClinicalAiPrompt("treatment", context.target, context.patient, context.previous, context.isReturn), context.target?.aiMode, buildRagQuery("treatment", context.target));
     const medicationOptions = result.medication_options.map(formatMedicationTreatmentOption);
     const approachOptions = result.non_pharmacological_options.map(formatNonPharmacologicalOption);
     suggestion = {
@@ -1564,11 +1586,15 @@ async function generateTreatmentFromClinicalData(element) {
       abordagensTerapeuticas: "",
       examesLaboratoriais: requestedExamsText(target || {}),
       condutaMedica: target?.condutaMedica || "",
+      ragSources: sources,
+      aiMode: mode,
       treatmentStatus: "3 opções medicamentosas e 3 abordagens não farmacológicas geradas. Assinale as pertinentes.",
       aiStatus: "Sugestões de tratamento geradas pela IA para revisão médica."
     };
   } catch (error) {
-    suggestion = { ...buildTreatmentSuggestion(target || {}), treatmentStatus: `IA indisponivel: ${error.message}. Rascunho local aplicado.`, aiStatus: `IA indisponivel: ${error.message}. Rascunho local aplicado.` };
+    suggestion = target?.aiMode === "rag"
+      ? { ragSources: [], treatmentStatus: `RAG indisponivel: ${error.message}`, aiStatus: `RAG indisponivel: ${error.message}` }
+      : { ...buildTreatmentSuggestion(target || {}), treatmentStatus: `IA indisponivel: ${error.message}. Rascunho local aplicado.`, aiStatus: `IA indisponivel: ${error.message}. Rascunho local aplicado.` };
   }
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
   else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
@@ -1649,11 +1675,11 @@ function setClinicalAiStatus(scope, message) {
   else draft.consultation = { ...(draft.consultation || {}), aiStatus: message };
 }
 
-async function requestClinicalAi(kind, prompt) {
+async function requestClinicalAi(kind, prompt, mode = "current", ragQuery = "") {
   const response = await fetch("/api/clinical-ai", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ kind, prompt })
+    body: JSON.stringify({ kind, prompt, mode: mode === "rag" ? "rag" : "current", ragQuery })
   });
   let data = {};
   try {
@@ -1668,8 +1694,26 @@ async function requestClinicalAi(kind, prompt) {
   const result = validateClinicalAiPayload(kind, data.result, data.text);
   return {
     result,
-    text: data.text || clinicalAiTextFromResult(kind, result)
+    text: data.text || clinicalAiTextFromResult(kind, result),
+    sources: Array.isArray(data.sources) ? data.sources : [],
+    mode: data.mode || "current"
   };
+}
+
+function buildRagQuery(kind, form = {}) {
+  const diagnosis = treatmentDiagnosisText(form) || form.diagnosticoManual || "";
+  const symptoms = [
+    anamnesisText(form),
+    joinValues(form.maniaHipomaniaSintomas),
+    joinValues(form.ansiedadeSintomas),
+    joinValues(form.depressaoSintomas),
+    joinValues(form.psicoseSintomas),
+    joinValues(form.riscoSuicidioIndicadores),
+    mentalStateFindings(form).join("; ")
+  ].filter(Boolean).join("; ");
+  if (kind === "treatment") return `Diretrizes e tratamento de ${diagnosis}. Dados clinicos relevantes: ${symptoms}`.slice(0, 4000);
+  if (kind === "diagnosis") return `Criterios diagnosticos e diagnostico diferencial para: ${symptoms}`.slice(0, 4000);
+  return `${diagnosis}; ${symptoms}`.slice(0, 4000);
 }
 
 function validateClinicalAiPayload(kind, result, text = "") {

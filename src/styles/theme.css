@@ -625,6 +625,46 @@ details[open] summary:after { content: "-"; }
   margin-bottom: 14px;
 }
 
+.ai-mode-selector {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 14px 0;
+  padding: 0;
+  border: 0;
+}
+
+.ai-mode-selector legend {
+  grid-column: 1 / -1;
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.ai-mode-selector label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 9px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.ai-mode-selector input { grid-row: 1 / 3; width: auto; min-height: auto; margin-top: 3px; }
+.ai-mode-selector span { color: var(--text); font-weight: 700; }
+.ai-mode-selector small { color: var(--muted); line-height: 1.35; }
+
+.rag-sources { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+.rag-sources summary { cursor: pointer; color: var(--text); font-weight: 700; }
+.rag-sources ol { margin: 10px 0 0; padding-left: 20px; }
+.rag-sources li + li { margin-top: 8px; }
+.rag-sources li span { display: block; color: var(--muted); font-size: 11px; }
+
 .diagnosis-options {
   display: grid;
   gap: 8px;
