@@ -673,25 +673,34 @@ function neurologicExamBody(form) {
 }
 
 function clinicalSummaryPage(form = {}) {
+  const groups = clinicalSummaryGroups(form);
+  return `
+    <div class="summary-intro">
+      <p>Consolidação automática dos dados registrados até este momento. Campos sem preenchimento permanecem em branco.</p>
+      <div class="actions summary-actions"><button class="primary" type="button" data-action="pdf-summary">Salvar em PDF</button></div>
+    </div>
+    ${groups.map(group => summaryTable(group.title, group.rows)).join("")}
+  `;
+}
+
+function clinicalSummaryGroups(form = {}) {
   const narrativeRows = [
     summaryTextRow("Anamnese", "Queixa principal e HDA", anamnesisText(form)),
-    summaryTextRow("Anamnese", "Antecedentes médicos", joinValues(form.medicos)),
-    summaryTextRow("Risco", "Fatores impeditivos", form.riscoSuicidioRazoesViver),
-    summaryTextRow("Risco", "Razões para viver", form.riscoSuicidioRazoesParaViver)
+    summaryTextRow("Anamnese", "Antecedentes médicos", joinValues(form.medicos))
   ];
   const anamnesisRows = anamnesisQuestionGroups.flatMap(group => group.items.flatMap(([sectionTitle, items]) =>
-    items.flatMap(item => item.response === "multiple"
-      ? summaryOptionRows(sectionTitle, item.key, item.options || [], form, item.otherKey)
-      : [summaryTextRow(sectionTitle, item.label || item.question || item.key, form[item.key])]
+    items.map(item => item.response === "multiple"
+      ? summaryGroupedOptionRow(sectionTitle, item.label || item.question || sectionTitle, item.key, item.options || [], form, item.otherKey)
+      : summaryTextRow(sectionTitle, item.label || item.question || item.key, form[item.key])
     )
   ));
   const complementaryRows = [
-    ...summaryOptionRows("Antecedentes", "psiPrevios", optionGroups.psiPrevios || [], form, "psiPreviosOutro"),
-    ...summaryOptionRows("Antecedentes", "tratamentos", optionGroups.tratamentos || [], form, "tratamentosOutro"),
-    ...summaryOptionRows("Antecedentes familiares", "familiares", optionGroups.familiares || [], form, "familiaresOutro"),
-    ...summaryOptionRows("Fatores de piora", "fatores", optionGroups.fatores || [], form, "fatoresOutro"),
-    ...summaryOptionRows("Fatores de melhora", "fatoresMelhora", optionGroups.fatoresMelhora || [], form, "fatoresMelhoraOutro"),
-    ...summaryOptionRows("Impacto funcional", "impacto", optionGroups.impacto || [], form, "impactoOutro")
+    summaryGroupedOptionRow("Antecedentes", "Psiquiátricos prévios", "psiPrevios", optionGroups.psiPrevios || [], form, "psiPreviosOutro"),
+    summaryGroupedOptionRow("Antecedentes", "Tratamentos prévios", "tratamentos", optionGroups.tratamentos || [], form, "tratamentosOutro"),
+    summaryGroupedOptionRow("Antecedentes familiares", "História familiar", "familiares", optionGroups.familiares || [], form, "familiaresOutro"),
+    summaryGroupedOptionRow("Fatores de piora", "Fatores identificados", "fatores", optionGroups.fatores || [], form, "fatoresOutro"),
+    summaryGroupedOptionRow("Fatores de melhora", "Fatores identificados", "fatoresMelhora", optionGroups.fatoresMelhora || [], form, "fatoresMelhoraOutro"),
+    summaryGroupedOptionRow("Impacto funcional", "Áreas afetadas", "impacto", optionGroups.impacto || [], form, "impactoOutro")
   ];
   const mentalLabels = {
     aparencia: "Aparência, atitude e contato", consciencia: "Consciência", atencao: "Atenção",
@@ -700,54 +709,41 @@ function clinicalSummaryPage(form = {}) {
     linguagem: "Linguagem", humor: "Humor", afeto: "Afeto",
     psicomotricidadeVontade: "Psicomotricidade e vontade", juizoCritico: "Juízo crítico"
   };
-  const mentalRows = mentalExamKeys().flatMap(key =>
-    summaryOptionRows(mentalLabels[key] || key, key, optionGroups[key] || [], form, `${key}Outro`)
+  const mentalRows = mentalExamKeys().map(key =>
+    summaryGroupedOptionRow("Exame psíquico", mentalLabels[key] || key, key, optionGroups[key] || [], form, `${key}Outro`)
   );
-  const markedCount = [...anamnesisRows, ...complementaryRows, ...mentalRows].filter(row => row.status === "Marcado").length;
-  const unmarkedCount = [...anamnesisRows, ...complementaryRows, ...mentalRows].filter(row => row.status === "Não marcado").length;
-  const missingCount = narrativeRows.filter(row => row.status === "Não informado").length;
-  return `
-    <div class="summary-intro">
-      <p>Consolidação automática dos dados registrados até este momento. Esta página não interpreta achados e não utiliza IA.</p>
-      <div class="summary-metrics"><span><strong>${markedCount}</strong> marcados</span><span><strong>${unmarkedCount}</strong> não marcados</span><span><strong>${missingCount}</strong> campos narrativos não informados</span></div>
-    </div>
-    ${summaryTable("Dados narrativos", narrativeRows)}
-    ${summaryTable("Anamnese estruturada", [...anamnesisRows, ...complementaryRows])}
-    ${summaryTable("Exame psíquico", mentalRows)}
-  `;
+  return [
+    { title: "Dados narrativos", rows: narrativeRows },
+    { title: "Anamnese estruturada", rows: [...anamnesisRows, ...complementaryRows] },
+    { title: "Exame psíquico", rows: mentalRows }
+  ];
 }
 
 function summaryTextRow(section, item, value) {
   const text = String(value || "").trim();
-  return { section, item, status: text ? "Informado" : "Não informado", value: text || "—" };
+  return { section, item, value: text };
 }
 
-function summaryOptionRows(section, key, options, form, otherKey = "") {
+function summaryGroupedOptionRow(section, item, key, options, form, otherKey = "") {
   const selected = valueList(form[key]);
   const normalizedSelected = new Set(selected.map(normalizeText));
-  const rows = options.map(option => {
+  const values = options.flatMap(option => {
     const isOther = normalizeText(option) === "outro";
     const otherValue = isOther && otherKey ? String(form[otherKey] || "").trim() : "";
     const marked = normalizedSelected.has(normalizeText(option)) || Boolean(otherValue);
-    return { section, item: optionDisplayLabel(option), status: marked ? "Marcado" : "Não marcado", value: otherValue || (marked ? optionDisplayLabel(option) : "—") };
+    return marked ? [otherValue || optionDisplayLabel(option)] : [];
   });
   if (otherKey && String(form[otherKey] || "").trim() && !options.some(option => normalizeText(option) === "outro")) {
-    rows.push({ section, item: "Notas adicionais", status: "Marcado", value: String(form[otherKey]).trim() });
+    values.push(String(form[otherKey]).trim());
   }
-  return rows;
+  return { section, item, value: values.join("; ") };
 }
 
 function summaryTable(title, rows = []) {
   return `<section class="summary-section"><h4>${escapeHtml(title)}</h4><div class="summary-table-wrap"><table class="summary-table">
-    <thead><tr><th>Área</th><th>Item</th><th>Situação</th><th>Registro</th></tr></thead>
-    <tbody>${rows.map(row => `<tr><td>${escapeHtml(row.section)}</td><td>${escapeHtml(row.item)}</td><td><span class="summary-status ${summaryStatusClass(row.status)}">${escapeHtml(row.status)}</span></td><td>${escapeHtml(row.value)}</td></tr>`).join("")}</tbody>
+    <thead><tr><th>Área</th><th>Campo</th><th>Registro</th></tr></thead>
+    <tbody>${rows.map(row => `<tr><td>${escapeHtml(row.section)}</td><td>${escapeHtml(row.item)}</td><td>${escapeHtml(row.value)}</td></tr>`).join("")}</tbody>
   </table></div></section>`;
-}
-
-function summaryStatusClass(status = "") {
-  if (status === "Marcado" || status === "Informado") return "positive";
-  if (status === "Não informado") return "missing";
-  return "neutral";
 }
 
 function diagnosisTreatment(form) {
@@ -1523,6 +1519,7 @@ function bindActions() {
       if (action === "new-return") startNewReturn();
       if (action === "back-to-record") { view = "record"; render(); }
       if (action === "pdf-entry") pdfEntry(element.dataset.id, element.dataset.type);
+      if (action === "pdf-summary") pdfClinicalSummary();
       if (action === "delete-entry") deleteEntry(element.dataset.id, element.dataset.type);
       if (action === "confirm-exit") showExitModal();
       if (action === "close-modal") { modal = null; render(); }
@@ -3464,6 +3461,19 @@ function pdfEntry(id, type) {
   const title = `${entry.label || "Evolução"}${patient?.nome ? ` — ${patient.nome}` : ""}`;
   const date = new Date(entry.createdAt || Date.now()).toLocaleDateString("pt-BR").replaceAll("/", "-");
   exportTextAsPdf(title, recordReportText(entry), `${patient?.nome || "Paciente"} - ${entry.label || "Evolução"} - ${date}`);
+}
+
+function pdfClinicalSummary() {
+  const patient = getPatient() || {};
+  const form = view === "return" ? (draft.return || {}) : (draft.consultation || {});
+  const groups = clinicalSummaryGroups(form);
+  const text = groups.map(group => [
+    group.title.toUpperCase(),
+    ...group.rows.map(row => `${row.section} | ${row.item} | ${row.value}`)
+  ].join("\n")).join("\n\n");
+  const patientName = patient.nome || "Paciente";
+  const date = new Date().toLocaleDateString("pt-BR").replaceAll("/", "-");
+  exportTextAsPdf(`Resumo clínico — ${patientName}`, text, `${patientName} - Resumo clínico - ${date}`);
 }
 
 function recordReportText(entry = {}) {
