@@ -613,7 +613,7 @@ function consultationPageBody(form, patient) {
     ${chips("impacto", "Impacto funcional", optionGroups.impacto, form.impacto)}
   `, "consultation");
   if (consultationPage === "psiquico") return clinicalPage("Exame psiquico", mentalExamBody(form), "consultation");
-  if (consultationPage === "resumo") return clinicalPage("Resumo objetivo", clinicalSummaryPage(form), "consultation");
+  if (consultationPage === "resumo") return clinicalPage("Resumo objetivo", clinicalSummaryPage(form, patient), "consultation");
   if (consultationPage === "neurologico") return clinicalPage("Exame fisico e neurologico", neurologicExamBody(form), "consultation");
   if (consultationPage === "diagnostico") return clinicalPage("Diagnostico e diferenciais", diagnosisModule(form), "consultation");
   if (consultationPage === "tratamento") return clinicalPage("Tratamento e orientacoes", treatmentModule(form), "consultation");
@@ -672,20 +672,39 @@ function neurologicExamBody(form) {
   `;
 }
 
-function clinicalSummaryPage(form = {}) {
-  const groups = clinicalSummaryGroups(form);
+function clinicalSummaryPage(form = {}, patient = {}) {
+  const groups = clinicalSummaryGroups(form, patient);
   return `
     <div class="summary-intro">
       <p>Consolidação automática dos dados registrados até este momento. Campos sem preenchimento permanecem em branco.</p>
       <div class="actions summary-actions"><button class="primary" type="button" data-action="pdf-summary">Salvar em PDF</button></div>
     </div>
-    ${groups.map(group => summaryTable(group.title, group.rows)).join("")}
+    ${groups.map(group => summaryTable(group.title, group.rows, group.layout)).join("")}
   `;
 }
 
-function clinicalSummaryGroups(form = {}) {
+function clinicalSummaryGroups(form = {}, patient = {}) {
+  const age = calculateAge(patient.nascimento);
+  const address = [patient.endereco, patient.numero, patient.complemento, patient.bairro, patient.cidade, patient.estado]
+    .filter(Boolean).join(", ");
+  const identityRows = [
+    summaryTextRow("Identidade", "Nome", patient.nome),
+    summaryTextRow("Identidade", "Data de nascimento", formatSummaryDate(patient.nascimento)),
+    summaryTextRow("Identidade", "Idade", age ? `${age} anos` : ""),
+    summaryTextRow("Identidade", "Sexo", patient.sexo),
+    summaryTextRow("Identidade", "Estado civil", patient.estadoCivil),
+    summaryTextRow("Identidade", "Ocupação", patient.ocupacao),
+    summaryTextRow("Identidade", "Escolaridade", patient.escolaridade),
+    summaryTextRow("Identidade", "Religião", patient.religiao),
+    summaryTextRow("Contato", "Telefone", patient.telefone),
+    summaryTextRow("Contato", "E-mail", patient.email),
+    summaryTextRow("Contato", "Acompanhante", patient.acompanhante),
+    summaryTextRow("Contato", "Contato de emergência", patient.emergencia),
+    summaryTextRow("Endereço", "CEP", patient.cep),
+    summaryTextRow("Endereço", "Endereço", address)
+  ];
   const narrativeRows = [
-    summaryTextRow("Anamnese", "Queixa principal e HDA", anamnesisText(form)),
+    summaryTextRow("Anamnese", "Queixa principal e HDA", conciseQphdaSummary(anamnesisText(form))),
     summaryTextRow("Anamnese", "Antecedentes médicos", joinValues(form.medicos))
   ];
   const anamnesisRows = anamnesisQuestionGroups.flatMap(group => group.items.flatMap(([sectionTitle, items]) =>
@@ -713,10 +732,36 @@ function clinicalSummaryGroups(form = {}) {
     summaryGroupedOptionRow("Exame psíquico", mentalLabels[key] || key, key, optionGroups[key] || [], form, `${key}Outro`)
   );
   return [
+    { title: "Identificação do paciente", rows: identityRows },
     { title: "Dados narrativos", rows: narrativeRows },
-    { title: "Anamnese estruturada", rows: [...anamnesisRows, ...complementaryRows] },
-    { title: "Exame psíquico", rows: mentalRows }
+    { title: "Anamnese estruturada", rows: [...anamnesisRows, ...complementaryRows], layout: "area-record" },
+    { title: "Exame psíquico", rows: mentalRows.map(row => ({ ...row, section: row.item })), layout: "area-record" }
   ];
+}
+
+function formatSummaryDate(value = "") {
+  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : String(value || "");
+}
+
+function conciseQphdaSummary(value = "") {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  const sentences = text.match(/[^.!?]+[.!?]?/g)?.map(sentence => sentence.trim()).filter(Boolean) || [text];
+  const selected = [sentences[0]];
+  const addMatch = pattern => {
+    const match = sentences.find(sentence => !selected.includes(sentence) && pattern.test(normalizeText(sentence)));
+    if (match) selected.push(match);
+  };
+  addMatch(/(ha |desde|mes|ano|evolu|inicio|duracao)/);
+  addMatch(/(prejuizo|afastamento|trabalho|risco|suicid|funcional|tratamento)/);
+  for (const sentence of sentences) {
+    if (selected.length >= 3) break;
+    if (!selected.includes(sentence)) selected.push(sentence);
+  }
+  const summary = selected.slice(0, 3).sort((a, b) => sentences.indexOf(a) - sentences.indexOf(b)).join(" ");
+  if (summary.length <= 210) return summary;
+  return `${summary.slice(0, 207).replace(/\s+\S*$/, "").replace(/[,:;.-]+$/, "")}...`;
 }
 
 function summaryTextRow(section, item, value) {
@@ -739,10 +784,11 @@ function summaryGroupedOptionRow(section, item, key, options, form, otherKey = "
   return { section, item, value: values.join("; ") };
 }
 
-function summaryTable(title, rows = []) {
+function summaryTable(title, rows = [], layout = "full") {
+  const compact = layout === "area-record";
   return `<section class="summary-section"><h4>${escapeHtml(title)}</h4><div class="summary-table-wrap"><table class="summary-table">
-    <thead><tr><th>Área</th><th>Campo</th><th>Registro</th></tr></thead>
-    <tbody>${rows.map(row => `<tr><td>${escapeHtml(row.section)}</td><td>${escapeHtml(row.item)}</td><td>${escapeHtml(row.value)}</td></tr>`).join("")}</tbody>
+    <thead><tr><th>Área</th>${compact ? "" : "<th>Campo</th>"}<th>Registro</th></tr></thead>
+    <tbody>${rows.map(row => `<tr><td>${escapeHtml(row.section)}</td>${compact ? "" : `<td>${escapeHtml(row.item)}</td>`}<td>${escapeHtml(row.value)}</td></tr>`).join("")}</tbody>
   </table></div></section>`;
 }
 
@@ -3466,10 +3512,12 @@ function pdfEntry(id, type) {
 function pdfClinicalSummary() {
   const patient = getPatient() || {};
   const form = view === "return" ? (draft.return || {}) : (draft.consultation || {});
-  const groups = clinicalSummaryGroups(form);
+  const groups = clinicalSummaryGroups(form, patient);
   const text = groups.map(group => [
     group.title.toUpperCase(),
-    ...group.rows.map(row => `${row.section} | ${row.item} | ${row.value}`)
+    ...group.rows.map(row => group.layout === "area-record"
+      ? `${row.section} | ${row.value}`
+      : `${row.section} | ${row.item} | ${row.value}`)
   ].join("\n")).join("\n\n");
   const patientName = patient.nome || "Paciente";
   const date = new Date().toLocaleDateString("pt-BR").replaceAll("/", "-");
