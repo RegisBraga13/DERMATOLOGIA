@@ -111,6 +111,7 @@ const HTML_ESCAPE_ENTITIES = Object.freeze({
 const consultationPages = [
   ["anamnese", "Anamnese"],
   ["psiquico", "Exame psiquico"],
+  ["resumo", "Resumo"],
   ["diagnostico", "Diagnostico"],
   ["tratamento", "Tratamento"],
   ["evolucao", "Historia Clinica"],
@@ -612,6 +613,7 @@ function consultationPageBody(form, patient) {
     ${chips("impacto", "Impacto funcional", optionGroups.impacto, form.impacto)}
   `, "consultation");
   if (consultationPage === "psiquico") return clinicalPage("Exame psiquico", mentalExamBody(form), "consultation");
+  if (consultationPage === "resumo") return clinicalPage("Resumo objetivo", clinicalSummaryPage(form), "consultation");
   if (consultationPage === "neurologico") return clinicalPage("Exame fisico e neurologico", neurologicExamBody(form), "consultation");
   if (consultationPage === "diagnostico") return clinicalPage("Diagnostico e diferenciais", diagnosisModule(form), "consultation");
   if (consultationPage === "tratamento") return clinicalPage("Tratamento e orientacoes", treatmentModule(form), "consultation");
@@ -668,6 +670,84 @@ function neurologicExamBody(form) {
     </div>
     ${textarea("fisico", "Achados fisicos e neurologicos relevantes", form.fisico)}
   `;
+}
+
+function clinicalSummaryPage(form = {}) {
+  const narrativeRows = [
+    summaryTextRow("Anamnese", "Queixa principal e HDA", anamnesisText(form)),
+    summaryTextRow("Anamnese", "Antecedentes médicos", joinValues(form.medicos)),
+    summaryTextRow("Risco", "Fatores impeditivos", form.riscoSuicidioRazoesViver),
+    summaryTextRow("Risco", "Razões para viver", form.riscoSuicidioRazoesParaViver)
+  ];
+  const anamnesisRows = anamnesisQuestionGroups.flatMap(group => group.items.flatMap(([sectionTitle, items]) =>
+    items.flatMap(item => item.response === "multiple"
+      ? summaryOptionRows(sectionTitle, item.key, item.options || [], form, item.otherKey)
+      : [summaryTextRow(sectionTitle, item.label || item.question || item.key, form[item.key])]
+    )
+  ));
+  const complementaryRows = [
+    ...summaryOptionRows("Antecedentes", "psiPrevios", optionGroups.psiPrevios || [], form, "psiPreviosOutro"),
+    ...summaryOptionRows("Antecedentes", "tratamentos", optionGroups.tratamentos || [], form, "tratamentosOutro"),
+    ...summaryOptionRows("Antecedentes familiares", "familiares", optionGroups.familiares || [], form, "familiaresOutro"),
+    ...summaryOptionRows("Fatores de piora", "fatores", optionGroups.fatores || [], form, "fatoresOutro"),
+    ...summaryOptionRows("Fatores de melhora", "fatoresMelhora", optionGroups.fatoresMelhora || [], form, "fatoresMelhoraOutro"),
+    ...summaryOptionRows("Impacto funcional", "impacto", optionGroups.impacto || [], form, "impactoOutro")
+  ];
+  const mentalLabels = {
+    aparencia: "Aparência, atitude e contato", consciencia: "Consciência", atencao: "Atenção",
+    orientacao: "Orientação", memoria: "Memória", sensopercepcao: "Sensopercepção",
+    pensamentoCursoForma: "Pensamento - curso e forma", pensamentoConteudo: "Pensamento - conteúdo",
+    linguagem: "Linguagem", humor: "Humor", afeto: "Afeto",
+    psicomotricidadeVontade: "Psicomotricidade e vontade", juizoCritico: "Juízo crítico"
+  };
+  const mentalRows = mentalExamKeys().flatMap(key =>
+    summaryOptionRows(mentalLabels[key] || key, key, optionGroups[key] || [], form, `${key}Outro`)
+  );
+  const markedCount = [...anamnesisRows, ...complementaryRows, ...mentalRows].filter(row => row.status === "Marcado").length;
+  const unmarkedCount = [...anamnesisRows, ...complementaryRows, ...mentalRows].filter(row => row.status === "Não marcado").length;
+  const missingCount = narrativeRows.filter(row => row.status === "Não informado").length;
+  return `
+    <div class="summary-intro">
+      <p>Consolidação automática dos dados registrados até este momento. Esta página não interpreta achados e não utiliza IA.</p>
+      <div class="summary-metrics"><span><strong>${markedCount}</strong> marcados</span><span><strong>${unmarkedCount}</strong> não marcados</span><span><strong>${missingCount}</strong> campos narrativos não informados</span></div>
+    </div>
+    ${summaryTable("Dados narrativos", narrativeRows)}
+    ${summaryTable("Anamnese estruturada", [...anamnesisRows, ...complementaryRows])}
+    ${summaryTable("Exame psíquico", mentalRows)}
+  `;
+}
+
+function summaryTextRow(section, item, value) {
+  const text = String(value || "").trim();
+  return { section, item, status: text ? "Informado" : "Não informado", value: text || "—" };
+}
+
+function summaryOptionRows(section, key, options, form, otherKey = "") {
+  const selected = valueList(form[key]);
+  const normalizedSelected = new Set(selected.map(normalizeText));
+  const rows = options.map(option => {
+    const isOther = normalizeText(option) === "outro";
+    const otherValue = isOther && otherKey ? String(form[otherKey] || "").trim() : "";
+    const marked = normalizedSelected.has(normalizeText(option)) || Boolean(otherValue);
+    return { section, item: optionDisplayLabel(option), status: marked ? "Marcado" : "Não marcado", value: otherValue || (marked ? optionDisplayLabel(option) : "—") };
+  });
+  if (otherKey && String(form[otherKey] || "").trim() && !options.some(option => normalizeText(option) === "outro")) {
+    rows.push({ section, item: "Notas adicionais", status: "Marcado", value: String(form[otherKey]).trim() });
+  }
+  return rows;
+}
+
+function summaryTable(title, rows = []) {
+  return `<section class="summary-section"><h4>${escapeHtml(title)}</h4><div class="summary-table-wrap"><table class="summary-table">
+    <thead><tr><th>Área</th><th>Item</th><th>Situação</th><th>Registro</th></tr></thead>
+    <tbody>${rows.map(row => `<tr><td>${escapeHtml(row.section)}</td><td>${escapeHtml(row.item)}</td><td><span class="summary-status ${summaryStatusClass(row.status)}">${escapeHtml(row.status)}</span></td><td>${escapeHtml(row.value)}</td></tr>`).join("")}</tbody>
+  </table></div></section>`;
+}
+
+function summaryStatusClass(status = "") {
+  if (status === "Marcado" || status === "Informado") return "positive";
+  if (status === "Não informado") return "missing";
+  return "neutral";
 }
 
 function diagnosisTreatment(form) {
