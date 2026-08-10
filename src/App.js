@@ -111,6 +111,7 @@ const HTML_ESCAPE_ENTITIES = Object.freeze({
 const consultationPages = [
   ["anamnese", "Anamnese"],
   ["psiquico", "Exame psiquico"],
+  ["resumo", "Resumo"],
   ["diagnostico", "Diagnostico"],
   ["tratamento", "Tratamento"],
   ["evolucao", "Historia Clinica"],
@@ -612,6 +613,7 @@ function consultationPageBody(form, patient) {
     ${chips("impacto", "Impacto funcional", optionGroups.impacto, form.impacto)}
   `, "consultation");
   if (consultationPage === "psiquico") return clinicalPage("Exame psiquico", mentalExamBody(form), "consultation");
+  if (consultationPage === "resumo") return clinicalPage("Resumo objetivo", clinicalSummaryPage(form, patient), "consultation");
   if (consultationPage === "neurologico") return clinicalPage("Exame fisico e neurologico", neurologicExamBody(form), "consultation");
   if (consultationPage === "diagnostico") return clinicalPage("Diagnostico e diferenciais", diagnosisModule(form), "consultation");
   if (consultationPage === "tratamento") return clinicalPage("Tratamento e orientacoes", treatmentModule(form), "consultation");
@@ -670,6 +672,126 @@ function neurologicExamBody(form) {
   `;
 }
 
+function clinicalSummaryPage(form = {}, patient = {}) {
+  const groups = clinicalSummaryGroups(form, patient);
+  return `
+    <div class="summary-intro">
+      <p>Consolidação automática dos dados registrados até este momento. Campos sem preenchimento permanecem em branco.</p>
+      <div class="actions summary-actions"><button class="primary" type="button" data-action="pdf-summary">Salvar em PDF</button></div>
+    </div>
+    ${groups.map(group => summaryTable(group.title, group.rows, group.layout)).join("")}
+  `;
+}
+
+function clinicalSummaryGroups(form = {}, patient = {}) {
+  const age = calculateAge(patient.nascimento);
+  const address = [patient.endereco, patient.numero, patient.complemento, patient.bairro, patient.cidade, patient.estado]
+    .filter(Boolean).join(", ");
+  const identityRows = [
+    summaryTextRow("Identidade", "Nome", patient.nome),
+    summaryTextRow("Identidade", "Data de nascimento", formatSummaryDate(patient.nascimento)),
+    summaryTextRow("Identidade", "Idade", age ? `${age} anos` : ""),
+    summaryTextRow("Identidade", "Sexo", patient.sexo),
+    summaryTextRow("Identidade", "Estado civil", patient.estadoCivil),
+    summaryTextRow("Identidade", "Ocupação", patient.ocupacao),
+    summaryTextRow("Identidade", "Escolaridade", patient.escolaridade),
+    summaryTextRow("Identidade", "Religião", patient.religiao),
+    summaryTextRow("Contato", "Telefone", patient.telefone),
+    summaryTextRow("Contato", "E-mail", patient.email),
+    summaryTextRow("Contato", "Acompanhante", patient.acompanhante),
+    summaryTextRow("Contato", "Contato de emergência", patient.emergencia),
+    summaryTextRow("Endereço", "CEP", patient.cep),
+    summaryTextRow("Endereço", "Endereço", address)
+  ];
+  const narrativeRows = [
+    summaryTextRow("Anamnese", "Queixa principal e HDA", conciseQphdaSummary(anamnesisText(form))),
+    summaryTextRow("Anamnese", "Antecedentes médicos", joinValues(form.medicos))
+  ];
+  const anamnesisRows = anamnesisQuestionGroups.flatMap(group => group.items.flatMap(([sectionTitle, items]) =>
+    items.map(item => item.response === "multiple"
+      ? summaryGroupedOptionRow(sectionTitle, item.label || item.question || sectionTitle, item.key, item.options || [], form, item.otherKey)
+      : summaryTextRow(sectionTitle, item.label || item.question || item.key, form[item.key])
+    )
+  ));
+  const complementaryRows = [
+    summaryGroupedOptionRow("Antecedentes", "Psiquiátricos prévios", "psiPrevios", optionGroups.psiPrevios || [], form, "psiPreviosOutro"),
+    summaryGroupedOptionRow("Antecedentes", "Tratamentos prévios", "tratamentos", optionGroups.tratamentos || [], form, "tratamentosOutro"),
+    summaryGroupedOptionRow("Antecedentes familiares", "História familiar", "familiares", optionGroups.familiares || [], form, "familiaresOutro"),
+    summaryGroupedOptionRow("Fatores de piora", "Fatores identificados", "fatores", optionGroups.fatores || [], form, "fatoresOutro"),
+    summaryGroupedOptionRow("Fatores de melhora", "Fatores identificados", "fatoresMelhora", optionGroups.fatoresMelhora || [], form, "fatoresMelhoraOutro"),
+    summaryGroupedOptionRow("Impacto funcional", "Áreas afetadas", "impacto", optionGroups.impacto || [], form, "impactoOutro")
+  ];
+  const mentalLabels = {
+    aparencia: "Aparência, atitude e contato", consciencia: "Consciência", atencao: "Atenção",
+    orientacao: "Orientação", memoria: "Memória", sensopercepcao: "Sensopercepção",
+    pensamentoCursoForma: "Pensamento - curso e forma", pensamentoConteudo: "Pensamento - conteúdo",
+    linguagem: "Linguagem", humor: "Humor", afeto: "Afeto",
+    psicomotricidadeVontade: "Psicomotricidade e vontade", juizoCritico: "Juízo crítico"
+  };
+  const mentalRows = mentalExamKeys().map(key =>
+    summaryGroupedOptionRow("Exame psíquico", mentalLabels[key] || key, key, optionGroups[key] || [], form, `${key}Outro`)
+  );
+  return [
+    { title: "Identificação do paciente", rows: identityRows },
+    { title: "Dados narrativos", rows: narrativeRows },
+    { title: "Anamnese estruturada", rows: [...anamnesisRows, ...complementaryRows], layout: "area-record" },
+    { title: "Exame psíquico", rows: mentalRows.map(row => ({ ...row, section: row.item })), layout: "area-record" }
+  ];
+}
+
+function formatSummaryDate(value = "") {
+  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : String(value || "");
+}
+
+function conciseQphdaSummary(value = "") {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  const sentences = text.match(/[^.!?]+[.!?]?/g)?.map(sentence => sentence.trim()).filter(Boolean) || [text];
+  const selected = [sentences[0]];
+  const addMatch = pattern => {
+    const match = sentences.find(sentence => !selected.includes(sentence) && pattern.test(normalizeText(sentence)));
+    if (match) selected.push(match);
+  };
+  addMatch(/(ha |desde|mes|ano|evolu|inicio|duracao)/);
+  addMatch(/(prejuizo|afastamento|trabalho|risco|suicid|funcional|tratamento)/);
+  for (const sentence of sentences) {
+    if (selected.length >= 3) break;
+    if (!selected.includes(sentence)) selected.push(sentence);
+  }
+  const summary = selected.slice(0, 3).sort((a, b) => sentences.indexOf(a) - sentences.indexOf(b)).join(" ");
+  if (summary.length <= 210) return summary;
+  return `${summary.slice(0, 207).replace(/\s+\S*$/, "").replace(/[,:;.-]+$/, "")}...`;
+}
+
+function summaryTextRow(section, item, value) {
+  const text = String(value || "").trim();
+  return { section, item, value: text };
+}
+
+function summaryGroupedOptionRow(section, item, key, options, form, otherKey = "") {
+  const selected = valueList(form[key]);
+  const normalizedSelected = new Set(selected.map(normalizeText));
+  const values = options.flatMap(option => {
+    const isOther = normalizeText(option) === "outro";
+    const otherValue = isOther && otherKey ? String(form[otherKey] || "").trim() : "";
+    const marked = normalizedSelected.has(normalizeText(option)) || Boolean(otherValue);
+    return marked ? [otherValue || optionDisplayLabel(option)] : [];
+  });
+  if (otherKey && String(form[otherKey] || "").trim() && !options.some(option => normalizeText(option) === "outro")) {
+    values.push(String(form[otherKey]).trim());
+  }
+  return { section, item, value: values.join("; ") };
+}
+
+function summaryTable(title, rows = [], layout = "full") {
+  const compact = layout === "area-record";
+  return `<section class="summary-section"><h4>${escapeHtml(title)}</h4><div class="summary-table-wrap"><table class="summary-table">
+    <thead><tr><th>Área</th>${compact ? "" : "<th>Campo</th>"}<th>Registro</th></tr></thead>
+    <tbody>${rows.map(row => `<tr><td>${escapeHtml(row.section)}</td>${compact ? "" : `<td>${escapeHtml(row.item)}</td>`}<td>${escapeHtml(row.value)}</td></tr>`).join("")}</tbody>
+  </table></div></section>`;
+}
+
 function diagnosisTreatment(form) {
   return `
     ${section("Diagnostico e diferenciais", diagnosisModule(form))}
@@ -687,10 +809,12 @@ function diagnosisModule(form) {
     <div class="diagnosis-ai-panel">
       <h4>Hipoteses diagnosticas geradas por IA</h4>
       <p class="online-status">Auxilio inicial ao psiquiatra, elaborado a partir da anamnese completa e do exame psiquico. As opcoes nao constituem diagnostico e exigem revisao clinica.</p>
+      ${aiModeSelector(form.aiMode)}
       <div class="actions">
         <button class="primary" type="button" data-action="generate-diagnosis">Gerar 6 hipoteses</button>
       </div>
       ${aiStatus ? `<p class="online-status">${escapeHtml(aiStatus)}</p>` : ""}
+      ${ragSourcesView(form.ragSources)}
     </div>
     <textarea hidden name="diagnosticoManual">${escapeHtml(selectedText)}</textarea>
     <textarea hidden name="diagnosticoAiOpcoes">${escapeHtml(mainOptions.join("\n"))}</textarea>
@@ -734,6 +858,20 @@ function diagnosisAiStatusText(message = "") {
   return message;
 }
 
+function aiModeSelector(value = "current") {
+  return `<fieldset class="ai-mode-selector">
+    <legend>Fonte da resposta</legend>
+    <label><input type="radio" name="aiMode" value="current" ${value !== "rag" ? "checked" : ""} /><span>IA atual</span><small>Modelo e regras clinicas atuais</small></label>
+    <label><input type="radio" name="aiMode" value="rag" ${value === "rag" ? "checked" : ""} /><span>RAG com literatura</span><small>Restringe a resposta às fontes indexadas</small></label>
+  </fieldset>`;
+}
+
+function ragSourcesView(sources = []) {
+  if (!Array.isArray(sources) || !sources.length) return "";
+  return `<details class="rag-sources"><summary>${sources.length} fonte(s) recuperada(s)</summary><ol>${sources.map(source => `
+    <li><strong>${escapeHtml(source.filename || "Fonte")}</strong><span>Relevancia: ${Math.round(Number(source.score || 0) * 100)}%</span></li>`).join("")}</ol></details>`;
+}
+
 function medicationModule(form) {
   return section("Medicamentos", medicationBody(form));
 }
@@ -748,10 +886,12 @@ function treatmentModule(form) {
     <div class="diagnosis-ai-panel">
       <h4>Sugestoes de tratamento geradas por IA</h4>
       <p class="online-status">Auxilio ao psiquiatra. A prescricao e a conduta final dependem da avaliacao clinica, contraindicações, interacoes e decisao medica.</p>
+      ${aiModeSelector(form.aiMode)}
       <div class="actions">
         <button class="primary" type="button" data-action="generate-treatment">Gerar opções de tratamento</button>
       </div>
       ${form.treatmentStatus ? `<p class="online-status">${escapeHtml(form.treatmentStatus)}</p>` : ""}
+      ${ragSourcesView(form.ragSources)}
     </div>
     <div class="treatment-card-grid">
       <div class="treatment-card">
@@ -1425,6 +1565,7 @@ function bindActions() {
       if (action === "new-return") startNewReturn();
       if (action === "back-to-record") { view = "record"; render(); }
       if (action === "pdf-entry") pdfEntry(element.dataset.id, element.dataset.type);
+      if (action === "pdf-summary") pdfClinicalSummary();
       if (action === "delete-entry") deleteEntry(element.dataset.id, element.dataset.type);
       if (action === "confirm-exit") showExitModal();
       if (action === "close-modal") { modal = null; render(); }
@@ -1508,7 +1649,7 @@ async function generateDiagnosisFromClinicalData(element) {
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result } = await requestClinicalAi("diagnosis", buildClinicalAiPrompt("diagnosis", context.target, context.patient, context.previous, context.isReturn));
+    const { result, sources, mode } = await requestClinicalAi("diagnosis", buildClinicalAiPrompt("diagnosis", context.target, context.patient, context.previous, context.isReturn), context.target?.aiMode, buildRagQuery("diagnosis", context.target));
     const localSuggestion = buildDiagnosticSuggestion(context.target || {});
     const localOptions = [
       ...localSuggestion.diagnosticoAiOpcoes.split("\n"),
@@ -1528,10 +1669,14 @@ async function generateDiagnosisFromClinicalData(element) {
       diagnosticoSelecionado: selectedDoctorOptions,
       diagnosticoManual: selectedDoctorOptions.join("\n"),
       diferenciais: "",
+      ragSources: sources,
+      aiMode: mode,
       aiStatus: "3 hipoteses principais e 3 outras hipoteses geradas. Assinale as opcoes clinicamente pertinentes."
     };
   } catch (error) {
-    suggestion = { ...buildDiagnosticSuggestion(target || {}), aiStatus: "6 hipoteses locais aplicadas como contingencia. Revise clinicamente." };
+    suggestion = target?.aiMode === "rag"
+      ? { ragSources: [], aiStatus: `RAG indisponivel: ${error.message}` }
+      : { ...buildDiagnosticSuggestion(target || {}), aiStatus: "6 hipoteses locais aplicadas como contingencia. Revise clinicamente." };
   }
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
   else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
@@ -1552,7 +1697,7 @@ async function generateTreatmentFromClinicalData(element) {
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result } = await requestClinicalAi("treatment", buildClinicalAiPrompt("treatment", context.target, context.patient, context.previous, context.isReturn));
+    const { result, sources, mode } = await requestClinicalAi("treatment", buildClinicalAiPrompt("treatment", context.target, context.patient, context.previous, context.isReturn), context.target?.aiMode, buildRagQuery("treatment", context.target));
     const medicationOptions = result.medication_options.map(formatMedicationTreatmentOption);
     const approachOptions = result.non_pharmacological_options.map(formatNonPharmacologicalOption);
     suggestion = {
@@ -1564,11 +1709,15 @@ async function generateTreatmentFromClinicalData(element) {
       abordagensTerapeuticas: "",
       examesLaboratoriais: requestedExamsText(target || {}),
       condutaMedica: target?.condutaMedica || "",
+      ragSources: sources,
+      aiMode: mode,
       treatmentStatus: "3 opções medicamentosas e 3 abordagens não farmacológicas geradas. Assinale as pertinentes.",
       aiStatus: "Sugestões de tratamento geradas pela IA para revisão médica."
     };
   } catch (error) {
-    suggestion = { ...buildTreatmentSuggestion(target || {}), treatmentStatus: `IA indisponivel: ${error.message}. Rascunho local aplicado.`, aiStatus: `IA indisponivel: ${error.message}. Rascunho local aplicado.` };
+    suggestion = target?.aiMode === "rag"
+      ? { ragSources: [], treatmentStatus: `RAG indisponivel: ${error.message}`, aiStatus: `RAG indisponivel: ${error.message}` }
+      : { ...buildTreatmentSuggestion(target || {}), treatmentStatus: `IA indisponivel: ${error.message}. Rascunho local aplicado.`, aiStatus: `IA indisponivel: ${error.message}. Rascunho local aplicado.` };
   }
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
   else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
@@ -1649,11 +1798,11 @@ function setClinicalAiStatus(scope, message) {
   else draft.consultation = { ...(draft.consultation || {}), aiStatus: message };
 }
 
-async function requestClinicalAi(kind, prompt) {
+async function requestClinicalAi(kind, prompt, mode = "current", ragQuery = "") {
   const response = await fetch("/api/clinical-ai", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ kind, prompt })
+    body: JSON.stringify({ kind, prompt, mode: mode === "rag" ? "rag" : "current", ragQuery })
   });
   let data = {};
   try {
@@ -1668,8 +1817,26 @@ async function requestClinicalAi(kind, prompt) {
   const result = validateClinicalAiPayload(kind, data.result, data.text);
   return {
     result,
-    text: data.text || clinicalAiTextFromResult(kind, result)
+    text: data.text || clinicalAiTextFromResult(kind, result),
+    sources: Array.isArray(data.sources) ? data.sources : [],
+    mode: data.mode || "current"
   };
+}
+
+function buildRagQuery(kind, form = {}) {
+  const diagnosis = treatmentDiagnosisText(form) || form.diagnosticoManual || "";
+  const symptoms = [
+    anamnesisText(form),
+    joinValues(form.maniaHipomaniaSintomas),
+    joinValues(form.ansiedadeSintomas),
+    joinValues(form.depressaoSintomas),
+    joinValues(form.psicoseSintomas),
+    joinValues(form.riscoSuicidioIndicadores),
+    mentalStateFindings(form).join("; ")
+  ].filter(Boolean).join("; ");
+  if (kind === "treatment") return `Diretrizes e tratamento de ${diagnosis}. Dados clinicos relevantes: ${symptoms}`.slice(0, 4000);
+  if (kind === "diagnosis") return `Criterios diagnosticos e diagnostico diferencial para: ${symptoms}`.slice(0, 4000);
+  return `${diagnosis}; ${symptoms}`.slice(0, 4000);
 }
 
 function validateClinicalAiPayload(kind, result, text = "") {
@@ -3340,6 +3507,21 @@ function pdfEntry(id, type) {
   const title = `${entry.label || "Evolução"}${patient?.nome ? ` — ${patient.nome}` : ""}`;
   const date = new Date(entry.createdAt || Date.now()).toLocaleDateString("pt-BR").replaceAll("/", "-");
   exportTextAsPdf(title, recordReportText(entry), `${patient?.nome || "Paciente"} - ${entry.label || "Evolução"} - ${date}`);
+}
+
+function pdfClinicalSummary() {
+  const patient = getPatient() || {};
+  const form = view === "return" ? (draft.return || {}) : (draft.consultation || {});
+  const groups = clinicalSummaryGroups(form, patient);
+  const text = groups.map(group => [
+    group.title.toUpperCase(),
+    ...group.rows.map(row => group.layout === "area-record"
+      ? `${row.section} | ${row.value}`
+      : `${row.section} | ${row.item} | ${row.value}`)
+  ].join("\n")).join("\n\n");
+  const patientName = patient.nome || "Paciente";
+  const date = new Date().toLocaleDateString("pt-BR").replaceAll("/", "-");
+  exportTextAsPdf(`Resumo clínico — ${patientName}`, text, `${patientName} - Resumo clínico - ${date}`);
 }
 
 function recordReportText(entry = {}) {
