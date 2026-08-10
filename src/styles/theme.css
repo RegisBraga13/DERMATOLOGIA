@@ -228,6 +228,14 @@ button:hover { border-color: var(--primary-2); }
 
 .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
+.patient-grid {
+  grid-template-columns: minmax(220px, 1.8fr) repeat(3, minmax(130px, 1fr));
+}
+
+.patient-grid > label:nth-child(n + 5) {
+  grid-column: span 1;
+}
+
 label {
   display: grid;
   gap: 7px;

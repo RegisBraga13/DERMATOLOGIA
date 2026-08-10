@@ -31,7 +31,8 @@ const MENTAL_EXAM_KEYS = Object.freeze([
   "linguagem",
   "humor",
   "afeto",
-  "psicomotricidadeVontade",
+  "psicomotricidade",
+  "vontade",
   "juizoCritico"
 ]);
 const NORMAL_MENTAL_EXAM_FINDINGS = Object.freeze({
@@ -46,7 +47,8 @@ const NORMAL_MENTAL_EXAM_FINDINGS = Object.freeze({
   linguagem: "com fala espontanea, coerente e compreensivel",
   humor: "eutimico",
   afeto: "afeto congruente e modulado",
-  psicomotricidadeVontade: "psicomotricidade e vontade sem alteracoes relevantes",
+  psicomotricidade: "psicomotricidade sem alteracoes relevantes",
+  vontade: "vontade preservada",
   juizoCritico: "com juizo critico preservado"
 });
 const PROFESSIONAL_TERM_REPLACEMENTS = Object.freeze([
@@ -178,9 +180,10 @@ Ha eutimia, hipotimia, hipertimia, disforia ou ansiedade?`,
   afeto: `A expressao afetiva e modulada e congruente com o conteudo?
 Ha restricao, embotamento, labilidade ou incontinencia afetiva?
 Ha afeto pueril ou inadequacao/paratimia?`,
-  psicomotricidadeVontade: `Observe postura, movimentos, iniciativa e velocidade psicomotora.
-Ha agitacao, lentificacao, estupor, catatonia, tiques ou acatisia?
-Ha abulia, hipobulia, impulsividade, compulsao ou ecopraxia?`,
+  psicomotricidade: `Observe postura, movimentos e velocidade psicomotora.
+Ha agitacao, lentificacao, catatonia, tiques, acatisia ou ecopraxia?`,
+  vontade: `Observe iniciativa, volicao e impulsividade.
+Ha abulia, hipobulia, impulsividade ou compulsao?`,
   juizoCritico: `O paciente reconhece sintomas, prejuizos e necessidade de cuidado?
 Compreende consequencias dos proprios atos e decisoes?
 Ha negacao da doenca, critica parcial ou delirio de normalidade?`
@@ -438,13 +441,14 @@ function patientForm() {
   const patient = draft.patient || {};
   return `
     <div class="panel-title">
-      <div><h2>Novo Paciente</h2><p>Identificacao editavel para consultas futuras.</p></div>
+      <div><h2>Novo Paciente</h2></div>
       ${patientSelector("edit-patient")}
     </div>
     <form id="patient-form">
-      <div class="grid">
+      <div class="grid patient-grid">
         ${field("nome", "Nome completo", patient.nome)}
         ${selectField("sexo", "Sexo", optionGroups.sexo, patient.sexo)}
+        ${selectField("genero", "Identidade de gênero", optionGroups.genero, patient.genero)}
         ${field("nascimento", "Data de nascimento", patient.nascimento, "date")}
         ${selectField("estadoCivil", "Estado civil", optionGroups.estadoCivil, patient.estadoCivil)}
         ${field("ocupacao", "Ocupacao", patient.ocupacao)}
@@ -500,7 +504,7 @@ function consultationForm() {
   const consultations = consultationsForPatient(patient.id);
   return `
     <div class="panel-title">
-      <div><h2>${form.label}</h2><p>${escapeHtml(patient.nome)} | consulta numerada automaticamente.</p></div>
+      <div><h2>${form.label}</h2><p>${escapeHtml(patient.nome)}</p></div>
       ${patientSelector()}
     </div>
     <form id="consult-form">
@@ -594,9 +598,9 @@ function consultationPageBody(form, patient) {
   if (consultationPage === "anamnese") return clinicalPage("Anamnese", `
     <div class="clinical-card qphda-card">
       <h4>QP e HDA</h4>
-      ${voiceTextarea("qphda", "Queixa principal (QP) e historia da doenca atual (HDA)", qphda, "Registrar QP nas palavras do paciente e HDA com cronologia dos sintomas, relacao temporal com eventos vitais, sintomas fisicos associados, fatores desencadeantes e de piora, fatores de melhora, uso de substancias, sintomas positivos e negativos, impacto funcional e tratamentos previos.")}
+      ${voiceTextarea("qphda", "", qphda, "Registrar QP e HDA com cronologia dos sintomas, eventos relacionados, fatores de piora e melhora, uso de substancias, sintomas e impacto funcional.")}
       <div class="manual-anamnesis">
-        ${textarea("queixa", "QP - preenchimento manual", form.queixa, "Queixa principal nas palavras do paciente", 1)}
+        ${textarea("queixa", "", form.queixa, "QP nas palavras do paciente", 3)}
         ${textarea("historia", "HD - preenchimento manual", form.historia, "Historia do problema principal, caso queira preencher manualmente", 6)}
       </div>
     </div>
@@ -649,15 +653,14 @@ function mentalExam(form) {
 function mentalExamBody(form) {
   const groups = [
     ["aparencia", "Aparencia, Atitude e Contato"],
-    ["consciencia", "Consciencia"], ["atencao", "Atencao"], ["orientacao", "Orientacao"],
+    ["atencao", "Atencao/Vigilancia"], ["orientacao", "Consciencia/Orientacao"],
     ["memoria", "Memoria"], ["sensopercepcao", "Sensopercepcao"],
     ["pensamentoCursoForma", "Pensamento (Curso e Forma)"], ["pensamentoConteudo", "Pensamento (Conteudo)"],
     ["linguagem", "Linguagem"], ["humor", "Humor (Estado Basal)"], ["afeto", "Afeto (Resposta)"],
-    ["psicomotricidadeVontade", "Psicomotricidade e Vontade"], ["juizoCritico", "Juizo Critico (Insight)"]
+    ["psicomotricidade", "Psicomotricidade"], ["vontade", "Vontade"], ["juizoCritico", "Juizo Critico (Insight)"]
   ];
   return groups.map(([key, label]) => `
-    ${chips(key, label, optionGroups[key], form[key])}
-    ${questionTextarea(key, `Perguntas fixas - ${label}`, form[`${key}Perguntas`])}
+    ${chips(key, label, optionGroups[key].filter(option => option !== "NDN"), form[key])}
   `).join("");
 }
 
@@ -726,7 +729,7 @@ function clinicalSummaryGroups(form = {}, patient = {}) {
     orientacao: "Orientação", memoria: "Memória", sensopercepcao: "Sensopercepção",
     pensamentoCursoForma: "Pensamento - curso e forma", pensamentoConteudo: "Pensamento - conteúdo",
     linguagem: "Linguagem", humor: "Humor", afeto: "Afeto",
-    psicomotricidadeVontade: "Psicomotricidade e vontade", juizoCritico: "Juízo crítico"
+    psicomotricidade: "Psicomotricidade", vontade: "Vontade", juizoCritico: "Juízo crítico"
   };
   const mentalRows = mentalExamKeys().map(key =>
     summaryGroupedOptionRow("Exame psíquico", mentalLabels[key] || key, key, optionGroups[key] || [], form, `${key}Outro`)
@@ -800,8 +803,9 @@ function diagnosisTreatment(form) {
 }
 
 function diagnosisModule(form) {
-  const mainOptions = diagnosticMainOptionLines(form);
-  const otherOptions = diagnosticOtherOptionLines(form);
+  const syndromicOptions = diagnosticSyndromicOptionLines(form);
+  const nosologicalOptions = diagnosticNosologicalOptionLines(form);
+  const etiologicalOptions = diagnosticEtiologicalOptionLines(form);
   const selectedValues = selectedDiagnosisValues(form);
   const selectedText = selectedDiagnosisText(form);
   const aiStatus = diagnosisAiStatusText(form.aiStatus);
@@ -811,36 +815,33 @@ function diagnosisModule(form) {
       <p class="online-status">Auxilio inicial ao psiquiatra, elaborado a partir da anamnese completa e do exame psiquico. As opcoes nao constituem diagnostico e exigem revisao clinica.</p>
       ${aiModeSelector(form.aiMode)}
       <div class="actions">
-        <button class="primary" type="button" data-action="generate-diagnosis">Gerar 6 hipoteses</button>
+        <button class="primary" type="button" data-action="generate-diagnosis">Gerar diagnósticos diferenciais</button>
       </div>
       ${aiStatus ? `<p class="online-status">${escapeHtml(aiStatus)}</p>` : ""}
       ${ragSourcesView(form.ragSources)}
     </div>
     <textarea hidden name="diagnosticoManual">${escapeHtml(selectedText)}</textarea>
-    <textarea hidden name="diagnosticoAiOpcoes">${escapeHtml(mainOptions.join("\n"))}</textarea>
-    <textarea hidden name="diagnosticoAiOutrasOpcoes">${escapeHtml(otherOptions.join("\n"))}</textarea>
-    <div class="diagnosis-group">
-      <h4>3 hipoteses principais</h4>
-      <p class="online-status">Assinale uma ou mais opcoes consideradas pertinentes.</p>
-      <div class="diagnosis-options">
-        ${mainOptions.length ? diagnosisOptionCheckboxes(mainOptions, selectedValues) : `<p class="diagnosis-empty">Nenhuma hipotese gerada. Clique em “Gerar 6 hipoteses”.</p>`}
-      </div>
-    </div>
-    <div class="diagnosis-group">
-      <h4>Outras hipoteses</h4>
-      <p class="online-status">Tres possibilidades adicionais para ampliacao do diagnostico diferencial.</p>
-      <div class="diagnosis-options">
-        ${otherOptions.length ? diagnosisOptionCheckboxes(otherOptions, selectedValues) : `<p class="diagnosis-empty">As outras hipoteses aparecerao somente apos a geracao pela IA.</p>`}
-      </div>
-    </div>
+    <textarea hidden name="diagnosticoAiSindromico">${escapeHtml(syndromicOptions.join("\n"))}</textarea>
+    <textarea hidden name="diagnosticoAiNosologico">${escapeHtml(nosologicalOptions.join("\n"))}</textarea>
+    <textarea hidden name="diagnosticoAiEtiologico">${escapeHtml(etiologicalOptions.join("\n"))}</textarea>
+    ${diagnosisCategory("Sindrômico", syndromicOptions, selectedValues, 3)}
+    ${diagnosisCategory("Nosológico", nosologicalOptions, selectedValues, 3)}
+    ${diagnosisCategory("Etiológico", etiologicalOptions, selectedValues, 2)}
     <div class="diagnosis-group diagnosis-doctor-group">
-      <h4>Hipoteses do medico</h4>
-      <p class="online-status">Opcoes independentes da IA. Assinale uma ou mais conforme o julgamento clinico.</p>
-      <div class="diagnosis-options">
-        ${diagnosisOptionCheckboxes(doctorDiagnosisOptions, selectedValues)}
-      </div>
+      <h4>Hipóteses do médico</h4>
+      <p class="online-status">Mantidas independentemente das sugestões da IA. Assinale uma ou mais conforme o julgamento clínico.</p>
+      <div class="diagnosis-options">${diagnosisOptionCheckboxes(doctorDiagnosisOptions, selectedValues)}</div>
     </div>
   `;
+}
+
+function diagnosisCategory(label, options, selectedValues, count) {
+  return `<div class="diagnosis-group"><h4>${label} — ${count} hipóteses</h4>
+      <p class="online-status">Assinale uma ou mais opcoes consideradas pertinentes.</p>
+      <div class="diagnosis-options">
+        ${options.length ? diagnosisOptionCheckboxes(options, selectedValues) : `<p class="diagnosis-empty">Nenhuma hipótese gerada.</p>`}
+      </div>
+    </div>`;
 }
 
 function diagnosisOptionCheckboxes(options, selectedValues) {
@@ -1100,20 +1101,14 @@ function selectField(name, labelText, options, value = "") {
 }
 
 function selectFieldWithOther(name, labelText, options, value = "") {
-  const otherValue = currentClinicalDraft()?.[`${name}Outro`] || "";
-  const otherBox = value === "Outro" ? `
-    <div class="other-card narrow">
-      <label>Notas adicionais
-        <input name="${name}Outro" value="${escapeAttr(otherValue)}" placeholder="Registre informações complementares" />
-      </label>
-    </div>
-  ` : "";
-  return `<div>${selectField(name, labelText, options, value)}${otherBox}</div>`;
+  return selectField(name, labelText, options, value);
 }
 
 function textarea(name, labelText, value = "", placeholder = "", rows = "") {
   const rowsAttr = rows ? ` rows="${rows}"` : "";
-  const evolutionAttrs = name === "evolution" ? ` class="evolution-textarea" data-auto-expand="true" rows="12"` : rowsAttr;
+  const evolutionAttrs = name === "evolution" ? ` class="evolution-textarea" data-auto-expand="true" rows="12"`
+    : name === "qphda" ? ` class="auto-expand" data-auto-expand="true" rows="5"`
+      : name === "queixa" ? ` class="auto-expand" data-auto-expand="true" rows="3"` : rowsAttr;
   return `<label>${labelText}<textarea name="${name}"${evolutionAttrs} placeholder="${escapeAttr(placeholder)}">${escapeHtml(value || "")}</textarea></label>`;
 }
 
@@ -1180,11 +1175,7 @@ function anamnesisStructuredFields(questions, form) {
 function multipleChoiceField(item, form) {
   const values = Array.isArray(form[item.key]) ? form[item.key] : form[item.key] ? [form[item.key]] : [];
   const set = new Set(values);
-  const otherInput = item.otherKey && set.has("Outro") ? `
-    <label class="multi-choice-other">Notas adicionais
-      <input name="${item.otherKey}" value="${escapeAttr(form[item.otherKey] || "")}" placeholder="Registre informações complementares" />
-    </label>
-  ` : "";
+  const otherInput = "";
   return `<div class="risk-fields">
     ${item.question ? `<p class="structured-question">${escapeHtml(item.question)}</p>` : ""}
     <div class="multi-choice-options">
@@ -1225,29 +1216,15 @@ function suicideRiskFields(questions, form) {
 function chips(name, labelText, options, values = []) {
   const normalizedValues = Array.isArray(values) ? values : values ? [values] : [];
   const set = new Set(normalizedValues);
-  const otherValue = currentClinicalDraft()?.[`${name}Outro`] || "";
-  const otherBox = options.includes("Outro") && set.has("Outro") ? `
-    <div class="other-card">
-      <label>Notas adicionais
-        <input name="${name}Outro" value="${escapeAttr(otherValue)}" placeholder="Registre informações complementares" />
-      </label>
-    </div>
-  ` : "";
-  return `<div><label>${labelText}</label><div class="chips">${options.map(option => `<label class="chip"><input type="checkbox" name="${name}" value="${escapeAttr(option)}" ${set.has(option) ? "checked" : ""}>${escapeHtml(optionDisplayLabel(option))}</label>`).join("")}</div>${otherBox}</div>`;
+  return `<div><label>${labelText}</label><div class="chips">${options.map(option => `<label class="chip"><input type="checkbox" name="${name}" value="${escapeAttr(option)}" ${set.has(option) ? "checked" : ""}>${escapeHtml(optionDisplayLabel(option))}</label>`).join("")}</div></div>`;
 }
 
 function singleChoiceWithNotes(name, labelText, options, value = "") {
   const selectedValue = normalizedSingleChoiceValue(name, value);
-  const notesValue = currentClinicalDraft()?.[`${name}Outro`] || "";
   return `<div>
     <label>${labelText}</label>
     <div class="chips">
       ${options.map(option => `<label class="chip"><input type="radio" name="${name}" value="${escapeAttr(option)}" ${selectedValue === option ? "checked" : ""}>${escapeHtml(option)}</label>`).join("")}
-    </div>
-    <div class="other-card">
-      <label>Notas adicionais
-        <input name="${name}Outro" value="${escapeAttr(notesValue)}" placeholder="Opcional — registre informações complementares" />
-      </label>
     </div>
   </div>`;
 }
@@ -1280,7 +1257,7 @@ function normalizedSingleChoiceValue(name, value) {
 }
 
 function optionDisplayLabel(option = "") {
-  return normalizeText(option) === "outro" ? "Notas adicionais" : option;
+  return option;
 }
 
 function pagesForScope(scope) {
@@ -1651,32 +1628,28 @@ async function generateDiagnosisFromClinicalData(element) {
     const context = clinicalAiContext(scope);
     const { result, sources, mode } = await requestClinicalAi("diagnosis", buildClinicalAiPrompt("diagnosis", context.target, context.patient, context.previous, context.isReturn), context.target?.aiMode, buildRagQuery("diagnosis", context.target));
     const localSuggestion = buildDiagnosticSuggestion(context.target || {});
-    const localOptions = [
-      ...localSuggestion.diagnosticoAiOpcoes.split("\n"),
-      ...localSuggestion.diagnosticoAiOutrasOpcoes.split("\n")
-    ].filter(Boolean);
-    const mainOptions = [...result.main_options.map(formatDiagnosticOption), ...localOptions]
-      .filter((option, index, list) => list.indexOf(option) === index)
-      .slice(0, 3);
-    const otherOptions = [...result.other_options.map(formatDiagnosticOption), ...localOptions]
-      .filter(option => !mainOptions.includes(option))
-      .filter((option, index, list) => list.indexOf(option) === index)
-      .slice(0, 3);
+    const localOptions = localSuggestion.diagnosticoAiOpcoes.split("\n").filter(Boolean);
+    const formatGroup = (items, fallback, count) => [...(items || []).map(formatDiagnosticOption), ...fallback]
+      .filter((option, index, list) => list.indexOf(option) === index).slice(0, count);
+    const syndromicOptions = formatGroup(result.syndromic_options, localOptions, 3);
+    const nosologicalOptions = formatGroup(result.nosological_options, localOptions, 3);
+    const etiologicalOptions = formatGroup(result.etiological_options, localOptions, 2);
     const selectedDoctorOptions = selectedDiagnosisValues(target || {}).filter(option => doctorDiagnosisOptions.includes(option));
     suggestion = {
-      diagnosticoAiOpcoes: mainOptions.join("\n"),
-      diagnosticoAiOutrasOpcoes: otherOptions.join("\n"),
+      diagnosticoAiSindromico: syndromicOptions.join("\n"),
+      diagnosticoAiNosologico: nosologicalOptions.join("\n"),
+      diagnosticoAiEtiologico: etiologicalOptions.join("\n"),
       diagnosticoSelecionado: selectedDoctorOptions,
       diagnosticoManual: selectedDoctorOptions.join("\n"),
       diferenciais: "",
       ragSources: sources,
       aiMode: mode,
-      aiStatus: "3 hipoteses principais e 3 outras hipoteses geradas. Assinale as opcoes clinicamente pertinentes."
+      aiStatus: "3 hipóteses sindrômicas, 3 nosológicas e 2 etiológicas geradas. As hipóteses do médico foram mantidas."
     };
   } catch (error) {
     suggestion = target?.aiMode === "rag"
       ? { ragSources: [], aiStatus: `RAG indisponivel: ${error.message}` }
-      : { ...buildDiagnosticSuggestion(target || {}), aiStatus: "6 hipoteses locais aplicadas como contingencia. Revise clinicamente." };
+      : { ...buildDiagnosticSuggestion(target || {}), aiStatus: "Hipóteses locais aplicadas como contingência. Revise clinicamente." };
   }
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
   else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
@@ -1843,8 +1816,8 @@ function validateClinicalAiPayload(kind, result, text = "") {
   if (!result && text) result = parseFallbackClinicalText(kind, text);
   if (!result || typeof result !== "object") throw new Error("Resposta estruturada ausente.");
   if (kind === "diagnosis") {
-    ["main_options", "other_options"].forEach(group => {
-      if (!Array.isArray(result[group]) || result[group].length !== 3) throw new Error("Cada grupo diagnostico exige exatamente 3 opcoes.");
+    [["syndromic_options", 3], ["nosological_options", 3], ["etiological_options", 2]].forEach(([group, count]) => {
+      if (!Array.isArray(result[group]) || result[group].length !== count) throw new Error(`O grupo ${group} exige exatamente ${count} opcoes.`);
       result[group].forEach(option => {
         if (!option?.name || !option?.cid11 || !option?.dsm5tr) throw new Error("Opcao diagnostica incompleta.");
       });
@@ -1875,7 +1848,7 @@ function validateClinicalAiPayload(kind, result, text = "") {
 
 function parseFallbackClinicalText(kind, text = "") {
   if (kind === "diagnosis") {
-    const options = normalizeDiagnosticOptions(text, 6).map(line => {
+    const options = normalizeDiagnosticOptions(text, 8).map(line => {
       const [namePart, cidPart = "", dsmPart = ""] = line.split(/\s+-\s+/);
       return {
         name: stripFinalPeriod(namePart || ""),
@@ -1883,7 +1856,7 @@ function parseFallbackClinicalText(kind, text = "") {
         dsm5tr: stripFinalPeriod(dsmPart.replace(/^DSM-?5-?TR:\s*/i, ""))
       };
     });
-    return { main_options: options.slice(0, 3), other_options: options.slice(3, 6) };
+    return { syndromic_options: options.slice(0, 3), nosological_options: options.slice(3, 6), etiological_options: options.slice(6, 8) };
   }
   if (kind === "treatment") {
     const parsed = parseTreatmentResponse(text);
@@ -1907,9 +1880,8 @@ function parseFallbackClinicalText(kind, text = "") {
 
 function clinicalAiTextFromResult(kind, result) {
   if (kind === "diagnosis") {
-    const main = result.main_options.map(formatDiagnosticOption).join("\n");
-    const other = result.other_options.map(formatDiagnosticOption).join("\n");
-    return `HIPOTESES PRINCIPAIS:\n${main}\n\nOUTRAS HIPOTESES:\n${other}`;
+    const formatGroup = (label, options) => `${label}:\n${options.map(formatDiagnosticOption).join("\n")}`;
+    return [formatGroup("DIAGNOSTICO SINDROMICO", result.syndromic_options), formatGroup("DIAGNOSTICO NOSOLOGICO", result.nosological_options), formatGroup("DIAGNOSTICO ETIOLOGICO", result.etiological_options)].join("\n\n");
   }
   if (kind === "treatment") {
     return `TRATAMENTO MEDICAMENTOSO:\n${result.medication_options.map(formatMedicationTreatmentOption).join("\n")}\n\nOUTRAS ABORDAGENS NÃO FARMACOLÓGICAS:\n${result.non_pharmacological_options.map(formatNonPharmacologicalOption).join("\n")}`;
@@ -1951,10 +1923,10 @@ function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = null, i
   const taskByKind = {
     diagnosis: [
       "Analise de forma integrada e nao superficial toda a anamnese, os antecedentes, o impacto funcional, os riscos e cada dominio preenchido do exame psiquico.",
-      "Gere exatamente 3 hipoteses principais, priorizadas pela coerencia global e probabilidade clinica, e exatamente 3 outras hipoteses para diagnostico diferencial.",
-      "Nao repita transtornos entre os dois grupos. Considere causas induzidas por substancias, condicoes medicas e diagnosticos diferenciais quando os dados sustentarem essa possibilidade.",
+      "Gere exatamente 3 hipoteses sindromicas, 3 hipoteses nosologicas e 2 hipoteses etiologicas.",
+      "As hipoteses sindromicas devem descrever a sindrome clinica; as nosologicas devem propor transtornos/diagnosticos; as etiologicas devem propor causas medicas, substancias ou contextos causais quando sustentados pelos dados.",
       "As hipoteses sao mero auxilio ao psiquiatra e nao substituem avaliacao, confirmacao de criterios, exame clinico ou decisao medica.",
-      "Cada opcao deve conter nome do transtorno, CID-11 e DSM-5-TR no formato estruturado solicitado."
+      "Cada opcao deve conter nome, CID-11 e DSM-5-TR no formato estruturado solicitado. Para hipoteses sindromicas ou etiologicas sem codigo especifico, informe 'N/A' de forma explicita."
     ],
     treatment: [
       "Gere exatamente 3 opcoes de tratamento medicamentoso, como mero auxilio ao psiquiatra.",
@@ -2063,15 +2035,19 @@ function choiceSummary(form, keys = []) {
 function promptResponseFormat(kind) {
   if (kind === "diagnosis") {
     return [
-      "HIPOTESES PRINCIPAIS:",
-      "Depressao Maior - CID-11: ... - DSM-5-TR: ...",
-      "Depressao Bipolar - CID-11: ... - DSM-5-TR: ...",
-      "Transtorno de Ansiedade Generalizada - CID-11: ... - DSM-5-TR: ...",
+      "DIAGNOSTICO SINDROMICO:",
+      "Hipotese sindromica 1 - CID-11: ... - DSM-5-TR: ...",
+      "Hipotese sindromica 2 - CID-11: ... - DSM-5-TR: ...",
+      "Hipotese sindromica 3 - CID-11: ... - DSM-5-TR: ...",
       "",
-      "OUTRAS HIPOTESES:",
-      "Hipotese adicional 1 - CID-11: ... - DSM-5-TR: ...",
-      "Hipotese adicional 2 - CID-11: ... - DSM-5-TR: ...",
-      "Hipotese adicional 3 - CID-11: ... - DSM-5-TR: ..."
+      "DIAGNOSTICO NOSOLOGICO:",
+      "Hipotese nosologica 1 - CID-11: ... - DSM-5-TR: ...",
+      "Hipotese nosologica 2 - CID-11: ... - DSM-5-TR: ...",
+      "Hipotese nosologica 3 - CID-11: ... - DSM-5-TR: ...",
+      "",
+      "DIAGNOSTICO ETIOLOGICO:",
+      "Hipotese etiologica 1 - CID-11: ... - DSM-5-TR: ...",
+      "Hipotese etiologica 2 - CID-11: ... - DSM-5-TR: ..."
     ].join("\n");
   }
   if (kind === "treatment") {
@@ -2107,6 +2083,10 @@ function diagnosticMainOptionLines(form = {}) {
   const stored = normalizeDiagnosticOptions(form.diagnosticoAiOpcoes || form.diferenciais || "");
   return stored;
 }
+
+function diagnosticSyndromicOptionLines(form = {}) { return normalizeDiagnosticOptions(form.diagnosticoAiSindromico || form.diagnosticoAiOpcoes || "", 3); }
+function diagnosticNosologicalOptionLines(form = {}) { return normalizeDiagnosticOptions(form.diagnosticoAiNosologico || form.diagnosticoAiOutrasOpcoes || "", 3); }
+function diagnosticEtiologicalOptionLines(form = {}) { return normalizeDiagnosticOptions(form.diagnosticoAiEtiologico || "", 2); }
 
 function diagnosticOtherOptionLines(form = {}) {
   const stored = normalizeDiagnosticOptions(form.diagnosticoAiOutrasOpcoes || "");
@@ -2160,7 +2140,7 @@ function buildDiagnosticSuggestion(form) {
     joinValues(form.psiPrevios), joinValues(form.tratamentos), joinValues(form.medicos), joinValues(form.familiares), joinValues(form.substancias),
     joinValues(form.aparencia), joinValues(form.consciencia), joinValues(form.atencao), joinValues(form.orientacao), joinValues(form.memoria), joinValues(form.sensopercepcao),
     joinValues(form.pensamentoCursoForma), joinValues(form.pensamentoConteudo), joinValues(form.linguagem),
-    joinValues(form.humor), joinValues(form.afeto), joinValues(form.psicomotricidadeVontade), joinValues(form.juizoCritico),
+    joinValues(form.humor), joinValues(form.afeto), joinValues(form.psicomotricidade), joinValues(form.vontade), joinValues(form.juizoCritico),
     form.observacoesRetorno
   ].filter(Boolean).join(" | ");
   const text = normalizeText(sourceText);
@@ -2172,9 +2152,12 @@ function buildDiagnosticSuggestion(form) {
   const options = [
     ...ranked,
     ...diagnosticRules().filter(rule => !ranked.some(item => item.name === rule.name))
-  ].slice(0, 6);
+  ].slice(0, 8);
   const selectedDoctorOptions = selectedDiagnosisValues(form).filter(option => doctorDiagnosisOptions.includes(option));
   return {
+    diagnosticoAiSindromico: options.slice(0, 3).map(formatDiagnosticOption).join("\n"),
+    diagnosticoAiNosologico: options.slice(3, 6).map(formatDiagnosticOption).join("\n"),
+    diagnosticoAiEtiologico: options.slice(6, 8).map(formatDiagnosticOption).join("\n"),
     diagnosticoAiOpcoes: options.slice(0, 3).map(formatDiagnosticOption).join("\n"),
     diagnosticoAiOutrasOpcoes: options.slice(3, 6).map(formatDiagnosticOption).join("\n"),
     diagnosticoSelecionado: selectedDoctorOptions,
@@ -2978,7 +2961,8 @@ function clinicalMentalExamSection(form) {
     clinicalMentalGroupSentence(form, "linguagem", "Linguagem"),
     clinicalMentalGroupSentence(form, "humor", "Humor"),
     clinicalMentalGroupSentence(form, "afeto", "Afeto"),
-    clinicalMentalGroupSentence(form, "psicomotricidadeVontade", "Psicomotricidade e vontade"),
+    clinicalMentalGroupSentence(form, "psicomotricidade", "Psicomotricidade"),
+    clinicalMentalGroupSentence(form, "vontade", "Vontade"),
     clinicalMentalGroupSentence(form, "juizoCritico", "Juizo critico")
   ].filter(Boolean);
   return polishClinicalText(sentences.join(" ") || "Paciente sem alteracoes descritas no exame psiquico.");
@@ -3138,7 +3122,8 @@ function relevantNegativeText(form) {
     ...negativeValues("memoria", form.memoria),
     ...negativeValues("linguagem", form.linguagem),
     ...negativeValues("afeto", form.afeto),
-    ...negativeValues("psicomotricidade e vontade", form.psicomotricidadeVontade),
+    ...negativeValues("psicomotricidade", form.psicomotricidade),
+    ...negativeValues("vontade", form.vontade),
     ...negativeValues("efeitos", form.efeitos),
     ...negativeValues("ansiedadeRetorno", form.ansiedadeRetorno)
   ];

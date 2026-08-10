@@ -25,7 +25,7 @@ SCHEMAS = {
         "type": "object",
         "additionalProperties": False,
         "properties": {
-            "main_options": {
+            "syndromic_options": {
                 "type": "array",
                 "minItems": 3,
                 "maxItems": 3,
@@ -40,10 +40,25 @@ SCHEMAS = {
                     "required": ["name", "cid11", "dsm5tr"],
                 },
             },
-            "other_options": {
+            "nosological_options": {
                 "type": "array",
                 "minItems": 3,
                 "maxItems": 3,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "name": {"type": "string"},
+                        "cid11": {"type": "string"},
+                        "dsm5tr": {"type": "string"},
+                    },
+                    "required": ["name", "cid11", "dsm5tr"],
+                },
+            },
+            "etiological_options": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
                 "items": {
                     "type": "object",
                     "additionalProperties": False,
@@ -56,7 +71,7 @@ SCHEMAS = {
                 },
             },
         },
-        "required": ["main_options", "other_options"],
+        "required": ["syndromic_options", "nosological_options", "etiological_options"],
     },
     "treatment": {
         "type": "object",
@@ -203,10 +218,10 @@ def parse_model_json(text):
 
 def validate_result(kind, result):
     if kind == "diagnosis":
-        for group in ("main_options", "other_options"):
+        for group, expected in (("syndromic_options", 3), ("nosological_options", 3), ("etiological_options", 2)):
             options = result.get(group)
-            if not isinstance(options, list) or len(options) != 3:
-                raise ValueError("Cada grupo diagnostico deve conter exatamente 3 opcoes.")
+            if not isinstance(options, list) or len(options) != expected:
+                raise ValueError(f"O grupo {group} deve conter exatamente {expected} opcoes.")
             for option in options:
                 if not isinstance(option, dict):
                     raise ValueError("Opcao diagnostica invalida.")
@@ -241,15 +256,12 @@ def validate_result(kind, result):
 
 def plain_text_from_result(kind, result):
     if kind == "diagnosis":
-        main = "\n".join(
+        def format_options(options):
+            return "\n".join(
             f"{item['name']} - CID-11: {item['cid11']} - DSM-5-TR: {item['dsm5tr']}"
-            for item in result["main_options"]
-        )
-        other = "\n".join(
-            f"{item['name']} - CID-11: {item['cid11']} - DSM-5-TR: {item['dsm5tr']}"
-            for item in result["other_options"]
-        )
-        return f"HIPOTESES PRINCIPAIS:\n{main}\n\nOUTRAS HIPOTESES:\n{other}"
+            for item in options)
+        return "DIAGNOSTICO SINDROMICO:\n{}\n\nDIAGNOSTICO NOSOLOGICO:\n{}\n\nDIAGNOSTICO ETIOLOGICO:\n{}".format(
+            format_options(result["syndromic_options"]), format_options(result["nosological_options"]), format_options(result["etiological_options"]))
     if kind == "treatment":
         medications = "\n".join(
             f"{item['medication']} | Dose inicial: {item['initial_dose']} | Progressao: {item['progression']} | Dose final: {item['target_dose']}"
