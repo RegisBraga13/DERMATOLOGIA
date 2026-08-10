@@ -3,6 +3,7 @@ import { medications } from "./data/medications.js?v=medicamentos-1";
 import { fetchCep } from "./services/cepService.js";
 import { exportTextAsPdf } from "./services/pdfService.js?v=pdf-download-2";
 import { loadState, saveState, uid } from "./services/storageService.js";
+import { currentSession, pullState, pushState, signIn, signOut } from "./services/supabaseService.js";
 
 const app = document.querySelector("#app");
 let state = loadState();
@@ -17,6 +18,8 @@ let modal = null;
 let pendingViewAfterPatient = "";
 let activeVoiceRecognition = null;
 let activeVoiceButton = null;
+let authSession = null;
+let authError = "";
 const RECORD_SEARCH_TEXT_CACHE = new WeakMap();
 const ENTRY_TIMESTAMP_CACHE = new WeakMap();
 const MENTAL_EXAM_KEYS = Object.freeze([
@@ -347,10 +350,20 @@ const icons = {
   exit: lockIcon()
 };
 
-render();
+currentSession().then(async session => {
+  authSession = session;
+  if (authSession) {
+    try {
+      const remoteState = await pullState();
+      if (remoteState) { state = remoteState; saveState(state); selectedPatientId = state.patients?.[0]?.id || ""; }
+    } catch (error) { authError = error.message; }
+  }
+  render();
+});
 
 function render() {
   document.body.classList.toggle("light", state.theme === "light");
+  if (!authSession) { app.innerHTML = loginView(); bindAuthEvents(); return; }
   app.innerHTML = `
     <div class="app-shell">
       ${topbar()}
@@ -361,6 +374,20 @@ function render() {
   `;
   bindGlobalEvents();
   bindViewEvents();
+}
+
+function loginView() {
+  return `<main class="auth-shell"><section class="auth-card"><span class="brand-mark">RB</span><h1>Prontuário Psiquiátrico</h1><p>Entre para acessar seus prontuários com segurança.</p><form id="auth-form"><label>E-mail<input name="email" type="email" autocomplete="username" required /></label><label>Senha<input name="password" type="password" autocomplete="current-password" required /></label>${authError ? `<p class="warning">${escapeHtml(authError)}</p>` : ""}<button class="primary" type="submit">Entrar</button></form></section></main>`;
+}
+
+function bindAuthEvents() {
+  app.querySelector("#auth-form")?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    authError = "";
+    try { authSession = await signIn(form.email.value.trim(), form.password.value); render(); }
+    catch (error) { authError = error.message; render(); }
+  });
 }
 
 function topbar() {
@@ -3470,6 +3497,7 @@ function upsert(collection, data) {
 
 function persist() {
   saveState(state);
+  if (authSession) pushState(state).catch(error => { authError = error.message; });
 }
 
 async function copyEvolution() {

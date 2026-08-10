@@ -8,6 +8,16 @@ import urllib.request
 
 
 ROOT = Path(__file__).resolve().parent
+
+def load_env_file():
+    env_path = ROOT / ".env"
+    if env_path.exists():
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            key, separator, value = line.partition("=")
+            if separator and key.strip() and not key.strip().startswith("#"):
+                os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+load_env_file()
 API_URL = "https://api.openai.com/v1/responses"
 VECTOR_STORE_API_URL = "https://api.openai.com/v1/vector_stores/{vector_store_id}/search"
 DEFAULT_MODEL = "gpt-4.1"
@@ -307,6 +317,9 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         parsed_path = urllib.parse.urlparse(self.path)
+        if parsed_path.path == "/api/supabase-config":
+            self.send_json(200, {"url": os.environ.get("SUPABASE_URL", "").rstrip("/"), "key": os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")})
+            return
         if parsed_path.path == "/api/health":
             self.send_json(200, {
                 "ok": True,
