@@ -23,7 +23,7 @@ VECTOR_STORE_API_URL = "https://api.openai.com/v1/vector_stores/{vector_store_id
 DEFAULT_MODEL = "gpt-4.1"
 MAX_PROMPT_CHARS = 12000
 MAX_OUTPUT_TOKENS = 1400
-ALLOWED_KINDS = {"diagnosis", "treatment", "evolution", "medication"}
+ALLOWED_KINDS = {"anamnesis", "mental_exam", "refinement", "diagnosis", "treatment", "evolution", "medication"}
 RXNAV_DISPLAY_TERMS_URL = "https://rxnav.nlm.nih.gov/REST/displaynames.json"
 RXNAV_DISPLAY_TERMS = None
 RAG_MAX_RESULTS = 8
@@ -31,6 +31,107 @@ RAG_SCORE_THRESHOLD = 0.55
 
 
 SCHEMAS = {
+    "anamnesis": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "chief_complaint": {"type": "string"},
+            "hda": {"type": "string"},
+            "depressive_symptoms": {"type": "array", "items": {"type": "string"}},
+            "mania_hypomania": {"type": "array", "items": {"type": "string"}},
+            "anxiety_symptoms": {"type": "array", "items": {"type": "string"}},
+            "sleep": {"type": "array", "items": {"type": "string"}},
+            "appetite": {"type": "array", "items": {"type": "string"}},
+            "symptom_impact": {"type": "array", "items": {"type": "string"}},
+            "substances_behaviors": {"type": "array", "items": {"type": "string"}},
+            "psychosis": {"type": "array", "items": {"type": "string"}},
+            "suicide_risk": {"type": "array", "items": {"type": "string"}},
+            "previous_diagnoses": {"type": "array", "items": {"type": "string"}},
+            "previous_treatments": {"type": "array", "items": {"type": "string"}},
+            "medical_history": {"type": "string"},
+            "family_history": {"type": "array", "items": {"type": "string"}},
+            "worsening_factors": {"type": "array", "items": {"type": "string"}},
+            "improving_factors": {"type": "array", "items": {"type": "string"}},
+            "functional_impact": {"type": "array", "items": {"type": "string"}},
+        },
+        "required": [
+            "chief_complaint", "hda", "depressive_symptoms", "mania_hypomania",
+            "anxiety_symptoms", "sleep", "appetite", "symptom_impact",
+            "substances_behaviors", "psychosis", "suicide_risk", "previous_diagnoses",
+            "previous_treatments", "medical_history", "family_history", "worsening_factors",
+            "improving_factors", "functional_impact"
+        ],
+    },
+    "mental_exam": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            key: {"type": "array", "items": {"type": "string"}}
+            for key in (
+                "appearance", "attention", "orientation", "memory", "perception",
+                "thought_course", "thought_content", "language", "mood", "affect",
+                "psychomotor", "volition", "judgment"
+            )
+        },
+        "required": [
+            "appearance", "attention", "orientation", "memory", "perception",
+            "thought_course", "thought_content", "language", "mood", "affect",
+            "psychomotor", "volition", "judgment"
+        ],
+    },
+    "refinement": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "questions": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 8,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "topic": {"type": "string"},
+                        "prompt": {"type": "string"},
+                        "options": {"type": "array", "minItems": 2, "maxItems": 6, "items": {"type": "string"}},
+                        "selection_mode": {"type": "string", "enum": ["single", "multiple"]},
+                    },
+                    "required": ["topic", "prompt", "options", "selection_mode"],
+                },
+            },
+            "red_flags": {
+                "type": "array",
+                "maxItems": 6,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {"topic": {"type": "string"}, "reason": {"type": "string"}},
+                    "required": ["topic", "reason"],
+                },
+            },
+            "observations": {
+                "type": "array",
+                "maxItems": 6,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {"topic": {"type": "string"}, "reason": {"type": "string"}},
+                    "required": ["topic", "reason"],
+                },
+            },
+            "important_points": {
+                "type": "array",
+                "maxItems": 6,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {"topic": {"type": "string"}, "reason": {"type": "string"}},
+                    "required": ["topic", "reason"],
+                },
+            },
+        },
+        "required": ["questions", "red_flags", "observations", "important_points"],
+    },
     "diagnosis": {
         "type": "object",
         "additionalProperties": False,
@@ -227,7 +328,27 @@ def parse_model_json(text):
 
 
 def validate_result(kind, result):
-    if kind == "diagnosis":
+    if kind == "anamnesis":
+        for key, value in result.items():
+            if key in {"chief_complaint", "hda", "medical_history"}:
+                if not isinstance(value, str):
+                    raise ValueError("Campo narrativo da anamnese invalido.")
+            elif not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+                raise ValueError("Campo estruturado da anamnese invalido.")
+    elif kind == "mental_exam":
+        if not all(isinstance(value, list) and all(isinstance(item, str) for item in value) for value in result.values()):
+            raise ValueError("Exame psiquico estruturado invalido.")
+    elif kind == "refinement":
+        questions = result.get("questions")
+        if not isinstance(questions, list) or not 3 <= len(questions) <= 8:
+            raise ValueError("O refinamento deve conter de 3 a 8 perguntas.")
+        for question in questions:
+            if not isinstance(question.get("prompt"), str) or not isinstance(question.get("options"), list) or len(question["options"]) < 2:
+                raise ValueError("Pergunta de refinamento invalida.")
+        for key in ("red_flags", "observations", "important_points"):
+            if not isinstance(result.get(key), list):
+                raise ValueError("Bloco de refinamento invalido.")
+    elif kind == "diagnosis":
         for group, expected in (("syndromic_options", 3), ("nosological_options", 3), ("etiological_options", 2)):
             options = result.get(group)
             if not isinstance(options, list) or len(options) != expected:
@@ -265,6 +386,12 @@ def validate_result(kind, result):
 
 
 def plain_text_from_result(kind, result):
+    if kind == "anamnesis":
+        return f"QP: {result['chief_complaint']}\nHDA: {result['hda']}"
+    if kind == "mental_exam":
+        return "\n".join(f"{key}: {', '.join(value)}" for key, value in result.items())
+    if kind == "refinement":
+        return "\n".join(f"{item['topic']}: {item['prompt']}" for item in result["questions"])
     if kind == "diagnosis":
         def format_options(options):
             return "\n".join(
