@@ -380,6 +380,31 @@ function render() {
   bindViewEvents();
 }
 
+/**
+ * render() substitui todo o innerHTML, então o campo em edição é destruído e
+ * recriado. Guarda qual campo estava focado e onde o cursor estava, e devolve
+ * os dois depois de redesenhar.
+ */
+function renderPreservingFocus() {
+  const active = document.activeElement;
+  const name = active?.name;
+  const isTextField = active && ("selectionStart" in active) && active.selectionStart !== null;
+  const start = isTextField ? active.selectionStart : null;
+  const end = isTextField ? active.selectionEnd : null;
+  const scroll = active?.scrollTop;
+
+  render();
+
+  if (!name) return;
+  const restored = app.querySelector(`[name="${CSS.escape(name)}"]`);
+  if (!restored) return;
+  restored.focus({ preventScroll: true });
+  if (start !== null && "setSelectionRange" in restored) {
+    try { restored.setSelectionRange(start, end); } catch { /* type sem seleção */ }
+  }
+  if (scroll != null) restored.scrollTop = scroll;
+}
+
 function loginView() {
   return `<main class="auth-shell"><section class="auth-card"><span class="brand-mark">RB</span><h1>Prontuário Psiquiátrico</h1><p>Entre para acessar seus prontuários com segurança.</p><form id="auth-form"><label>E-mail<input name="email" type="email" autocomplete="username" required /></label><label>Senha<input name="password" type="password" autocomplete="current-password" required /></label>${authError ? `<p class="warning">${escapeHtml(authError)}</p>` : ""}<button class="primary" type="submit">Entrar</button></form></section></main>`;
 }
@@ -410,6 +435,13 @@ function topbar() {
   `;
 }
 
+function greetingLabel() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Bom dia, Dr. Regis.";
+  if (hour < 18) return "Boa tarde, Dr. Regis.";
+  return "Boa noite, Dr. Regis.";
+}
+
 function dashboard() {
   const cards = [
     ["patient", "Novo paciente", "Cadastre dados pessoais e de contato", "patient", "01"],
@@ -420,7 +452,11 @@ function dashboard() {
   const entries = (state.consultations?.length || 0) + (state.returns?.length || 0);
   return `<section class="dashboard">
       <div class="dashboard-intro">
-      <div></div>
+      <div class="intro-copy">
+        <span class="eyebrow">Prontuário psiquiátrico</span>
+        <h2>${greetingLabel()}</h2>
+        <p>Um espaço calmo para registrar, acompanhar e cuidar.</p>
+      </div>
       <div class="today"><span>HOJE</span><strong>${new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long" }).format(new Date())}</strong></div>
     </div>
     <div class="dashboard-metrics">
@@ -1126,18 +1162,21 @@ function medicalRecord() {
       <div>
         ${field("recordSearch", "Busca por palavra-chave, diagnostico, medicamento ou data", draft.recordQuery || "")}
       </div>
-      <div class="timeline">
-        ${all.length ? all.map(entry => `
-          <article class="timeline-item">
-            <h4>${escapeHtml(entry.label)} - ${new Date(entry.createdAt).toLocaleString("pt-BR")}</h4>
-            <p>${escapeHtml(recordReportText(entry))}</p>
-            <div class="actions">
-              <button class="secondary" data-action="pdf-entry" data-id="${entry.id}" data-type="${entry.type}">Exportar PDF</button>
-            </div>
-          </article>`).join("") : `<div class="warning">Nenhum registro encontrado para os filtros atuais.</div>`}
-      </div>
+      <div class="timeline" aria-live="polite">${recordTimeline(all)}</div>
     </div>
   `;
+}
+
+function recordTimeline(entries) {
+  if (!entries.length) return `<div class="warning">Nenhum registro encontrado para os filtros atuais.</div>`;
+  return entries.map(entry => `
+    <article class="timeline-item">
+      <h4>${escapeHtml(entry.label)} - ${new Date(entry.createdAt).toLocaleString("pt-BR")}</h4>
+      <p>${escapeHtml(recordReportText(entry))}</p>
+      <div class="actions">
+        <button class="secondary" data-action="pdf-entry" data-id="${entry.id}" data-type="${entry.type}">Exportar PDF</button>
+      </div>
+    </article>`).join("");
 }
 
 function exitPanel() {
@@ -1583,7 +1622,9 @@ function bindAutoDraft() {
         anamnesisLocalTimer = setTimeout(() => {
           if (view !== "consultation" || consultationPage !== "anamnese") return;
           applyAnamnesisAiResult(localAnamnesisExtraction(transcript), transcript);
-          render();
+          // O médico normalmente ainda está digitando quando isto dispara.
+          // render() recria o textarea e o cursor salta para fora do campo.
+          renderPreservingFocus();
         }, 700);
       }
     });
@@ -1693,15 +1734,32 @@ function bindReturnForm() {
 }
 
 function bindRecord() {
+  const timeline = app.querySelector(".timeline");
   app.querySelector("[name='recordSearch']")?.addEventListener("input", event => {
     draft.recordQuery = event.target.value;
-    render();
+    // render() troca todo o innerHTML do app: o input seria recriado e perderia
+    // o foco a cada tecla. Só a lista precisa mudar.
+    if (!timeline) { render(); return; }
+    const patient = getPatient();
+    if (!patient) return;
+    const query = (draft.recordQuery || "").toLowerCase();
+    const entries = entriesForPatient(patient.id);
+    timeline.innerHTML = recordTimeline(query ? entries.filter(entry => recordSearchText(entry).includes(query)) : entries);
+    // Os botões "Exportar PDF" recriados continuam funcionando via delegação em bindActions().
   });
 }
 
+// Delegação: um único listener no container, registrado uma vez.
+// Antes eram N listeners recriados a cada render(), e qualquer trecho de HTML
+// inserido fora do render() (ex.: a timeline do prontuário) ficava sem handler.
+let actionsBound = false;
+
 function bindActions() {
-  app.querySelectorAll("[data-action]").forEach(element => {
-    element.addEventListener("click", async event => {
+  if (actionsBound) return;
+  actionsBound = true;
+  app.addEventListener("click", async event => {
+    const element = event.target.closest("[data-action]");
+    if (element) {
       const action = element.dataset.action;
       if (["dashboard", "toggle-theme", "select-patient", "edit-patient"].includes(action)) return;
       if (action === "form-page") switchFormPage(element);
@@ -1729,7 +1787,7 @@ function bindActions() {
       if (action === "confirm-exit") showExitModal();
       if (action === "close-modal") { modal = null; render(); }
       if (action === "exit-now") { modal = null; view = "dashboard"; render(); }
-    });
+    }
   });
 }
 

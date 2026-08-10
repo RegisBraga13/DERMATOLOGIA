@@ -1,23 +1,17 @@
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import json
+import logging
 import os
+import threading
 import urllib.error
 import urllib.parse
 import urllib.request
 
 
 ROOT = Path(__file__).resolve().parent
+logger = logging.getLogger("prontuario")
 
-def load_env_file():
-    env_path = ROOT / ".env"
-    if env_path.exists():
-        for line in env_path.read_text(encoding="utf-8").splitlines():
-            key, separator, value = line.partition("=")
-            if separator and key.strip() and not key.strip().startswith("#"):
-                os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
-
-load_env_file()
 API_URL = "https://api.openai.com/v1/responses"
 VECTOR_STORE_API_URL = "https://api.openai.com/v1/vector_stores/{vector_store_id}/search"
 DEFAULT_MODEL = "gpt-4.1"
@@ -26,8 +20,57 @@ MAX_OUTPUT_TOKENS = 1400
 ALLOWED_KINDS = {"anamnesis", "mental_exam", "refinement", "diagnosis", "treatment", "evolution", "medication"}
 RXNAV_DISPLAY_TERMS_URL = "https://rxnav.nlm.nih.gov/REST/displaynames.json"
 RXNAV_DISPLAY_TERMS = None
+RXNAV_LOCK = threading.Lock()
 RAG_MAX_RESULTS = 8
 RAG_SCORE_THRESHOLD = 0.55
+
+# --- Superfície estática servida ---------------------------------------------
+# O handler serve o diretório do projeto inteiro. Sem uma barreira explícita,
+# GET /.env devolve a OPENAI_API_KEY em texto puro para qualquer processo local.
+BLOCKED_NAMES = {".env", ".git", ".gitignore", ".venv", "__pycache__", ".DS_Store", "node_modules"}
+BLOCKED_SUFFIXES = {".py", ".pyc", ".sql", ".log", ".command", ".m4a", ".pem", ".key"}
+BLOCKED_PREFIXES = (".env",)          # .env.local, .env.production, ...
+BLOCKED_STEMS = ("rag_sources",)      # rag_sources.local.json
+
+# Assets versionados por query string (?v=) podem ficar em cache longo.
+# HTML e respostas de API nunca — carregam dado clínico.
+CACHEABLE_SUFFIXES = {".woff2", ".woff", ".ttf", ".eot", ".css", ".js", ".svg", ".png", ".jpg", ".webp", ".ico"}
+
+
+def is_blocked_path(relative_parts):
+    """True se qualquer segmento do caminho for sensível."""
+    for part in relative_parts:
+        lowered = part.lower()
+        if lowered in BLOCKED_NAMES:
+            return True
+        if lowered.startswith(BLOCKED_PREFIXES):
+            return True
+        if lowered.startswith(BLOCKED_STEMS):
+            return True
+    if relative_parts:
+        suffix = Path(relative_parts[-1]).suffix.lower()
+        if suffix in BLOCKED_SUFFIXES:
+            return True
+    return False
+
+
+def is_same_origin(handler):
+    """Aceita apenas requisições vindas da própria página.
+
+    Sem isto, qualquer site aberto no navegador do médico consegue disparar
+    POST /api/clinical-ai (CSRF) e consumir a chave da OpenAI.
+    """
+    origin = handler.headers.get("Origin")
+    host = handler.headers.get("Host", "")
+    if origin is None:
+        # curl, fetch same-origin de alguns navegadores antigos, healthchecks locais.
+        # Sem Origin não há navegador de terceiro envolvido.
+        return True
+    try:
+        parsed = urllib.parse.urlparse(origin)
+    except ValueError:
+        return False
+    return parsed.netloc == host
 
 
 SCHEMAS = {
@@ -257,6 +300,20 @@ def load_env():
         os.environ.setdefault(key, value)
 
 
+def load_rxnav_terms():
+    """Lista RxNav em cache, pré-normalizada. ThreadingHTTPServer -> precisa de lock."""
+    global RXNAV_DISPLAY_TERMS
+    if RXNAV_DISPLAY_TERMS is None:
+        with RXNAV_LOCK:
+            if RXNAV_DISPLAY_TERMS is None:
+                with urllib.request.urlopen(RXNAV_DISPLAY_TERMS_URL, timeout=30) as response:
+                    data = json.loads(response.read().decode("utf-8"))
+                terms = data.get("displayTermsList", {}).get("term", [])
+                # Guarda (original, minúsculo) para não chamar .lower() por termo a cada tecla.
+                RXNAV_DISPLAY_TERMS = [(term, term.lower()) for term in terms]
+    return RXNAV_DISPLAY_TERMS
+
+
 def extract_response_text(data):
     if data.get("output_text"):
         return data["output_text"]
@@ -422,19 +479,46 @@ def plain_text_from_result(kind, result):
 
 
 class PrototypeHandler(SimpleHTTPRequestHandler):
+    # Definido em send_head/do_GET para escolher a política de cache da resposta.
+    _cacheable = False
+
     def translate_path(self, path):
-        requested = super().translate_path(path)
-        relative = Path(requested).resolve().relative_to(Path.cwd().resolve())
-        return str(ROOT / relative)
+        requested = Path(super().translate_path(path)).resolve()
+        root = ROOT.resolve()
+        try:
+            relative = requested.relative_to(root)
+        except ValueError:
+            # Fora da raiz do projeto: devolve um caminho inexistente -> 404.
+            return str(root / "__fora_da_raiz__")
+        if is_blocked_path(relative.parts):
+            return str(root / "__bloqueado__")
+        return str(requested)
+
+    def send_head(self):
+        suffix = Path(urllib.parse.urlparse(self.path).path).suffix.lower()
+        self._cacheable = suffix in CACHEABLE_SUFFIXES
+        return super().send_head()
 
     def end_headers(self):
         self.send_header("X-Content-Type-Options", "nosniff")
-        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
-        self.send_header("Pragma", "no-cache")
-        self.send_header("Expires", "0")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "no-referrer")
+        if self._cacheable:
+            # index.html versiona os assets com ?v=; revalidar a cada carga
+            # torna o boot lento sem ganho nenhum.
+            self.send_header("Cache-Control", "public, max-age=31536000, immutable")
+        else:
+            self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
         super().end_headers()
 
+    def log_message(self, fmt, *args):
+        logger.info("%s - %s", self.address_string(), fmt % args)
+
     def send_json(self, status, payload):
+        # Conexões keep-alive reaproveitam a instância: resposta de API nunca herda cache.
+        self._cacheable = False
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -460,20 +544,29 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 self.send_json(200, {"suggestions": []})
                 return
             try:
-                global RXNAV_DISPLAY_TERMS
-                if RXNAV_DISPLAY_TERMS is None:
-                    with urllib.request.urlopen(RXNAV_DISPLAY_TERMS_URL, timeout=30) as response:
-                        data = json.loads(response.read().decode("utf-8"))
-                    RXNAV_DISPLAY_TERMS = data.get("displayTermsList", {}).get("term", [])
-                prefix = [term for term in RXNAV_DISPLAY_TERMS if term.lower().startswith(query)]
-                contains = [term for term in RXNAV_DISPLAY_TERMS if query in term.lower() and term not in prefix]
+                terms = load_rxnav_terms()
+                prefix = []
+                contains = []
+                for term, lowered in terms:
+                    if lowered.startswith(query):
+                        prefix.append(term)
+                        if len(prefix) >= 12:
+                            break
+                    elif len(contains) < 12 and query in lowered:
+                        contains.append(term)
                 self.send_json(200, {"suggestions": (prefix + contains)[:12]})
             except Exception as error:
-                self.send_json(502, {"error": "RxNav indisponivel.", "detail": str(error), "suggestions": []})
+                logger.warning("RxNav indisponivel: %s", error)
+                self.send_json(502, {"error": "RxNav indisponivel.", "suggestions": []})
             return
         return super().do_GET()
 
     def do_POST(self):
+        if not is_same_origin(self):
+            logger.warning("POST bloqueado por origem externa: %s", self.headers.get("Origin"))
+            self.send_json(403, {"error": "Origem nao autorizada."})
+            return
+
         if self.path != "/api/clinical-ai":
             self.send_json(404, {"error": "Endpoint nao encontrado."})
             return
@@ -590,17 +683,26 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 "sources": public_sources,
             })
         except urllib.error.HTTPError as error:
-            detail = error.read().decode("utf-8", errors="replace")
-            self.send_json(error.code, {"error": "Erro retornado pela OpenAI.", "detail": detail})
+            # O corpo da OpenAI pode ecoar trechos do prompt (dado clínico) e
+            # metadados da conta. Fica no log local, não na resposta HTTP.
+            logger.error("OpenAI %s: %s", error.code, error.read().decode("utf-8", errors="replace"))
+            self.send_json(error.code, {"error": "Erro retornado pela OpenAI. Detalhes no log do servidor."})
         except Exception as error:
-            self.send_json(500, {"error": str(error)})
+            logger.exception("Falha em /api/clinical-ai")
+            self.send_json(500, {"error": "Erro interno ao processar a solicitacao."})
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     load_env()
     port = int(os.environ.get("PORT", "8000"))
     os.chdir(ROOT)
     server = ThreadingHTTPServer(("127.0.0.1", port), PrototypeHandler)
-    print(f"Protótipo com IA real em http://127.0.0.1:{port}")
+    print(f"Prontuário em http://127.0.0.1:{port}")
     print("Configure OPENAI_API_KEY no .env antes de usar os botões de IA.")
-    server.serve_forever()
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nEncerrando.")
+    finally:
+        server.server_close()

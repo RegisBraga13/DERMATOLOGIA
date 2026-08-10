@@ -6,3 +6,6 @@ __pycache__/
 .env.*
 !.env.example
 rag_sources.local.json
+
+# Áudios de teste não entram no versionamento
+testes/

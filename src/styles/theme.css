@@ -1893,3 +1893,566 @@ button,
 .refinement-item .chips {
   margin-top: 10px;
 }
+
+/* ============================================================
+   CAMADA DE IDENTIDADE — "Calma clínica"
+   Azul calmo + bege acolhedor · Outfit como fonte única
+   Esta é a última camada do arquivo: prevalece sobre as anteriores.
+   ============================================================ */
+
+/* --- Tipografia local: Outfit, fonte única (offline, sem requisição externa) --- */
+@font-face {
+  font-family: Outfit;
+  src: url("../../fonts/Outfit-Variable-latin.woff2") format("woff2");
+  font-weight: 200 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: Outfit;
+  src: url("../../fonts/Outfit-Variable-latin-ext.woff2") format("woff2");
+  font-weight: 200 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* --- Tema escuro (padrão): azul profundo como matéria, bege como tinta --- */
+:root {
+  color-scheme: dark;
+
+  --azul-calmo: #5B7C99;
+  --azul-profundo: #33505E;
+  --bege: #F3EAE0;
+  --terracota: #C17B5B;
+  --verde: #A3B18A;
+  --amarelo: #E3B23C;
+
+  --bg: #1C2B33;
+  --surface: #24363F;
+  --surface-2: #2C414B;
+  --line: rgba(243, 234, 224, .13);
+  --text: #F3EAE0;
+  --muted: #A7B6BF;
+
+  --primary: #33505E;
+  --primary-2: #8FADC6;
+  --on-primary: #16222A;
+  --sage: #A3B18A;
+  --amber: #E3B23C;
+  --terracota-ink: #D2937A;
+  --danger: #C86F5E;
+  --on-danger: #16222A;
+
+  /* variáveis que o CSS já referenciava sem nunca terem sido definidas */
+  --accent: #8FADC6;
+  --accent-soft: #2C414B;
+  --panel: #24363F;
+
+  --shadow: 0 18px 44px rgba(10, 20, 26, .34);
+  --radius: 12px;
+
+  /* Fonte única: a hierarquia vem do tamanho, não da família */
+  --font-ui: Outfit, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-editorial: Outfit, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* escala tipográfica — razão ~1.22, proporções harmônicas */
+  --type-micro: 11px;
+  --type-support: 13px;
+  --type-label: 13px;
+  --type-body: 16px;
+  --type-value: 16px;
+
+  /* pesos: leve só em corpo grande; dado clínico nunca abaixo de 400 */
+  --w-display: 250;
+  --w-title: 350;
+  --w-heading: 450;
+  --w-body: 400;
+  --w-strong: 550;
+  --w-caps: 600;
+}
+
+/* --- Tema claro: bege acolhedor, tinta azul profunda --- */
+body.light {
+  color-scheme: light;
+
+  --bg: #F3EAE0;
+  --surface: #FAF6F0;
+  --surface-2: #EBE0D4;
+  --line: rgba(51, 80, 94, .16);
+  --text: #2A4553;
+  --muted: #4E6779;
+
+  --primary: #5B7C99;
+  --primary-2: #33505E;
+  --on-primary: #F7F1E9;
+  --sage: #5E6E45;
+  --amber: #8A6716;
+  --terracota-ink: #9A5636;
+  --danger: #9B4436;
+  --on-danger: #FFFFFF;
+
+  --accent: #33505E;
+  --accent-soft: #EBE0D4;
+  --panel: #FAF6F0;
+
+  --shadow: 0 16px 40px rgba(51, 80, 94, .10);
+}
+
+body {
+  font-family: var(--font-ui);
+  font-weight: 400;
+  letter-spacing: .002em;
+}
+
+button, input, select, textarea { font-family: var(--font-ui); }
+
+/* Uma família só: títulos se distinguem por tamanho e tracking, não por serifa.
+   Quanto maior o corpo, mais leve o peso e mais fechado o tracking. */
+.brand h1,
+.dashboard-intro h2,
+.today strong,
+.quick-heading span,
+.panel-title h2,
+.clinical-page-title h3,
+.clinical-card h4,
+.address-card h3,
+.treatment-card h4,
+.diagnosis-group h4,
+.antecedents-card h4,
+.modal h2,
+.dashboard-metrics > div > strong,
+.dash-button .dash-copy strong {
+  font-family: var(--font-editorial);
+  font-weight: var(--w-heading);
+  letter-spacing: -.015em;
+}
+
+/* Corpo grande — o peso leve só vive aqui */
+.dashboard-intro h2,
+.panel-title h2,
+.dashboard-metrics > div > strong {
+  font-weight: var(--w-display);
+  letter-spacing: -.028em;
+}
+
+.clinical-page-title h3,
+.antecedents-card h4,
+.modal h2 {
+  font-weight: var(--w-title);
+  letter-spacing: -.022em;
+}
+
+/* Dado clínico nunca fica leve, e sempre com numeral tabular */
+input,
+select,
+textarea,
+.chip,
+.medication-fact p,
+.medication-priority-fact strong,
+.timeline-item p,
+.diagnosis-option span {
+  font-weight: var(--w-body);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+label { font-weight: var(--w-strong); }
+
+/* Últimos resquícios de serifa em camadas antigas */
+.medication-reference-head h3,
+.medication-reference-title h3 {
+  font-family: var(--font-editorial);
+  font-weight: var(--w-display);
+  letter-spacing: -.03em;
+}
+.medication-empty-state > span { font-family: var(--font-editorial); font-weight: var(--w-display); }
+.side-foot > span { font: var(--w-caps) 11px/1 var(--font-editorial); letter-spacing: .08em; }
+
+/* --- Botões --- */
+.primary {
+  background: var(--primary-2);
+  border-color: var(--primary-2);
+  color: var(--on-primary);
+  font-weight: var(--w-strong);
+  box-shadow: none;
+}
+.primary:hover { background: color-mix(in srgb, var(--primary-2) 86%, var(--text)); }
+.danger { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
+.side-foot > span { background: var(--primary-2); color: var(--on-primary); }
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+
+.container { width: min(1240px, 100%); padding: clamp(26px, 4vw, 56px) clamp(20px, 4vw, 60px); }
+
+/* Cabeçalho ------------------------------------------------ */
+.dashboard-intro {
+  align-items: flex-end;
+  gap: clamp(24px, 5vw, 64px);
+  padding: clamp(6px, 1.5vw, 16px) 0 clamp(26px, 3vw, 36px);
+  border-bottom: 1px solid var(--line);
+}
+
+.intro-copy { min-width: 0; }
+
+.eyebrow {
+  display: block;
+  margin-bottom: 16px;
+  color: var(--primary-2);
+  font-size: var(--type-micro);
+  font-weight: var(--w-caps);
+  letter-spacing: .2em;
+  text-transform: uppercase;
+}
+
+.dashboard-intro h2 {
+  margin: 0;
+  max-width: 16ch;
+  font-size: clamp(34px, 4.8vw, 56px);
+  font-weight: var(--w-display);
+  line-height: 1.05;
+  letter-spacing: -.03em;
+}
+
+.dashboard-intro p {
+  margin: 16px 0 0;
+  max-width: 46ch;
+  color: var(--muted);
+  font-size: var(--type-body);
+  line-height: 1.6;
+}
+
+.today { text-align: right; flex: 0 0 auto; padding-bottom: 4px; }
+.today span {
+  display: block;
+  margin-bottom: 9px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .2em;
+}
+.today strong {
+  font-size: 19px;
+  font-weight: var(--w-heading);
+  line-height: 1.2;
+  letter-spacing: -.012em;
+  text-transform: none;
+}
+
+/* Métricas -------------------------------------------------- */
+.dashboard-metrics {
+  grid-template-columns: 1fr 1fr 1.5fr;
+  gap: 0;
+  margin: clamp(26px, 3vw, 34px) 0 clamp(40px, 5vw, 56px);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.dashboard-metrics > div {
+  min-height: 104px;
+  padding: 22px clamp(18px, 2vw, 26px);
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+}
+.dashboard-metrics > div:last-child { border-right: 0; }
+
+.dashboard-metrics > div > span:first-child {
+  color: var(--muted);
+  font-size: var(--type-support);
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: .01em;
+}
+
+.dashboard-metrics > div > strong {
+  font-size: 40px;
+  font-weight: var(--w-display);
+  line-height: 1;
+  letter-spacing: -.03em;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.dashboard-metrics .privacy-note {
+  justify-content: flex-start;
+  gap: 14px;
+  color: var(--primary-2);
+  background: color-mix(in srgb, var(--verde) 9%, var(--surface));
+}
+.privacy-note > svg { width: 20px; height: 20px; flex: 0 0 auto; color: var(--sage); }
+.privacy-note span { display: grid; gap: 5px; }
+.privacy-note strong { color: var(--text); font-size: var(--type-support); font-weight: var(--w-strong); }
+.privacy-note small { color: var(--muted); font-size: 12px; line-height: 1.45; }
+
+/* Acesso rápido --------------------------------------------- */
+.quick-heading { align-items: baseline; margin-bottom: 18px; }
+.quick-heading span {
+  font-family: var(--font-editorial);
+  font-size: 23px;
+  font-weight: var(--w-heading);
+  line-height: 1.25;
+  letter-spacing: -.018em;
+}
+.quick-heading small { color: var(--muted); font-size: var(--type-support); }
+
+.dashboard-actions { gap: clamp(12px, 1.4vw, 18px); }
+
+.dash-button {
+  position: relative;
+  min-height: 212px;
+  padding: 24px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: none;
+  transition: border-color .25s ease, background .25s ease, transform .25s ease;
+}
+.dash-button::after { display: none; }
+.dash-button:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--primary-2) 46%, var(--line));
+  background: color-mix(in srgb, var(--surface) 92%, var(--primary-2));
+  box-shadow: none;
+}
+
+.card-number {
+  top: 22px;
+  right: 22px;
+  color: var(--muted) !important;
+  font-size: 10px !important;
+  font-weight: 600;
+  letter-spacing: .16em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* `.dash-button span` forçava display:block e desalinhava o ícone dentro do círculo */
+.dash-button .dash-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--primary-2) 26%, var(--line));
+  background: color-mix(in srgb, var(--primary-2) 10%, transparent);
+  color: var(--primary-2);
+}
+.dash-button .dash-icon svg { width: 21px; height: 21px; display: block; }
+
+.dash-copy { margin-top: auto; }
+.dash-button .dash-copy strong {
+  margin: 0 0 9px;
+  font-size: 20px;
+  font-weight: var(--w-heading);
+  line-height: 1.25;
+  letter-spacing: -.018em;
+}
+.dash-button .dash-copy span {
+  max-width: 21ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--type-support) !important;
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+.dash-button .card-number,
+.session-exit span,
+.quick-heading small { font-weight: 500; }
+
+.card-arrow {
+  right: 22px;
+  bottom: 24px;
+  color: var(--primary-2) !important;
+  font-size: 17px !important;
+  opacity: .55;
+  transition: opacity .25s ease, transform .25s ease;
+}
+.dash-button:hover .card-arrow { opacity: 1; transform: translateX(3px); }
+
+/* Cada card recebe um sinal cromático discreto, sem quebrar a calma */
+.dash-button:nth-child(1) .dash-icon { color: var(--primary-2); border-color: color-mix(in srgb, var(--primary-2) 30%, var(--line)); background: color-mix(in srgb, var(--primary-2) 10%, transparent); }
+.dash-button:nth-child(2) .dash-icon { color: var(--sage); border-color: color-mix(in srgb, var(--verde) 34%, var(--line)); background: color-mix(in srgb, var(--verde) 12%, transparent); }
+.dash-button:nth-child(3) .dash-icon { color: var(--terracota-ink); border-color: color-mix(in srgb, var(--terracota) 34%, var(--line)); background: color-mix(in srgb, var(--terracota) 11%, transparent); }
+.dash-button:nth-child(4) .dash-icon { color: var(--amber); border-color: color-mix(in srgb, var(--amarelo) 28%, var(--line)); background: color-mix(in srgb, var(--amarelo) 8%, transparent); }
+
+/* Encerrar sessão -------------------------------------------- */
+.session-exit {
+  margin: clamp(26px, 3vw, 34px) 0 0 auto;
+  min-height: 40px;
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: var(--type-support);
+  font-weight: 500;
+  transition: color .2s ease;
+}
+.session-exit:hover { color: var(--danger); transform: none; }
+.session-exit svg { width: 15px; height: 15px; }
+
+/* Topbar ------------------------------------------------------ */
+.brand-mark {
+  border-color: color-mix(in srgb, var(--primary-2) 42%, var(--line));
+  color: var(--primary-2);
+  font-family: var(--font-editorial);
+  font-weight: var(--w-caps);
+  letter-spacing: .1em;
+}
+.brand h1 { font-size: 21px; font-weight: var(--w-heading); letter-spacing: -.018em; }
+.secure-status { color: var(--muted); font-size: 12px; }
+.secure-status i { background: var(--sage); box-shadow: 0 0 0 4px color-mix(in srgb, var(--verde) 16%, transparent); }
+.icon-button, .compact-action { color: var(--primary-2); }
+
+/* Responsivo -------------------------------------------------- */
+@media (max-width: 980px) {
+  .dashboard-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dash-button { min-height: 190px; }
+}
+
+@media (max-width: 640px) {
+  .dashboard-intro { flex-direction: column; align-items: flex-start; gap: 0; }
+  .dashboard-intro h2 { max-width: none; font-size: clamp(30px, 9vw, 40px); }
+  .dashboard-intro p { font-size: 15px; }
+  .dashboard-metrics { grid-template-columns: 1fr 1fr; }
+  .dashboard-metrics > div { min-height: 92px; padding: 18px; }
+  .dashboard-metrics > div:nth-child(2) { border-right: 0; }
+  .dashboard-metrics > div > strong { font-size: 30px; }
+  .dashboard-metrics .privacy-note { grid-column: 1 / -1; border-top: 1px solid var(--line); }
+  .dashboard-actions { grid-template-columns: 1fr; }
+  .dash-button { min-height: 0; padding: 20px; }
+  .dash-button .dash-copy span { max-width: none; }
+}
+
+/* ============================================================
+   ACESSIBILIDADE
+   ============================================================ */
+
+/* Atalho de teclado para pular a topbar — primeiro Tab da página. */
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -60px;
+  z-index: 100;
+  padding: 11px 18px;
+  border-radius: 0 0 10px 10px;
+  background: var(--primary-2);
+  color: var(--on-primary);
+  font-size: 14px;
+  font-weight: var(--w-strong);
+  text-decoration: none;
+  transition: top .18s ease;
+}
+.skip-link:focus { top: 0; }
+
+/* O tema anterior não desenhava foco em botões: navegação por teclado ficava cega. */
+:where(a, button, [role="button"], summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--primary-2);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--primary-2);
+  outline-offset: 1px;
+}
+
+/* Alvo de toque mínimo em chips e opções (WCAG 2.5.8). */
+.chip,
+.segmented-options label,
+.multi-choice-options label,
+.diagnosis-option { min-height: 48px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .dash-button:hover { transform: none; }
+  button:hover { transform: none; }
+}
+
+/* Respeita quem pediu mais contraste no sistema. */
+@media (prefers-contrast: more) {
+  :root { --line: rgba(243, 234, 224, .3); --muted: #C4D0D7; }
+  body.light { --line: rgba(51, 80, 94, .34); --muted: #3C5464; }
+}
+
+/* ============================================================
+   TELA DE LOGIN
+   .auth-shell / .auth-card nunca tiveram regra: a primeira tela do
+   sistema renderizava sem layout, esticada na largura toda.
+   ============================================================ */
+
+.auth-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: clamp(20px, 5vw, 48px);
+  background: var(--bg);
+}
+
+.auth-card {
+  width: min(420px, 100%);
+  padding: clamp(30px, 4vw, 44px);
+  display: grid;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.auth-card .brand-mark {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 22px;
+  font-size: 13px;
+}
+
+.auth-card h1 {
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-size: clamp(25px, 4vw, 30px);
+  font-weight: var(--w-title);
+  line-height: 1.2;
+  letter-spacing: -.025em;
+}
+
+.auth-card > p {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+#auth-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 28px;
+  text-align: left;
+}
+
+#auth-form .primary {
+  margin-top: 6px;
+  min-height: 50px;
+}
+
+#auth-form .warning {
+  margin: 0;
+  border-left: 3px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+  color: var(--text);
+  font-size: 13px;
+}
+
+@media (max-width: 420px) {
+  .auth-card { border: 0; background: transparent; box-shadow: none; padding: 0; }
+}
