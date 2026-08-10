@@ -368,7 +368,6 @@ function render() {
     <div class="app-shell">
       ${topbar()}
       <main class="container">${view === "dashboard" ? dashboard() : workspace()}</main>
-      <footer class="footer-note">Sistema de prontuario clinico. localStorage apenas para prototipo; usar backend seguro/LGPD em producao.</footer>
       ${modal || ""}
     </div>
   `;
@@ -395,7 +394,7 @@ function topbar() {
     <header class="topbar">
       <div class="brand">
         <span class="brand-mark" aria-hidden="true">RB</span>
-        <div><h1>Regis Braga</h1><p>Psiquiatria & cuidado longitudinal</p></div>
+        <div><h1>Regis Braga</h1></div>
       </div>
       <div class="top-actions">
         <span class="secure-status"><i></i> Ambiente clínico seguro</span>
@@ -415,8 +414,8 @@ function dashboard() {
   ];
   const entries = (state.consultations?.length || 0) + (state.returns?.length || 0);
   return `<section class="dashboard">
-    <div class="dashboard-intro">
-      <div><span class="eyebrow">VISÃO GERAL</span><h2>Bom dia, Dr. Regis.</h2><p>O cuidado começa com uma visão clara de cada história.</p></div>
+      <div class="dashboard-intro">
+      <div></div>
       <div class="today"><span>HOJE</span><strong>${new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long" }).format(new Date())}</strong></div>
     </div>
     <div class="dashboard-metrics">
@@ -505,7 +504,6 @@ function patientForm() {
       </div>
       <div class="actions">
         <button class="primary" type="submit">Salvar Paciente</button>
-        <button class="secondary" type="button" data-action="clear-patient">Novo cadastro em branco</button>
         ${patient.id ? `<button class="danger" type="button" data-action="delete-patient">Excluir paciente</button>` : ""}
       </div>
     </form>
@@ -549,7 +547,7 @@ function returnForm() {
   const consultations = consultationsForPatient(patient.id);
   if (!consultations.length) return `
     <div class="panel-title">
-      <div><h2>Retorno</h2><p>${escapeHtml(patient.nome)} | registre uma consulta antes do retorno.</p></div>
+      <div><h2>Retorno</h2></div>
       ${patientSelector()}
     </div>
     <div class="warning">Nenhuma consulta salva para este paciente. Crie e salve uma consulta antes de registrar retorno.</div>
@@ -621,14 +619,14 @@ function clinicalPage(title, body, scope = "", showActions = true) {
 }
 
 function consultationPageBody(form, patient) {
-  const qphda = form.qphda || [form.queixa && `QP: ${form.queixa}`, form.historia && `HDA: ${form.historia}`].filter(Boolean).join("\n\n");
+  const qphda = form.qphda || [form.queixa && `QP: ${form.queixa}`, form.hdaManual && `HDA: ${form.hdaManual}`].filter(Boolean).join("\n\n");
   if (consultationPage === "anamnese") return clinicalPage("Anamnese", `
     <div class="clinical-card qphda-card">
       <h4>QP e HDA</h4>
       ${voiceTextarea("qphda", "", qphda, "Registrar QP e HDA com cronologia dos sintomas, eventos relacionados, fatores de piora e melhora, uso de substancias, sintomas e impacto funcional.")}
       <div class="manual-anamnesis">
-        ${textarea("queixa", "", form.queixa, "QP nas palavras do paciente", 3)}
-        ${textarea("historia", "HD - preenchimento manual", form.historia, "Historia do problema principal, caso queira preencher manualmente", 6)}
+        ${textarea("queixa", "QP - preenchimento manual", form.queixa, "QP nas palavras do paciente", 1)}
+        ${textarea("hdaManual", "HDA - preenchimento manual", form.hdaManual, "Historia da doença atual", 1)}
       </div>
     </div>
     ${anamnesisQuestionGuide()}
@@ -644,7 +642,7 @@ function consultationPageBody(form, patient) {
     ${chips("impacto", "Impacto funcional", optionGroups.impacto, form.impacto)}
   `, "consultation");
   if (consultationPage === "psiquico") return clinicalPage("Exame psiquico", mentalExamBody(form), "consultation");
-  if (consultationPage === "resumo") return clinicalPage("Resumo objetivo", clinicalSummaryPage(form, patient), "consultation");
+  if (consultationPage === "resumo") return clinicalPage("Resumo", clinicalSummaryPage(form, patient), "consultation");
   if (consultationPage === "neurologico") return clinicalPage("Exame fisico e neurologico", neurologicExamBody(form), "consultation");
   if (consultationPage === "diagnostico") return clinicalPage("Diagnostico e diferenciais", diagnosisModule(form), "consultation");
   if (consultationPage === "tratamento") return clinicalPage("Tratamento e orientacoes", treatmentModule(form), "consultation");
@@ -704,13 +702,7 @@ function neurologicExamBody(form) {
 
 function clinicalSummaryPage(form = {}, patient = {}) {
   const groups = clinicalSummaryGroups(form, patient);
-  return `
-    <div class="summary-intro">
-      <p>Consolidação automática dos dados registrados até este momento. Campos sem preenchimento permanecem em branco.</p>
-      <div class="actions summary-actions"><button class="primary" type="button" data-action="pdf-summary">Salvar em PDF</button></div>
-    </div>
-    ${groups.map(group => summaryTable(group.title, group.rows, group.layout)).join("")}
-  `;
+  return groups.map(group => summaryTable(group.title, group.rows, group.layout)).join("");
 }
 
 function clinicalSummaryGroups(form = {}, patient = {}) {
@@ -838,11 +830,9 @@ function diagnosisModule(form) {
   const aiStatus = diagnosisAiStatusText(form.aiStatus);
   return `
     <div class="diagnosis-ai-panel">
-      <h4>Hipoteses diagnosticas geradas por IA</h4>
-      <p class="online-status">Auxilio inicial ao psiquiatra, elaborado a partir da anamnese completa e do exame psiquico. As opcoes nao constituem diagnostico e exigem revisao clinica.</p>
       ${aiModeSelector(form.aiMode)}
       <div class="actions">
-        <button class="primary" type="button" data-action="generate-diagnosis">Gerar diagnósticos diferenciais</button>
+        <button class="primary" type="button" data-action="generate-diagnosis">Gerar</button>
       </div>
       ${aiStatus ? `<p class="online-status">${escapeHtml(aiStatus)}</p>` : ""}
       ${ragSourcesView(form.ragSources)}
@@ -908,36 +898,32 @@ function treatmentModule(form) {
   const examesText = requestedExamsText(form);
   const medicationOptions = treatmentOptionLines(form.tratamentoAiMedicamentos);
   const approachOptions = treatmentOptionLines(form.tratamentoAiAbordagens);
-  const selectedMedications = arrayValue(form.tratamentoMedicamentosSelecionados);
   const selectedApproaches = arrayValue(form.abordagensSelecionadas);
   return `
     <div class="diagnosis-ai-panel">
-      <h4>Sugestoes de tratamento geradas por IA</h4>
-      <p class="online-status">Auxilio ao psiquiatra. A prescricao e a conduta final dependem da avaliacao clinica, contraindicações, interacoes e decisao medica.</p>
       ${aiModeSelector(form.aiMode)}
       <div class="actions">
-        <button class="primary" type="button" data-action="generate-treatment">Gerar opções de tratamento</button>
+        <button class="primary" type="button" data-action="generate-treatment">Gerar</button>
       </div>
       ${form.treatmentStatus ? `<p class="online-status">${escapeHtml(form.treatmentStatus)}</p>` : ""}
       ${ragSourcesView(form.ragSources)}
     </div>
     <div class="treatment-card-grid">
       <div class="treatment-card">
-        <h4>Tratamento medicamentoso</h4>
-        <p class="online-status">Assinale uma ou mais sugestões. Cada opção informa dose inicial, progressão e dose final.</p>
+        <h4>Abordagem medicamentosa</h4>
+        <p class="online-status">Dados exclusivamente da IA atual ou do RAG com literatura.</p>
         <textarea hidden name="tratamentoAiMedicamentos">${escapeHtml(medicationOptions.join("\n"))}</textarea>
         <textarea hidden name="tratamentoMedicamentoso">${escapeHtml(form.tratamentoMedicamentoso || "")}</textarea>
         <div class="diagnosis-options">
-          ${medicationOptions.length ? treatmentOptionCheckboxes("tratamentoMedicamentosSelecionados", medicationOptions, selectedMedications) : `<p class="diagnosis-empty">As opções medicamentosas aparecerão após a geração pela IA.</p>`}
+          ${medicationOptions.length ? medicationOptions.map((option, index) => `<article class="treatment-card"><h4>${index === 0 ? "1ª opção" : index === 1 ? "2ª opção" : "Off-label"}</h4><label class="diagnosis-option treatment-option"><input type="checkbox" name="tratamentoMedicamentosSelecionados" value="${escapeAttr(option)}" ${arrayValue(form.tratamentoMedicamentosSelecionados).includes(option) ? "checked" : ""} /><span>${escapeHtml(option)}</span></label></article>`).join("") : `<p class="diagnosis-empty">As opções aparecerão após a geração.</p>`}
         </div>
       </div>
       <div class="treatment-card">
-        <h4>Outras abordagens não farmacológicas</h4>
-        <p class="online-status">Medidas terapêuticas e alternativas selecionáveis, geradas conforme o contexto clínico.</p>
+        <h4>Outras abordagens</h4>
         <textarea hidden name="tratamentoAiAbordagens">${escapeHtml(approachOptions.join("\n"))}</textarea>
         <textarea hidden name="abordagensTerapeuticas">${escapeHtml(form.abordagensTerapeuticas || "")}</textarea>
         <div class="diagnosis-options">
-          ${approachOptions.length ? treatmentOptionCheckboxes("abordagensSelecionadas", approachOptions, selectedApproaches) : `<p class="diagnosis-empty">As abordagens não farmacológicas aparecerão após a geração pela IA.</p>`}
+          ${approachOptions.length ? treatmentOptionCheckboxes("abordagensSelecionadas", approachOptions, selectedApproaches) : `<p class="diagnosis-empty">As abordagens aparecerão após a geração.</p>`}
         </div>
       </div>
       <div class="treatment-card">
@@ -946,7 +932,7 @@ function treatmentModule(form) {
         <textarea hidden name="examesLaboratoriais">${escapeHtml(examesText)}</textarea>
       </div>
       <div class="treatment-card physician-adjustments">
-        <h4>Ajustes pelo médico</h4>
+        <h4>Ajustes do medico</h4>
         ${textarea("condutaMedica", "Ajustes das condutas selecionadas, consentimento, encaminhamentos e retorno", form.condutaMedica, "", 3)}
       </div>
     </div>
@@ -988,16 +974,16 @@ function medicationBody(form) {
         <button class="medication-clear" type="button" data-action="clear-medication-lookup" aria-label="Limpar pesquisa">×</button>
       </div>
       <div id="medication-suggestions" class="medication-suggestions" role="listbox"></div>
+      ${aiModeSelector(form.aiMode)}
+      <div class="actions"><button class="primary" type="button" data-action="generate-medication-ai">Gerar</button></div>
       ${form.medicationOnlineStatus ? `<p class="medication-source-status">${escapeHtml(form.medicationOnlineStatus)}</p>` : ""}
       ${hasInformation ? medicationReferenceCard(form) : `
         <div class="medication-empty-state">
           <span>Rx</span>
-          <h4>Consulte um medicamento</h4>
-          <p>As informações farmacológicas, doses, apresentações, alertas, contraindicações, interações e monitorização aparecerão aqui.</p>
+          <h4>Medicamento</h4>
         </div>
       `}
       <aside class="medication-disclaimer">
-        Conteúdo resumido para consulta rápida — não exibe a bula completa. A base internacional aparece apenas como complemento quando não houver correspondência brasileira. Confirmar registro e bula vigente na Anvisa antes de prescrever.
       </aside>
     </div>
   `;
@@ -1068,7 +1054,7 @@ function evolutionBody(form, patient, previous = null, isReturn = false) {
       <button class="primary" type="button" data-action="generate-evolution">${isReturn ? "Atualizar evolução" : "Atualizar história clínica"}</button>
     </div>
     ${form.aiStatus ? `<p class="online-status">${escapeHtml(form.aiStatus)}</p>` : ""}
-    ${textarea("evolution", isReturn ? "Evolução clínica final" : "História clínica final", evolution || generatedEvolution)}
+    ${textarea("evolution", "", evolution || generatedEvolution)}
   `;
 }
 
@@ -1082,7 +1068,7 @@ function medicalRecord() {
     : patientEntries;
   return `
     <div class="panel-title">
-      <div><h2>Prontuario Longitudinal</h2><p>${escapeHtml(patient.nome)} | consultas, retornos, diagnosticos e evolucoes.</p></div>
+      <div><h2>Prontuario Longitudinal</h2></div>
       ${patientSelector()}
     </div>
     <div class="record-grid">
@@ -1105,7 +1091,7 @@ function medicalRecord() {
 
 function exitPanel() {
   return `
-    <div class="panel-title"><div><h2>Sair do Sistema</h2><p>Os dados deste prototipo sao salvos localmente neste navegador.</p></div></div>
+    <div class="panel-title"><div><h2>Sair do Sistema</h2></div></div>
     <div class="warning">Antes de sair, revise se ha evolucoes em edicao. O sistema tenta salvar automaticamente ao submeter formularios, mas dados sensiveis exigem backend seguro em producao.</div>
     <div class="actions"><button class="danger" data-action="confirm-exit">Sair do Sistema</button><button class="secondary" data-action="dashboard">Cancelar</button></div>
   `;
@@ -1135,7 +1121,8 @@ function textarea(name, labelText, value = "", placeholder = "", rows = "") {
   const rowsAttr = rows ? ` rows="${rows}"` : "";
   const evolutionAttrs = name === "evolution" ? ` class="evolution-textarea" data-auto-expand="true" rows="12"`
     : name === "qphda" ? ` class="auto-expand" data-auto-expand="true" rows="5"`
-      : name === "queixa" ? ` class="auto-expand" data-auto-expand="true" rows="3"` : rowsAttr;
+      : ["queixa", "hdaManual"].includes(name) ? ` class="auto-expand" data-auto-expand="true" rows="1"`
+        : name === "historia" ? ` class="auto-expand" data-auto-expand="true" rows="3"` : rowsAttr;
   return `<label>${labelText}<textarea name="${name}"${evolutionAttrs} placeholder="${escapeAttr(placeholder)}">${escapeHtml(value || "")}</textarea></label>`;
 }
 
@@ -1315,8 +1302,8 @@ function pageStepActions(scope) {
     </div>`;
   }
   return `<div class="actions page-actions">
-    ${nextPage ? `<button class="primary" type="button" data-action="save-next-page" data-scope="${scope}">Salvar pagina e avancar</button>` : ""}
-    <button class="secondary" type="submit">${recordLabel}</button>
+    ${nextPage ? `<button class="primary" type="button" data-action="save-next-page" data-scope="${scope}">Salvar e avancar</button>` : ""}
+    ${scope === "return" ? `<button class="secondary" type="submit">${recordLabel}</button>` : ""}
   </div>`;
 }
 
@@ -1372,7 +1359,7 @@ function bindAutoExpandingTextareas() {
   app.querySelectorAll("textarea[data-auto-expand='true']").forEach(field => {
     const resize = () => {
       field.style.height = "auto";
-      field.style.height = `${Math.max(field.scrollHeight, 300)}px`;
+      field.style.height = `${Math.max(field.scrollHeight, field.classList.contains("auto-expand") ? 0 : 300)}px`;
     };
     resize();
     field.addEventListener("input", resize);
@@ -1400,15 +1387,7 @@ function bindMedicationLookup() {
     const local = localMedicationSuggestions(term);
     showSuggestions(local);
     clearTimeout(medicationLookupTimer);
-    if (term.length < 3) return;
-    const sequence = ++medicationLookupSequence;
-    medicationLookupTimer = setTimeout(async () => {
-      const remote = await fetchRxNavSuggestions(term);
-      if (sequence !== medicationLookupSequence || input.value.trim() !== term) return;
-      showSuggestions(mergeMedicationSuggestions(local, remote));
-      const exactLocal = findLocalMedication(term);
-      if (exactLocal) selectMedicationLookup(exactLocal.generic);
-    }, 450);
+    if (term.length >= 3) showSuggestions(local);
   });
 
   input.addEventListener("focus", () => showSuggestions(localMedicationSuggestions(input.value)));
@@ -1417,7 +1396,7 @@ function bindMedicationLookup() {
 async function selectMedicationLookup(name) {
   const scope = view === "return" ? "return" : "consultation";
   const target = scope === "return" ? draft.return : draft.consultation;
-  const local = findLocalMedication(name);
+  const local = null;
   const loading = {
     medicationGeneric: name,
     medicationOnlineStatus: local ? "Carregando ficha clínica e verificando fontes complementares..." : "Consultando RxNav/NLM e openFDA..."
@@ -1426,7 +1405,7 @@ async function selectMedicationLookup(name) {
   else draft.consultation = { ...(target || {}), ...loading };
   render();
 
-  const information = local ? medicationFromLocalCatalog(local) : await buildMedicationAutofill(name);
+  const information = { medicationGeneric: name };
   if (scope === "return") draft.return = { ...(draft.return || {}), ...information };
   else draft.consultation = { ...(draft.consultation || {}), ...information };
   render();
@@ -1717,7 +1696,7 @@ async function generateTreatmentFromClinicalData(element) {
   } catch (error) {
     suggestion = target?.aiMode === "rag"
       ? { ragSources: [], treatmentStatus: `RAG indisponivel: ${error.message}`, aiStatus: `RAG indisponivel: ${error.message}` }
-      : { ...buildTreatmentSuggestion(target || {}), treatmentStatus: `IA indisponivel: ${error.message}. Rascunho local aplicado.`, aiStatus: `IA indisponivel: ${error.message}. Rascunho local aplicado.` };
+      : { ragSources: [], treatmentStatus: `IA indisponivel: ${error.message}`, aiStatus: `IA indisponivel: ${error.message}` };
   }
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
   else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
@@ -1762,7 +1741,7 @@ async function generateMedicationFromClinicalData(element) {
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result } = await requestClinicalAi("medication", buildClinicalAiPrompt("medication", context.target, context.patient, context.previous, context.isReturn));
+    const { result } = await requestClinicalAi("medication", buildClinicalAiPrompt("medication", context.target, context.patient, context.previous, context.isReturn), context.target?.aiMode, buildRagQuery("medication", context.target));
     suggestion = {
       medicationNameText: result.medication || target.medicationGeneric,
       medicationPresentation: result.dose_progression || "",
@@ -1956,7 +1935,7 @@ function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = null, i
       "Cada opcao deve conter nome, CID-11 e DSM-5-TR no formato estruturado solicitado. Para hipoteses sindromicas ou etiologicas sem codigo especifico, informe 'N/A' de forma explicita."
     ],
     treatment: [
-      "Gere exatamente 3 opcoes de tratamento medicamentoso, como mero auxilio ao psiquiatra.",
+      "Gere exatamente 3 opcoes de abordagem medicamentosa: primeira opcao, segunda opcao e uma opcao off-label, exclusivamente com dados do Assistant da IA atual ou do RAG com literatura.",
       "Para cada opcao informe medicamento, dose inicial, progressao/titulacao e dose final ou dose-alvo.",
       "Gere exatamente 3 abordagens nao farmacologicas ou alternativas, com uma orientacao objetiva para cada uma.",
       "Considere as hipoteses escolhidas e os dados clinicos informados, incluindo riscos, comorbidades, substancias e exame psiquico. Nao invente dados.",
