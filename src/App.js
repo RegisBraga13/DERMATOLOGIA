@@ -435,13 +435,6 @@ function topbar() {
   `;
 }
 
-function greetingLabel() {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Bom dia, Dr. Regis.";
-  if (hour < 18) return "Boa tarde, Dr. Regis.";
-  return "Boa noite, Dr. Regis.";
-}
-
 function dashboard() {
   const cards = [
     ["patient", "Novo paciente", "Cadastre dados pessoais e de contato", "patient", "01"],
@@ -454,7 +447,6 @@ function dashboard() {
       <div class="dashboard-intro">
       <div class="intro-copy">
         <span class="eyebrow">Prontuário psiquiátrico</span>
-        <h2>${greetingLabel()}</h2>
         <p>Um espaço calmo para registrar, acompanhar e cuidar.</p>
       </div>
       <div class="today"><span>HOJE</span><strong>${new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long" }).format(new Date())}</strong></div>
@@ -521,25 +513,19 @@ function patientForm() {
         ${field("ocupacao", "Ocupacao", patient.ocupacao)}
         ${selectField("escolaridade", "Escolaridade", optionGroups.escolaridade, patient.escolaridade)}
         ${selectField("religiao", "Religiao", optionGroups.religiao, patient.religiao)}
-        ${field("telefone", "Telefone", patient.telefone, "tel")}
         ${field("email", "E-mail", patient.email, "email")}
-        ${field("acompanhante", "Nome de acompanhante, se houver", patient.acompanhante)}
-        ${field("emergencia", "Contato de emergencia", patient.emergencia)}
+        ${field("telefone", "Telefone", patient.telefone, "tel")}
+        ${field("emergencia", "Nome e contato de emergencia", patient.emergencia)}
       </div>
       <div class="address-card">
-        <h3>Endereco automatico por CEP</h3>
-        <div class="grid">
+        <div class="address-grid">
           ${field("cep", "CEP", patient.cep)}
           ${field("endereco", "Endereco", patient.endereco)}
+          ${field("numero", "Numero", patient.numero)}
           ${field("bairro", "Bairro", patient.bairro)}
-          <div class="inline-fields">
-            ${field("numero", "Numero", patient.numero)}
-            ${field("complemento", "Complemento", patient.complemento)}
-          </div>
-          <div class="inline-fields city-state">
-            ${field("cidade", "Cidade", patient.cidade)}
-            ${field("estado", "UF", patient.estado)}
-          </div>
+          ${field("cidade", "Cidade", patient.cidade)}
+          ${field("estado", "UF", patient.estado)}
+          ${field("complemento", "Complemento", patient.complemento)}
         </div>
         <div class="warning" id="cep-status">Digite o CEP com 8 digitos para preencher endereco, bairro, cidade e estado automaticamente.</div>
       </div>
@@ -692,7 +678,7 @@ function consultationPageBody(form, patient) {
   if (consultationPage === "diagnostico") return clinicalPage("Diagnostico e diferenciais", diagnosisModule(form), "consultation");
   if (consultationPage === "tratamento") return clinicalPage("Tratamento e orientacoes", treatmentModule(form), "consultation");
   if (consultationPage === "evolucao") return clinicalPage("Historia Clinica", evolutionBody(form, patient), "consultation");
-  if (consultationPage === "medicamentos") return clinicalPage("Apêndice · Medicamentos", medicationBody(form), "consultation", false);
+  if (consultationPage === "medicamentos") return clinicalPage("Medicamentos", medicationBody(form), "consultation", false);
   return clinicalPage("Historia Clinica", evolutionBody(form, patient), "consultation");
 }
 
@@ -700,7 +686,7 @@ function returnPageBody(form, patient, previous) {
   if (returnPage === "evolucao-retorno") return clinicalPage("Avaliacao de evolucao", returnAssessmentBody(form), "return");
   if (returnPage === "diagnostico") return clinicalPage("Diagnostico e diferenciais", diagnosisModule(form), "return");
   if (returnPage === "tratamento") return clinicalPage("Tratamento e orientacoes", treatmentModule(form), "return");
-  if (returnPage === "medicamentos") return clinicalPage("Apêndice · Medicamentos", medicationBody(form), "return", false);
+  if (returnPage === "medicamentos") return clinicalPage("Medicamentos", medicationBody(form), "return", false);
   return clinicalPage("Evolucao do Retorno", evolutionBody(form, patient, previous, true), "return");
 }
 
@@ -787,8 +773,7 @@ function clinicalSummaryGroups(form = {}, patient = {}) {
     summaryTextRow("Identidade", "Religião", patient.religiao),
     summaryTextRow("Contato", "Telefone", patient.telefone),
     summaryTextRow("Contato", "E-mail", patient.email),
-    summaryTextRow("Contato", "Acompanhante", patient.acompanhante),
-    summaryTextRow("Contato", "Contato de emergência", patient.emergencia),
+    summaryTextRow("Contato", "Nome e contato de emergência", patient.emergencia),
     summaryTextRow("Endereço", "CEP", patient.cep),
     summaryTextRow("Endereço", "Endereço", address)
   ];
@@ -828,13 +813,15 @@ function clinicalSummaryGroups(form = {}, patient = {}) {
   ].filter(row => row.value);
   const refinementRows = refinementSummaryRows(form);
   return [
-    { title: "Identificação do paciente", rows: identityRows },
-    { title: "Dados narrativos", rows: narrativeRows },
+    { title: "Identificação do paciente", rows: identityRows, layout: "item-record" },
+    { title: "Dados narrativos", rows: narrativeRows, layout: "item-record" },
     { title: "Anamnese estruturada", rows: [...anamnesisRows, ...complementaryRows], layout: "area-record" },
     { title: "Exame psíquico", rows: mentalRows.map(row => ({ ...row, section: row.item })), layout: "area-record" },
     { title: "Exame físico", rows: physicalRows },
     { title: "Refinamento clínico", rows: refinementRows, layout: "area-record" }
-  ];
+    // Exame fisico e Refinamento so tem linhas depois de preenchidos; sem o
+    // filtro, o resumo mostraria a tabela vazia (so o cabecalho).
+  ].filter(group => group.rows.length);
 }
 
 function refinementSummaryRows(form = {}) {
@@ -893,11 +880,24 @@ function summaryGroupedOptionRow(section, item, key, options, form, otherKey = "
   return { section, item, value: values.join("; ") };
 }
 
+/* Layouts de resumo:
+   "full"        -> Área | Campo | Registro
+   "area-record" -> Área | Registro  (o campo repetiria a area)
+   "item-record" -> Campo | Registro (a area repetiria o titulo do bloco)   */
+function summaryColumns(layout = "full") {
+  return { area: layout !== "item-record", item: layout !== "area-record" };
+}
+
 function summaryTable(title, rows = [], layout = "full") {
-  const compact = layout === "area-record";
+  const columns = summaryColumns(layout);
+  const cells = (section, item, value, tag) => [
+    columns.area ? `<${tag}>${escapeHtml(section)}</${tag}>` : "",
+    columns.item ? `<${tag}>${escapeHtml(item)}</${tag}>` : "",
+    `<${tag}>${escapeHtml(value)}</${tag}>`
+  ].join("");
   return `<section class="summary-section"><h4>${escapeHtml(title)}</h4><div class="summary-table-wrap"><table class="summary-table">
-    <thead><tr><th>Área</th>${compact ? "" : "<th>Campo</th>"}<th>Registro</th></tr></thead>
-    <tbody>${rows.map(row => `<tr><td>${escapeHtml(row.section)}</td>${compact ? "" : `<td>${escapeHtml(row.item)}</td>`}<td>${escapeHtml(row.value)}</td></tr>`).join("")}</tbody>
+    <thead><tr>${cells("Área", "Campo", "Registro", "th")}</tr></thead>
+    <tbody>${rows.map(row => `<tr>${cells(row.section, row.item, row.value, "td")}</tr>`).join("")}</tbody>
   </table></div></section>`;
 }
 
@@ -1070,8 +1070,6 @@ function medicationBody(form) {
           <h4>Medicamento</h4>
         </div>
       `}
-      <aside class="medication-disclaimer">
-      </aside>
     </div>
   `;
 }
@@ -3974,12 +3972,17 @@ function pdfClinicalSummary() {
   const patient = getPatient() || {};
   const form = view === "return" ? (draft.return || {}) : (draft.consultation || {});
   const groups = clinicalSummaryGroups(form, patient);
-  const text = groups.map(group => [
-    group.title.toUpperCase(),
-    ...group.rows.map(row => group.layout === "area-record"
-      ? `${row.section} | ${row.value}`
-      : `${row.section} | ${row.item} | ${row.value}`)
-  ].join("\n")).join("\n\n");
+  const text = groups.map(group => {
+    const columns = summaryColumns(group.layout);
+    return [
+      group.title.toUpperCase(),
+      ...group.rows.map(row => [
+        columns.area ? row.section : "",
+        columns.item ? row.item : "",
+        row.value
+      ].filter(Boolean).join(" | "))
+    ].join("\n");
+  }).join("\n\n");
   const patientName = patient.nome || "Paciente";
   const date = new Date().toLocaleDateString("pt-BR").replaceAll("/", "-");
   exportTextAsPdf(`Resumo clínico — ${patientName}`, text, `${patientName} - Resumo clínico - ${date}`);

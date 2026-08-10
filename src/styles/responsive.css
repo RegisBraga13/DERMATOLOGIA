@@ -12,7 +12,7 @@
     justify-content: center;
     text-align: center;
     flex-direction: column;
-    font-size: 11px;
+    font-size: 14px;
   }
   .record-grid { grid-template-columns: 1fr; }
 }
@@ -55,8 +55,14 @@
   .inline-action {
     width: 100%;
   }
-  .inline-fields,
-  .inline-fields.city-state {
+  /* Grid de 1 coluna: os spans do desktop criariam colunas implicitas. */
+  .address-grid {
     grid-template-columns: 1fr;
+  }
+  /* Prefixo #patient-form para vencer a especificidade dos spans por campo
+     (.address-grid > label:has(input[name=...])) definidos no theme.css. */
+  #patient-form .address-grid > label,
+  #patient-form .patient-grid > label:has(input[name="emergencia"]) {
+    grid-column: 1;
   }
 }
