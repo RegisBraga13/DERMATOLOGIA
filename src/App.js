@@ -978,11 +978,11 @@ function diagnosisAiStatusText(message = "") {
   return message;
 }
 
-function aiModeSelector(value = "current") {
+function aiModeSelector(value = "current", name = "aiMode") {
   return `<fieldset class="ai-mode-selector">
     <legend>Fonte da resposta</legend>
-    <label><input type="radio" name="aiMode" value="current" ${value !== "rag" ? "checked" : ""} /><span>IA atual</span><small>Modelo e regras clinicas atuais</small></label>
-    <label><input type="radio" name="aiMode" value="rag" ${value === "rag" ? "checked" : ""} /><span>RAG com literatura</span><small>Restringe a resposta às fontes indexadas</small></label>
+    <label><input type="radio" name="${name}" value="current" ${value !== "rag" ? "checked" : ""} /><span>IA atual</span><small>Modelo e regras clinicas atuais</small></label>
+    <label><input type="radio" name="${name}" value="rag" ${value === "rag" ? "checked" : ""} /><span>RAG com literatura</span><small>Restringe a resposta às fontes indexadas (psicopatologia e psicofarmacologia)</small></label>
   </fieldset>`;
 }
 
@@ -1003,7 +1003,7 @@ function treatmentModule(form) {
   const selectedApproaches = arrayValue(form.abordagensSelecionadas);
   return `
     <div class="diagnosis-ai-panel">
-      ${aiModeSelector(form.aiMode)}
+      ${aiModeSelector(form.pharmaAiMode || "rag", "pharmaAiMode")}
       <div class="actions">
         <button class="primary" type="button" data-action="generate-treatment">Gerar</button>
       </div>
@@ -1074,9 +1074,10 @@ function medicationBody(form) {
         <button class="medication-clear" type="button" data-action="clear-medication-lookup" aria-label="Limpar pesquisa">×</button>
       </div>
       <div id="medication-suggestions" class="medication-suggestions" role="listbox"></div>
-      ${aiModeSelector(form.aiMode)}
+      ${aiModeSelector(form.pharmaAiMode || "rag", "pharmaAiMode")}
       <div class="actions"><button class="primary" type="button" data-action="generate-medication-ai">Gerar</button></div>
       ${form.medicationOnlineStatus ? `<p class="medication-source-status">${escapeHtml(form.medicationOnlineStatus)}</p>` : ""}
+      ${ragSourcesView(form.ragSources)}
       ${hasInformation ? medicationReferenceCard(form) : `
         <div class="medication-empty-state">
           <span>Rx</span>
@@ -1802,8 +1803,6 @@ function bindActions() {
 }
 
 function switchFormPage(element) {
-  const current = currentPageForScope(element.dataset.scope);
-  if (element.dataset.page !== current) return;
   const form = element.closest("form");
   if (form) updateDraftFromForm(form);
   if (element.dataset.scope === "consultation") consultationPage = element.dataset.page;
@@ -1960,7 +1959,7 @@ async function generateTreatmentFromClinicalData(element) {
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result, sources, mode } = await requestClinicalAi("treatment", buildClinicalAiPrompt("treatment", context.target, context.patient, context.previous, context.isReturn), context.target?.aiMode, buildRagQuery("treatment", context.target));
+    const { result, sources, mode } = await requestClinicalAi("treatment", buildClinicalAiPrompt("treatment", context.target, context.patient, context.previous, context.isReturn), context.target?.pharmaAiMode || "rag", buildRagQuery("treatment", context.target));
     const medicationOptions = result.medication_options.map(formatMedicationTreatmentOption);
     const approachOptions = result.non_pharmacological_options.map(formatNonPharmacologicalOption);
     suggestion = {
@@ -1973,7 +1972,7 @@ async function generateTreatmentFromClinicalData(element) {
       examesLaboratoriais: requestedExamsText(target || {}),
       condutaMedica: target?.condutaMedica || "",
       ragSources: sources,
-      aiMode: mode,
+      pharmaAiMode: mode,
       treatmentStatus: "3 opções medicamentosas e 3 outras abordagens geradas para revisao individual.",
       aiStatus: "Sugestões de tratamento geradas pela IA para revisão médica.",
       controlValidations: mergeAiValidationItems(target || {}, [
@@ -1982,7 +1981,7 @@ async function generateTreatmentFromClinicalData(element) {
       ])
     };
   } catch (error) {
-    suggestion = target?.aiMode === "rag"
+    suggestion = (target?.pharmaAiMode || "rag") === "rag"
       ? { ragSources: [], treatmentStatus: `RAG indisponivel: ${error.message}`, aiStatus: `RAG indisponivel: ${error.message}` }
       : { ragSources: [], treatmentStatus: `IA indisponivel: ${error.message}`, aiStatus: `IA indisponivel: ${error.message}` };
   }
@@ -2033,7 +2032,7 @@ async function generateMedicationFromClinicalData(element) {
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result } = await requestClinicalAi("medication", buildClinicalAiPrompt("medication", context.target, context.patient, context.previous, context.isReturn), context.target?.aiMode, buildRagQuery("medication", context.target));
+    const { result, sources, mode } = await requestClinicalAi("medication", buildClinicalAiPrompt("medication", context.target, context.patient, context.previous, context.isReturn), context.target?.pharmaAiMode || "rag", buildRagQuery("medication", context.target));
     suggestion = {
       medicationNameText: result.medication || target.medicationGeneric,
       medicationPresentation: result.dose_progression || "",
@@ -2041,12 +2040,16 @@ async function generateMedicationFromClinicalData(element) {
       medicationBestUse: result.notes || "",
       medicationStatus: "Medicamento preenchido nos campos essenciais. Revise com bula vigente.",
       medicationOnlineStatus: "Resposta de medicamento gerada pela IA real. Revise com bula brasileira e dados do paciente.",
-      aiStatus: "Resposta gerada pela IA real. Revise antes de salvar."
+      aiStatus: "Resposta gerada pela IA real. Revise antes de salvar.",
+      ragSources: sources,
+      pharmaAiMode: mode
     };
   } catch (error) {
+    const wasRag = (target?.pharmaAiMode || "rag") === "rag";
     suggestion = {
-      medicationOnlineStatus: `IA indisponível: ${error.message}. Use pesquisa online ou prompt manual.`,
-      aiStatus: `IA indisponível: ${error.message}.`
+      ragSources: [],
+      medicationOnlineStatus: wasRag ? `RAG indisponivel: ${error.message}. Use pesquisa online ou prompt manual.` : `IA indisponível: ${error.message}. Use pesquisa online ou prompt manual.`,
+      aiStatus: wasRag ? `RAG indisponivel: ${error.message}.` : `IA indisponível: ${error.message}.`
     };
   }
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
@@ -2337,6 +2340,7 @@ function buildRagQuery(kind, form = {}) {
   if (kind === "refinement") return `Semiologia psiquiatrica para refinamento clinico: lacunas da anamnese, discriminacao entre sindromes, red flags, risco, psicose, bipolaridade, substancias, causas medicas, funcionamento e fatores de protecao. Dados ja registrados: ${symptoms}`.slice(0, 4000);
   if (kind === "treatment") return `Diretrizes e tratamento de ${diagnosis}. Dados clinicos relevantes: ${symptoms}`.slice(0, 4000);
   if (kind === "diagnosis") return `Criterios diagnosticos e diagnostico diferencial para: ${symptoms}`.slice(0, 4000);
+  if (kind === "medication") return `Psicofarmacologia de ${form.medicationGeneric || ""}: dose inicial, titulacao, dose alvo, efeitos colaterais, contraindicacoes e interacoes. Contexto clinico: ${diagnosis}; ${symptoms}`.slice(0, 4000);
   return `${diagnosis}; ${symptoms}`.slice(0, 4000);
 }
 
@@ -2522,7 +2526,7 @@ function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = null, i
       "Finalize com o tratamento efetivamente selecionado ou registrado: medicamentos, medidas nao farmacologicas, ajustes do medico e exames solicitados. Omita categorias sem registro."
     ],
     medication: [
-      "Preencha somente os campos solicitados sobre o medicamento informado.",
+      `Preencha somente os campos solicitados sobre o medicamento informado: ${form.medicationGeneric || "nao informado"}.`,
       "Seja objetivo e nao inclua preco, links, indicacoes extensas ou cabecalhos adicionais.",
       "Use linguagem clinica resumida para prontuario."
     ]
@@ -2539,7 +2543,9 @@ function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = null, i
     "DADOS DO PACIENTE E DA CONSULTA:",
     kind === "evolution"
         ? clinicalEvolutionPromptData(form, patient, previous, isReturn)
-        : clinicalPromptData(form, patient, previous, isReturn),
+        : kind === "medication"
+          ? `Medicamento pesquisado: ${form.medicationGeneric || "nao informado"}.\n${clinicalPromptData(form, patient, previous, isReturn)}`
+          : clinicalPromptData(form, patient, previous, isReturn),
     "",
     "FORMATO DA RESPOSTA:",
     promptResponseFormat(kind)
@@ -2637,7 +2643,7 @@ function promptResponseFormat(kind) {
   }
   if (kind === "medication") {
     return [
-      "MEDICAMENTO:",
+      "MEDICAMENTO: (repita exatamente o nome informado em 'Medicamento pesquisado')",
       "",
       "DOSE INICIAL E PROGRESSAO:",
       "",
