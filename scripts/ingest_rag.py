@@ -66,15 +66,24 @@ def main():
         raise SystemExit("Arquivos nao encontrados: " + ", ".join(missing))
 
     client = OpenAI()
-    store = client.vector_stores.retrieve(args.store_id) if args.store_id else client.vector_stores.create(name=args.store_name)
+    configured_store_id = args.store_id or os.environ.get("OPENAI_RAG_VECTOR_STORE_ID", "").strip()
+    store = client.vector_stores.retrieve(configured_store_id) if configured_store_id else client.vector_stores.create(name=args.store_name)
     catalog = {"vector_store_id": store.id, "sources": []}
+    if args.catalog.is_file():
+        try:
+            existing_catalog = json.loads(args.catalog.read_text(encoding="utf-8"))
+            if existing_catalog.get("vector_store_id") == store.id:
+                catalog["sources"] = list(existing_catalog.get("sources") or [])
+        except (json.JSONDecodeError, OSError):
+            pass
     for path in args.files:
         print(f"Enviando {path.name}...", flush=True)
         with path.open("rb") as stream:
             uploaded = client.files.create(file=stream, purpose="assistants")
         attached = client.vector_stores.files.create(vector_store_id=store.id, file_id=uploaded.id)
         wait_until_ready(client, store.id, uploaded.id)
-        catalog["sources"].append({"filename": path.name, "file_id": uploaded.id, "status": attached.status})
+        catalog["sources"] = [item for item in catalog["sources"] if item.get("filename") != path.name]
+        catalog["sources"].append({"filename": path.name, "file_id": uploaded.id, "status": "completed"})
         print(f"Indexado: {path.name}", flush=True)
 
     args.catalog.write_text(json.dumps(catalog, ensure_ascii=False, indent=2), encoding="utf-8")

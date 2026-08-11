@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 import logging
 import os
+import secrets
 import threading
 import urllib.error
 import urllib.parse
@@ -13,10 +14,13 @@ ROOT = Path(__file__).resolve().parent
 logger = logging.getLogger("prontuario")
 
 API_URL = "https://api.openai.com/v1/responses"
+AUDIO_TRANSCRIPTIONS_API_URL = "https://api.openai.com/v1/audio/transcriptions"
 VECTOR_STORE_API_URL = "https://api.openai.com/v1/vector_stores/{vector_store_id}/search"
 DEFAULT_MODEL = "gpt-4.1"
-MAX_PROMPT_CHARS = 12000
+DEFAULT_TRANSCRIPTION_MODEL = "gpt-4o-transcribe-diarize"
+MAX_PROMPT_CHARS = 100000
 MAX_OUTPUT_TOKENS = 1400
+MAX_AUDIO_BYTES = 30 * 1024 * 1024
 ALLOWED_KINDS = {"anamnesis", "mental_exam", "refinement", "diagnosis", "treatment", "evolution", "medication"}
 RXNAV_DISPLAY_TERMS_URL = "https://rxnav.nlm.nih.gov/REST/displaynames.json"
 RXNAV_DISPLAY_TERMS = None
@@ -71,6 +75,73 @@ def is_same_origin(handler):
     except ValueError:
         return False
     return parsed.netloc == host
+
+
+def openai_multipart(fields, file_field, filename, content_type, file_bytes):
+    """Monta um multipart/form-data sem dependências externas."""
+    boundary = f"----prontuario-{secrets.token_hex(18)}"
+    parts = []
+    for name, value in fields.items():
+        parts.extend([
+            f"--{boundary}\r\n".encode(),
+            f'Content-Disposition: form-data; name="{name}"\r\n\r\n'.encode(),
+            str(value).encode("utf-8"),
+            b"\r\n",
+        ])
+    safe_filename = Path(filename).name.replace('"', "") or "consulta.webm"
+    parts.extend([
+        f"--{boundary}\r\n".encode(),
+        f'Content-Disposition: form-data; name="{file_field}"; filename="{safe_filename}"\r\n'.encode(),
+        f"Content-Type: {content_type}\r\n\r\n".encode(),
+        file_bytes,
+        b"\r\n",
+        f"--{boundary}--\r\n".encode(),
+    ])
+    return b"".join(parts), boundary
+
+
+def diarized_transcription(audio_bytes, filename, content_type, api_key):
+    body, boundary = openai_multipart(
+        {
+            "model": os.environ.get("OPENAI_TRANSCRIPTION_MODEL", DEFAULT_TRANSCRIPTION_MODEL),
+            "language": "pt",
+            "response_format": "diarized_json",
+            "chunking_strategy": "auto",
+        },
+        "file",
+        filename,
+        content_type,
+        audio_bytes,
+    )
+    request = urllib.request.Request(
+        AUDIO_TRANSCRIPTIONS_API_URL,
+        data=body,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=240) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    segments = []
+    for item in payload.get("segments", []):
+        text = str(item.get("text") or "").strip()
+        if not text:
+            continue
+        segments.append({
+            "speaker": str(item.get("speaker") or "?")[:40],
+            "start": round(float(item.get("start") or 0), 2),
+            "end": round(float(item.get("end") or 0), 2),
+            "text": text,
+        })
+    if not segments and payload.get("text"):
+        segments.append({"speaker": "?", "start": 0, "end": float(payload.get("duration") or 0), "text": str(payload["text"]).strip()})
+    return {
+        "text": str(payload.get("text") or "").strip(),
+        "duration": round(float(payload.get("duration") or 0), 2),
+        "segments": segments,
+    }
 
 
 SCHEMAS = {
@@ -567,13 +638,41 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             self.send_json(403, {"error": "Origem nao autorizada."})
             return
 
-        if self.path != "/api/clinical-ai":
+        if self.path not in {"/api/clinical-ai", "/api/transcribe-consultation"}:
             self.send_json(404, {"error": "Endpoint nao encontrado."})
             return
 
         api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key:
             self.send_json(503, {"error": "OPENAI_API_KEY nao configurada. Crie um arquivo .env ou defina a variavel de ambiente."})
+            return
+
+        if self.path == "/api/transcribe-consultation":
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if length <= 0:
+                    self.send_json(400, {"error": "Gravacao vazia."})
+                    return
+                if length > MAX_AUDIO_BYTES:
+                    self.send_json(413, {"error": "A gravacao excede 30 MB. Reduza a duracao ou a qualidade do audio."})
+                    return
+                content_type = self.headers.get("Content-Type", "audio/webm").split(";", 1)[0].strip().lower()
+                allowed_types = {"audio/webm", "audio/mp4", "audio/mpeg", "audio/ogg", "audio/wav", "audio/x-wav", "video/mp4"}
+                if content_type not in allowed_types:
+                    self.send_json(415, {"error": "Formato de audio nao suportado."})
+                    return
+                filename = self.headers.get("X-Audio-Filename", "consulta.webm")
+                result = diarized_transcription(self.rfile.read(length), filename, content_type, api_key)
+                if not result["segments"]:
+                    self.send_json(502, {"error": "A transcricao nao retornou falas reconheciveis."})
+                    return
+                self.send_json(200, {"ok": True, **result})
+            except urllib.error.HTTPError as error:
+                logger.error("OpenAI transcription %s: %s", error.code, error.read().decode("utf-8", errors="replace"))
+                self.send_json(error.code, {"error": "Erro retornado pela OpenAI durante a transcricao. Detalhes no log do servidor."})
+            except Exception:
+                logger.exception("Falha em /api/transcribe-consultation")
+                self.send_json(500, {"error": "Erro interno ao transcrever a gravacao."})
             return
 
         try:

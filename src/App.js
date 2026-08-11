@@ -16,11 +16,16 @@ let consultationPage = "anamnese";
 let returnPage = "evolucao-retorno";
 let modal = null;
 let pendingViewAfterPatient = "";
-let activeVoiceRecognition = null;
+let activeVoiceRecorder = null;
+let activeVoiceStream = null;
+let activeVoiceChunks = [];
+let activeVoiceStartedAt = 0;
+let activeVoiceDurationTimer = null;
 let activeVoiceButton = null;
+let voiceTranscribing = false;
 let anamnesisProcessingSequence = 0;
-let anamnesisLocalTimer = null;
 let clinicalDraftRevision = 0;
+let refinementGenerating = false;
 let authSession = null;
 let authError = "";
 const RECORD_SEARCH_TEXT_CACHE = new WeakMap();
@@ -124,7 +129,7 @@ const consultationPages = [
   ["resumo", "Resumo"],
   ["diagnostico", "Diagnostico"],
   ["tratamento", "Tratamento"],
-  ["evolucao", "Historia Clinica"],
+  ["evolucao", "Historia clinica"],
   ["medicamentos", "Medicamentos"]
 ];
 const returnPages = [
@@ -527,7 +532,6 @@ function patientForm() {
           ${field("estado", "UF", patient.estado)}
           ${field("complemento", "Complemento", patient.complemento)}
         </div>
-        <div class="warning" id="cep-status">Digite o CEP com 8 digitos para preencher endereco, bairro, cidade e estado automaticamente.</div>
       </div>
       <div class="actions">
         <button class="primary" type="submit">Salvar Paciente</button>
@@ -645,19 +649,30 @@ function formPageTabs(scope) {
 }
 
 function clinicalPage(title, body, scope = "", showActions = true) {
-  return `<section class="clinical-page"><div class="clinical-page-title"><h3>${title}</h3></div>${body}${showActions ? `${validationReviewPanel(scope)}${pageStepActions(scope)}` : ""}</section>`;
+  return `<section class="clinical-page">${title ? `<div class="clinical-page-title"><h3>${title}</h3></div>` : ""}${body}${showActions ? pageStepActions(scope) : ""}</section>`;
 }
 
 function consultationPageBody(form, patient) {
   const qphda = form.qphda || [form.queixa && `QP: ${form.queixa}`, form.hdaManual && `HDA: ${form.hdaManual}`].filter(Boolean).join("\n\n");
+  const anamnesisInputMode = form.anamnesisInputMode === "microphone" ? "microphone" : "manual";
   if (consultationPage === "anamnese") return clinicalPage("Anamnese", `
     <div class="clinical-card qphda-card">
-      <h4>QP e HDA</h4>
-      ${voiceTextarea("qphda", "", qphda, "Registrar QP e HDA com cronologia dos sintomas, eventos relacionados, fatores de piora e melhora, uso de substancias, sintomas e impacto funcional.")}
-      <div class="manual-anamnesis">
-        ${textarea("queixa", "QP - preenchimento manual", form.queixa, "QP nas palavras do paciente", 1)}
-        ${textarea("hdaManual", "HDA - preenchimento manual", form.hdaManual, "Historia da doença atual", 1)}
+      <h4>Forma de registro</h4>
+      <div class="anamnesis-mode-selector" role="group" aria-label="Forma de registro da anamnese">
+        <button class="${anamnesisInputMode === "manual" ? "active" : ""}" type="button" data-action="set-anamnesis-mode" data-mode="manual">Preenchimento pelo médico</button>
+        <button class="${anamnesisInputMode === "microphone" ? "active" : ""}" type="button" data-action="set-anamnesis-mode" data-mode="microphone">Microfone e transcrição</button>
       </div>
+      ${anamnesisInputMode === "microphone" ? `
+        <div class="online-status">O microfone grava toda a conversa. Ao encerrar, a transcrição separa os falantes e o RAG atualiza os campos sem avançar a página.</div>
+        ${voiceTextarea("qphda", "Transcrição integral da conversa", qphda)}
+      ` : `
+        <div class="online-status">Modo manual: nenhum campo ou sintoma será preenchido automaticamente.</div>
+        <div class="manual-anamnesis">
+          ${textarea("qphda", "Anotação clínica livre", qphda, "", 5)}
+          ${textarea("queixa", "QP - preenchimento manual", form.queixa, "", 1)}
+          ${textarea("hdaManual", "HDA - preenchimento manual", form.hdaManual, "", 1)}
+        </div>
+      `}
     </div>
     ${anamnesisQuestionGuide()}
     <div class="clinical-card antecedents-card">
@@ -673,13 +688,13 @@ function consultationPageBody(form, patient) {
   `, "consultation");
   if (consultationPage === "psiquico") return clinicalPage("Exame psiquico", mentalExamBody(form), "consultation");
   if (consultationPage === "neurologico") return clinicalPage("Exame fisico e neurologico", neurologicExamBody(form), "consultation");
-  if (consultationPage === "refinamento") return clinicalPage("Refinamento clinico", refinementBody(form), "consultation");
+  if (consultationPage === "refinamento") return clinicalPage("", refinementBody(form), "consultation");
   if (consultationPage === "resumo") return clinicalPage("Resumo", clinicalSummaryPage(form, patient), "consultation");
   if (consultationPage === "diagnostico") return clinicalPage("Diagnostico e diferenciais", diagnosisModule(form), "consultation");
   if (consultationPage === "tratamento") return clinicalPage("Tratamento e orientacoes", treatmentModule(form), "consultation");
-  if (consultationPage === "evolucao") return clinicalPage("Historia Clinica", evolutionBody(form, patient), "consultation");
+  if (consultationPage === "evolucao") return clinicalPage("Historia clinica", evolutionBody(form, patient), "consultation");
   if (consultationPage === "medicamentos") return clinicalPage("Medicamentos", medicationBody(form), "consultation", false);
-  return clinicalPage("Historia Clinica", evolutionBody(form, patient), "consultation");
+  return clinicalPage("Historia clinica", evolutionBody(form, patient), "consultation");
 }
 
 function returnPageBody(form, patient, previous) {
@@ -722,17 +737,22 @@ function mentalExamBody(form) {
 
 function neurologicExamBody(form) {
   return `
-    <div class="grid three">
-      ${field("pa", "PA", form.pa)}${field("fc", "FC", form.fc)}${field("fr", "FR", form.fr)}
-      ${field("temperatura", "Temperatura", form.temperatura)}${field("peso", "Peso", form.peso)}${field("altura", "Altura", form.altura)}
-      ${field("imc", "IMC", form.imc)}${field("cintura", "Circunferencia abdominal", form.cintura)}
-    </div>
     ${textarea("fisico", "Achados fisicos e neurologicos relevantes", form.fisico)}
   `;
 }
 
 function refinementBody(form = {}) {
-  const plan = form.refinementPlan || localRefinementPlan(form);
+  const plan = form.refinementPlan;
+  if (!plan) {
+    return `
+      <section class="refinement-section refinement-empty-state">
+        <h4>Refinamento clínico</h4>
+        <p>O Refinamento usa o RAG com literatura para explorar lacunas clínicas, pontos essenciais e red flags a partir dos dados registrados.</p>
+        <p>${refinementGenerating ? "Preparando perguntas com a literatura..." : "Quando estiver pronto, acione o refinamento para iniciar esta etapa."}</p>
+        ${refinementGenerating ? "" : '<button class="primary" type="button" data-action="start-refinement">Iniciar refinamento</button>'}
+      </section>
+    `;
+  }
   const questionBlocks = (plan.questions || []).map((item, index) => {
     const name = `refinementQuestion_${index}`;
     const selected = valueList(form[name]);
@@ -745,7 +765,7 @@ function refinementBody(form = {}) {
     return `<article class="refinement-item"><strong>${escapeHtml(item.topic || "")}</strong><p>${escapeHtml(item.reason || "")}</p><div class="chips">${options.map(option => `<label class="chip"><input type="radio" name="${name}" value="${escapeAttr(option)}" ${selected === option ? "checked" : ""}>${escapeHtml(option)}</label>`).join("")}</div></article>`;
   }).join("")}</section>`;
   return `
-    <section class="refinement-section"><h4>Perguntas de refinamento</h4>${questionBlocks}</section>
+    <section class="refinement-section refinement-questions-section"><h4>Perguntas de refinamento</h4>${questionBlocks}</section>
     ${decisionBlock("Red flags", plan.red_flags, "refinementRedFlag", ["Confirmada", "Negada", "Nao avaliada"])}
     ${decisionBlock("Observacoes", plan.observations, "refinementObservation", ["Pertinente", "Nao pertinente", "Reavaliar"])}
     ${decisionBlock("Pontos importantes", plan.important_points, "refinementImportant", ["Confirmado", "Negado", "Nao esclarecido"])}
@@ -806,10 +826,7 @@ function clinicalSummaryGroups(form = {}, patient = {}) {
     summaryGroupedOptionRow("Exame psíquico", mentalLabels[key] || key, key, optionGroups[key] || [], form, `${key}Outro`)
   );
   const physicalRows = [
-    summaryTextRow("Sinais vitais", "PA", form.pa), summaryTextRow("Sinais vitais", "FC", form.fc),
-    summaryTextRow("Sinais vitais", "FR", form.fr), summaryTextRow("Sinais vitais", "Temperatura", form.temperatura),
-    summaryTextRow("Antropometria", "Peso", form.peso), summaryTextRow("Antropometria", "Altura", form.altura),
-    summaryTextRow("Antropometria", "IMC", form.imc), summaryTextRow("Exame físico", "Achados relevantes", form.fisico)
+    summaryTextRow("Exame físico", "Achados relevantes", form.fisico)
   ].filter(row => row.value);
   const refinementRows = refinementSummaryRows(form);
   return [
@@ -933,7 +950,6 @@ function diagnosisModule(form) {
     ${diagnosisCategory("Etiológico", etiologicalOptions, selectedValues, 2)}
     <div class="diagnosis-group diagnosis-doctor-group">
       <h4>Hipóteses do médico</h4>
-      <p class="online-status">Mantidas independentemente das sugestões da IA. Assinale uma ou mais conforme o julgamento clínico.</p>
       <div class="diagnosis-options">${diagnosisOptionCheckboxes(doctorDiagnosisOptions, selectedValues)}</div>
     </div>
   `;
@@ -941,7 +957,6 @@ function diagnosisModule(form) {
 
 function diagnosisCategory(label, options, selectedValues, count) {
   return `<div class="diagnosis-group"><h4>${label} — ${count} hipóteses</h4>
-      <p class="online-status">Assinale uma ou mais opcoes consideradas pertinentes.</p>
       <div class="diagnosis-options">
         ${options.length ? diagnosisOptionCheckboxes(options, selectedValues) : `<p class="diagnosis-empty">Nenhuma hipótese gerada.</p>`}
       </div>
@@ -998,7 +1013,6 @@ function treatmentModule(form) {
     <div class="treatment-card-grid">
       <div class="treatment-card">
         <h4>Abordagem medicamentosa</h4>
-        <p class="online-status">Dados exclusivamente da IA atual ou do RAG com literatura.</p>
         <textarea hidden name="tratamentoAiMedicamentos">${escapeHtml(medicationOptions.join("\n"))}</textarea>
         <textarea hidden name="tratamentoMedicamentoso">${escapeHtml(form.tratamentoMedicamentoso || "")}</textarea>
         <div class="diagnosis-options">
@@ -1015,12 +1029,12 @@ function treatmentModule(form) {
       </div>
       <div class="treatment-card">
         <h4>Exames solicitados</h4>
-        ${chips("examesSolicitados", "Principais exames solicitados em psiquiatria", optionGroups.examesPsiquiatria, form.examesSolicitados)}
+        ${chips("examesSolicitados", "", optionGroups.examesPsiquiatria, form.examesSolicitados)}
         <textarea hidden name="examesLaboratoriais">${escapeHtml(examesText)}</textarea>
       </div>
       <div class="treatment-card physician-adjustments">
         <h4>Ajustes do medico</h4>
-        ${textarea("condutaMedica", "Ajustes das condutas selecionadas, consentimento, encaminhamentos e retorno", form.condutaMedica, "", 3)}
+        ${textarea("condutaMedica", "", form.condutaMedica, "", 3)}
       </div>
     </div>
   `;
@@ -1056,7 +1070,6 @@ function medicationBody(form) {
       <div class="medication-search-shell">
         <span class="medication-search-icon" aria-hidden="true">⌕</span>
         <input id="medication-lookup" name="medicationGeneric" value="${escapeAttr(medicationName)}"
-          placeholder="Comece a digitar: sertralina, Zoloft, quetiapina..."
           autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="medication-suggestions" />
         <button class="medication-clear" type="button" data-action="clear-medication-lookup" aria-label="Limpar pesquisa">×</button>
       </div>
@@ -1123,7 +1136,7 @@ function medicationNameLinks(name = "") {
 }
 
 function evolutionModule(form, patient, previous = null, isReturn = false) {
-  return section(isReturn ? "Evolucao do Retorno" : "Historia Clinica", evolutionBody(form, patient, previous, isReturn), true);
+  return section(isReturn ? "Evolucao do Retorno" : "Historia clinica", evolutionBody(form, patient, previous, isReturn), true);
 }
 
 function evolutionBody(form, patient, previous = null, isReturn = false) {
@@ -1216,15 +1229,15 @@ function textarea(name, labelText, value = "", placeholder = "", rows = "") {
 
 function voiceTextarea(name, labelText, value = "", placeholder = "") {
   return `<div class="voice-field">${textarea(name, labelText, value, placeholder)}<div class="voice-controls">
-    <button class="voice-button" type="button" data-action="voice" data-target="${name}" aria-label="Iniciar transcrição por voz" title="Transcrever por voz">
+    <button class="voice-button" type="button" data-action="voice" data-target="${name}" aria-label="Iniciar gravação da conversa" title="Iniciar gravação">
       ${microphoneIcon()}<span class="voice-pulse" aria-hidden="true"></span>
     </button>
-    <span class="voice-status" aria-live="polite">Clique no microfone para transcrever</span>
+    <span class="voice-status" aria-live="polite">Clique no microfone para iniciar a gravação integral</span>
   </div></div>`;
 }
 
 function questionTextarea(key, labelText, value = "") {
-  return `<label class="mental-question">${labelText}<textarea rows="3" readonly placeholder="Perguntas fixas deste item">${escapeHtml(fixedMentalQuestion(key, value))}</textarea></label>`;
+  return `<label class="mental-question">${labelText}<textarea rows="3" readonly>${escapeHtml(fixedMentalQuestion(key, value))}</textarea></label>`;
 }
 
 function fixedMentalQuestion(key, value = "") {
@@ -1249,6 +1262,7 @@ function anamnesisQuestionGuide() {
     .sort(([labelA], [labelB]) => itemOrder.indexOf(labelA) - itemOrder.indexOf(labelB));
 
   return `<div class="clinical-card anamnesis-guide">
+    <div class="online-status">Roteiro semiológico orientado por RAG: registre cronologia, polaridade do humor, sintomas associados, psicose, risco, substâncias, causas médicas, funcionamento e fatores de proteção. Os campos abaixo são pontos de apoio; a narrativa da consulta continua sendo a fonte principal.</div>
     <div class="guide-group">
       <div class="guide-items">
         ${orderedItems.map(([label, questions]) => `
@@ -1297,7 +1311,7 @@ function suicideRiskFields(questions, form) {
     ${questions.map(item => item.response === "text" ? `
       <label class="risk-text">
         <b>${escapeHtml(item.label)}:</b> ${escapeHtml(item.question)}
-        <textarea name="${item.key}" rows="2" placeholder="${escapeAttr(item.placeholder || "Resposta preenchida pelo medico")}">${escapeHtml(form[item.key] || "")}</textarea>
+        <textarea name="${item.key}" rows="2">${escapeHtml(form[item.key] || "")}</textarea>
       </label>
     ` : `
       <div class="risk-choice">
@@ -1358,8 +1372,14 @@ function normalizedSingleChoiceValue(name, value) {
   return aliases[name]?.[selected] || selected;
 }
 
+const optionDisplayLabels = {
+  IN_PERSON: "Presencial",
+  TELECONSULTATION: "Online",
+  HYBRID: "Híbrida"
+};
+
 function optionDisplayLabel(option = "") {
-  return option;
+  return optionDisplayLabels[option] || option;
 }
 
 function pagesForScope(scope) {
@@ -1423,38 +1443,19 @@ function validationDisplayItem(field, value) {
 }
 
 function validationControlClass(field, value) {
-  const state = validationDisplayItem(field, value)?.state;
-  return state ? `validation-${state.toLowerCase().replaceAll("_", "-")}` : "";
+  return "";
 }
 
 function validationControlBadge(field, value) {
-  const state = validationDisplayItem(field, value)?.state;
-  return state ? `<small class="validation-badge">${VALIDATION_LABELS[state] || state}</small>` : "";
+  return "";
 }
 
 function mergeAiValidationItems(form = {}, items = []) {
-  const existing = validationItems(form);
-  const merged = [...existing];
-  items.forEach(item => {
-    const id = item.id || `${item.field}:${item.value}`;
-    const index = merged.findIndex(current => current.id === id);
-    const next = { ...item, id, state: "AI_SUGGESTED", source: item.source || "INFERENCIA_IA" };
-    if (index >= 0) {
-      if (!["DOCTOR_CONFIRMED", "DOCTOR_EDITED", "DOCTOR_REJECTED"].includes(merged[index].state)) merged[index] = { ...merged[index], ...next };
-    } else merged.push(next);
-  });
-  return merged;
+  return [];
 }
 
 function validationReviewPanel(scope) {
-  const page = currentValidationPage(scope);
-  const items = validationItems().filter(item => item.page === page);
-  if (!items.length) return "";
-  return `<section class="validation-review"><h4>Revisão médica das sugestões</h4><div class="validation-review-list">${items.map(item => `
-    <article class="validation-review-item ${validationControlClass(item.field, item.value)}">
-      <div><strong>${escapeHtml(item.label || item.value)}</strong><span>${escapeHtml(VALIDATION_LABELS[item.state] || item.state)}</span>${item.evidence ? `<small>Fonte: ${escapeHtml(item.evidence)}</small>` : ""}</div>
-      <div class="actions"><button type="button" class="primary" data-action="validation-confirm" data-validation-id="${escapeAttr(item.id)}" ${item.state === "DOCTOR_CONFIRMED" ? "disabled" : ""}>Confirmar</button><button type="button" class="secondary" data-action="validation-edit" data-validation-id="${escapeAttr(item.id)}" ${item.state === "DOCTOR_EDITED" ? "disabled" : ""}>Editado</button><button type="button" class="danger" data-action="validation-reject" data-validation-id="${escapeAttr(item.id)}" ${item.state === "DOCTOR_REJECTED" ? "disabled" : ""}>Descartar</button></div>
-    </article>`).join("")}</div></section>`;
+  return "";
 }
 
 function setValidationDecision(id, state) {
@@ -1484,10 +1485,7 @@ function pendingValidationsForCurrentPage(scope) {
 }
 
 function validatedControlValues(field, values, form = currentClinicalDraft()) {
-  return arrayValue(values).filter(value => {
-    const item = validationItemFor(field, value, form);
-    return !item || ["DOCTOR_CONFIRMED", "DOCTOR_EDITED"].includes(item.state);
-  });
+  return arrayValue(values);
 }
 
 function bindGlobalEvents() {
@@ -1614,16 +1612,10 @@ function bindAutoDraft() {
     form.addEventListener("input", event => {
       clinicalDraftRevision += 1;
       updateDraftFromForm(form);
-      if (form.id === "consult-form" && consultationPage === "anamnese" && event.target?.name === "qphda") {
-        clearTimeout(anamnesisLocalTimer);
-        const transcript = event.target.value;
-        anamnesisLocalTimer = setTimeout(() => {
-          if (view !== "consultation" || consultationPage !== "anamnese") return;
-          applyAnamnesisAiResult(localAnamnesisExtraction(transcript), transcript);
-          // O médico normalmente ainda está digitando quando isto dispara.
-          // render() recria o textarea e o cursor salta para fora do campo.
-          renderPreservingFocus();
-        }, 700);
+      if (form.id === "consult-form" && consultationPage === "anamnese" && ["queixa", "hdaManual", "medicos", "qphda"].includes(event.target?.name)) {
+        const target = draft.consultation || defaultConsultation();
+        target.anamnesisDoctorTextOverrides = { ...(target.anamnesisDoctorTextOverrides || {}), [event.target.name]: true };
+        draft.consultation = target;
       }
     });
     form.addEventListener("change", event => {
@@ -1641,6 +1633,7 @@ function bindAutoDraft() {
         }
       }
       updateDraftFromForm(form);
+      recordAnamnesisDoctorOverride(event.target);
       if (event.target?.name === "examesSolicitados") {
         const hiddenExams = form.querySelector("textarea[name='examesLaboratoriais']");
         if (hiddenExams) hiddenExams.value = requestedExamsText(currentClinicalDraft() || {});
@@ -1673,18 +1666,35 @@ function recordDoctorControlInteraction(control) {
   item.decidedAt = new Date().toISOString();
 }
 
+function recordAnamnesisDoctorOverride(control) {
+  if (view !== "consultation" || consultationPage !== "anamnese" || control?.type !== "checkbox" || !control.name) return;
+  const fieldEntry = Object.values(ANAMNESIS_AI_FIELDS).find(([formKey]) => formKey === control.name);
+  if (!fieldEntry) return;
+  const [, allowed] = fieldEntry;
+  const target = draft.consultation || defaultConsultation();
+  const overrides = { ...(target.anamnesisDoctorOverrides || {}) };
+  const key = option => `${control.name}:${option}`;
+  overrides[key(control.value)] = control.checked;
+  const denialOptions = ["Nega sintomas relacionados", "Nega ideacao, plano ou intencao suicida", "Nenhum"];
+  if (control.checked && denialOptions.includes(control.value)) {
+    allowed.forEach(option => { overrides[key(option)] = option === control.value; });
+  } else if (control.checked) {
+    allowed.filter(option => denialOptions.includes(option)).forEach(option => { overrides[key(option)] = false; });
+  }
+  target.anamnesisDoctorOverrides = overrides;
+  draft.consultation = target;
+}
+
 function bindPatientForm() {
   const form = app.querySelector("#patient-form");
   if (!form) return;
   form.querySelector("[name='cep']")?.addEventListener("blur", async event => {
-    const status = app.querySelector("#cep-status");
     try {
       const address = await fetchCep(event.target.value);
       Object.assign(draft.patient || {}, formToObject(form), address);
-      status.textContent = "Endereco preenchido automaticamente pelo CEP.";
       render();
-    } catch (error) {
-      status.textContent = error.message;
+    } catch {
+      // CEP incompleto/invalido: silencioso, sem caixa de status para avisar.
     }
   });
   form.addEventListener("submit", event => {
@@ -1761,6 +1771,7 @@ function bindActions() {
       const action = element.dataset.action;
       if (["dashboard", "toggle-theme", "select-patient", "edit-patient"].includes(action)) return;
       if (action === "form-page") switchFormPage(element);
+      if (action === "start-refinement") await startRefinement(element);
       if (action === "save-next-page") await saveCurrentPageAndAdvance(element);
       if (action === "validation-confirm") setValidationDecision(element.dataset.validationId, "DOCTOR_CONFIRMED");
       if (action === "validation-edit") setValidationDecision(element.dataset.validationId, "DOCTOR_EDITED");
@@ -1771,6 +1782,7 @@ function bindActions() {
       if (action === "generate-medication-ai") await generateMedicationFromClinicalData(element);
       if (action === "fill-medication-info") await fillMedicationInfo(element);
       if (action === "clear-medication-lookup") clearMedicationLookup();
+      if (action === "set-anamnesis-mode") setAnamnesisInputMode(element.dataset.mode);
       if (action === "clear-patient") { draft.patient = {}; render(); }
       if (action === "delete-patient") deletePatient();
       if (action === "voice") startVoice(element.dataset.target, element);
@@ -1790,6 +1802,8 @@ function bindActions() {
 }
 
 function switchFormPage(element) {
+  const current = currentPageForScope(element.dataset.scope);
+  if (element.dataset.page !== current) return;
   const form = element.closest("form");
   if (form) updateDraftFromForm(form);
   if (element.dataset.scope === "consultation") consultationPage = element.dataset.page;
@@ -1797,33 +1811,37 @@ function switchFormPage(element) {
   render();
 }
 
+function setAnamnesisInputMode(mode) {
+  if (activeVoiceRecorder?.state === "recording" || voiceTranscribing) {
+    alert("Encerre a gravação e aguarde a transcrição antes de trocar a forma de registro.");
+    return;
+  }
+  const target = draft.consultation || defaultConsultation();
+  target.anamnesisInputMode = mode === "microphone" ? "microphone" : "manual";
+  draft.consultation = target;
+  render();
+}
+
+async function startRefinement(element) {
+  const form = element.closest("form");
+  if (form) updateDraftFromForm(form);
+  refinementGenerating = true;
+  render();
+  await prepareRefinementFromClinicalData();
+  refinementGenerating = false;
+  render();
+}
+
 async function saveCurrentPageAndAdvance(element) {
+  if (activeVoiceRecorder?.state === "recording" || voiceTranscribing) {
+    alert("Encerre a gravação e aguarde a transcrição antes de salvar e avançar.");
+    return;
+  }
   const form = element.closest("form");
   if (form) updateDraftFromForm(form);
   const scope = element.dataset.scope;
   const completedPage = currentPageForScope(scope);
-  if (scope === "consultation" && completedPage === "anamnese") {
-    const target = draft.consultation || {};
-    const transcript = String(target.qphda || "").trim();
-    if (transcript && normalizeText(target.anamnesisProcessedTranscript || "") !== normalizeText(transcript)) {
-      applyAnamnesisAiResult(localAnamnesisExtraction(transcript), transcript);
-      render();
-      return;
-    }
-  }
-  if (pendingValidationsForCurrentPage(scope).length) {
-    alert("Revise cada sugestao da IA: confirme, marque como editada ou descarte antes de salvar e avancar.");
-    return;
-  }
   saveClinicalRecord(scope);
-  if (scope === "consultation" && completedPage === "anamnese") {
-    await prepareMentalExamFromAnamnesis();
-    saveClinicalRecord(scope);
-  }
-  if (scope === "consultation" && completedPage === "neurologico") {
-    await prepareRefinementFromClinicalData();
-    saveClinicalRecord(scope);
-  }
   const nextPage = nextPageForScope(scope);
   if (scope === "consultation" && nextPage) consultationPage = nextPage;
   if (scope === "return" && nextPage) returnPage = nextPage;
@@ -2083,34 +2101,59 @@ function canonicalAiSelections(values, allowed = []) {
 
 function applyAnamnesisAiResult(result = {}, transcript = "") {
   const target = draft.consultation || defaultConsultation();
+  const textOverrides = target.anamnesisDoctorTextOverrides || {};
   target.qphda = transcript || target.qphda || "";
-  target.queixa = result.chief_complaint || target.queixa || "";
-  target.hdaManual = result.hda || target.hdaManual || "";
-  target.medicos = result.medical_history || target.medicos || "";
+  if (!textOverrides.queixa) target.queixa = result.chief_complaint || target.queixa || "";
+  if (!textOverrides.hdaManual) target.hdaManual = result.hda || target.hdaManual || "";
+  if (!textOverrides.medicos) target.medicos = result.medical_history || target.medicos || "";
+  const overrides = target.anamnesisDoctorOverrides || {};
   Object.entries(ANAMNESIS_AI_FIELDS).forEach(([aiKey, [formKey, allowed]]) => {
-    target[formKey] = canonicalAiSelections(result[aiKey], allowed);
+    const suggested = new Set(canonicalAiSelections(result[aiKey], allowed));
+    const denialOptions = ["Nega sintomas relacionados", "Nega ideacao, plano ou intencao suicida", "Nenhum"];
+    if ([...suggested].some(option => !denialOptions.includes(option))) {
+      denialOptions.forEach(option => suggested.delete(option));
+    }
+    target[formKey] = allowed.filter(option => {
+      const overrideKey = `${formKey}:${option}`;
+      return Object.hasOwn(overrides, overrideKey) ? overrides[overrideKey] : suggested.has(option);
+    });
   });
   target.anamnesisProcessedAt = new Date().toISOString();
   target.anamnesisProcessedTranscript = target.qphda;
   draft.consultation = target;
 }
 
-async function processAnamnesisTranscriptSilently(transcript = "") {
+function syncAnamnesisControlsFromDraft() {
+  if (view !== "consultation" || consultationPage !== "anamnese") return;
+  const form = app.querySelector("#consult-form");
+  if (!form) return;
+  const scrollLeft = window.scrollX;
+  const scrollTop = window.scrollY;
+  const target = draft.consultation || {};
+  Object.values(ANAMNESIS_AI_FIELDS).forEach(([formKey]) => {
+    const selected = new Set(arrayValue(target[formKey]));
+    form.querySelectorAll(`input[type="checkbox"][name="${CSS.escape(formKey)}"]`).forEach(control => {
+      control.checked = selected.has(control.value);
+    });
+  });
+  window.scrollTo(scrollLeft, scrollTop);
+  requestAnimationFrame(() => window.scrollTo(scrollLeft, scrollTop));
+  setTimeout(() => window.scrollTo(scrollLeft, scrollTop), 120);
+  setTimeout(() => window.scrollTo(scrollLeft, scrollTop), 450);
+}
+
+async function processAnamnesisTranscriptSilently(transcript = "", options = {}) {
   const cleanTranscript = String(transcript || "").trim();
   if (!cleanTranscript || view !== "consultation") return;
   const sequence = ++anamnesisProcessingSequence;
   const baselineRevision = clinicalDraftRevision;
-  applyAnamnesisAiResult(localAnamnesisExtraction(cleanTranscript), cleanTranscript);
-  render();
-  try {
-    const context = clinicalAiContext("consultation");
-    const { result } = await requestClinicalAi("anamnesis", buildClinicalAiPrompt("anamnesis", { ...context.target, qphda: cleanTranscript }, context.patient));
-    if (sequence !== anamnesisProcessingSequence || view !== "consultation" || baselineRevision !== clinicalDraftRevision) return;
-    applyAnamnesisAiResult(result, cleanTranscript);
-    render();
-  } catch {
-    // A extracao local ja deixou a anamnese pronta para revisao medica.
-  }
+  const context = clinicalAiContext("consultation");
+  const anamnesisTarget = { ...context.target, qphda: cleanTranscript };
+  const { result } = await requestClinicalAi("anamnesis", buildClinicalAiPrompt("anamnesis", anamnesisTarget, context.patient), "rag", buildRagQuery("anamnesis", anamnesisTarget));
+  if (sequence !== anamnesisProcessingSequence || view !== "consultation" || baselineRevision !== clinicalDraftRevision) return;
+  applyAnamnesisAiResult(result, cleanTranscript);
+  if (options.preserveFocus) syncAnamnesisControlsFromDraft();
+  else render();
 }
 
 function applyMentalExamAiResult(result = {}) {
@@ -2137,7 +2180,12 @@ async function prepareRefinementFromClinicalData() {
   const context = clinicalAiContext("consultation");
   let result;
   try {
-    ({ result } = await requestClinicalAi("refinement", buildClinicalAiPrompt("refinement", context.target, context.patient)));
+    ({ result } = await requestClinicalAi(
+      "refinement",
+      buildClinicalAiPrompt("refinement", context.target, context.patient),
+      "rag",
+      buildRagQuery("refinement", context.target)
+    ));
   } catch {
     result = localRefinementPlan(context.target);
   }
@@ -2146,24 +2194,81 @@ async function prepareRefinementFromClinicalData() {
 
 function localAnamnesisExtraction(transcript = "") {
   const text = normalizeText(transcript);
-  const has = pattern => pattern.test(text);
+  const sentences = (text.match(/[^.!?;\n]+[?]?/g) || [])
+    .flatMap(segment => segment.split(/\b(?:mas|porem|contudo|entretanto)\b/))
+    .map(sentence => sentence.trim())
+    .filter(Boolean);
+  const negation = /\b(nega|negou|negando|nao usa|nao usou|nunca usou|sem uso|ausencia de|sem sinais de)\b/;
+  const questionLike = sentence => /\?$/.test(sentence)
+    || /^(?:(?:e|entao|agora)\s+)?(?:voce|a senhora|o senhor|tem|teve|ja teve|sente|sentiu|ouve|ouviu|escuta|percebe|usa|usou|pensa|pensou|dorme|como|quando|quanto|ha quanto|alguma vez)\b/.test(sentence)
+    || /^(?:medico|medica|doutor|doutora|dr|dra)\b/.test(sentence);
+  const investigationOnly = sentence => /\b(?:vamos investigar|preciso perguntar|quero perguntar|pergunto sobre|investigar se|avaliar se)\b/.test(sentence);
+  const evidenceSentences = sentences.filter(sentence => !questionLike(sentence) && !investigationOnly(sentence));
+  const affirmed = pattern => evidenceSentences.some(sentence => pattern.test(sentence) && !negation.test(sentence));
+  const denied = pattern => evidenceSentences.some(sentence => pattern.test(sentence) && negation.test(sentence));
+  const chooseSeverity = () => affirmed(/incapacitante/) ? "Incapacitante"
+    : affirmed(/prejuizo grave|impacto grave|grave prejuizo/) ? "Grave"
+      : affirmed(/prejuizo moderad|impacto moderad/) ? "Moderado"
+        : affirmed(/prejuizo leve|impacto leve/) ? "Leve" : "";
+  const psychosisPositive = [
+    affirmed(/persegui|cameras|querem fazer mal/) ? "Ideias de perseguicao" : "",
+    affirmed(/observad|comentad/) ? "Sensacao de estar sendo observado ou comentado" : "",
+    affirmed(/mensage.*televis|dirigid[oa] a (?:ele|ela)|ideia.*referencia/) ? "Ideias de referencia" : "",
+    affirmed(/desconfianca|desconfiad/) ? "Desconfianca excessiva" : "",
+    affirmed(/ouve? vozes|ouvir vozes|\bouco\b|\bescuto\b|vozes .*coment|alucinacao audit/) ? "Vozes ou ruidos sem fonte externa" : "",
+    affirmed(/visoes|alucinacao visual/) ? "Visoes sem fonte externa" : "",
+    affirmed(/alucinacao tatil|alucinacao olfativ|sensacao tatil sem/) ? "Sensacoes tateis ou odores sem fonte externa" : "",
+    affirmed(/pensamento desorganiz|fala desorganiz/) ? "Pensamento desorganizado" : "",
+    affirmed(/comportamento desorganiz|mudanca abrupta.*comportamento/) ? "Comportamento desorganizado" : "",
+    affirmed(/controle.*pensamento|interferencia.*pensamento|roubo.*pensamento/) ? "Sensacao de controle ou interferencia no pensamento" : ""
+  ].filter(Boolean);
+  const suicidePositive = [
+    affirmed(/desesperanca/) ? "Desesperanca" : "",
+    affirmed(/desejo de morrer|nao acordar|melhor morrer/) ? "Desejo de morrer ou de nao acordar" : "",
+    affirmed(/ideacao suic|pensamento suic/) ? "Ideacao suicida" : "",
+    affirmed(/plano suic|plano definido/) ? "Plano suicida definido" : "",
+    affirmed(/intencao suic/) ? "Intencao suicida" : "",
+    affirmed(/acesso.*(?:arma|meio|medicamento)|meio letal/) ? "Acesso a meios potencialmente letais" : "",
+    affirmed(/preparatorio|despedid|carta de despedida/) ? "Comportamento preparatorio" : "",
+    affirmed(/tentativa.*suic/) ? "Tentativa de suicidio previa" : "",
+    affirmed(/autoagress|corta.*sem.*morrer/) ? "Autoagressao sem intencao suicida" : ""
+  ].filter(Boolean);
+  const severity = chooseSeverity();
   return {
     chief_complaint: String(transcript).split(/[.!?]/)[0]?.trim() || "",
     hda: transcript,
-    depressive_symptoms: [has(/cansad|fadiga|sem energia/) ? "Cansaco ou falta de energia" : "", has(/concentr/) ? "Dificuldade de concentracao" : ""].filter(Boolean),
-    mania_hypomania: has(/neg[oa].*mania|nunca.*energia exagerada|nunca.*pouca necessidade de sono/) ? ["Nega sintomas relacionados"] : [],
-    anxiety_symptoms: [[/dificil.*control|dificuldade.*control|nao consigo controlar/, "Falta de controle"], [/preocup/, "Preocupacao excessiva"], [/tens|mandibula|ombro/, "Tensao corporal"], [/concentr|foc/, "Dificuldade de focar"], [/inquiet|agitad/, "Agitacao"], [/irrit/, "Irritabilidade"], [/sintoma fisic|palpit|sudorese|tremor/, "Sintomas fisicos"]].filter(([pattern]) => has(pattern)).map(([, value]) => value),
-    sleep: [[/nao (?:e )?reparador|acordo cansad/, "Sono nao reparador"], [/demor[oa].*dormir|dificuldade.*adormecer|insonia inicial/, "Dificuldade para adormecer"]].filter(([pattern]) => has(pattern)).map(([, value]) => value),
-    appetite: [], symptom_impact: has(/moderad/) ? ["Moderado"] : [],
-    substances_behaviors: [[/alcool/, "Alcool"], [/cafe|cafeina/, "Cafeina"]].filter(([pattern]) => has(pattern)).map(([, value]) => value),
-    psychosis: has(/neg[oa].*psic|nunca ouvi vozes|sem.*perseguicao/) ? ["Nega sintomas relacionados"] : [],
-    suicide_risk: has(/neg[oa].*suic|nao tenho desejo de morrer|sem.*ideacao/) ? ["Nega ideacao, plano ou intencao suicida"] : [],
-    previous_diagnoses: [], previous_treatments: has(/psicoterapia/) ? ["Psicoterapia"] : [],
-    medical_history: has(/nega.*comorb|sem.*doenca clinica/) ? "Nega antecedentes medicos relevantes." : "",
-    family_history: has(/mae.*ansied|famil.*ansied/) ? ["Ansiedade"] : [],
-    worsening_factors: [[/trabalho|profission/, "Problemas profissionais"], [/dinheiro|financ/, "Problemas financeiros"], [/privacao.*sono|dorme pouco/, "Privacao de sono"]].filter(([pattern]) => has(pattern)).map(([, value]) => value),
-    improving_factors: [],
-    functional_impact: [has(/moderad/) ? "Moderado" : "", has(/famil/) ? "Prejuizo familiar" : ""].filter(Boolean)
+    depressive_symptoms: [
+      affirmed(/anedonia|desinteresse|sem prazer|perdeu.*prazer/) ? "Desinteresse ou falta de prazer" : "",
+      affirmed(/desanimo|desesperanca|humor deprim|tristeza/) ? "Desanimo ou desesperanca" : "",
+      affirmed(/cansad|fadiga|sem energia/) ? "Cansaco ou falta de energia" : "",
+      affirmed(/dificuldade.*concentr|sem concentracao/) ? "Dificuldade de concentracao" : "",
+      affirmed(/fala lenta|lentificacao/) ? "Fala lenta" : "",
+      affirmed(/agitacao/) ? "Agitacao" : "",
+      affirmed(/baixa autoestima|menos valia|inutil/) ? "Baixa autoestima" : "",
+      affirmed(/ruina|culpa excessiva/) ? "Sentimento de ruina" : "",
+      affirmed(/estorvo|peso para.*famil/) ? "Sentimento de estorvo para a familia" : ""
+    ].filter(Boolean),
+    mania_hypomania: [
+      affirmed(/muito acelerad|aceleracao/) ? "Muito acelerado" : "",
+      affirmed(/muita energia|energia aumentada|mais energia/) ? "Com muita energia" : "",
+      affirmed(/falando mais|fala acelerada|mais falante/) ? "Falando mais" : "",
+      affirmed(/dormindo pouco|pouca necessidade de sono|reduziu.*sono/) ? "Dormindo pouco" : "",
+      affirmed(/impulsiv|gastos excessiv|compras/) ? "Fazendo coisas impulsivas" : ""
+    ].filter(Boolean).concat(denied(/mania|hipomania|euforia|energia aumentada|pouca necessidade de sono/) ? ["Nega sintomas relacionados"] : []),
+    anxiety_symptoms: [[/dificil.*control|dificuldade.*control|nao consigo controlar/, "Falta de controle"], [/preocup/, "Preocupacao excessiva"], [/tens|mandibula|ombro/, "Tensao corporal"], [/(?:ansiedade|preocupacao).*(?:foc|concentr)/, "Dificuldade de focar"], [/inquiet|agitad/, "Agitacao"], [/irrit/, "Irritabilidade"], [/sintoma fisic|palpit|sudorese|tremor/, "Sintomas fisicos"]].filter(([pattern]) => affirmed(pattern)).map(([, value]) => value),
+    sleep: [[/sono reparador/, "Sono reparador"], [/nao (?:e )?reparador|acord[oa] cansad/, "Sono nao reparador"], [/demor[oa].*dormir|dificuldade.*adormecer|insonia inicial/, "Dificuldade para adormecer"], [/despertares|acorda.*noite/, "Despertares noturnos"], [/despertar precoce|acorda.*cedo/, "Despertar precoce"], [/hipersonia|dorme.*excesso|dormindo demais/, "Dormir em excesso"]].filter(([pattern]) => affirmed(pattern)).map(([, value]) => value),
+    appetite: [[/reduziu.*apetite|reducao.*apetite|pouco apetite|sem apetite/, "Reducao do apetite"], [/aumento.*apetite|mais apetite/, "Aumento do apetite"], [/compulsao alimentar/, "Compulsao alimentar"], [/perdeu.*peso|perda de peso/, "Perda de peso recente"], [/ganhou.*peso|ganho de peso/, "Ganho de peso recente"]].filter(([pattern]) => affirmed(pattern)).map(([, value]) => value),
+    symptom_impact: severity ? [severity === "Incapacitante" ? "Grave" : severity] : [],
+    substances_behaviors: [[/nicotina|cigarro|tabaco/, "Nicotina"], [/alcool/, "Alcool"], [/cafe|cafeina/, "Cafeina"], [/calmante|benzodiazep/, "Calmantes"], [/estimulante|anfetamina/, "Estimulantes"], [/cocaina|crack/, "Cocaina"], [/opioide|morfina|heroina/, "Opioides"], [/cannabis|maconha|canabinoide/, "Canabinoides"], [/jogo.*azar|aposta/, "Jogos de Azar"], [/redes sociais/, "Redes Sociais"], [/compras compuls/, "Compras Compulsivas"], [/transtorno alimentar|bulimia|anorexia/, "Transtornos Alimentares"]].filter(([pattern]) => affirmed(pattern)).map(([, value]) => value),
+    psychosis: psychosisPositive.length ? psychosisPositive : (denied(/psic|voz|alucin|persegui|delir/) ? ["Nega sintomas relacionados"] : []),
+    suicide_risk: suicidePositive.length ? suicidePositive : (denied(/suic|desejo de morrer|ideacao|plano|intencao/) ? ["Nega ideacao, plano ou intencao suicida"] : []),
+    previous_diagnoses: [[/(?:diagnostico|diagnosticad).*depress/, "Depressao"], [/(?:diagnostico|diagnosticad).*bipolar/, "Transtorno bipolar"], [/(?:diagnostico|diagnosticad).*ansiedade generalizada/, "Transtorno de ansiedade generalizada"], [/(?:diagnostico|diagnosticad).*panico/, "Transtorno do panico"], [/(?:diagnostico|diagnosticad).*toc/, "TOC"], [/(?:diagnostico|diagnosticad).*tept/, "TEPT"], [/(?:diagnostico|diagnosticad).*tdah/, "TDAH"], [/(?:diagnostico|diagnosticad).*psicot/, "Transtorno psicotico"]].filter(([pattern]) => affirmed(pattern)).map(([, value]) => value),
+    previous_treatments: [[/psicoterapia/, "Psicoterapia"], [/antidepressiv/, "Antidepressivos"], [/estabilizador.*humor|litio|valproato|lamotrigina/, "Estabilizador de humor"], [/antipsicot/, "Antipsicotico"], [/benzodiazep/, "Benzodiazepinico"], [/hipnotico/, "Hipnotico"], [/psicoestimulante/, "Psicoestimulante"], [/eletroconvuls|\bect\b/, "ECT"], [/internacao psiquiatr/, "Internacao psiquiatrica"]].filter(([pattern]) => affirmed(pattern)).map(([, value]) => value),
+    medical_history: denied(/comorb|doenca clinica|antecedente medico/) ? "Nega antecedentes medicos relevantes." : "",
+    family_history: [[/(mae|pai|irmao|famil).*depress/, "Depressao"], [/(mae|pai|irmao|famil).*bipolar/, "Transtorno bipolar"], [/(mae|pai|irmao|famil).*esquizofren/, "Esquizofrenia"], [/(mae|pai|irmao|famil).*ansied/, "Ansiedade"], [/(mae|pai|irmao|famil).*suic/, "Tentativa ou Suicidio"]].filter(([pattern]) => affirmed(pattern)).map(([, value]) => value),
+    worsening_factors: [[/luto|falecimento/, "Luto"], [/conflito.*famil/, "Conflito familiar"], [/trabalho|profission|demissao/, "Problemas profissionais"], [/dinheiro|financ/, "Problemas financeiros"], [/doenca clinica/, "Doenca clinica"], [/uso.*substancia/, "Uso de substancias"], [/privacao.*sono|dorme pouco/, "Privacao de sono"], [/stress|estresse|mudanca.*rotina/, "Stress e mudanca de rotina"]].filter(([pattern]) => affirmed(pattern)).map(([, value]) => value),
+    improving_factors: [[/melhora.*repouso/, "Repouso"], [/melhora.*sono/, "Sono adequado"], [/melhora.*atividade fisica|exercicio/, "Atividade fisica"], [/rotina estruturada/, "Rotina estruturada"], [/melhora.*psicoterapia/, "Psicoterapia"], [/melhora.*medicacao/, "Medicacao"], [/afastamento.*estressor/, "Afastamento de estressor"], [/relaxamento/, "Tecnicas de relaxamento"]].filter(([pattern]) => affirmed(pattern)).map(([, value]) => value),
+    functional_impact: [severity, affirmed(/prejuizo social|isolamento social/) ? "Prejuizo social" : "", affirmed(/prejuizo familiar|convivencia familiar/) ? "Prejuizo familiar" : ""].filter(Boolean)
   };
 }
 
@@ -2228,6 +2333,8 @@ function buildRagQuery(kind, form = {}) {
     joinValues(form.riscoSuicidioIndicadores),
     mentalStateFindings(form).join("; ")
   ].filter(Boolean).join("; ");
+  if (kind === "anamnesis") return `Semiologia psiquiatrica para entrevista diagnostica: cronologia, curso, polaridade do humor, sintomas depressivos e maniacos, ansiedade, sono, psicose, risco suicida, substancias, causas medicas, funcionamento e fatores de protecao. Dados da narrativa: ${symptoms}`.slice(0, 4000);
+  if (kind === "refinement") return `Semiologia psiquiatrica para refinamento clinico: lacunas da anamnese, discriminacao entre sindromes, red flags, risco, psicose, bipolaridade, substancias, causas medicas, funcionamento e fatores de protecao. Dados ja registrados: ${symptoms}`.slice(0, 4000);
   if (kind === "treatment") return `Diretrizes e tratamento de ${diagnosis}. Dados clinicos relevantes: ${symptoms}`.slice(0, 4000);
   if (kind === "diagnosis") return `Criterios diagnosticos e diagnostico diferencial para: ${symptoms}`.slice(0, 4000);
   return `${diagnosis}; ${symptoms}`.slice(0, 4000);
@@ -2361,8 +2468,14 @@ async function fillMedicationInfo(element) {
 function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = null, isReturn = false) {
   const taskByKind = {
     anamnesis: [
-      "Extraia somente informacoes explicitamente presentes na transcricao da conversa.",
-      "Preencha queixa principal, HDA e campos estruturados da anamnese; campo vazio significa dado nao informado.",
+      "Use a literatura de semiologia psiquiatrica recuperada pelo RAG como guia de cobertura, mas extraia somente informacoes explicitamente presentes na transcricao da conversa.",
+      "A entrada e um dialogo bruto em ordem cronologica. Cada linha preserva o identificador do falante, mas os rotulos Falante A/B nao informam previamente quem e medico ou paciente; determine o papel pelo conteudo e pela sequencia conversacional.",
+      "Perguntas do medico nao sao achados clinicos: nunca marque um sintoma apenas porque ele foi perguntado. Exija resposta afirmativa da paciente, relato espontaneo ou observacao explicita do medico.",
+      "Interprete respostas curtas como sim, nao, as vezes e nao sei em conjunto com a pergunta imediatamente anterior.",
+      "Quando houver correcao ou contradicao, a declaracao cronologicamente mais recente substitui a anterior. Preserve rigorosamente a diferenca entre quadro atual, episodio passado, antecedente familiar e hipotese apenas investigada.",
+      "Organize a anamnese por queixa principal, cronologia e curso, sintomas nucleares e associados, polaridade depressiva/maníaca, ansiedade/pânico, sono, apetite, psicose, risco suicida, substâncias, causas médicas, antecedentes, funcionamento e fatores de proteção.",
+      "Diferencie sintoma negado, sintoma presente e domínio não investigado; campo vazio significa dado não informado e nunca normalidade.",
+      "Preencha queixa principal, HDA e campos estruturados da anamnese sem perder a narrativa temporal, intensidade, frequência, duração, gatilhos, fatores de melhora/piora e prejuízo funcional.",
       "Nao diagnostique, nao sugira tratamento e nao acrescente observacoes ao usuario.",
       `Nos campos de selecao, use exclusivamente estes rotulos canonicos: ${JSON.stringify(Object.fromEntries(Object.entries(ANAMNESIS_AI_FIELDS).map(([key, [, options]]) => [key, options])))}`
     ],
@@ -3846,7 +3959,7 @@ function formToObject(form) {
 
 function defaultConsultation() {
   const count = state.consultations.filter(item => item.patientId === selectedPatientId).length + 1;
-  return { patientId: selectedPatientId, label: `Consulta ${count}`, type: "consultation", consultationMode: "IN_PERSON" };
+  return { patientId: selectedPatientId, label: `Consulta ${count}`, type: "consultation", consultationMode: "IN_PERSON", anamnesisInputMode: "manual" };
 }
 
 function defaultReturn() {
@@ -4104,14 +4217,9 @@ function showExitModal() {
 }
 
 async function startVoice(targetName, button) {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    setVoiceStatus(button, "Reconhecimento de voz indisponível neste navegador", "error");
-    return alert("A transcrição por voz não está disponível neste navegador. Use Chrome, Edge ou Safari atualizado.");
-  }
-
-  if (activeVoiceRecognition) {
-    activeVoiceRecognition.stop();
+  if (activeVoiceRecorder?.state === "recording") {
+    setVoiceStatus(activeVoiceButton, "Encerrando a gravação e enviando para transcrição…", "requesting");
+    activeVoiceRecorder.stop();
     return;
   }
 
@@ -4123,69 +4231,91 @@ async function startVoice(targetName, button) {
     return alert("Abra o sistema por http://127.0.0.1:8000 ou por HTTPS para permitir o uso do microfone.");
   }
 
-  const hasPermission = await requestMicrophonePermission(button);
-  if (!hasPermission) return;
-
-  const recognition = new SpeechRecognition();
-  recognition.lang = "pt-BR";
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  activeVoiceRecognition = recognition;
-  activeVoiceButton = button;
-
-  recognition.onstart = () => {
-    button.classList.add("is-listening");
-    button.setAttribute("aria-label", "Parar transcrição por voz");
-    button.title = "Parar transcrição";
-    setVoiceStatus(button, "Ouvindo… clique novamente para parar", "listening");
-  };
-
-  recognition.onresult = event => {
-    let finalTranscript = "";
-    let interimTranscript = "";
-    for (let index = event.resultIndex; index < event.results.length; index += 1) {
-      const transcript = event.results[index][0].transcript;
-      if (event.results[index].isFinal) finalTranscript += transcript;
-      else interimTranscript += transcript;
-    }
-    if (finalTranscript.trim()) {
-      fieldElement.value = `${fieldElement.value.trim()}${fieldElement.value.trim() ? " " : ""}${finalTranscript.trim()}`;
-      updateDraftFromForm(fieldElement.closest("form"));
-    }
-    if (interimTranscript.trim()) setVoiceStatus(button, `Ouvindo: “${interimTranscript.trim()}”`, "listening");
-  };
-
-  recognition.onerror = event => {
-    const messages = {
-      "not-allowed": "Microfone bloqueado — libere-o nas configurações do site",
-      "audio-capture": "Nenhum microfone foi encontrado",
-      "no-speech": "Nenhuma fala foi detectada",
-      network: "Falha na conexão do reconhecimento de voz"
-    };
-    setVoiceStatus(button, messages[event.error] || "Não foi possível transcrever. Tente novamente.", "error");
-    if (event.error === "not-allowed") showMicrophonePermissionHelp();
-  };
-
-  recognition.onend = async () => {
-    const currentButton = activeVoiceButton;
-    activeVoiceRecognition = null;
-    activeVoiceButton = null;
-    if (!currentButton) return;
-    currentButton.classList.remove("is-listening");
-    currentButton.setAttribute("aria-label", "Iniciar transcrição por voz");
-    currentButton.title = "Transcrever por voz";
-    if (currentButton.closest(".voice-controls")?.querySelector(".voice-status")?.dataset.state !== "error") {
-      setVoiceStatus(currentButton, "Transcrição finalizada", "done");
-    }
-    if (targetName === "qphda") await processAnamnesisTranscriptSilently(currentClinicalDraft().qphda || fieldElement.value);
-  };
+  if (!window.MediaRecorder) {
+    setVoiceStatus(button, "Gravação de áudio indisponível neste navegador", "error");
+    return alert("Este navegador não oferece gravação integral de áudio. Use Chrome, Edge ou Safari atualizado.");
+  }
 
   try {
-    recognition.start();
-  } catch {
-    activeVoiceRecognition = null;
+    const stream = await requestMicrophonePermission(button);
+    if (!stream) return;
+    const mimeType = preferredRecordingMimeType();
+    const recorderOptions = { audioBitsPerSecond: 32000 };
+    if (mimeType) recorderOptions.mimeType = mimeType;
+    const recorder = new MediaRecorder(stream, recorderOptions);
+    activeVoiceRecorder = recorder;
+    activeVoiceStream = stream;
+    activeVoiceChunks = [];
+    activeVoiceStartedAt = Date.now();
     activeVoiceButton = null;
-    setVoiceStatus(button, "Não foi possível iniciar o microfone", "error");
+    activeVoiceButton = button;
+
+    recorder.addEventListener("dataavailable", event => {
+      if (event.data?.size) activeVoiceChunks.push(event.data);
+    });
+    recorder.addEventListener("start", () => {
+      button.classList.remove("is-requesting");
+      button.classList.add("is-listening");
+      button.setAttribute("aria-label", "Encerrar gravação da conversa");
+      button.title = "Encerrar gravação";
+      updateVoiceRecordingDuration(button);
+      activeVoiceDurationTimer = setInterval(() => updateVoiceRecordingDuration(button), 1000);
+    });
+    recorder.addEventListener("error", event => {
+      cleanupVoiceRecording();
+      setVoiceStatus(button, event.error?.message || "Falha durante a gravação", "error");
+    });
+    recorder.addEventListener("stop", async () => {
+      clearInterval(activeVoiceDurationTimer);
+      activeVoiceDurationTimer = null;
+      activeVoiceStream?.getTracks().forEach(track => track.stop());
+      const chunks = activeVoiceChunks;
+      const recordedType = recorder.mimeType || mimeType || "audio/webm";
+      activeVoiceRecorder = null;
+      activeVoiceStream = null;
+      activeVoiceChunks = [];
+      activeVoiceStartedAt = 0;
+      button.classList.remove("is-listening", "is-requesting");
+      button.setAttribute("aria-label", "Iniciar gravação da conversa");
+      button.title = "Iniciar gravação";
+
+      const audio = new Blob(chunks, { type: recordedType });
+      if (!audio.size) {
+        activeVoiceButton = null;
+        setVoiceStatus(button, "A gravação ficou vazia", "error");
+        return;
+      }
+      voiceTranscribing = true;
+      setVoiceStatus(button, "Transcrevendo toda a conversa e identificando os falantes…", "requesting");
+      try {
+        const transcription = await requestConsultationTranscription(audio);
+        const transcript = formatDiarizedTranscript(transcription.segments);
+        fieldElement.value = transcript;
+        const form = fieldElement.closest("form");
+        updateDraftFromForm(form);
+        const target = draft.consultation || defaultConsultation();
+        target.qphda = transcript;
+        target.anamnesisInputMode = "microphone";
+        target.transcriptionSegments = transcription.segments;
+        target.transcriptionDuration = transcription.duration;
+        target.transcribedAt = new Date().toISOString();
+        target.anamnesisDoctorTextOverrides = { ...(target.anamnesisDoctorTextOverrides || {}), qphda: false };
+        draft.consultation = target;
+        setVoiceStatus(button, "Transcrição concluída. Analisando a anamnese com a literatura…", "requesting");
+        if (targetName === "qphda") await processAnamnesisTranscriptSilently(transcript, { preserveFocus: false });
+        setVoiceStatus(app.querySelector(`[data-action='voice'][data-target='${targetName}']`), "Conversa transcrita e campos atualizados. Revise antes de salvar.", "done");
+      } catch (error) {
+        setVoiceStatus(button, error.message || "Não foi possível transcrever a conversa", "error");
+        alert(error.message || "Não foi possível transcrever a conversa.");
+      } finally {
+        voiceTranscribing = false;
+        activeVoiceButton = null;
+      }
+    });
+    recorder.start(5000);
+  } catch (error) {
+    cleanupVoiceRecording();
+    setVoiceStatus(button, error?.message || "Não foi possível iniciar a gravação", "error");
   }
 }
 
@@ -4193,7 +4323,7 @@ async function requestMicrophonePermission(button) {
   if (!navigator.mediaDevices?.getUserMedia) {
     setVoiceStatus(button, "Acesso ao microfone indisponível", "error");
     alert("Este navegador não permite acesso ao microfone. Use Chrome, Edge ou Safari atualizado.");
-    return false;
+    return null;
   }
 
   setVoiceStatus(button, "Solicitando acesso ao microfone…", "requesting");
@@ -4202,11 +4332,10 @@ async function requestMicrophonePermission(button) {
   try {
     // A verificacao de permissao deve usar a constraint mais compativel.
     // Safari pode rejeitar propriedades avancadas com "Invalid constraint".
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    stream.getTracks().forEach(track => track.stop());
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 } });
     button.classList.remove("is-requesting");
-    setVoiceStatus(button, "Microfone autorizado. Iniciando…", "done");
-    return true;
+    setVoiceStatus(button, "Microfone autorizado. Iniciando a gravação…", "done");
+    return stream;
   } catch (error) {
     button.classList.remove("is-requesting");
     if (error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError") {
@@ -4219,8 +4348,72 @@ async function requestMicrophonePermission(button) {
       setVoiceStatus(button, "Não foi possível acessar o microfone", "error");
       alert(`Falha ao acessar o microfone${error?.message ? `: ${error.message}` : "."}`);
     }
-    return false;
+    return null;
   }
+}
+
+function preferredRecordingMimeType() {
+  return ["audio/webm;codecs=opus", "audio/mp4", "audio/webm", "audio/ogg;codecs=opus"]
+    .find(type => MediaRecorder.isTypeSupported(type)) || "";
+}
+
+function recordingFilename(type = "") {
+  if (type.includes("mp4")) return "consulta.mp4";
+  if (type.includes("ogg")) return "consulta.ogg";
+  if (type.includes("wav")) return "consulta.wav";
+  return "consulta.webm";
+}
+
+async function requestConsultationTranscription(audio) {
+  const response = await fetch("/api/transcribe-consultation", {
+    method: "POST",
+    headers: {
+      "Content-Type": audio.type || "audio/webm",
+      "X-Audio-Filename": recordingFilename(audio.type)
+    },
+    body: audio
+  });
+  let data = {};
+  try {
+    data = await response.json();
+  } catch {
+    data = {};
+  }
+  if (!response.ok) throw new Error(data.error || "Falha ao transcrever a gravação.");
+  if (!Array.isArray(data.segments) || !data.segments.length) throw new Error("A transcrição não retornou falas reconhecíveis.");
+  return data;
+}
+
+function formatDiarizedTranscript(segments = []) {
+  const lines = [];
+  let previousSpeaker = "";
+  segments.forEach(segment => {
+    const speaker = String(segment.speaker || "?").trim();
+    const text = String(segment.text || "").trim();
+    if (!text) return;
+    if (speaker === previousSpeaker && lines.length) lines[lines.length - 1] += ` ${text}`;
+    else lines.push(`Falante ${speaker}: ${text}`);
+    previousSpeaker = speaker;
+  });
+  return lines.join("\n");
+}
+
+function updateVoiceRecordingDuration(button) {
+  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - activeVoiceStartedAt) / 1000));
+  const minutes = String(Math.floor(elapsedSeconds / 60)).padStart(2, "0");
+  const seconds = String(elapsedSeconds % 60).padStart(2, "0");
+  setVoiceStatus(button, `Gravando toda a conversa · ${minutes}:${seconds} · clique novamente para encerrar`, "listening");
+}
+
+function cleanupVoiceRecording() {
+  clearInterval(activeVoiceDurationTimer);
+  activeVoiceDurationTimer = null;
+  activeVoiceStream?.getTracks().forEach(track => track.stop());
+  activeVoiceRecorder = null;
+  activeVoiceStream = null;
+  activeVoiceChunks = [];
+  activeVoiceStartedAt = 0;
+  activeVoiceButton = null;
 }
 
 function showMicrophonePermissionHelp() {

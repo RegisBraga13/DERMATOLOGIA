@@ -509,13 +509,35 @@ details[open] summary:after { content: "-"; }
 }
 
 .qphda-card textarea[name="qphda"] {
-  min-height: 390px;
+  min-height: 195px;
 }
 
 .manual-anamnesis {
   display: grid;
   gap: 12px;
   margin-top: 12px;
+}
+
+.anamnesis-mode-selector {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0 14px;
+}
+
+.anamnesis-mode-selector button {
+  min-height: 46px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.anamnesis-mode-selector button.active {
+  border-color: var(--primary-2);
+  background: color-mix(in srgb, var(--primary-2) 13%, var(--surface));
+  color: var(--text);
+  font-weight: 700;
 }
 
 .manual-anamnesis textarea[name="queixa"] {
@@ -831,9 +853,11 @@ details[open] summary:after { content: "-"; }
   min-height: 92px;
 }
 
+/* Sem max-width + margin:auto: isso encolhia e centralizava o bloco dentro
+   do card, deixando-o desalinhado do titulo "Medicamentos" e mais estreito
+   que o card. Agora ocupa a largura toda, alinhado com o titulo. */
 .medication-reference {
-  max-width: 1120px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 .medication-reference-head {
@@ -1614,6 +1638,10 @@ textarea:focus {
   .voice-button.is-listening .voice-pulse { animation: none; opacity: .5; }
 }
 
+@media (max-width: 640px) {
+  .anamnesis-mode-selector { grid-template-columns: 1fr; }
+}
+
 /* Clinical typography scale — larger, calmer and more legible */
 :root {
   --font-ui: Sora, Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -1825,50 +1853,6 @@ button,
     font-size: 29px;
   }
 }
-.validation-badge {
-  display: inline-flex;
-  margin-left: 8px;
-  padding: 2px 7px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--muted);
-  border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
-}
-
-.validation-ai-suggested {
-  outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
-}
-
-.validation-doctor-confirmed { border-color: #3b9b72 !important; }
-.validation-doctor-edited { border-color: #b9862f !important; }
-.validation-doctor-rejected { opacity: .58; }
-
-.validation-review {
-  margin-top: 18px;
-  padding: 14px;
-  border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
-  border-radius: 14px;
-}
-
-.validation-review-list { display: grid; gap: 10px; margin-top: 10px; }
-.validation-review-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-}
-.validation-review-item > div:first-child { display: grid; gap: 3px; }
-.validation-review-item span, .validation-review-item small { color: var(--muted); }
-
-@media (max-width: 720px) {
-  .validation-review-item { align-items: stretch; flex-direction: column; }
-}
-
 .refinement-section {
   display: grid;
   gap: 12px;
@@ -1877,6 +1861,12 @@ button,
 
 .refinement-section > h4 {
   margin: 0;
+}
+
+/* Sem o titulo de pagina "Refinamento clinico" (redundante com o menu),
+   este vira o cabecalho principal da tela e ganha destaque de titulo. */
+.refinement-questions-section > h4 {
+  font-size: 23px;
 }
 
 .refinement-item {
