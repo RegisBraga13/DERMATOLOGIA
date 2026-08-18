@@ -911,6 +911,10 @@ function saveClinicalRecord(scope) {
   return null;
 }
 
+function countLabel(total, word) {
+  return `${total} ${word}${total === 1 ? "" : "s"}`;
+}
+
 async function generateDiagnosisFromClinicalData(element) {
   const formElement = element.closest("form");
   if (formElement) updateDraftFromForm(formElement);
@@ -922,15 +926,17 @@ async function generateDiagnosisFromClinicalData(element) {
   try {
     const context = clinicalAiContext(scope);
     const { result, sources, mode } = await requestClinicalAi("diagnosis", buildClinicalAiPrompt("diagnosis", context.target, context.patient, context.previous, context.isReturn), context.target?.aiMode, buildRagQuery("diagnosis", context.target));
-    const localSuggestion = buildDiagnosticSuggestion(context.target || {});
-    const localOptions = localSuggestion.diagnosticoAiOpcoes.split("\n").filter(Boolean);
-    const formatGroup = (items, fallback, count) => [...(items || []).map(formatDiagnosticOption), ...fallback]
+    // Sem completar as vagas que sobram: se a IA propos duas sindromicas,
+    // mostra duas. Antes o catalogo local enchia o resto das tres categorias
+    // com o mesmo punhado de entidades nosologicas, o que fazia uma nosologia
+    // aparecer rotulada como sindrome — e as vezes duas vezes, em categorias
+    // diferentes, porque a deduplicacao era so dentro de cada grupo.
+    const formatGroup = (items, count) => (items || []).map(formatDiagnosticOption)
       .filter((option, index, list) => list.indexOf(option) === index).slice(0, count);
-    const syndromicOptions = formatGroup(result.syndromic_options, localOptions, 3);
-    const nosologicalOptions = formatGroup(result.nosological_options, localOptions, 3);
-    const etiologicalOptions = formatGroup(result.etiological_options, localOptions, 2);
+    const syndromicOptions = formatGroup(result.syndromic_options, 3);
+    const nosologicalOptions = formatGroup(result.nosological_options, 3);
+    const etiologicalOptions = formatGroup(result.etiological_options, 2);
     const selectedDoctorOptions = selectedDiagnosisValues(target || {}).filter(option => doctorDiagnosisOptions.includes(option));
-    const aiOptions = [...syndromicOptions, ...nosologicalOptions, ...etiologicalOptions];
     suggestion = {
       diagnosticoAiSindromico: syndromicOptions.join("\n"),
       diagnosticoAiNosologico: nosologicalOptions.join("\n"),
@@ -943,12 +949,24 @@ async function generateDiagnosisFromClinicalData(element) {
       diferenciais: "",
       ragSources: sources,
       aiMode: mode,
-      aiStatus: "3 hipóteses sindrômicas, 3 nosológicas e 2 etiológicas propostas para você assinalar. As hipóteses do médico foram mantidas.",
+      aiStatus: `Propostas para você assinalar: ${countLabel(syndromicOptions.length, "sindrômica")}, ${countLabel(nosologicalOptions.length, "nosológica")} e ${countLabel(etiologicalOptions.length, "etiológica")}. As hipóteses do médico foram mantidas.`,
     };
   } catch (error) {
-    suggestion = (target?.pharmaAiMode || "rag") === "rag"
-      ? { ragSources: [], treatmentStatus: `RAG indisponivel: ${error.message}`, aiStatus: `RAG indisponivel: ${error.message}` }
-      : { ragSources: [], treatmentStatus: `IA indisponivel: ${error.message}`, aiStatus: `IA indisponivel: ${error.message}` };
+    // O catalogo local so entra aqui, quando nao ha resposta nenhuma, e dito
+    // com todas as letras que veio dele. Antes ele se misturava as hipoteses
+    // da IA sem que a tela distinguisse uma coisa da outra.
+    // Este fluxo le aiMode; pharmaAiMode e o seletor do medicamento.
+    const local = buildDiagnosticSuggestion(target || {});
+    const fonte = (target?.aiMode || "current") === "rag" ? "RAG" : "IA";
+    const encontrou = local.diagnosticoAiSindromico || local.diagnosticoAiNosologico || local.diagnosticoAiEtiologico;
+    suggestion = {
+      ...local,
+      ragSources: [],
+      treatmentStatus: `${fonte} indisponivel: ${error.message}`,
+      aiStatus: encontrou
+        ? `${fonte} indisponível (${error.message}). As hipóteses abaixo vêm do catálogo local, por correspondência de termos do registro — contingência, não substituto da literatura indexada.`
+        : `${fonte} indisponível (${error.message}). O catálogo local não achou correspondência no que está registrado; nenhuma hipótese foi proposta.`
+    };
   }
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
   else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
