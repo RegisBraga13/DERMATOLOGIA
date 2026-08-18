@@ -1007,15 +1007,18 @@ async function generateTreatmentFromClinicalData(element) {
     suggestion = {
       tratamentoAiMedicamentos: medicationOptions.join("\n"),
       tratamentoAiAbordagens: approachOptions.join("\n"),
-      tratamentoMedicamentosSelecionados: medicationOptions,
-      abordagensSelecionadas: approachOptions,
+      // Mesmo criterio ja aplicado ao diagnostico: a IA propoe, quem assinala
+      // e o medico. Marcar as tres opcoes de saida inverte o onus — passaria a
+      // ser preciso descartar duas prescricoes em vez de escolher uma.
+      tratamentoMedicamentosSelecionados: arrayValue(target?.tratamentoMedicamentosSelecionados),
+      abordagensSelecionadas: arrayValue(target?.abordagensSelecionadas),
       tratamentoMedicamentoso: "",
       abordagensTerapeuticas: "",
       examesLaboratoriais: requestedExamsText(target || {}),
       condutaMedica: target?.condutaMedica || "",
       ragSources: sources,
       pharmaAiMode: mode,
-      treatmentStatus: `${countLabel(medicationOptions.length, "opção medicamentosa", "opções medicamentosas")} e ${countLabel(approachOptions.length, "outra abordagem", "outras abordagens")} para revisão individual.`,
+      treatmentStatus: `${countLabel(medicationOptions.length, "opção medicamentosa", "opções medicamentosas")} e ${countLabel(approachOptions.length, "outra abordagem", "outras abordagens")} propostas para você assinalar. Suas escolhas anteriores foram mantidas.`,
       aiStatus: "Sugestões de tratamento geradas pela IA para revisão médica."
     };
   } catch (error) {

@@ -226,7 +226,7 @@ function diagnosticRules() {
       categoria: "sindromico",
       cid11: "",
       dsm5tr: "",
-      terms: ["hipertimia", "euforia", "expansiv", "logorreia", "fuga de ideias", "hiperbulia", "reducao da necessidade de sono", "grandiosidade", "aceleracao", "taquipsiquismo", "irritabilidade"],
+      terms: ["hipertimia", "euforia", "expansiv", "logorreia", "fuga de ideias", "hiperbulia", "reducao da necessidade de sono", "grandiosidade", "taquipsiquismo", "gastos excessivos"],
       differential: "transtorno bipolar tipo I ou II, mania induzida por substancias ou medicamentos, TDAH e transtorno de personalidade."
     },
     {
@@ -234,7 +234,7 @@ function diagnosticRules() {
       categoria: "sindromico",
       cid11: "",
       dsm5tr: "",
-      terms: ["ansios", "apreensao", "preocupacoes excessivas", "inquietude", "tensao", "taquicardia", "sudorese", "hipervigilancia"],
+      terms: ["ansios", "apreensao", "preocupacao excessiva", "inquietude", "tensao corporal", "tensao muscular", "hipervigilancia"],
       differential: "ansiedade generalizada, transtorno do panico, ansiedade social, hipertireoidismo e uso de estimulantes."
     },
     {
@@ -266,7 +266,7 @@ function diagnosticRules() {
       categoria: "sindromico",
       cid11: "6D70 - Delirium",
       dsm5tr: "Delirium",
-      terms: ["rebaixamento do nivel de consciencia", "obnubilacao", "confusao mental", "desorientacao", "flutuacao", "torpor", "sonolencia", "inversao do ciclo sono-vigilia"],
+      terms: ["rebaixamento do nivel de consciencia", "obnubilacao", "confusao mental", "inicio agudo", "flutuacao", "torpor", "letargia", "inversao do ciclo sono-vigilia"],
       differential: "demencia, estado pos-ictal, intoxicacao ou abstinencia, infeccao, disturbio metabolico e causa medicamentosa."
     },
     {
@@ -274,7 +274,7 @@ function diagnosticRules() {
       categoria: "sindromico",
       cid11: "6D80-6D8Z - Demencia",
       dsm5tr: "Transtorno neurocognitivo maior",
-      terms: ["declinio cognitivo", "perda de memoria", "amnesia", "esquecimento", "apraxia", "afasia", "agnosia", "prejuizo funcional"],
+      terms: ["declinio cognitivo", "perda de memoria", "amnesia", "esquecimento progressivo", "apraxia", "afasia", "agnosia", "prejuizo funcional progressivo"],
       differential: "delirium, transtorno neurocognitivo leve, depressao com prejuizo cognitivo e causas reversiveis (B12, tireoide, hidrocefalia)."
     },
     {
@@ -282,7 +282,7 @@ function diagnosticRules() {
       categoria: "sindromico",
       cid11: "",
       dsm5tr: "",
-      terms: ["agitacao", "hiperatividade motora", "inquietude psicomotora", "heteroagressividade", "impulsividade", "hostilidade"],
+      terms: ["agitacao psicomotora", "hiperatividade motora", "inquietude psicomotora", "heteroagressividade", "hostilidade", "contencao"],
       differential: "mania, psicose em atividade, delirium, intoxicacao ou abstinencia, acatisia e dor nao reconhecida."
     },
     {
@@ -338,7 +338,7 @@ function diagnosticRules() {
       categoria: "etiologico",
       cid11: "",
       dsm5tr: "",
-      terms: ["luto", "separacao", "desemprego", "violencia", "conflito", "estresse", "perda", "abuso", "divorcio", "mudanca"],
+      terms: ["luto por morte", "falecimento", "separacao", "divorcio", "desemprego", "demissao", "violencia", "abuso", "estressor", "perda recente"],
       differential: "transtorno de ajustamento, TEPT, luto prolongado, episodio depressivo desencadeado e reacao normal ao estressor."
     },
     {
@@ -354,7 +354,7 @@ function diagnosticRules() {
       categoria: "etiologico",
       cid11: "",
       dsm5tr: "",
-      terms: ["historia familiar", "antecedentes familiares", "pai com", "mae com", "irmao com", "parente de primeiro grau"],
+      terms: ["historia familiar", "antecedentes familiares", "parente de primeiro grau", "familiar com transtorno", "carga familiar"],
       differential: "avaliar peso do fator familiar diante de estressores atuais e de causas clinicas."
     }
   ];

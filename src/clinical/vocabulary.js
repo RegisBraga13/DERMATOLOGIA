@@ -244,6 +244,9 @@ export const anamnesisQuestionGroups = [
       ["Risco de suicidio e desesperanca", [
         {
           key: "riscoSuicidioIndicadores",
+          // Sem label, a linha do resumo repetia o nome da secao em vez de
+          // dizer o que ela responde.
+          label: "Indicadores de risco",
           response: "multiple",
           options: [
             "Nega ideacao, plano ou intencao suicida",

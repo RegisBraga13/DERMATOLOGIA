@@ -32,10 +32,17 @@ export function clinicalSummaryGroups(form = {}, patient = {}) {
     summaryTextRow("Anamnese", "Queixa principal e HDA", conciseQphdaSummary(anamnesisText(form))),
     summaryTextRow("Anamnese", "Antecedentes médicos", joinValues(form.medicos))
   ];
+  // Secao de pergunta unica nao repete o proprio nome na coluna do campo, e
+  // sem rotulo a coluna fica vazia: o titulo da secao ja identifica a linha.
+  // Nunca cair no item.key — nome interno de campo nao vai para prontuario.
+  const rotulo = (item, sectionTitle) => {
+    const nome = item.label || item.question || "";
+    return nome === sectionTitle ? "" : nome;
+  };
   const anamnesisRows = anamnesisQuestionGroups.flatMap(group => group.items.flatMap(([sectionTitle, items]) =>
     items.map(item => item.response === "multiple"
-      ? summaryGroupedOptionRow(sectionTitle, item.label || item.question || sectionTitle, item.key, item.options || [], form, item.otherKey)
-      : summaryTextRow(sectionTitle, item.label || item.question || item.key, form[item.key])
+      ? summaryGroupedOptionRow(sectionTitle, rotulo(item, sectionTitle), item.key, item.options || [], form, item.otherKey)
+      : summaryTextRow(sectionTitle, rotulo(item, sectionTitle), form[item.key])
     )
   ));
   const complementaryRows = [
@@ -63,7 +70,11 @@ export function clinicalSummaryGroups(form = {}, patient = {}) {
   return [
     { title: "Identificação do paciente", rows: identityRows, layout: "item-record" },
     { title: "Dados narrativos", rows: narrativeRows, layout: "item-record" },
-    { title: "Anamnese estruturada", rows: [...anamnesisRows, ...complementaryRows], layout: "area-record" },
+    // Tres colunas aqui de proposito. Com "area-record" a coluna do nome da
+    // pergunta sumia, e as tres perguntas de risco de suicidio saiam como tres
+    // linhas identicas, todas rotuladas "Risco de suicidio e desesperanca",
+    // sem dizer qual respondia o que.
+    { title: "Anamnese estruturada", rows: [...anamnesisRows, ...complementaryRows], layout: "full" },
     { title: "Exame psíquico", rows: mentalRows.map(row => ({ ...row, section: row.item })), layout: "area-record" },
     { title: "Exame físico", rows: physicalRows },
     { title: "Refinamento clínico", rows: refinementRows, layout: "area-record" }
