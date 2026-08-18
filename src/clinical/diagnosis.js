@@ -36,13 +36,21 @@ export function normalizeDiagnosticOptions(value = "", limit = 5) {
 }
 
 // Sindrome nem sempre tem codigo: sindrome ansiosa nao e uma entidade da
-// CID-11. Quando o codigo nao existe o campo fica vazio e some da linha, em
-// vez de sair "CID-11: undefined" ao lado do nome.
+// CID-11. Quando o codigo nao existe o campo some da linha, em vez de sair
+// "CID-11: undefined" ao lado do nome. A IA nao devolve vazio nesses casos:
+// devolve a string "N/A", que precisa ser tratada como ausencia.
+function diagnosticCode(value) {
+  const clean = String(value || "").trim();
+  return /^(n\.?\/?a\.?|nao se aplica|não se aplica|nao informado|não informado|sem codigo|sem código|-{1,2}|—)$/i.test(clean) ? "" : clean;
+}
+
 export function formatDiagnosticOption(item = {}) {
+  const cid11 = diagnosticCode(item.cid11);
+  const dsm5tr = diagnosticCode(item.dsm5tr);
   return [
     item.name,
-    item.cid11 ? `CID-11: ${item.cid11}` : "",
-    item.dsm5tr ? `DSM-5-TR: ${item.dsm5tr}` : ""
+    cid11 ? `CID-11: ${cid11}` : "",
+    dsm5tr ? `DSM-5-TR: ${dsm5tr}` : ""
   ].filter(Boolean).join(" - ");
 }
 
