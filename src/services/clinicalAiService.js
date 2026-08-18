@@ -109,16 +109,18 @@ function validateClinicalAiPayload(kind, result, text = "") {
     });
   }
   if (kind === "diagnosis") {
-    [["syndromic_options", 3], ["nosological_options", 3], ["etiological_options", 2]].forEach(([group, count]) => {
-      if (!Array.isArray(result[group]) || result[group].length !== count) throw new Error(`O grupo ${group} exige exatamente ${count} opcoes.`);
+    // Teto, nao piso. Ver o comentario no schema do server.py: exigir um numero
+    // fixo obrigava o modelo a inventar hipotese quando faltava dado.
+    [["syndromic_options", 3], ["nosological_options", 3], ["etiological_options", 2]].forEach(([group, limit]) => {
+      if (!Array.isArray(result[group]) || result[group].length > limit) throw new Error(`O grupo ${group} aceita no maximo ${limit} opcoes.`);
       result[group].forEach(option => {
-        if (!option?.name || !option?.cid11 || !option?.dsm5tr) throw new Error("Opcao diagnostica incompleta.");
+        if (!option?.name) throw new Error("Opcao diagnostica sem nome.");
       });
     });
   }
   if (kind === "treatment") {
-    if (!Array.isArray(result.medication_options) || result.medication_options.length !== 3) throw new Error("O tratamento exige exatamente 3 opções medicamentosas.");
-    if (!Array.isArray(result.non_pharmacological_options) || result.non_pharmacological_options.length !== 3) throw new Error("O tratamento exige exatamente 3 abordagens não farmacológicas.");
+    if (!Array.isArray(result.medication_options) || result.medication_options.length > 3) throw new Error("O tratamento aceita no máximo 3 opções medicamentosas.");
+    if (!Array.isArray(result.non_pharmacological_options) || result.non_pharmacological_options.length > 3) throw new Error("O tratamento aceita no máximo 3 abordagens não farmacológicas.");
     result.medication_options.forEach(option => {
       ["medication", "initial_dose", "progression", "target_dose"].forEach(key => {
         if (typeof option?.[key] !== "string" || !option[key].trim()) throw new Error("Opção medicamentosa incompleta.");
@@ -341,30 +343,28 @@ function promptResponseFormat(kind) {
   if (kind === "refinement") return "Objeto estruturado com perguntas, red flags, observacoes e pontos importantes, sem texto adicional.";
   if (kind === "diagnosis") {
     return [
-      "DIAGNOSTICO SINDROMICO:",
-      "Hipotese sindromica 1 - CID-11: ... - DSM-5-TR: ...",
-      "Hipotese sindromica 2 - CID-11: ... - DSM-5-TR: ...",
-      "Hipotese sindromica 3 - CID-11: ... - DSM-5-TR: ...",
+      "DIAGNOSTICO SINDROMICO: ate 3 hipoteses, uma por linha.",
+      "DIAGNOSTICO NOSOLOGICO: ate 3 hipoteses, uma por linha.",
+      "DIAGNOSTICO ETIOLOGICO: ate 2 hipoteses, uma por linha.",
+      "Formato de cada linha: Nome - CID-11: ... - DSM-5-TR: ...",
       "",
-      "DIAGNOSTICO NOSOLOGICO:",
-      "Hipotese nosologica 1 - CID-11: ... - DSM-5-TR: ...",
-      "Hipotese nosologica 2 - CID-11: ... - DSM-5-TR: ...",
-      "Hipotese nosologica 3 - CID-11: ... - DSM-5-TR: ...",
-      "",
-      "DIAGNOSTICO ETIOLOGICO:",
-      "Hipotese etiologica 1 - CID-11: ... - DSM-5-TR: ...",
-      "Hipotese etiologica 2 - CID-11: ... - DSM-5-TR: ..."
+      "Proponha menos hipoteses, ou nenhuma no grupo, quando o registro nao",
+      "sustentar. Nao complete as vagas com rotulo inespecifico do tipo",
+      "'sindrome inespecifica', 'transtorno nao especificado' ou 'dados",
+      "insuficientes': deixe o grupo vazio. Deixe o codigo em branco quando",
+      "nao existir codigo proprio — sindrome descritiva costuma nao ter — em",
+      "vez de escrever 'N/A'."
     ].join("\n");
   }
   if (kind === "treatment") {
     return [
       "TRATAMENTO MEDICAMENTOSO:",
       "Medicamento | Dose inicial: ... | Progressao: ... | Dose final: ...",
-      "(exatamente 3 opcoes)",
+      "(ate 3 opcoes; menos, se o quadro nao sustentar mais)",
       "",
       "OUTRAS ABORDAGENS NAO FARMACOLOGICAS:",
       "Abordagem | Orientacao objetiva",
-      "(exatamente 3 opcoes)"
+      "(ate 3 opcoes; menos, se o quadro nao sustentar mais)"
     ].join("\n");
   }
   if (kind === "medication") {

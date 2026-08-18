@@ -246,13 +246,20 @@ SCHEMAS = {
         },
         "required": ["questions", "red_flags", "observations", "important_points"],
     },
+    # minItems 0 de proposito. Com minimo 3 e schema estrito o modelo nao tinha
+    # como dizer "nao ha dado suficiente": era obrigado a entregar 8 linhas e
+    # preenchia com "sindrome inespecifica", "nao especificado" e codigo "N/A".
+    # Hipotese vazia de conteudo contamina o passo seguinte — o medico assinala,
+    # e o tratamento vai pedir diretrizes para "sindrome inespecifica". Mesmo
+    # criterio do 422 logo abaixo: melhor nao responder do que responder sem
+    # sustentacao. O maxItems continua limitando o teto.
     "diagnosis": {
         "type": "object",
         "additionalProperties": False,
         "properties": {
             "syndromic_options": {
                 "type": "array",
-                "minItems": 3,
+                "minItems": 0,
                 "maxItems": 3,
                 "items": {
                     "type": "object",
@@ -267,7 +274,7 @@ SCHEMAS = {
             },
             "nosological_options": {
                 "type": "array",
-                "minItems": 3,
+                "minItems": 0,
                 "maxItems": 3,
                 "items": {
                     "type": "object",
@@ -282,7 +289,7 @@ SCHEMAS = {
             },
             "etiological_options": {
                 "type": "array",
-                "minItems": 2,
+                "minItems": 0,
                 "maxItems": 2,
                 "items": {
                     "type": "object",
@@ -304,7 +311,7 @@ SCHEMAS = {
         "properties": {
             "medication_options": {
                 "type": "array",
-                "minItems": 3,
+                "minItems": 0,
                 "maxItems": 3,
                 "items": {
                     "type": "object",
@@ -320,7 +327,7 @@ SCHEMAS = {
             },
             "non_pharmacological_options": {
                 "type": "array",
-                "minItems": 3,
+                "minItems": 0,
                 "maxItems": 3,
                 "items": {
                     "type": "object",
@@ -477,23 +484,28 @@ def validate_result(kind, result):
             if not isinstance(result.get(key), list):
                 raise ValueError("Bloco de refinamento invalido.")
     elif kind == "diagnosis":
-        for group, expected in (("syndromic_options", 3), ("nosological_options", 3), ("etiological_options", 2)):
+        # Teto, nao piso: menos hipoteses e uma resposta legitima quando o
+        # registro nao sustenta mais. So o nome e obrigatorio — sindrome
+        # descritiva nao tem codigo, e exigir um so produzia "N/A".
+        for group, limit in (("syndromic_options", 3), ("nosological_options", 3), ("etiological_options", 2)):
             options = result.get(group)
-            if not isinstance(options, list) or len(options) != expected:
-                raise ValueError(f"O grupo {group} deve conter exatamente {expected} opcoes.")
+            if not isinstance(options, list) or len(options) > limit:
+                raise ValueError(f"O grupo {group} aceita no maximo {limit} opcoes.")
             for option in options:
                 if not isinstance(option, dict):
                     raise ValueError("Opcao diagnostica invalida.")
-                for key in ("name", "cid11", "dsm5tr"):
-                    if not isinstance(option.get(key), str) or not option[key].strip():
-                        raise ValueError("Opcao diagnostica sem nome, CID-11 ou DSM-5-TR.")
+                if not isinstance(option.get("name"), str) or not option["name"].strip():
+                    raise ValueError("Opcao diagnostica sem nome.")
+                for key in ("cid11", "dsm5tr"):
+                    if not isinstance(option.get(key), str):
+                        raise ValueError("Codigo diagnostico invalido.")
     elif kind == "treatment":
         medications = result.get("medication_options")
         approaches = result.get("non_pharmacological_options")
-        if not isinstance(medications, list) or len(medications) != 3:
-            raise ValueError("O tratamento deve conter exatamente 3 opcoes medicamentosas.")
-        if not isinstance(approaches, list) or len(approaches) != 3:
-            raise ValueError("O tratamento deve conter exatamente 3 abordagens nao farmacologicas.")
+        if not isinstance(medications, list) or len(medications) > 3:
+            raise ValueError("O tratamento aceita no maximo 3 opcoes medicamentosas.")
+        if not isinstance(approaches, list) or len(approaches) > 3:
+            raise ValueError("O tratamento aceita no maximo 3 abordagens nao farmacologicas.")
         for option in medications:
             for key in ("medication", "initial_dose", "progression", "target_dose"):
                 if not isinstance(option.get(key), str) or not option[key].strip():

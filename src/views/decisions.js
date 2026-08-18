@@ -26,9 +26,9 @@ export function diagnosisModule(form) {
     <textarea hidden name="diagnosticoAiSindromico">${escapeHtml(syndromicOptions.join("\n"))}</textarea>
     <textarea hidden name="diagnosticoAiNosologico">${escapeHtml(nosologicalOptions.join("\n"))}</textarea>
     <textarea hidden name="diagnosticoAiEtiologico">${escapeHtml(etiologicalOptions.join("\n"))}</textarea>
-    ${diagnosisCategory("Sindrômico", syndromicOptions, selectedValues, 3)}
-    ${diagnosisCategory("Nosológico", nosologicalOptions, selectedValues, 3)}
-    ${diagnosisCategory("Etiológico", etiologicalOptions, selectedValues, 2)}
+    ${diagnosisCategory("Sindrômico", syndromicOptions, selectedValues)}
+    ${diagnosisCategory("Nosológico", nosologicalOptions, selectedValues)}
+    ${diagnosisCategory("Etiológico", etiologicalOptions, selectedValues)}
     <div class="diagnosis-group diagnosis-doctor-group">
       <h4>Hipóteses do médico</h4>
       <div class="diagnosis-options">${diagnosisOptionCheckboxes(doctorDiagnosisOptions, selectedValues)}</div>
@@ -36,10 +36,15 @@ export function diagnosisModule(form) {
   `;
 }
 
-function diagnosisCategory(label, options, selectedValues, count) {
-  return `<div class="diagnosis-group"><h4>${label} — ${count} hipóteses</h4>
+// O titulo conta o que esta na tela, nao o teto do grupo. Antes dizia sempre
+// "3 hipoteses", inclusive logo acima de "Nenhuma hipotese gerada".
+function diagnosisCategory(label, options, selectedValues) {
+  const total = options.length
+    ? `${options.length} ${options.length === 1 ? "hipótese" : "hipóteses"}`
+    : "sem hipóteses";
+  return `<div class="diagnosis-group"><h4>${label} — ${total}</h4>
       <div class="diagnosis-options">
-        ${options.length ? diagnosisOptionCheckboxes(options, selectedValues) : `<p class="diagnosis-empty">Nenhuma hipótese gerada.</p>`}
+        ${options.length ? diagnosisOptionCheckboxes(options, selectedValues) : `<p class="diagnosis-empty">O registro atual não sustenta hipótese nesta categoria.</p>`}
       </div>
     </div>`;
 }

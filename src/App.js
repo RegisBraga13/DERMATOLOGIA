@@ -8,7 +8,7 @@ import { fetchCep } from "./services/cepService.js";
 import { buildClinicalAiPrompt, buildRagQuery, canonicalAiSelections, localRefinementPlan, requestClinicalAi } from "./services/clinicalAiService.js";
 import { buildMedicationAutofill, localMedicationSuggestions } from "./services/medicationService.js";
 import { exportTextAsPdf } from "./services/pdfService.js?v=pdf-download-2";
-import { loadState, saveState, uid } from "./services/storageService.js";
+import { loadState, mergeStates, saveState, uid } from "./services/storageService.js";
 import { currentSession, pullState, pushState, signIn } from "./services/supabaseService.js";
 import { formatDiarizedTranscript, preferredRecordingMimeType, requestConsultationTranscription, showMicrophonePermissionHelp } from "./services/voiceService.js";
 import { anamnesisStructuredFields, chips, field, selectField, summaryColumns, textarea, voiceTextarea } from "./ui/controls.js";
@@ -41,6 +41,9 @@ let clinicalDraftRevision = 0;
 let refinementGenerating = false;
 let authSession = null;
 let authError = "";
+// Falha de sincronizacao com o Supabase. Separada de authError, que so a tela
+// de login renderiza: aqui precisa aparecer com a sessao aberta.
+let syncError = "";
 const RECORD_SEARCH_TEXT_CACHE = new WeakMap();
 const ENTRY_TIMESTAMP_CACHE = new WeakMap();
 
@@ -57,8 +60,15 @@ currentSession().then(async session => {
   if (authSession) {
     try {
       const remoteState = await pullState();
-      if (remoteState) { state = remoteState; saveState(state); selectedPatientId = state.patients?.[0]?.id || ""; }
-    } catch (error) { authError = error.message; }
+      if (remoteState) {
+        // Une, nao substitui: o que foi escrito enquanto a sincronizacao
+        // estava fora precisa sobreviver ao proximo carregamento.
+        state = mergeStates(state, remoteState);
+        saveState(state);
+        selectedPatientId = state.patients?.[0]?.id || "";
+        pushState(state).catch(error => { syncError = error.message; });
+      }
+    } catch (error) { syncError = error.message; }
   }
   render();
 });
@@ -104,7 +114,9 @@ function topbar() {
         <div><h1>Regis Braga</h1></div>
       </div>
       <div class="top-actions">
-        <span class="secure-status"><i></i> Ambiente clínico seguro</span>
+        ${syncError
+          ? `<span class="sync-status sync-failed" role="status">Não sincronizado: ${escapeHtml(syncError)} O registro está salvo neste aparelho.</span>`
+          : `<span class="secure-status"><i></i> Ambiente clínico seguro</span>`}
         ${view === "dashboard" ? "" : `<button class="secondary compact-action" data-action="dashboard">${homeIcon()}<span>Início</span></button>`}
         <button class="icon-button" data-action="toggle-theme" aria-label="Alternar tema" title="Alternar tema">${themeIcon()}</button>
       </div>
@@ -1356,7 +1368,13 @@ function upsert(collection, data) {
 
 function persist() {
   saveState(state);
-  if (authSession) pushState(state).catch(error => { authError = error.message; });
+  if (!authSession) return;
+  // O localStorage ja gravou; o que falta e avisar quando a copia remota nao
+  // acompanhou. Antes o erro ia para authError, que so aparece na tela de
+  // login — na pratica, silencio.
+  pushState(state)
+    .then(() => { if (syncError) { syncError = ""; render(); } })
+    .catch(error => { syncError = error.message; render(); });
 }
 
 function pdfEntry(id, type) {
