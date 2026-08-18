@@ -136,7 +136,9 @@ function diagnosticRules() {
     {
       name: "Depressao Maior",
       categoria: "nosologico",
-      cid11: "6A70 - Episodio depressivo",
+      // 6A70 e episodio UNICO; recorrente e 6A71. A regra nao distingue os dois
+      // porque nao pergunta episodios previos, entao carrega os dois codigos.
+      cid11: "6A70/6A71 - Episodio depressivo unico ou transtorno depressivo recorrente",
       dsm5tr: "Transtorno depressivo maior, episodio depressivo maior",
       terms: ["hipotimia", "anedonia", "deprim", "lentificacao", "hipobulia", "despertar precoce", "ideacao suicida"],
       differential: "luto, transtorno bipolar, uso de substancias, hipotireoidismo e transtorno de ajustamento."
@@ -256,7 +258,10 @@ function diagnosticRules() {
     {
       name: "Sindrome Catatonica",
       categoria: "sindromico",
-      cid11: "6A40 - Catatonia",
+      // 6A40 sozinho e "catatonia associada a outro transtorno mental". Como a
+      // regra e sindromica e nao afirma a causa, vai o bloco inteiro: 6A41 e
+      // induzida por substancia e 6E69 e secundaria a condicao medica.
+      cid11: "6A40-6A4Z - Catatonia",
       dsm5tr: "Catatonia",
       terms: ["catatonia", "estupor", "negativismo", "flexibilidade cerea", "mutismo", "ecolalia", "ecopraxia", "estereotipias", "posturas bizarras"],
       differential: "catatonia associada a transtorno do humor ou psicotico, catatonia secundaria a condicao medica e sindrome neuroleptica maligna."
