@@ -878,9 +878,9 @@ function diagnosisCategory(label, options, selectedValues, count) {
 
 function diagnosisOptionCheckboxes(options, selectedValues) {
   return options.map(option => `
-    <label class="diagnosis-option ${validationControlClass("diagnosticoSelecionado", option)}">
+    <label class="diagnosis-option">
       <input type="checkbox" name="diagnosticoSelecionado" value="${escapeAttr(option)}" ${selectedValues.includes(option) ? "checked" : ""} />
-      <span>${escapeHtml(option)}${validationControlBadge("diagnosticoSelecionado", option)}</span>
+      <span>${escapeHtml(option)}</span>
     </label>
   `).join("");
 }
@@ -925,7 +925,7 @@ function treatmentModule(form) {
         <textarea hidden name="tratamentoAiMedicamentos">${escapeHtml(medicationOptions.join("\n"))}</textarea>
         <textarea hidden name="tratamentoMedicamentoso">${escapeHtml(form.tratamentoMedicamentoso || "")}</textarea>
         <div class="diagnosis-options">
-          ${medicationOptions.length ? medicationOptions.map((option, index) => `<article class="treatment-card"><h4>${index === 0 ? "1ª opção" : index === 1 ? "2ª opção" : "Off-label"}</h4><label class="diagnosis-option treatment-option ${validationControlClass("tratamentoMedicamentosSelecionados", option)}"><input type="checkbox" name="tratamentoMedicamentosSelecionados" value="${escapeAttr(option)}" ${arrayValue(form.tratamentoMedicamentosSelecionados).includes(option) ? "checked" : ""} /><span>${escapeHtml(option)}${validationControlBadge("tratamentoMedicamentosSelecionados", option)}</span></label></article>`).join("") : `<p class="diagnosis-empty">As opções aparecerão após a geração.</p>`}
+          ${medicationOptions.length ? medicationOptions.map((option, index) => `<article class="treatment-card"><h4>${index === 0 ? "1ª opção" : index === 1 ? "2ª opção" : "Off-label"}</h4><label class="diagnosis-option treatment-option"><input type="checkbox" name="tratamentoMedicamentosSelecionados" value="${escapeAttr(option)}" ${arrayValue(form.tratamentoMedicamentosSelecionados).includes(option) ? "checked" : ""} /><span>${escapeHtml(option)}</span></label></article>`).join("") : `<p class="diagnosis-empty">As opções aparecerão após a geração.</p>`}
         </div>
       </div>
       <div class="treatment-card">
@@ -961,9 +961,9 @@ function arrayValue(value) {
 
 function treatmentOptionCheckboxes(name, options, selectedValues) {
   return options.map(option => `
-    <label class="diagnosis-option treatment-option ${validationControlClass(name, option)}">
+    <label class="diagnosis-option treatment-option">
       <input type="checkbox" name="${name}" value="${escapeAttr(option)}" ${selectedValues.includes(option) ? "checked" : ""} />
-      <span>${escapeHtml(option)}${validationControlBadge(name, option)}</span>
+      <span>${escapeHtml(option)}</span>
     </label>
   `).join("");
 }
@@ -1113,11 +1113,11 @@ function section(title, body, open = false) {
 }
 
 function field(name, labelText, value = "", type = "text") {
-  return `<label class="${validationControlClass(name, value)}">${labelText}${validationControlBadge(name, value)}<input name="${name}" type="${type}" value="${escapeAttr(value || "")}" /></label>`;
+  return `<label>${labelText}<input name="${name}" type="${type}" value="${escapeAttr(value || "")}" /></label>`;
 }
 
 function selectField(name, labelText, options, value = "") {
-  return `<label class="${validationControlClass(name, value)}">${labelText}${validationControlBadge(name, value)}<select name="${name}"><option value="">Selecionar</option>${options.map(option => `<option value="${escapeAttr(option)}" ${value === option ? "selected" : ""}>${escapeHtml(optionDisplayLabel(option))}</option>`).join("")}</select></label>`;
+  return `<label>${labelText}<select name="${name}"><option value="">Selecionar</option>${options.map(option => `<option value="${escapeAttr(option)}" ${value === option ? "selected" : ""}>${escapeHtml(optionDisplayLabel(option))}</option>`).join("")}</select></label>`;
 }
 
 function textarea(name, labelText, value = "", placeholder = "", rows = "") {
@@ -1126,7 +1126,7 @@ function textarea(name, labelText, value = "", placeholder = "", rows = "") {
     : name === "qphda" ? ` class="auto-expand" data-auto-expand="true" rows="5"`
       : ["queixa", "hdaManual"].includes(name) ? ` class="auto-expand" data-auto-expand="true" rows="1"`
         : name === "historia" ? ` class="auto-expand" data-auto-expand="true" rows="3"` : rowsAttr;
-  return `<label class="${validationControlClass(name, value)}">${labelText}${validationControlBadge(name, value)}<textarea name="${name}"${evolutionAttrs} placeholder="${escapeAttr(placeholder)}">${escapeHtml(value || "")}</textarea></label>`;
+  return `<label>${labelText}<textarea name="${name}"${evolutionAttrs} placeholder="${escapeAttr(placeholder)}">${escapeHtml(value || "")}</textarea></label>`;
 }
 
 function voiceTextarea(name, labelText, value = "", placeholder = "") {
@@ -1190,9 +1190,9 @@ function multipleChoiceField(item, form) {
     ${item.question ? `<p class="structured-question">${escapeHtml(item.question)}</p>` : ""}
     <div class="multi-choice-options">
       ${item.options.map(option => `
-        <label class="${validationControlClass(item.key, option)}">
+        <label>
           <input type="checkbox" name="${item.key}" value="${escapeAttr(option)}" ${set.has(option) ? "checked" : ""} />
-          ${escapeHtml(optionDisplayLabel(option))}${validationControlBadge(item.key, option)}
+          ${escapeHtml(optionDisplayLabel(option))}
         </label>
       `).join("")}
     </div>
@@ -1226,7 +1226,7 @@ function suicideRiskFields(questions, form) {
 function chips(name, labelText, options, values = []) {
   const normalizedValues = Array.isArray(values) ? values : values ? [values] : [];
   const set = new Set(normalizedValues);
-  return `<div><label>${labelText}</label><div class="chips">${options.map(option => `<label class="chip ${validationControlClass(name, option)}"><input type="checkbox" name="${name}" value="${escapeAttr(option)}" ${set.has(option) ? "checked" : ""}>${escapeHtml(optionDisplayLabel(option))}${validationControlBadge(name, option)}</label>`).join("")}</div></div>`;
+  return `<div><label>${labelText}</label><div class="chips">${options.map(option => `<label class="chip"><input type="checkbox" name="${name}" value="${escapeAttr(option)}" ${set.has(option) ? "checked" : ""}>${escapeHtml(optionDisplayLabel(option))}</label>`).join("")}</div></div>`;
 }
 
 function singleChoiceWithNotes(name, labelText, options, value = "") {
@@ -1234,7 +1234,7 @@ function singleChoiceWithNotes(name, labelText, options, value = "") {
   return `<div>
     <label>${labelText}</label>
     <div class="chips">
-      ${options.map(option => `<label class="chip ${validationControlClass(name, option)}"><input type="radio" name="${name}" value="${escapeAttr(option)}" ${selectedValue === option ? "checked" : ""}>${escapeHtml(option)}${validationControlBadge(name, option)}</label>`).join("")}
+      ${options.map(option => `<label class="chip"><input type="radio" name="${name}" value="${escapeAttr(option)}" ${selectedValue === option ? "checked" : ""}>${escapeHtml(option)}</label>`).join("")}
     </div>
   </div>`;
 }
@@ -1309,51 +1309,6 @@ function pageStepActions(scope) {
   </div>`;
 }
 
-
-function validationItems(form = currentClinicalDraft()) {
-  return Array.isArray(form?.controlValidations) ? form.controlValidations : [];
-}
-
-function validationItemFor(field, value, form = currentClinicalDraft()) {
-  return validationItems(form).find(item => item.field === field && item.value === value);
-}
-
-function validationControlClass(field, value) {
-  return "";
-}
-
-function validationControlBadge(field, value) {
-  return "";
-}
-
-function mergeAiValidationItems(form = {}, items = []) {
-  return [];
-}
-
-function setValidationDecision(id, state) {
-  const target = currentClinicalDraft();
-  const items = validationItems(target).map(item => item.id === id ? {
-    ...item,
-    state,
-    doctorValue: state === "DOCTOR_REJECTED" ? null : (Array.isArray(target[item.field]) ? item.value : target[item.field]),
-    decidedAt: new Date().toISOString()
-  } : item);
-  const decided = items.find(item => item.id === id);
-  if (decided && Array.isArray(target[decided.field])) {
-    const values = target[decided.field].filter(value => value !== decided.value);
-    target[decided.field] = state === "DOCTOR_REJECTED" ? values : [...values, decided.value];
-  } else if (decided && state === "DOCTOR_REJECTED" && target[decided.field] === decided.value) {
-    target[decided.field] = "";
-  } else if (decided && state === "DOCTOR_CONFIRMED" && !target[decided.field]) {
-    target[decided.field] = decided.value;
-  }
-  target.controlValidations = items;
-  render();
-}
-
-function validatedControlValues(field, values, form = currentClinicalDraft()) {
-  return arrayValue(values);
-}
 
 function bindGlobalEvents() {
   app.querySelectorAll("[data-view]").forEach(button => {
@@ -1487,7 +1442,6 @@ function bindAutoDraft() {
     });
     form.addEventListener("change", event => {
       clinicalDraftRevision += 1;
-      recordDoctorControlInteraction(event.target);
       if (["maniaHipomaniaSintomas", "psicoseSintomas", "riscoSuicidioIndicadores", "eventos", "efeitos", "funcionalidadeEventosRetorno"].includes(event.target?.name) && event.target.checked) {
         const options = form.querySelectorAll(`input[name='${event.target.name}']`);
         const denialOptions = ["Nega sintomas relacionados", "Nega ideacao, plano ou intencao suicida", "Nenhum"];
@@ -1518,19 +1472,6 @@ function bindAutoDraft() {
       if (event.target?.matches?.("input[type='checkbox'][value='Outro'], select")) render();
     });
   });
-}
-
-function recordDoctorControlInteraction(control) {
-  if (!control?.name) return;
-  const target = currentClinicalDraft();
-  const item = validationItemFor(control.name, control.value, target)
-    || validationItems(target).find(candidate => candidate.field === control.name && candidate.state === "AI_SUGGESTED");
-  if (!item || item.state !== "AI_SUGGESTED") return;
-  item.state = control.type === "checkbox"
-    ? (control.checked ? "DOCTOR_CONFIRMED" : "DOCTOR_REJECTED")
-    : (control.value === item.value ? "DOCTOR_CONFIRMED" : "DOCTOR_EDITED");
-  item.doctorValue = item.state === "DOCTOR_REJECTED" ? null : control.value;
-  item.decidedAt = new Date().toISOString();
 }
 
 function recordAnamnesisDoctorOverride(control) {
@@ -1640,9 +1581,6 @@ function bindActions() {
       if (action === "form-page") switchFormPage(element);
       if (action === "start-refinement") await startRefinement(element);
       if (action === "save-next-page") await saveCurrentPageAndAdvance(element);
-      if (action === "validation-confirm") setValidationDecision(element.dataset.validationId, "DOCTOR_CONFIRMED");
-      if (action === "validation-edit") setValidationDecision(element.dataset.validationId, "DOCTOR_EDITED");
-      if (action === "validation-reject") setValidationDecision(element.dataset.validationId, "DOCTOR_REJECTED");
       if (action === "generate-diagnosis") await generateDiagnosisFromClinicalData(element);
       if (action === "generate-treatment") await generateTreatmentFromClinicalData(element);
       if (action === "generate-evolution") await generateEvolutionFromClinicalData(element);
@@ -1792,62 +1730,6 @@ async function generateDiagnosisFromClinicalData(element) {
       ragSources: sources,
       aiMode: mode,
       aiStatus: "3 hipóteses sindrômicas, 3 nosológicas e 2 etiológicas propostas para você assinalar. As hipóteses do médico foram mantidas.",
-      controlValidations: mergeAiValidationItems(target || {}, aiOptions.map(option => ({
-        field: "diagnosticoSelecionado", value: option, label: option, page: "diagnostico", evidence: "Dados clinicos informados nesta consulta"
-      })))
-    };
-  } catch (error) {
-    if (target?.aiMode === "rag") suggestion = { ragSources: [], aiStatus: `RAG indisponivel: ${error.message}` };
-    else {
-      const fallback = buildDiagnosticSuggestion(target || {});
-      const fallbackOptions = [fallback.diagnosticoAiSindromico, fallback.diagnosticoAiNosologico, fallback.diagnosticoAiEtiologico].flatMap(value => String(value || "").split("\n").filter(Boolean));
-      suggestion = {
-        ...fallback,
-        diagnosticoSelecionado: selectedDiagnosisValues(target || {}).filter(option => doctorDiagnosisOptions.includes(option)),
-        controlValidations: mergeAiValidationItems(target || {}, fallbackOptions.map(option => ({ field: "diagnosticoSelecionado", value: option, label: option, page: "diagnostico", evidence: "Regra clinica local de contingencia" }))),
-        aiStatus: "Hipóteses locais propostas como contingência, pendentes de revisão médica."
-      };
-    }
-  }
-  if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
-  else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
-  render();
-}
-
-async function generateTreatmentFromClinicalData(element) {
-  const formElement = element.closest("form");
-  if (formElement) updateDraftFromForm(formElement);
-  const scope = view === "return" ? "return" : "consultation";
-  const target = scope === "return" ? draft.return : draft.consultation;
-  const diagnosisText = treatmentDiagnosisText(target || {});
-  if (!diagnosisText) return alert("Selecione ao menos uma hipotese diagnostica antes de gerar o tratamento.");
-  setClinicalAiStatus(scope, "Consultando IA real para tratamento...");
-  if (scope === "return") draft.return = { ...(draft.return || {}), treatmentStatus: "Consultando IA real para tratamento..." };
-  else draft.consultation = { ...(draft.consultation || {}), treatmentStatus: "Consultando IA real para tratamento..." };
-  render();
-  let suggestion;
-  try {
-    const context = clinicalAiContext(scope);
-    const { result, sources, mode } = await requestClinicalAi("treatment", buildClinicalAiPrompt("treatment", context.target, context.patient, context.previous, context.isReturn), context.target?.pharmaAiMode || "rag", buildRagQuery("treatment", context.target));
-    const medicationOptions = result.medication_options.map(formatMedicationTreatmentOption);
-    const approachOptions = result.non_pharmacological_options.map(formatNonPharmacologicalOption);
-    suggestion = {
-      tratamentoAiMedicamentos: medicationOptions.join("\n"),
-      tratamentoAiAbordagens: approachOptions.join("\n"),
-      tratamentoMedicamentosSelecionados: medicationOptions,
-      abordagensSelecionadas: approachOptions,
-      tratamentoMedicamentoso: "",
-      abordagensTerapeuticas: "",
-      examesLaboratoriais: requestedExamsText(target || {}),
-      condutaMedica: target?.condutaMedica || "",
-      ragSources: sources,
-      pharmaAiMode: mode,
-      treatmentStatus: "3 opções medicamentosas e 3 outras abordagens geradas para revisao individual.",
-      aiStatus: "Sugestões de tratamento geradas pela IA para revisão médica.",
-      controlValidations: mergeAiValidationItems(target || {}, [
-        ...medicationOptions.map(option => ({ field: "tratamentoMedicamentosSelecionados", value: option, label: option, page: "tratamento", evidence: "Assistant/RAG" })),
-        ...approachOptions.map(option => ({ field: "abordagensSelecionadas", value: option, label: option, page: "tratamento", evidence: "Assistant/RAG" }))
-      ])
     };
   } catch (error) {
     suggestion = (target?.pharmaAiMode || "rag") === "rag"
@@ -1874,7 +1756,6 @@ async function generateEvolutionFromClinicalData(element) {
     suggestion = {
       evolution: text,
       aiStatus: "Evolução gerada pela IA real. Revise antes de salvar.",
-      controlValidations: mergeAiValidationItems(target || {}, [{ field: "evolution", value: text, label: "Trecho narrativo gerado pela IA", page: scope === "return" ? returnPage : "evolucao", evidence: "Dados validados e informados na consulta" }])
     };
   } catch (error) {
     const context = clinicalAiContext(scope);
@@ -2447,7 +2328,7 @@ function normalizeDiagnosticOptions(value = "", limit = 5) {
 function updateSelectedDiagnosisFromForm(form) {
   const scope = view === "return" ? "return" : "consultation";
   const selected = Array.from(form.querySelectorAll("input[name='diagnosticoSelecionado']:checked")).map(item => item.value);
-  const selectedText = validatedControlValues("diagnosticoSelecionado", selected).join("\n");
+  const selectedText = selected.join("\n");
   const update = {
     diagnosticoSelecionado: selected,
     diagnosticoSelecionadoResumo: selectedText,
@@ -2674,8 +2555,8 @@ function updateSelectedTreatmentFromForm(form) {
   if (!target) return;
   target.tratamentoMedicamentosSelecionados = medicationValues;
   target.abordagensSelecionadas = approachValues;
-  target.tratamentoMedicamentoso = validatedControlValues("tratamentoMedicamentosSelecionados", medicationValues, target).join("\n");
-  target.abordagensTerapeuticas = validatedControlValues("abordagensSelecionadas", approachValues, target).join("\n");
+  target.tratamentoMedicamentoso = medicationValues.join("\n");
+  target.abordagensTerapeuticas = approachValues.join("\n");
 }
 
 function parseMedicationResponse(text = "") {
@@ -3190,14 +3071,6 @@ function updateDraftFromForm(form) {
 
 function sanitizeConsultationRecord(data = {}) {
   const clean = { ...data };
-  validationItems(clean).forEach(item => {
-    if (!["AI_SUGGESTED", "DOCTOR_REJECTED"].includes(item.state) || !(item.field in clean)) return;
-    if (Array.isArray(clean[item.field])) {
-      clean[item.field] = clean[item.field].filter(value => value !== item.value);
-    } else if (clean[item.field] === item.value) {
-      clean[item.field] = "";
-    }
-  });
   clean.diagnosticoManual = arrayValue(clean.diagnosticoSelecionado).join("\n");
   clean.tratamentoMedicamentoso = arrayValue(clean.tratamentoMedicamentosSelecionados).join("\n");
   clean.abordagensTerapeuticas = arrayValue(clean.abordagensSelecionadas).join("\n");
