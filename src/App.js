@@ -1,19 +1,23 @@
+import { buildDiagnosticSuggestion, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharmacologicalOption, normalizeDiagnosticOptions, parseTreatmentResponse, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
+import { anamnesisText, buildEvolutionNarrative, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, outdatedEvolutionText, patientIdentificationText, professionalSelectedTreatmentItems, removeReturnBoilerplate, requestedExamsText, returnEvolutionContainsIdentity, returnStoryText, shouldRefreshEvolutionNarrative, treatmentDiagnosisText } from "./clinical/narrative.js";
+import { arrayValue, calculateAge, capitalizeFirst, cleanClinicalLine, clinicalPhrase, compactText, formatClinicalList, formatPlainList, joinValues, lowerFirst, mentalExamKeys, normalizedSingleChoiceValue, normalizeText, optionDisplayLabel, professionalClinicalTerms, professionalList, professionalListWithOther, stripFinalPeriod } from "./clinical/textFormat.js";
+import { ANAMNESIS_AI_FIELDS, anamnesisQuestionGroups, consultationPages, doctorDiagnosisOptions, EVOLUTION_REFRESH_PATTERNS, laboratoryExamRequestItems, MENTAL_EXAM_AI_FIELDS, pagesForScope, RETURN_BOILERPLATE_PHRASES, returnPages } from "./clinical/vocabulary.js";
 import { optionGroups } from "./data/examOptions.js?v=tratamento-1";
 import { medications } from "./data/medications.js?v=medicamentos-1";
 import { fetchCep } from "./services/cepService.js";
+import { buildClinicalAiPrompt, buildRagQuery, canonicalAiSelections, localRefinementPlan, requestClinicalAi } from "./services/clinicalAiService.js";
+import { buildMedicationAutofill, localMedicationSuggestions } from "./services/medicationService.js";
 import { exportTextAsPdf } from "./services/pdfService.js?v=pdf-download-2";
 import { loadState, saveState, uid } from "./services/storageService.js";
 import { currentSession, pullState, pushState, signIn } from "./services/supabaseService.js";
-import { arrayValue, calculateAge, capitalizeFirst, cleanClinicalLine, clinicalPhrase, compactText, formatClinicalList, formatPlainList, joinValues, lowerFirst, mentalExamKeys, normalizeText, optionDisplayLabel, professionalClinicalTerms, professionalList, professionalListWithOther, stripFinalPeriod } from "./clinical/textFormat.js";
-import { ANAMNESIS_AI_FIELDS, EVOLUTION_REFRESH_PATTERNS, MENTAL_EXAM_AI_FIELDS, RETURN_BOILERPLATE_PHRASES, anamnesisQuestionGroups, consultationPages, doctorDiagnosisOptions, laboratoryExamRequestItems, returnPages } from "./clinical/vocabulary.js";
+import { formatDiarizedTranscript, preferredRecordingMimeType, requestConsultationTranscription, showMicrophonePermissionHelp } from "./services/voiceService.js";
+import { anamnesisStructuredFields, chips, field, selectField, summaryColumns, textarea, voiceTextarea } from "./ui/controls.js";
 import { escapeAttr, escapeHtml } from "./ui/html.js";
 import { clipboardIcon, folderIcon, homeIcon, lockIcon, microphoneIcon, personIcon, repeatIcon, themeIcon } from "./ui/icons.js";
-import { buildDiagnosticSuggestion, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharmacologicalOption, normalizeDiagnosticOptions, parseTreatmentResponse, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
-import { anamnesisText, buildEvolutionNarrative, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, outdatedEvolutionText, patientIdentificationText, professionalSelectedTreatmentItems, removeReturnBoilerplate, requestedExamsText, returnEvolutionContainsIdentity, returnStoryText, shouldRefreshEvolutionNarrative, treatmentDiagnosisText } from "./clinical/narrative.js";
-import { normalizedSingleChoiceValue } from "./clinical/textFormat.js";
-import { buildClinicalAiPrompt, buildRagQuery, canonicalAiSelections, localRefinementPlan, requestClinicalAi } from "./services/clinicalAiService.js";
-import { buildMedicationAutofill, localMedicationSuggestions } from "./services/medicationService.js";
-import { formatDiarizedTranscript, preferredRecordingMimeType, requestConsultationTranscription, showMicrophonePermissionHelp } from "./services/voiceService.js";
+import { clinicalSummaryGroups, clinicalSummaryPage } from "./views/clinicalSummary.js";
+import { aiModeSelector, diagnosisModule, evolutionBody, ragSourcesView, treatmentModule } from "./views/decisions.js";
+import { consultationAccessPanel, mentalExamBody, neurologicExamBody, recordReturnAction, returnAssessmentBody } from "./views/exams.js";
+import { medicationReferenceCard } from "./views/medication.js";
 
 const app = document.querySelector("#app");
 let state = loadState();
@@ -270,20 +274,6 @@ function returnForm() {
   `;
 }
 
-function consultationAccessPanel(consultations, form) {
-  return `<div class="clinical-card record-access">
-    <h4>Consultas deste paciente</h4>
-    <div class="actions">
-      <button class="secondary" type="button" data-action="new-consultation">Nova consulta</button>
-      ${consultations.map(entry => `
-        <button class="secondary ${entry.id === form.id ? "active" : ""}" type="button" data-action="edit-entry" data-id="${entry.id}" data-type="consultation">
-          ${escapeHtml(entry.label)}
-        </button>
-      `).join("")}
-    </div>
-  </div>`;
-}
-
 function returnRecordAccessPanel(form, patientId) {
   const returns = returnsForPatient(patientId);
   return `<div class="clinical-card record-access">
@@ -297,15 +287,6 @@ function returnRecordAccessPanel(form, patientId) {
       `).join("") : `<span class="record-empty-state">Nenhum retorno salvo.</span>`}
     </div>
   </div>`;
-}
-
-function recordReturnAction(label) {
-  return `
-    <div class="warning record-opened">
-      ${escapeHtml(label)}.
-      <button class="secondary inline-action" type="button" data-action="back-to-record">Voltar ao prontuario</button>
-    </div>
-  `;
 }
 
 function formPageTabs(scope) {
@@ -373,41 +354,6 @@ function returnPageBody(form, patient, previous) {
   return clinicalPage("Evolucao do Retorno", evolutionBody(form, patient, previous, true), "return");
 }
 
-function returnAssessmentBody(form) {
-  return `
-    ${singleChoiceWithNotes("evolucaoClinicaRetorno", "Evolucao clinica", ["Melhora clínica", "Estabilidade clínica", "Piora clínica", "Novos sintomas"], form.evolucaoClinicaRetorno)}
-    ${singleChoiceWithNotes("sonoRetorno", "Sono", ["Adequado e reparador", "Insônia", "Hipersonia", "Redução da necessidade de sono"], form.sonoRetorno)}
-    ${singleChoiceWithNotes("humorAnsiedadeRetorno", "Humor e ansiedade", ["Eutímico", "Deprimido", "Ansioso", "Irritável", "Elevado ou oscilante", "Crise de pânico"], form.humorAnsiedadeRetorno)}
-    ${singleChoiceWithNotes("adesao", "Adesao ao tratamento", ["Adequada", "Parcial ou irregular", "Não iniciou ou interrompeu"], form.adesao)}
-    ${chips("efeitos", "Efeitos colaterais", ["Nenhum", "Sedacao ou sonolencia", "Sintomas gastrointestinais", "Alteracao de peso ou metabolica", "Efeitos motores", "Disfuncao sexual", "Outro"], form.efeitos)}
-    ${chips("funcionalidadeEventosRetorno", "Funcionalidade e eventos relevantes", ["Nenhum", "Prejuizo funcional", "Conflito, estressor ou luto", "Urgencia ou internacao", "Risco ou autoagressao", "Outro"], form.funcionalidadeEventosRetorno)}
-    ${chips("condutaMedicamentoRetorno", "Medicamento", ["Manter dose", "Aumentar dose", "Diminuir dose", "Retirar", "Trocar medicamento", "Acrescentar medicamento", "Outro"], form.condutaMedicamentoRetorno)}
-  `;
-}
-
-function mentalExamBody(form) {
-  const groups = [
-    ["aparencia", "Aparencia, Atitude e Contato"],
-    // consciencia estava fora desta lista: era lida no resumo, na evolucao e no
-    // diagnostico, mas nao tinha controle na tela e chegava sempre vazia.
-    ["consciencia", "Consciencia"],
-    ["atencao", "Atencao/Vigilancia"], ["orientacao", "Orientacao"],
-    ["memoria", "Memoria"], ["sensopercepcao", "Sensopercepcao"],
-    ["pensamentoCursoForma", "Pensamento (Curso e Forma)"], ["pensamentoConteudo", "Pensamento (Conteudo)"],
-    ["linguagem", "Linguagem"], ["humor", "Humor (Estado Basal)"], ["afeto", "Afeto (Resposta)"],
-    ["psicomotricidade", "Psicomotricidade"], ["vontade", "Vontade"], ["juizoCritico", "Juizo Critico (Insight)"]
-  ];
-  return groups.map(([key, label]) => `
-    ${chips(key, label, optionGroups[key], form[key])}
-  `).join("");
-}
-
-function neurologicExamBody(form) {
-  return `
-    ${textarea("fisico", "Achados fisicos e neurologicos relevantes", form.fisico)}
-  `;
-}
-
 function refinementBody(form = {}) {
   const plan = form.refinementPlan;
   if (!plan) {
@@ -440,271 +386,6 @@ function refinementBody(form = {}) {
   `;
 }
 
-function clinicalSummaryPage(form = {}, patient = {}) {
-  const groups = clinicalSummaryGroups(form, patient);
-  return groups.map(group => summaryTable(group.title, group.rows, group.layout)).join("");
-}
-
-function clinicalSummaryGroups(form = {}, patient = {}) {
-  const age = calculateAge(patient.nascimento);
-  const address = [patient.endereco, patient.numero, patient.complemento, patient.bairro, patient.cidade, patient.estado]
-    .filter(Boolean).join(", ");
-  const identityRows = [
-    summaryTextRow("Identidade", "Nome", patient.nome),
-    summaryTextRow("Identidade", "Data de nascimento", formatSummaryDate(patient.nascimento)),
-    summaryTextRow("Identidade", "Idade", age ? `${age} anos` : ""),
-    summaryTextRow("Identidade", "Sexo", patient.sexo),
-    summaryTextRow("Identidade", "Estado civil", patient.estadoCivil),
-    summaryTextRow("Identidade", "Ocupação", patient.ocupacao),
-    summaryTextRow("Identidade", "Escolaridade", patient.escolaridade),
-    summaryTextRow("Identidade", "Religião", patient.religiao),
-    summaryTextRow("Contato", "Telefone", patient.telefone),
-    summaryTextRow("Contato", "E-mail", patient.email),
-    summaryTextRow("Contato", "Nome e contato de emergência", patient.emergencia),
-    summaryTextRow("Endereço", "CEP", patient.cep),
-    summaryTextRow("Endereço", "Endereço", address)
-  ];
-  const narrativeRows = [
-    summaryTextRow("Anamnese", "Queixa principal e HDA", conciseQphdaSummary(anamnesisText(form))),
-    summaryTextRow("Anamnese", "Antecedentes médicos", joinValues(form.medicos))
-  ];
-  const anamnesisRows = anamnesisQuestionGroups.flatMap(group => group.items.flatMap(([sectionTitle, items]) =>
-    items.map(item => item.response === "multiple"
-      ? summaryGroupedOptionRow(sectionTitle, item.label || item.question || sectionTitle, item.key, item.options || [], form, item.otherKey)
-      : summaryTextRow(sectionTitle, item.label || item.question || item.key, form[item.key])
-    )
-  ));
-  const complementaryRows = [
-    summaryGroupedOptionRow("Antecedentes", "Psiquiátricos prévios", "psiPrevios", optionGroups.psiPrevios || [], form, "psiPreviosOutro"),
-    summaryGroupedOptionRow("Antecedentes", "Tratamentos prévios", "tratamentos", optionGroups.tratamentos || [], form, "tratamentosOutro"),
-    summaryGroupedOptionRow("Antecedentes familiares", "História familiar", "familiares", optionGroups.familiares || [], form, "familiaresOutro"),
-    summaryGroupedOptionRow("Fatores de piora", "Fatores identificados", "fatores", optionGroups.fatores || [], form, "fatoresOutro"),
-    summaryGroupedOptionRow("Fatores de melhora", "Fatores identificados", "fatoresMelhora", optionGroups.fatoresMelhora || [], form, "fatoresMelhoraOutro"),
-    summaryGroupedOptionRow("Impacto funcional", "Áreas afetadas", "impacto", optionGroups.impacto || [], form, "impactoOutro")
-  ];
-  const mentalLabels = {
-    aparencia: "Aparência, atitude e contato", consciencia: "Consciência", atencao: "Atenção",
-    orientacao: "Orientação", memoria: "Memória", sensopercepcao: "Sensopercepção",
-    pensamentoCursoForma: "Pensamento - curso e forma", pensamentoConteudo: "Pensamento - conteúdo",
-    linguagem: "Linguagem", humor: "Humor", afeto: "Afeto",
-    psicomotricidade: "Psicomotricidade", vontade: "Vontade", juizoCritico: "Juízo crítico"
-  };
-  const mentalRows = mentalExamKeys().map(key =>
-    summaryGroupedOptionRow("Exame psíquico", mentalLabels[key] || key, key, optionGroups[key] || [], form, `${key}Outro`)
-  );
-  const physicalRows = [
-    summaryTextRow("Exame físico", "Achados relevantes", form.fisico)
-  ].filter(row => row.value);
-  const refinementRows = refinementSummaryRows(form);
-  return [
-    { title: "Identificação do paciente", rows: identityRows, layout: "item-record" },
-    { title: "Dados narrativos", rows: narrativeRows, layout: "item-record" },
-    { title: "Anamnese estruturada", rows: [...anamnesisRows, ...complementaryRows], layout: "area-record" },
-    { title: "Exame psíquico", rows: mentalRows.map(row => ({ ...row, section: row.item })), layout: "area-record" },
-    { title: "Exame físico", rows: physicalRows },
-    { title: "Refinamento clínico", rows: refinementRows, layout: "area-record" }
-    // Exame fisico e Refinamento so tem linhas depois de preenchidos; sem o
-    // filtro, o resumo mostraria a tabela vazia (so o cabecalho).
-  ].filter(group => group.rows.length);
-}
-
-function refinementSummaryRows(form = {}) {
-  const plan = form.refinementPlan || {};
-  const rows = [];
-  (plan.questions || []).forEach((item, index) => rows.push(summaryTextRow(item.topic || "Pergunta", item.prompt, joinValues(form[`refinementQuestion_${index}`]))));
-  [["Red flags", "red_flags", "refinementRedFlag"], ["Observacoes", "observations", "refinementObservation"], ["Pontos importantes", "important_points", "refinementImportant"]].forEach(([sectionTitle, key, prefix]) => {
-    (plan[key] || []).forEach((item, index) => rows.push(summaryTextRow(item.topic || sectionTitle, item.reason, form[`${prefix}_${index}`])));
-  });
-  if (form.refinementDoctorNotes) rows.push(summaryTextRow("Medico", "Observacoes", form.refinementDoctorNotes));
-  return rows.filter(row => row.value);
-}
-
-function formatSummaryDate(value = "") {
-  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  return match ? `${match[3]}/${match[2]}/${match[1]}` : String(value || "");
-}
-
-function conciseQphdaSummary(value = "") {
-  const text = String(value || "").replace(/\s+/g, " ").trim();
-  if (!text) return "";
-  const sentences = text.match(/[^.!?]+[.!?]?/g)?.map(sentence => sentence.trim()).filter(Boolean) || [text];
-  const selected = [sentences[0]];
-  const addMatch = pattern => {
-    const match = sentences.find(sentence => !selected.includes(sentence) && pattern.test(normalizeText(sentence)));
-    if (match) selected.push(match);
-  };
-  addMatch(/(ha |desde|mes|ano|evolu|inicio|duracao)/);
-  addMatch(/(prejuizo|afastamento|trabalho|risco|suicid|funcional|tratamento)/);
-  for (const sentence of sentences) {
-    if (selected.length >= 3) break;
-    if (!selected.includes(sentence)) selected.push(sentence);
-  }
-  const summary = selected.slice(0, 3).sort((a, b) => sentences.indexOf(a) - sentences.indexOf(b)).join(" ");
-  if (summary.length <= 210) return summary;
-  return `${summary.slice(0, 207).replace(/\s+\S*$/, "").replace(/[,:;.-]+$/, "")}...`;
-}
-
-function summaryTextRow(section, item, value) {
-  const text = String(value || "").trim();
-  return { section, item, value: text };
-}
-
-function summaryGroupedOptionRow(section, item, key, options, form, otherKey = "") {
-  const selected = arrayValue(form[key]);
-  const normalizedSelected = new Set(selected.map(normalizeText));
-  const values = options.flatMap(option => {
-    const isOther = normalizeText(option) === "outro";
-    const otherValue = isOther && otherKey ? String(form[otherKey] || "").trim() : "";
-    const marked = normalizedSelected.has(normalizeText(option)) || Boolean(otherValue);
-    return marked ? [otherValue || optionDisplayLabel(option)] : [];
-  });
-  if (otherKey && String(form[otherKey] || "").trim() && !options.some(option => normalizeText(option) === "outro")) {
-    values.push(String(form[otherKey]).trim());
-  }
-  return { section, item, value: values.join("; ") };
-}
-
-/* Layouts de resumo:
-   "full"        -> Área | Campo | Registro
-   "area-record" -> Área | Registro  (o campo repetiria a area)
-   "item-record" -> Campo | Registro (a area repetiria o titulo do bloco)   */
-function summaryColumns(layout = "full") {
-  return { area: layout !== "item-record", item: layout !== "area-record" };
-}
-
-function summaryTable(title, rows = [], layout = "full") {
-  const columns = summaryColumns(layout);
-  const cells = (section, item, value, tag) => [
-    columns.area ? `<${tag}>${escapeHtml(section)}</${tag}>` : "",
-    columns.item ? `<${tag}>${escapeHtml(item)}</${tag}>` : "",
-    `<${tag}>${escapeHtml(value)}</${tag}>`
-  ].join("");
-  return `<section class="summary-section"><h4>${escapeHtml(title)}</h4><div class="summary-table-wrap"><table class="summary-table">
-    <thead><tr>${cells("Área", "Campo", "Registro", "th")}</tr></thead>
-    <tbody>${rows.map(row => `<tr>${cells(row.section, row.item, row.value, "td")}</tr>`).join("")}</tbody>
-  </table></div></section>`;
-}
-
-function diagnosisModule(form) {
-  const syndromicOptions = diagnosticSyndromicOptionLines(form);
-  const nosologicalOptions = diagnosticNosologicalOptionLines(form);
-  const etiologicalOptions = diagnosticEtiologicalOptionLines(form);
-  const selectedValues = selectedDiagnosisValues(form);
-  const selectedText = selectedDiagnosisText(form);
-  const aiStatus = diagnosisAiStatusText(form.aiStatus);
-  return `
-    <div class="diagnosis-ai-panel">
-      ${aiModeSelector(form.aiMode)}
-      <div class="actions">
-        <button class="primary" type="button" data-action="generate-diagnosis">Gerar</button>
-      </div>
-      ${aiStatus ? `<p class="online-status">${escapeHtml(aiStatus)}</p>` : ""}
-      ${ragSourcesView(form.ragSources)}
-    </div>
-    <textarea hidden name="diagnosticoManual">${escapeHtml(selectedText)}</textarea>
-    <textarea hidden name="diagnosticoAiSindromico">${escapeHtml(syndromicOptions.join("\n"))}</textarea>
-    <textarea hidden name="diagnosticoAiNosologico">${escapeHtml(nosologicalOptions.join("\n"))}</textarea>
-    <textarea hidden name="diagnosticoAiEtiologico">${escapeHtml(etiologicalOptions.join("\n"))}</textarea>
-    ${diagnosisCategory("Sindrômico", syndromicOptions, selectedValues, 3)}
-    ${diagnosisCategory("Nosológico", nosologicalOptions, selectedValues, 3)}
-    ${diagnosisCategory("Etiológico", etiologicalOptions, selectedValues, 2)}
-    <div class="diagnosis-group diagnosis-doctor-group">
-      <h4>Hipóteses do médico</h4>
-      <div class="diagnosis-options">${diagnosisOptionCheckboxes(doctorDiagnosisOptions, selectedValues)}</div>
-    </div>
-  `;
-}
-
-function diagnosisCategory(label, options, selectedValues, count) {
-  return `<div class="diagnosis-group"><h4>${label} — ${count} hipóteses</h4>
-      <div class="diagnosis-options">
-        ${options.length ? diagnosisOptionCheckboxes(options, selectedValues) : `<p class="diagnosis-empty">Nenhuma hipótese gerada.</p>`}
-      </div>
-    </div>`;
-}
-
-function diagnosisOptionCheckboxes(options, selectedValues) {
-  return options.map(option => `
-    <label class="diagnosis-option">
-      <input type="checkbox" name="diagnosticoSelecionado" value="${escapeAttr(option)}" ${selectedValues.includes(option) ? "checked" : ""} />
-      <span>${escapeHtml(option)}</span>
-    </label>
-  `).join("");
-}
-
-function diagnosisAiStatusText(message = "") {
-  if (!message) return "";
-  if (/OPENAI_API_KEY|IA indisponivel/i.test(message)) return "6 hipoteses locais aplicadas.";
-  return message;
-}
-
-function aiModeSelector(value = "current", name = "aiMode") {
-  return `<fieldset class="ai-mode-selector">
-    <legend>Fonte da resposta</legend>
-    <label><input type="radio" name="${name}" value="current" ${value !== "rag" ? "checked" : ""} /><span>IA atual</span><small>Modelo e regras clinicas atuais</small></label>
-    <label><input type="radio" name="${name}" value="rag" ${value === "rag" ? "checked" : ""} /><span>RAG com literatura</span><small>Restringe a resposta às fontes indexadas (psicopatologia e psicofarmacologia)</small></label>
-  </fieldset>`;
-}
-
-function ragSourcesView(sources = []) {
-  if (!Array.isArray(sources) || !sources.length) return "";
-  return `<details class="rag-sources"><summary>${sources.length} fonte(s) recuperada(s)</summary><ol>${sources.map(source => `
-    <li><strong>${escapeHtml(source.filename || "Fonte")}</strong><span>Relevancia: ${Math.round(Number(source.score || 0) * 100)}%</span></li>`).join("")}</ol></details>`;
-}
-
-function treatmentModule(form) {
-  const examesText = requestedExamsText(form);
-  const medicationOptions = treatmentOptionLines(form.tratamentoAiMedicamentos);
-  const approachOptions = treatmentOptionLines(form.tratamentoAiAbordagens);
-  const selectedApproaches = arrayValue(form.abordagensSelecionadas);
-  return `
-    <div class="diagnosis-ai-panel">
-      ${aiModeSelector(form.pharmaAiMode || "rag", "pharmaAiMode")}
-      <div class="actions">
-        <button class="primary" type="button" data-action="generate-treatment">Gerar</button>
-      </div>
-      ${form.treatmentStatus ? `<p class="online-status">${escapeHtml(form.treatmentStatus)}</p>` : ""}
-      ${ragSourcesView(form.ragSources)}
-    </div>
-    <div class="treatment-card-grid">
-      <div class="treatment-card">
-        <h4>Abordagem medicamentosa</h4>
-        <textarea hidden name="tratamentoAiMedicamentos">${escapeHtml(medicationOptions.join("\n"))}</textarea>
-        <textarea hidden name="tratamentoMedicamentoso">${escapeHtml(form.tratamentoMedicamentoso || "")}</textarea>
-        <div class="diagnosis-options">
-          ${medicationOptions.length ? medicationOptions.map((option, index) => `<article class="treatment-card"><h4>${index === 0 ? "1ª opção" : index === 1 ? "2ª opção" : "Off-label"}</h4><label class="diagnosis-option treatment-option"><input type="checkbox" name="tratamentoMedicamentosSelecionados" value="${escapeAttr(option)}" ${arrayValue(form.tratamentoMedicamentosSelecionados).includes(option) ? "checked" : ""} /><span>${escapeHtml(option)}</span></label></article>`).join("") : `<p class="diagnosis-empty">As opções aparecerão após a geração.</p>`}
-        </div>
-      </div>
-      <div class="treatment-card">
-        <h4>Outras abordagens</h4>
-        <textarea hidden name="tratamentoAiAbordagens">${escapeHtml(approachOptions.join("\n"))}</textarea>
-        <textarea hidden name="abordagensTerapeuticas">${escapeHtml(form.abordagensTerapeuticas || "")}</textarea>
-        <div class="diagnosis-options">
-          ${approachOptions.length ? treatmentOptionCheckboxes("abordagensSelecionadas", approachOptions, selectedApproaches) : `<p class="diagnosis-empty">As abordagens aparecerão após a geração.</p>`}
-        </div>
-      </div>
-      <div class="treatment-card">
-        <h4>Exames solicitados</h4>
-        ${chips("examesSolicitados", "", optionGroups.examesPsiquiatria, form.examesSolicitados)}
-        <textarea hidden name="examesLaboratoriais">${escapeHtml(examesText)}</textarea>
-      </div>
-      <div class="treatment-card physician-adjustments">
-        <h4>Ajustes do medico</h4>
-        ${textarea("condutaMedica", "", form.condutaMedica, "", 3)}
-      </div>
-    </div>
-  `;
-}
-
-function treatmentOptionCheckboxes(name, options, selectedValues) {
-  return options.map(option => `
-    <label class="diagnosis-option treatment-option">
-      <input type="checkbox" name="${name}" value="${escapeAttr(option)}" ${selectedValues.includes(option) ? "checked" : ""} />
-      <span>${escapeHtml(option)}</span>
-    </label>
-  `).join("");
-}
-
 function medicationBody(form) {
   const medicationName = form.medicationGeneric || "";
   const hasInformation = Boolean(form.medicationNameText || form.medicationPresentation || form.medicationSafety || form.medicationBestUse);
@@ -731,71 +412,6 @@ function medicationBody(form) {
         </div>
       `}
     </div>
-  `;
-}
-
-function medicationReferenceCard(form) {
-  return `
-    <article class="medication-reference-card">
-      <div class="medication-reference-title">
-        <div>
-          <span class="eyebrow">FICHA DO MEDICAMENTO</span>
-          <h3>${escapeHtml(form.medicationNameText || form.medicationGeneric || "Medicamento")}</h3>
-          ${form.medicationBrands ? `<p><strong>Nomes comerciais:</strong> ${escapeHtml(form.medicationBrands)}</p>` : ""}
-        </div>
-        ${form.medicationClass ? `<span class="medication-class">${escapeHtml(form.medicationClass)}</span>` : ""}
-      </div>
-      <div class="medication-priority-grid">
-        ${medicationPriorityFact("Princípio ativo", form.medicationActiveIngredient || form.medicationNameText)}
-        ${medicationPriorityFact("Apresentação", form.medicationPresentationHighlight)}
-        ${medicationPriorityFact("Dose recomendada", form.medicationRecommendedDose)}
-        ${medicationPriorityFact("Principais efeitos colaterais", form.medicationMainEffects)}
-      </div>
-      <div class="medication-facts-grid">
-        ${medicationFact("Indicações e uso clínico", form.medicationBestUse)}
-        ${medicationFact("Posologia e progressão", form.medicationPresentation)}
-        ${medicationFact("Segurança, contraindicações e interações", form.medicationSafety)}
-        ${medicationFact("Mecanismo e receptores", form.medicationMechanism)}
-        ${medicationFact("Monitorização", form.medicationMonitoring)}
-        ${medicationFact("Populações especiais", form.medicationSpecialPopulations)}
-      </div>
-      ${medicationNameLinks(form.medicationGeneric || form.medicationNameText)}
-    </article>
-  `;
-}
-
-function medicationPriorityFact(title, value) {
-  if (!value) return "";
-  return `<section class="medication-priority-fact"><span>${escapeHtml(title)}</span><strong>${escapeHtml(value)}</strong></section>`;
-}
-
-function medicationFact(title, value) {
-  if (!value) return "";
-  return `<section class="medication-fact"><h4>${escapeHtml(title)}</h4><p>${escapeHtml(value).replace(/\n/g, "<br>")}</p></section>`;
-}
-
-function medicationNameLinks(name = "") {
-  if (!name) return "";
-  return `<div class="medication-reference-links">
-    <a href="https://consultas.anvisa.gov.br/#/medicamentos/" target="_blank" rel="noopener noreferrer">Consultar na Anvisa</a>
-    <a href="https://www.google.com/search?q=${encodeURIComponent(`${name} bula profissional`)}" target="_blank" rel="noopener noreferrer">Bula profissional</a>
-  </div>`;
-}
-
-function evolutionBody(form, patient, previous = null, isReturn = false) {
-  const evolution = outdatedEvolutionText(form.evolution)
-    || shouldRefreshEvolutionNarrative(form.evolution)
-    || (isReturn && returnEvolutionContainsIdentity(form.evolution, patient))
-    || (isReturn && form.evolutionAutoGenerated && !normalizeText(form.evolution).startsWith("paciente retornou"))
-    ? ""
-    : normalizeEvolutionNarrative(form.evolution);
-  const generatedEvolution = buildEvolutionNarrative(form, patient, previous, isReturn);
-  return `
-    <div class="actions">
-      <button class="primary" type="button" data-action="generate-evolution">${isReturn ? "Atualizar evolução" : "Atualizar história clínica"}</button>
-    </div>
-    ${form.aiStatus ? `<p class="online-status">${escapeHtml(form.aiStatus)}</p>` : ""}
-    ${textarea("evolution", "", evolution || generatedEvolution)}
   `;
 }
 
@@ -845,36 +461,6 @@ function emptyPatientMessage(title) {
   return `<div class="panel-title"><div><h2>${title}</h2><p>Selecione ou cadastre um paciente para continuar.</p></div>${patientSelector()}</div><div class="actions"><button class="primary" data-view="patient">Novo Paciente</button></div>`;
 }
 
-function section(title, body, open = false) {
-  return `<details class="section" ${open ? "open" : ""}><summary><strong>${title}</strong></summary><div class="section-body">${body}</div></details>`;
-}
-
-function field(name, labelText, value = "", type = "text") {
-  return `<label>${labelText}<input name="${name}" type="${type}" value="${escapeAttr(value || "")}" /></label>`;
-}
-
-function selectField(name, labelText, options, value = "") {
-  return `<label>${labelText}<select name="${name}"><option value="">Selecionar</option>${options.map(option => `<option value="${escapeAttr(option)}" ${value === option ? "selected" : ""}>${escapeHtml(optionDisplayLabel(option))}</option>`).join("")}</select></label>`;
-}
-
-function textarea(name, labelText, value = "", placeholder = "", rows = "") {
-  const rowsAttr = rows ? ` rows="${rows}"` : "";
-  const evolutionAttrs = name === "evolution" ? ` class="evolution-textarea" data-auto-expand="true" rows="12"`
-    : name === "qphda" ? ` class="auto-expand" data-auto-expand="true" rows="5"`
-      : ["queixa", "hdaManual"].includes(name) ? ` class="auto-expand" data-auto-expand="true" rows="1"`
-        : name === "historia" ? ` class="auto-expand" data-auto-expand="true" rows="3"` : rowsAttr;
-  return `<label>${labelText}<textarea name="${name}"${evolutionAttrs} placeholder="${escapeAttr(placeholder)}">${escapeHtml(value || "")}</textarea></label>`;
-}
-
-function voiceTextarea(name, labelText, value = "", placeholder = "") {
-  return `<div class="voice-field">${textarea(name, labelText, value, placeholder)}<div class="voice-controls">
-    <button class="voice-button" type="button" data-action="voice" data-target="${name}" aria-label="Iniciar gravação da conversa" title="Iniciar gravação">
-      ${microphoneIcon()}<span class="voice-pulse" aria-hidden="true"></span>
-    </button>
-    <span class="voice-status" aria-live="polite">Clique no microfone para iniciar a gravação integral</span>
-  </div></div>`;
-}
-
 function anamnesisQuestionGuide() {
   const form = currentClinicalDraft();
   const itemOrder = [
@@ -907,77 +493,6 @@ function anamnesisQuestionGuide() {
       </div>
     </div>
   </div>`;
-}
-
-function anamnesisStructuredFields(questions, form) {
-  return `<div class="structured-fields">
-    ${questions.map(item => {
-      if (typeof item === "string") return `<ul><li>${escapeHtml(item)}</li></ul>`;
-      if (item.response === "multiple") return multipleChoiceField(item, form);
-      return suicideRiskFields([item], form);
-    }).join("")}
-  </div>`;
-}
-
-function multipleChoiceField(item, form) {
-  const values = Array.isArray(form[item.key]) ? form[item.key] : form[item.key] ? [form[item.key]] : [];
-  const set = new Set(values);
-  const otherInput = "";
-  return `<div class="risk-fields">
-    ${item.question ? `<p class="structured-question">${escapeHtml(item.question)}</p>` : ""}
-    <div class="multi-choice-options">
-      ${item.options.map(option => `
-        <label>
-          <input type="checkbox" name="${item.key}" value="${escapeAttr(option)}" ${set.has(option) ? "checked" : ""} />
-          ${escapeHtml(optionDisplayLabel(option))}
-        </label>
-      `).join("")}
-    </div>
-    ${otherInput}
-  </div>`;
-}
-
-function suicideRiskFields(questions, form) {
-  return `<div class="risk-fields">
-    ${questions.map(item => item.response === "text" ? `
-      <label class="risk-text">
-        <b>${escapeHtml(item.label)}:</b> ${escapeHtml(item.question)}
-        <textarea name="${item.key}" rows="2">${escapeHtml(form[item.key] || "")}</textarea>
-      </label>
-    ` : `
-      <div class="risk-choice">
-        <p><b>${escapeHtml(item.label)}:</b> ${escapeHtml(item.question)}</p>
-        <div class="segmented-options">
-          ${["SIM", "NAO"].map(option => `
-            <label>
-              <input type="radio" name="${item.key}" value="${option}" ${form[item.key] === option ? "checked" : ""} />
-              ${option}
-            </label>
-          `).join("")}
-        </div>
-      </div>
-    `).join("")}
-  </div>`;
-}
-
-function chips(name, labelText, options, values = []) {
-  const normalizedValues = Array.isArray(values) ? values : values ? [values] : [];
-  const set = new Set(normalizedValues);
-  return `<div><label>${labelText}</label><div class="chips">${options.map(option => `<label class="chip"><input type="checkbox" name="${name}" value="${escapeAttr(option)}" ${set.has(option) ? "checked" : ""}>${escapeHtml(optionDisplayLabel(option))}</label>`).join("")}</div></div>`;
-}
-
-function singleChoiceWithNotes(name, labelText, options, value = "") {
-  const selectedValue = normalizedSingleChoiceValue(name, value);
-  return `<div>
-    <label>${labelText}</label>
-    <div class="chips">
-      ${options.map(option => `<label class="chip"><input type="radio" name="${name}" value="${escapeAttr(option)}" ${selectedValue === option ? "checked" : ""}>${escapeHtml(option)}</label>`).join("")}
-    </div>
-  </div>`;
-}
-
-function pagesForScope(scope) {
-  return scope === "consultation" ? consultationPages : returnPages;
 }
 
 function currentPageForScope(scope) {

@@ -1,7 +1,7 @@
 import { medications } from "../data/medications.js?v=medicamentos-1";
 import { selectedDiagnosisText, treatmentOptionLines } from "./diagnosis.js";
-import { arrayValue, calculateAge, capitalizeFirst, cleanClinicalLine, clinicalPhrase, formatClinicalList, formatPlainList, joinValues, lowerFirst, mentalExamKeys, normalizeText, normalizedSingleChoiceValue, professionalClinicalTerms, professionalList, professionalListWithOther, stripFinalPeriod } from "./textFormat.js";
-import { EVOLUTION_REFRESH_PATTERNS, RETURN_BOILERPLATE_PHRASES, laboratoryExamRequestItems } from "./vocabulary.js";
+import { arrayValue, calculateAge, capitalizeFirst, cleanClinicalLine, clinicalPhrase, formatClinicalList, formatPlainList, joinValues, lowerFirst, mentalExamKeys, normalizedSingleChoiceValue, normalizeText, professionalClinicalTerms, professionalList, professionalListWithOther, stripFinalPeriod } from "./textFormat.js";
+import { EVOLUTION_REFRESH_PATTERNS, laboratoryExamRequestItems, RETURN_BOILERPLATE_PHRASES } from "./vocabulary.js";
 
 export function treatmentDiagnosisText(form = {}) {
   return [

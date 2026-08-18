@@ -295,3 +295,7 @@ export const MENTAL_EXAM_AI_FIELDS = {
   language: "linguagem", mood: "humor", affect: "afeto", psychomotor: "psicomotricidade",
   volition: "vontade", judgment: "juizoCritico"
 };
+
+export function pagesForScope(scope) {
+  return scope === "consultation" ? consultationPages : returnPages;
+}

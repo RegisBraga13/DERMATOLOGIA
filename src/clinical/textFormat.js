@@ -1,4 +1,4 @@
-import { MENTAL_EXAM_KEYS, PROFESSIONAL_TERM_REPLACEMENTS, optionDisplayLabels } from "./vocabulary.js";
+import { MENTAL_EXAM_KEYS, optionDisplayLabels, PROFESSIONAL_TERM_REPLACEMENTS } from "./vocabulary.js";
 
 export function arrayValue(value) {
   if (Array.isArray(value)) return value.filter(Boolean);
