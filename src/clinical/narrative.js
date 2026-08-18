@@ -1,0 +1,360 @@
+import { medications } from "../data/medications.js?v=medicamentos-1";
+import { selectedDiagnosisText, treatmentOptionLines } from "./diagnosis.js";
+import { arrayValue, calculateAge, capitalizeFirst, cleanClinicalLine, clinicalPhrase, formatClinicalList, formatPlainList, joinValues, lowerFirst, mentalExamKeys, normalizeText, normalizedSingleChoiceValue, professionalClinicalTerms, professionalList, professionalListWithOther, stripFinalPeriod } from "./textFormat.js";
+import { EVOLUTION_REFRESH_PATTERNS, RETURN_BOILERPLATE_PHRASES, laboratoryExamRequestItems } from "./vocabulary.js";
+
+export function treatmentDiagnosisText(form = {}) {
+  return [
+    selectedDiagnosisText(form),
+    stripFinalPeriod(form.diagnosticoObservacaoMedica || "")
+  ].filter(Boolean).join("\n");
+}
+
+export function buildEvolutionNarrative(form, patient = {}, previous = null, isReturn = false) {
+  const complaint = stripFinalPeriod(conciseComplaintText(form, isReturn));
+  const history = stripFinalPeriod(conciseHdaText(form, previous, isReturn));
+  const structuredAnamnesis = isReturn ? "" : professionalStructuredAnamnesisText(form);
+  const antecedents = evolutionAntecedentsText(form);
+  const mentalFindings = mentalStateFindings(form);
+  const diagnosis = selectedDiagnosisText(form) || form.diagnosticoSelecionadoResumo || form.diagnosticoManual || "";
+  const treatment = professionalTreatmentText(form, isReturn);
+
+  const opening = isReturn
+    ? (history ? `${history}.` : "")
+    : [
+      `${evolutionPatientIdentification(patient)}.`,
+      `Apresenta queixa de ${lowerFirst(professionalClinicalTerms(complaint))}.`,
+      history && normalizeText(history) !== normalizeText(complaint) ? professionalHistorySentence(history) : ""
+    ].filter(Boolean).join(" ");
+
+  return normalizeEvolutionNarrative([
+    opening,
+    structuredAnamnesis,
+    antecedents,
+    mentalFindings.length ? `No exame psíquico, apresenta ${formatPlainList(mentalFindings.map(professionalMentalFinding))}.` : "",
+    diagnosis ? `Consideram-se as hipóteses diagnósticas assinaladas de ${stripFinalPeriod(diagnosis)}.` : "",
+    treatment
+  ].filter(Boolean).join("\n\n"));
+}
+
+function professionalTreatmentText(form = {}, isReturn = false) {
+  const medications = professionalSelectedTreatmentItems(form.tratamentoMedicamentosSelecionados, form.tratamentoMedicamentoso);
+  const approaches = professionalSelectedTreatmentItems(form.abordagensSelecionadas, form.abordagensTerapeuticas);
+  const returnMedicationActions = professionalListWithOther(
+    form.condutaMedicamentoRetorno,
+    form.condutaMedicamentoRetornoOutro
+  );
+  const physicianPlan = professionalClinicalTerms(stripFinalPeriod(form.condutaMedica || ""));
+  const selectedExams = professionalClinicalTerms(requestedExamsText(form) || form.examesLaboratoriais || "");
+  const sentences = [
+    medications ? `O tratamento medicamentoso selecionado inclui ${lowerFirst(medications)}.` : "",
+    approaches ? `Como medidas não farmacológicas, foram selecionadas ${lowerFirst(approaches)}.` : "",
+    isReturn && returnMedicationActions ? `A conduta medicamentosa definida no retorno inclui ${lowerFirst(returnMedicationActions)}.` : "",
+    physicianPlan ? `A conduta médica registrada consiste em ${lowerFirst(physicianPlan)}.` : "",
+    selectedExams ? `Foram solicitados ${lowerFirst(selectedExams)}.` : ""
+  ].filter(Boolean);
+  return sentences.join(" ");
+}
+
+export function professionalSelectedTreatmentItems(selected, fallback = "") {
+  const values = arrayValue(selected);
+  const items = values.length ? values : treatmentOptionLines(fallback);
+  return formatPlainList(items.map(item => professionalClinicalTerms(stripFinalPeriod(item))
+    .replace(/\s*\|\s*/g, ", ")
+    .replace(/\s+/g, " ")
+    .trim()));
+}
+
+function evolutionPatientIdentification(patient = {}) {
+  const age = calculateAge(patient.nascimento);
+  const rawOccupation = String(patient.ocupacao || "").replace(/\s*[—-]\s*dado fictício\s*$/i, "").trim();
+  const isAwayFromWork = /\bafastad[oa]\b/i.test(rawOccupation);
+  const occupation = rawOccupation.replace(/\bafastad[oa]\b/i, "").replace(/\s+/g, " ").trim();
+  const details = [
+    age ? `${age} anos` : "",
+    patient.estadoCivil ? genderedCivilStatus(patient.estadoCivil, patient.sexo) : "",
+    patient.religiao ? lowerFirst(professionalReligion(patient.religiao)) : "",
+    patient.escolaridade ? lowerFirst(professionalEducation(patient.escolaridade)) : "",
+    occupation ? lowerFirst(occupation) : ""
+  ].filter(Boolean);
+  const name = patient.nome?.trim() || "Nome não informado";
+  const identification = `${name}${details.length ? `, ${details.join(", ")}` : ""}`;
+  const workStatus = occupation
+    ? (isAwayFromWork ? "No momento, afastado do trabalho" : "Em atividade")
+    : "";
+  return [
+    identification,
+    workStatus
+  ].filter(Boolean).join(". ");
+}
+
+function professionalEducation(value = "") {
+  return professionalClinicalTerms(value)
+    .replace(/^fundamental\b/i, "ensino fundamental")
+    .replace(/^medio\b/i, "ensino médio")
+    .replace(/^superior\b/i, "ensino superior")
+    .replace(/\bpos-graduacao\b/gi, "pós-graduação");
+}
+
+function professionalReligion(value = "") {
+  return professionalClinicalTerms(value)
+    .replace(/\bsem religiao\b/gi, "sem religião")
+    .replace(/\bcatolica\b/gi, "católica")
+    .replace(/\bagnostico\b/gi, "agnóstico");
+}
+
+function evolutionAntecedentsText(form = {}) {
+  const psychiatric = professionalClinicalTerms(joinWithOutro(form.psiPrevios, form.psiPreviosOutro));
+  const treatments = professionalClinicalTerms(joinWithOutro(form.tratamentos, form.tratamentosOutro));
+  const medical = professionalClinicalTerms(joinWithOutro(form.medicos, form.medicosOutro));
+  const family = professionalClinicalTerms(joinWithOutro(form.familiares, form.familiaresOutro));
+  const substances = professionalClinicalTerms(joinWithOutro(form.substancias, form.substanciasOutro));
+  const addictive = professionalClinicalTerms(joinWithOutro(form.usoSubstanciasComportamentos, form.usoSubstanciasComportamentosOutro));
+  const parts = [
+    psychiatric ? `Apresenta antecedentes psiquiátricos de ${lowerFirst(psychiatric)}.` : "",
+    treatments ? `Realizou tratamentos prévios com ${lowerFirst(treatments)}.` : "",
+    medical ? (/^nega\b/i.test(medical) ? `${capitalizeFirst(stripFinalPeriod(medical))}.` : `Apresenta antecedentes médicos de ${lowerFirst(medical)}.`) : "",
+    family ? `Há antecedentes familiares de ${lowerFirst(family)}.` : "",
+    substances ? `Relata hábitos ou uso de substâncias relacionados a ${lowerFirst(substances)}.` : "",
+    addictive ? `Foram registrados hábitos, substâncias ou comportamentos aditivos: ${lowerFirst(addictive)}.` : ""
+  ].filter(Boolean);
+  return parts.join(" ");
+}
+
+function professionalStructuredAnamnesisText(form = {}) {
+  const mania = professionalListWithOther(form.maniaHipomaniaSintomas, form.maniaHipomaniaSintomasOutro);
+  const sleep = professionalList(form.sonoCaracteristicas);
+  const appetite = professionalList(form.apetiteCaracteristicas);
+  const depression = professionalList(form.depressaoSintomas);
+  const psychosis = professionalListWithOther(form.psicoseSintomas, form.psicoseSintomasOutro);
+  const risks = professionalList(form.riscoSuicidioIndicadores);
+  const factors = professionalClinicalTerms(joinWithOutro(form.fatores, form.fatoresOutro));
+  const improvements = professionalClinicalTerms(joinWithOutro(form.fatoresMelhora, form.fatoresMelhoraOutro));
+  const impact = professionalList(form.impacto);
+  const parts = [
+    mania ? (/nega sintomas relacionados/i.test(mania)
+      ? "Nega sintomas relacionados à ativação do humor."
+      : `Relata sintomas de ativação do humor: ${lowerFirst(mania)}.`) : "",
+    sleep ? `Relata ${lowerFirst(sleep)}.` : "",
+    appetite ? `Apresenta ${lowerFirst(appetite)}.` : "",
+    depression ? `Apresenta ${lowerFirst(depression)}.` : "",
+    psychosis ? `Apresenta ${lowerFirst(psychosis)}.` : "",
+    risks ? (/nega ideação, plano ou intenção suicida/i.test(risks)
+      ? "Nega ideação, plano ou intenção suicida."
+      : `Apresenta ${lowerFirst(risks)}.`) : "",
+    form.riscoSuicidioRazoesViver ? protectiveFactorSentence(form.riscoSuicidioRazoesViver) : "",
+    form.riscoSuicidioRazoesParaViver ? `As razões para viver incluem ${lowerFirst(professionalClinicalTerms(stripFinalPeriod(form.riscoSuicidioRazoesParaViver)))}.` : "",
+    factors ? (normalizeText(factors).includes("sem fator claro")
+      ? "O quadro não apresenta associação com fator desencadeante claro."
+      : `O quadro apresenta associação com ${lowerFirst(factors)}.`) : "",
+    improvements ? improvementSentence(improvements) : "",
+    impact ? `Há impacto funcional, com ${lowerFirst(impact).replace(/prejuízo social e prejuízo familiar/i, "prejuízo social e familiar")}.` : ""
+  ].filter(Boolean);
+  return parts.join(" ");
+}
+
+function professionalHistorySentence(value = "") {
+  let history = professionalClinicalTerms(stripFinalPeriod(value));
+  history = history.replace(/^Evolução insidiosa\b/i, "A evolução dos sintomas foi insidiosa");
+  history = history.replace(/^Evolução gradual\b/i, "A evolução dos sintomas foi gradual");
+  return `${capitalizeFirst(history)}.`;
+}
+
+function professionalMentalFinding(value = "") {
+  return professionalClinicalTerms(value)
+    .replace(/^consciente$/i, "consciência preservada")
+    .replace(/^orientado no tempo e no espaço$/i, "orientação no tempo e no espaço")
+    .replace(/^com funções mnésicas preservadas$/i, "funções mnésicas preservadas")
+    .replace(/^restrito\/aplanado$/i, "restrição/aplanamento afetivo")
+    .replace(/^crítica parcial$/i, "crítica parcialmente preservada");
+}
+
+function protectiveFactorSentence(value = "") {
+  const text = professionalClinicalTerms(stripFinalPeriod(value));
+  if (/^nega ideação ou intenção suicida;\s*mantém vínculo e supervisão familiar$/i.test(text)) {
+    return "Como fatores protetivos, registram-se a ausência de ideação ou intenção suicida e a manutenção de vínculo e supervisão familiar.";
+  }
+  return `Como fator protetivo, registra-se ${lowerFirst(text)}.`;
+}
+
+function genderedCivilStatus(value = "", sex = "") {
+  const normalizedSex = normalizeText(sex);
+  if (!/\(a\)/i.test(value)) return value.toLowerCase();
+  if (normalizedSex === "feminino") return value.replace(/\(a\)/i, "a").toLowerCase();
+  if (normalizedSex === "masculino") return value.replace(/\(a\)/i, "").toLowerCase();
+  return value.toLowerCase();
+}
+
+export function conciseIdentityText(patient = {}) {
+  return stripFinalPeriod(patientIdentificationText(patient, true)) || "Paciente com dados de identificação não preenchidos";
+}
+
+export function conciseComplaintText(form = {}, isReturn = false) {
+  if (isReturn) return stripFinalPeriod(
+    joinWithOutro(form.evolucaoClinicaRetorno, form.evolucaoClinicaRetornoOutro)
+    || form.sintomasPrincipais
+    || form.observacoesRetorno
+    || "Queixa de retorno não informada"
+  );
+  const qphda = anamnesisText(form);
+  return cleanClinicalLine(form.queixa || firstLineFromQphda(qphda) || "Queixa principal não informada");
+}
+
+export function conciseHdaText(form = {}, previous = null, isReturn = false) {
+  if (isReturn) return cleanClinicalLine(returnStoryText(form, previous) || "História do retorno não informada");
+  const qphda = anamnesisText(form);
+  const story = form.historia || remainingQphdaText(qphda, form.queixa);
+  return cleanClinicalLine(story || "História da doença atual não informada");
+}
+
+export function conciseAntecedentsText(form = {}) {
+  const parts = [
+    joinWithOutro(form.psiPrevios, form.psiPreviosOutro) ? `antecedentes psiquiátricos de ${lowerFirst(joinWithOutro(form.psiPrevios, form.psiPreviosOutro))}` : "",
+    joinWithOutro(form.tratamentos, form.tratamentosOutro) ? `tratamentos prévios com ${lowerFirst(joinWithOutro(form.tratamentos, form.tratamentosOutro))}` : "",
+    joinWithOutro(form.medicos, form.medicosOutro) ? `antecedentes médicos de ${lowerFirst(joinWithOutro(form.medicos, form.medicosOutro))}` : "",
+    joinWithOutro(form.familiares, form.familiaresOutro) ? `histórico familiar de ${lowerFirst(joinWithOutro(form.familiares, form.familiaresOutro))}` : "",
+    joinWithOutro(form.substancias, form.substanciasOutro) ? `uso/hábitos: ${lowerFirst(joinWithOutro(form.substancias, form.substanciasOutro))}` : ""
+  ].filter(Boolean);
+  return parts.length ? parts.join("; ") : "não há antecedentes relevantes registrados";
+}
+
+export function conciseMentalExamText(form = {}) {
+  const findings = mentalExamKeys()
+    .flatMap(key => clinicalMentalValues(form, key))
+    .map(cleanClinicalLine)
+    .filter(Boolean);
+  return findings.length ? formatClinicalList(findings) : "não há achados do exame psíquico registrados";
+}
+
+export function conciseDiagnosticText(form = {}) {
+  const selected = selectedDiagnosisText(form) || form.diagnosticoSelecionadoResumo || form.diagnosticoManual || "";
+  return cleanClinicalLine(selected || "Hipóteses diagnósticas não selecionadas");
+}
+
+export function patientIdentificationText(patient = {}, withPrefix = true) {
+  const age = calculateAge(patient.nascimento);
+  const sexo = patient.sexo ? lowerFirst(patient.sexo) : "";
+  const fragments = [
+    sexo ? `${withPrefix ? "Paciente " : ""}${sexo}` : withPrefix ? "Paciente" : "",
+    age ? `${age} anos` : "",
+    patient.estadoCivil ? patient.estadoCivil.toLowerCase() : "",
+    patient.ocupacao ? lowerFirst(patient.ocupacao) : ""
+  ].filter(Boolean);
+  return `${fragments.join(", ")}.`;
+}
+
+export function returnStoryText(form, previous) {
+  const clinicalEvolution = normalizedSingleChoiceValue("evolucaoClinicaRetorno", form.evolucaoClinicaRetorno);
+  const sleep = normalizedSingleChoiceValue("sonoRetorno", form.sonoRetorno);
+  const moodAndAnxiety = normalizedSingleChoiceValue("humorAnsiedadeRetorno", form.humorAnsiedadeRetorno);
+  const adherence = normalizedSingleChoiceValue("adesao", form.adesao);
+  const adverseEffects = joinWithOutro(form.efeitos, form.efeitosOutro);
+  const functionalityAndEvents = joinWithOutro(form.funcionalidadeEventosRetorno, form.funcionalidadeEventosRetornoOutro);
+  const legacyEvolution = [form.estadoGeral, form.sintomasPrincipais].filter(Boolean).join(", ");
+  const legacyMood = [form.humorRetorno, form.ansiedadeRetorno].filter(Boolean).join(", ");
+  const parts = [
+    clinicalEvolution || legacyEvolution
+      ? `Paciente retornou com ${lowerFirst(clinicalEvolution || legacyEvolution)}.`
+      : "Paciente retornou para acompanhamento clínico.",
+    form.evolucaoClinicaRetornoOutro ? `Como nota adicional sobre a evolução, registra-se ${lowerFirst(stripFinalPeriod(form.evolucaoClinicaRetornoOutro))}.` : "",
+    sleep ? `Refere sono ${lowerFirst(sleep)}.` : "",
+    form.sonoRetornoOutro ? `Acrescenta sobre o sono: ${lowerFirst(stripFinalPeriod(form.sonoRetornoOutro))}.` : "",
+    moodAndAnxiety ? returnMoodAndAnxietySentence(moodAndAnxiety) : (legacyMood ? `Apresenta ${lowerFirst(legacyMood)}.` : ""),
+    form.humorAnsiedadeRetornoOutro ? `Como nota adicional sobre humor e ansiedade, registra-se ${lowerFirst(stripFinalPeriod(form.humorAnsiedadeRetornoOutro))}.` : "",
+    adherence ? `A adesão ao tratamento encontra-se ${lowerFirst(adherence)}.` : "",
+    form.adesaoOutro ? `Como nota adicional sobre a adesão, registra-se ${lowerFirst(stripFinalPeriod(form.adesaoOutro))}.` : "",
+    adverseEffects ? `Em relação aos efeitos colaterais, refere ${lowerFirst(adverseEffects)}.` : "",
+    functionalityAndEvents ? `Na funcionalidade e nos eventos relevantes, registra-se ${lowerFirst(functionalityAndEvents)}.` : (form.funcionalidade || joinValues(form.eventos) ? `Na funcionalidade e nos eventos relevantes, registra-se ${lowerFirst([form.funcionalidade, joinValues(form.eventos)].filter(Boolean).join(", "))}.` : ""),
+    form.observacoesRetorno ? `Como informação complementar previamente registrada, consta ${lowerFirst(stripFinalPeriod(form.observacoesRetorno))}.` : ""
+  ].filter(Boolean);
+  return professionalClinicalTerms(parts.join(" "));
+}
+
+function returnMoodAndAnxietySentence(value = "") {
+  if (normalizeText(value) === "crise de panico") return "Apresenta crise de pânico.";
+  return `Apresenta humor ${lowerFirst(value)}.`;
+}
+
+export function mentalStateFindings(form) {
+  return mentalExamKeys()
+    .flatMap(key => clinicalMentalValues(form, key))
+    .filter(Boolean);
+}
+
+export function outdatedEvolutionText(value = "") {
+  return normalizeText(value).startsWith("evolucao medica auxiliada por ia");
+}
+
+function firstLineFromQphda(value = "") {
+  return stripFinalPeriod(String(value || "").split(/\n+/).find(Boolean) || "");
+}
+
+function remainingQphdaText(value = "", complaint = "") {
+  const lines = String(value || "").split(/\n+/).map(line => stripFinalPeriod(line)).filter(Boolean);
+  if (!lines.length) return "";
+  if (complaint && normalizeText(lines[0]).includes(normalizeText(complaint))) return lines.slice(1).join(". ");
+  return lines.slice(1).join(". ") || lines[0];
+}
+
+export function joinWithOutro(value, otherValue = "") {
+  const base = arrayValue(value).filter(item => normalizeText(item) !== "outro").join(", ");
+  return [base, otherValue].filter(Boolean).join(base && otherValue ? ", " : "");
+}
+
+function clinicalMentalValues(form = {}, key = "") {
+  return [
+    ...arrayValue(form[key]).filter(item => normalizeText(item) !== "outro"),
+    form[`${key}Outro`]
+  ].map(clinicalPhrase).filter(Boolean);
+}
+
+function improvementSentence(value = "") {
+  const text = lowerFirst(stripFinalPeriod(value)).replace(/^melhora\s+/i, "");
+  const connector = normalizeText(text).startsWith("apos ") ? "" : "com ";
+  return `Diz que a melhora geralmente ocorre ${connector}${text}.`;
+}
+
+export function requestedExamsText(form = {}) {
+  const selected = Array.isArray(form.examesSolicitados)
+    ? form.examesSolicitados.filter(Boolean)
+    : form.examesSolicitados
+      ? [form.examesSolicitados]
+      : [];
+  const expanded = selected.flatMap(exam =>
+    exam === "Exames laboratoriais" ? laboratoryExamRequestItems : [exam]
+  );
+  if (form.examesSolicitadosOutro?.trim()) expanded.push(form.examesSolicitadosOutro.trim());
+  return [...new Set(expanded)].join(", ");
+}
+
+export function anamnesisText(form = {}) {
+  return form.qphda || [form.queixa && `QP: ${form.queixa}`, form.hdaManual && `HDA: ${form.hdaManual}`].filter(Boolean).join("\n");
+}
+
+export function shouldRefreshEvolutionNarrative(value = "") {
+  const text = String(value || "");
+  return EVOLUTION_REFRESH_PATTERNS.some(pattern => pattern.test(text));
+}
+
+export function returnEvolutionContainsIdentity(value = "", patient = {}) {
+  const evolution = normalizeText(value).trim();
+  const patientName = normalizeText(patient.nome).trim();
+  return Boolean(evolution && patientName && evolution.startsWith(patientName));
+}
+
+export function removeReturnBoilerplate(value = "") {
+  return RETURN_BOILERPLATE_PHRASES.reduce((text, phrase) => text.replaceAll(phrase, " "), value)
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function normalizeEvolutionNarrative(value = "") {
+  return String(value || "")
+    .replace(/\*\*[^*]*\*\*/g, " ")
+    .replace(/^\s*#{1,6}\s+.*$/gm, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/ +([,.;:!?])/g, "$1")
+    .trim();
+}

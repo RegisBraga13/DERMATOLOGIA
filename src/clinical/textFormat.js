@@ -104,3 +104,30 @@ export function calculateAge(dateValue) {
   if (!hadBirthday) age -= 1;
   return age >= 0 ? age : "";
 }
+
+export function normalizedSingleChoiceValue(name, value) {
+  const selected = arrayValue(value)[0] || "";
+  const aliases = {
+    evolucaoClinicaRetorno: {
+      "Remissao ou melhora": "Melhora clínica",
+      "Melhora clinica": "Melhora clínica",
+      Estavel: "Estabilidade clínica",
+      "Estabilidade clinica": "Estabilidade clínica",
+      Piora: "Piora clínica",
+      "Piora clinica": "Piora clínica"
+    },
+    sonoRetorno: {
+      Insonia: "Insônia",
+      "Reducao da necessidade de sono": "Redução da necessidade de sono"
+    },
+    humorAnsiedadeRetorno: {
+      Eutimico: "Eutímico",
+      Irritavel: "Irritável",
+      "Crise de panico": "Crise de pânico"
+    },
+    adesao: {
+      "Nao iniciou ou interrompeu": "Não iniciou ou interrompeu"
+    }
+  };
+  return aliases[name]?.[selected] || selected;
+}
