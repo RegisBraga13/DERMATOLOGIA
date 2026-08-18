@@ -675,13 +675,13 @@ function refinementBody(form = {}) {
   }
   const questionBlocks = (plan.questions || []).map((item, index) => {
     const name = `refinementQuestion_${index}`;
-    const selected = valueList(form[name]);
+    const selected = arrayValue(form[name]);
     const type = item.selection_mode === "multiple" ? "checkbox" : "radio";
     return `<article class="refinement-item"><h4>${escapeHtml(item.topic || `Pergunta ${index + 1}`)}</h4><p>${escapeHtml(item.prompt || "")}</p><div class="chips">${(item.options || []).map(option => `<label class="chip"><input type="${type}" name="${name}" value="${escapeAttr(option)}" ${selected.includes(option) ? "checked" : ""}>${escapeHtml(option)}</label>`).join("")}</div></article>`;
   }).join("");
   const decisionBlock = (title, items, prefix, options) => !items?.length ? "" : `<section class="refinement-section"><h4>${title}</h4>${items.map((item, index) => {
     const name = `${prefix}_${index}`;
-    const selected = valueList(form[name])[0] || "";
+    const selected = arrayValue(form[name])[0] || "";
     return `<article class="refinement-item"><strong>${escapeHtml(item.topic || "")}</strong><p>${escapeHtml(item.reason || "")}</p><div class="chips">${options.map(option => `<label class="chip"><input type="radio" name="${name}" value="${escapeAttr(option)}" ${selected === option ? "checked" : ""}>${escapeHtml(option)}</label>`).join("")}</div></article>`;
   }).join("")}</section>`;
   return `
@@ -803,7 +803,7 @@ function summaryTextRow(section, item, value) {
 }
 
 function summaryGroupedOptionRow(section, item, key, options, form, otherKey = "") {
-  const selected = valueList(form[key]);
+  const selected = arrayValue(form[key]);
   const normalizedSelected = new Set(selected.map(normalizeText));
   const values = options.flatMap(option => {
     const isOther = normalizeText(option) === "outro";
@@ -1240,7 +1240,7 @@ function singleChoiceWithNotes(name, labelText, options, value = "") {
 }
 
 function normalizedSingleChoiceValue(name, value) {
-  const selected = valueList(value)[0] || "";
+  const selected = arrayValue(value)[0] || "";
   const aliases = {
     evolucaoClinicaRetorno: {
       "Remissao ou melhora": "Melhora clínica",
@@ -2733,12 +2733,12 @@ function professionalMentalFinding(value = "") {
 }
 
 function professionalList(value) {
-  return formatPlainList(valueList(value).map(item => lowerFirst(professionalClinicalTerms(item))));
+  return formatPlainList(arrayValue(value).map(item => lowerFirst(professionalClinicalTerms(item))));
 }
 
 function professionalListWithOther(value, otherValue = "") {
   return formatPlainList([
-    ...valueList(value).filter(item => normalizeText(item) !== "outro"),
+    ...arrayValue(value).filter(item => normalizeText(item) !== "outro"),
     otherValue
   ].filter(Boolean).map(item => lowerFirst(professionalClinicalTerms(item))));
 }
@@ -2880,9 +2880,6 @@ function mentalStateFindings(form) {
     .filter(Boolean);
 }
 
-function valueList(value) {
-  return Array.isArray(value) ? value.filter(Boolean) : value ? [value] : [];
-}
 
 function uniqueValues(values) {
   return [...new Set(values.filter(Boolean))];
@@ -2908,7 +2905,7 @@ function remainingQphdaText(value = "", complaint = "") {
 }
 
 function joinWithOutro(value, otherValue = "") {
-  const base = valueList(value).filter(item => normalizeText(item) !== "outro").join(", ");
+  const base = arrayValue(value).filter(item => normalizeText(item) !== "outro").join(", ");
   return [base, otherValue].filter(Boolean).join(base && otherValue ? ", " : "");
 }
 
@@ -2918,7 +2915,7 @@ function mentalExamKeys() {
 
 function clinicalMentalValues(form = {}, key = "") {
   return [
-    ...valueList(form[key]).filter(item => normalizeText(item) !== "outro"),
+    ...arrayValue(form[key]).filter(item => normalizeText(item) !== "outro"),
     form[`${key}Outro`]
   ].map(clinicalPhrase).filter(Boolean);
 }
