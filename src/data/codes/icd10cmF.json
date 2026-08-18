@@ -1,0 +1,3494 @@
+{
+ "fonte": "CDC/NCHS ICD-10-CM FY2026, capitulo 5 (F01-F99)",
+ "licenca": "Dominio publico (obra do governo dos EUA)",
+ "gerado_em": "2026-08-18",
+ "gerado_por": "scripts/build_code_tables.py",
+ "total": 871,
+ "codigos": [
+  {
+   "code": "F01.50",
+   "name": "Vascular dementia, unspecified severity, without behavioral disturbance, psychotic disturbance, mood disturbance, and anxiety"
+  },
+  {
+   "code": "F01.511",
+   "name": "Vascular dementia, unspecified severity, with agitation"
+  },
+  {
+   "code": "F01.518",
+   "name": "Vascular dementia, unspecified severity, with other behavioral disturbance"
+  },
+  {
+   "code": "F01.52",
+   "name": "Vascular dementia, unspecified severity, with psychotic disturbance"
+  },
+  {
+   "code": "F01.53",
+   "name": "Vascular dementia, unspecified severity, with mood disturbance"
+  },
+  {
+   "code": "F01.54",
+   "name": "Vascular dementia, unspecified severity, with anxiety"
+  },
+  {
+   "code": "F01.A0",
+   "name": "Vascular dementia, mild, without behavioral disturbance, psychotic disturbance, mood disturbance, and anxiety"
+  },
+  {
+   "code": "F01.A11",
+   "name": "Vascular dementia, mild, with agitation"
+  },
+  {
+   "code": "F01.A18",
+   "name": "Vascular dementia, mild, with other behavioral disturbance"
+  },
+  {
+   "code": "F01.A2",
+   "name": "Vascular dementia, mild, with psychotic disturbance"
+  },
+  {
+   "code": "F01.A3",
+   "name": "Vascular dementia, mild, with mood disturbance"
+  },
+  {
+   "code": "F01.A4",
+   "name": "Vascular dementia, mild, with anxiety"
+  },
+  {
+   "code": "F01.B0",
+   "name": "Vascular dementia, moderate, without behavioral disturbance, psychotic disturbance, mood disturbance, and anxiety"
+  },
+  {
+   "code": "F01.B11",
+   "name": "Vascular dementia, moderate, with agitation"
+  },
+  {
+   "code": "F01.B18",
+   "name": "Vascular dementia, moderate, with other behavioral disturbance"
+  },
+  {
+   "code": "F01.B2",
+   "name": "Vascular dementia, moderate, with psychotic disturbance"
+  },
+  {
+   "code": "F01.B3",
+   "name": "Vascular dementia, moderate, with mood disturbance"
+  },
+  {
+   "code": "F01.B4",
+   "name": "Vascular dementia, moderate, with anxiety"
+  },
+  {
+   "code": "F01.C0",
+   "name": "Vascular dementia, severe, without behavioral disturbance, psychotic disturbance, mood disturbance, and anxiety"
+  },
+  {
+   "code": "F01.C11",
+   "name": "Vascular dementia, severe, with agitation"
+  },
+  {
+   "code": "F01.C18",
+   "name": "Vascular dementia, severe, with other behavioral disturbance"
+  },
+  {
+   "code": "F01.C2",
+   "name": "Vascular dementia, severe, with psychotic disturbance"
+  },
+  {
+   "code": "F01.C3",
+   "name": "Vascular dementia, severe, with mood disturbance"
+  },
+  {
+   "code": "F01.C4",
+   "name": "Vascular dementia, severe, with anxiety"
+  },
+  {
+   "code": "F02.80",
+   "name": "Dementia in other diseases classified elsewhere, unspecified severity, without behavioral disturbance, psychotic disturbance, mood disturbance, and anxiety"
+  },
+  {
+   "code": "F02.811",
+   "name": "Dementia in other diseases classified elsewhere, unspecified severity, with agitation"
+  },
+  {
+   "code": "F02.818",
+   "name": "Dementia in other diseases classified elsewhere, unspecified severity, with other behavioral disturbance"
+  },
+  {
+   "code": "F02.82",
+   "name": "Dementia in other diseases classified elsewhere, unspecified severity, with psychotic disturbance"
+  },
+  {
+   "code": "F02.83",
+   "name": "Dementia in other diseases classified elsewhere, unspecified severity, with mood disturbance"
+  },
+  {
+   "code": "F02.84",
+   "name": "Dementia in other diseases classified elsewhere, unspecified severity, with anxiety"
+  },
+  {
+   "code": "F02.A0",
+   "name": "Dementia in other diseases classified elsewhere, mild, without behavioral disturbance, psychotic disturbance, mood disturbance, and anxiety"
+  },
+  {
+   "code": "F02.A11",
+   "name": "Dementia in other diseases classified elsewhere, mild, with agitation"
+  },
+  {
+   "code": "F02.A18",
+   "name": "Dementia in other diseases classified elsewhere, mild, with other behavioral disturbance"
+  },
+  {
+   "code": "F02.A2",
+   "name": "Dementia in other diseases classified elsewhere, mild, with psychotic disturbance"
+  },
+  {
+   "code": "F02.A3",
+   "name": "Dementia in other diseases classified elsewhere, mild, with mood disturbance"
+  },
+  {
+   "code": "F02.A4",
+   "name": "Dementia in other diseases classified elsewhere, mild, with anxiety"
+  },
+  {
+   "code": "F02.B0",
+   "name": "Dementia in other diseases classified elsewhere, moderate, without behavioral disturbance, psychotic disturbance, mood disturbance, and anxiety"
+  },
+  {
+   "code": "F02.B11",
+   "name": "Dementia in other diseases classified elsewhere, moderate, with agitation"
+  },
+  {
+   "code": "F02.B18",
+   "name": "Dementia in other diseases classified elsewhere, moderate, with other behavioral disturbance"
+  },
+  {
+   "code": "F02.B2",
+   "name": "Dementia in other diseases classified elsewhere, moderate, with psychotic disturbance"
+  },
+  {
+   "code": "F02.B3",
+   "name": "Dementia in other diseases classified elsewhere, moderate, with mood disturbance"
+  },
+  {
+   "code": "F02.B4",
+   "name": "Dementia in other diseases classified elsewhere, moderate, with anxiety"
+  },
+  {
+   "code": "F02.C0",
+   "name": "Dementia in other diseases classified elsewhere, severe, without behavioral disturbance, psychotic disturbance, mood disturbance, and anxiety"
+  },
+  {
+   "code": "F02.C11",
+   "name": "Dementia in other diseases classified elsewhere, severe, with agitation"
+  },
+  {
+   "code": "F02.C18",
+   "name": "Dementia in other diseases classified elsewhere, severe, with other behavioral disturbance"
+  },
+  {
+   "code": "F02.C2",
+   "name": "Dementia in other diseases classified elsewhere, severe, with psychotic disturbance"
+  },
+  {
+   "code": "F02.C3",
+   "name": "Dementia in other diseases classified elsewhere, severe, with mood disturbance"
+  },
+  {
+   "code": "F02.C4",
+   "name": "Dementia in other diseases classified elsewhere, severe, with anxiety"
+  },
+  {
+   "code": "F03.90",
+   "name": "Unspecified dementia, unspecified severity, without behavioral disturbance, psychotic disturbance, mood disturbance, and anxiety"
+  },
+  {
+   "code": "F03.911",
+   "name": "Unspecified dementia, unspecified severity, with agitation"
+  },
+  {
+   "code": "F03.918",
+   "name": "Unspecified dementia, unspecified severity, with other behavioral disturbance"
+  },
+  {
+   "code": "F03.92",
+   "name": "Unspecified dementia, unspecified severity, with psychotic disturbance"
+  },
+  {
+   "code": "F03.93",
+   "name": "Unspecified dementia, unspecified severity, with mood disturbance"
+  },
+  {
+   "code": "F03.94",
+   "name": "Unspecified dementia, unspecified severity, with anxiety"
+  },
+  {
+   "code": "F03.A0",
+   "name": "Unspecified dementia, mild, without behavioral disturbance, psychotic disturbance, mood disturbance, and anxiety"
+  },
+  {
+   "code": "F03.A11",
+   "name": "Unspecified dementia, mild, with agitation"
+  },
+  {
+   "code": "F03.A18",
+   "name": "Unspecified dementia, mild, with other behavioral disturbance"
+  },
+  {
+   "code": "F03.A2",
+   "name": "Unspecified dementia, mild, with psychotic disturbance"
+  },
+  {
+   "code": "F03.A3",
+   "name": "Unspecified dementia, mild, with mood disturbance"
+  },
+  {
+   "code": "F03.A4",
+   "name": "Unspecified dementia, mild, with anxiety"
+  },
+  {
+   "code": "F03.B0",
+   "name": "Unspecified dementia, moderate, without behavioral disturbance, psychotic disturbance, mood disturbance, and anxiety"
+  },
+  {
+   "code": "F03.B11",
+   "name": "Unspecified dementia, moderate, with agitation"
+  },
+  {
+   "code": "F03.B18",
+   "name": "Unspecified dementia, moderate, with other behavioral disturbance"
+  },
+  {
+   "code": "F03.B2",
+   "name": "Unspecified dementia, moderate, with psychotic disturbance"
+  },
+  {
+   "code": "F03.B3",
+   "name": "Unspecified dementia, moderate, with mood disturbance"
+  },
+  {
+   "code": "F03.B4",
+   "name": "Unspecified dementia, moderate, with anxiety"
+  },
+  {
+   "code": "F03.C0",
+   "name": "Unspecified dementia, severe, without behavioral disturbance, psychotic disturbance, mood disturbance, and anxiety"
+  },
+  {
+   "code": "F03.C11",
+   "name": "Unspecified dementia, severe, with agitation"
+  },
+  {
+   "code": "F03.C18",
+   "name": "Unspecified dementia, severe, with other behavioral disturbance"
+  },
+  {
+   "code": "F03.C2",
+   "name": "Unspecified dementia, severe, with psychotic disturbance"
+  },
+  {
+   "code": "F03.C3",
+   "name": "Unspecified dementia, severe, with mood disturbance"
+  },
+  {
+   "code": "F03.C4",
+   "name": "Unspecified dementia, severe, with anxiety"
+  },
+  {
+   "code": "F04",
+   "name": "Amnestic disorder due to known physiological condition"
+  },
+  {
+   "code": "F05",
+   "name": "Delirium due to known physiological condition"
+  },
+  {
+   "code": "F06.0",
+   "name": "Psychotic disorder with hallucinations due to known physiological condition"
+  },
+  {
+   "code": "F06.1",
+   "name": "Catatonic disorder due to known physiological condition"
+  },
+  {
+   "code": "F06.2",
+   "name": "Psychotic disorder with delusions due to known physiological condition"
+  },
+  {
+   "code": "F06.30",
+   "name": "Mood disorder due to known physiological condition, unspecified"
+  },
+  {
+   "code": "F06.31",
+   "name": "Mood disorder due to known physiological condition with depressive features"
+  },
+  {
+   "code": "F06.32",
+   "name": "Mood disorder due to known physiological condition with major depressive-like episode"
+  },
+  {
+   "code": "F06.33",
+   "name": "Mood disorder due to known physiological condition with manic features"
+  },
+  {
+   "code": "F06.34",
+   "name": "Mood disorder due to known physiological condition with mixed features"
+  },
+  {
+   "code": "F06.4",
+   "name": "Anxiety disorder due to known physiological condition"
+  },
+  {
+   "code": "F06.70",
+   "name": "Mild neurocognitive disorder due to known physiological condition without behavioral disturbance"
+  },
+  {
+   "code": "F06.71",
+   "name": "Mild neurocognitive disorder due to known physiological condition with behavioral disturbance"
+  },
+  {
+   "code": "F06.8",
+   "name": "Other specified mental disorders due to known physiological condition"
+  },
+  {
+   "code": "F07.0",
+   "name": "Personality change due to known physiological condition"
+  },
+  {
+   "code": "F07.81",
+   "name": "Postconcussional syndrome"
+  },
+  {
+   "code": "F07.89",
+   "name": "Other personality and behavioral disorders due to known physiological condition"
+  },
+  {
+   "code": "F07.9",
+   "name": "Unspecified personality and behavioral disorder due to known physiological condition"
+  },
+  {
+   "code": "F09",
+   "name": "Unspecified mental disorder due to known physiological condition"
+  },
+  {
+   "code": "F10.10",
+   "name": "Alcohol abuse, uncomplicated"
+  },
+  {
+   "code": "F10.11",
+   "name": "Alcohol abuse, in remission"
+  },
+  {
+   "code": "F10.120",
+   "name": "Alcohol abuse with intoxication, uncomplicated"
+  },
+  {
+   "code": "F10.121",
+   "name": "Alcohol abuse with intoxication delirium"
+  },
+  {
+   "code": "F10.129",
+   "name": "Alcohol abuse with intoxication, unspecified"
+  },
+  {
+   "code": "F10.130",
+   "name": "Alcohol abuse with withdrawal, uncomplicated"
+  },
+  {
+   "code": "F10.131",
+   "name": "Alcohol abuse with withdrawal delirium"
+  },
+  {
+   "code": "F10.132",
+   "name": "Alcohol abuse with withdrawal with perceptual disturbance"
+  },
+  {
+   "code": "F10.139",
+   "name": "Alcohol abuse with withdrawal, unspecified"
+  },
+  {
+   "code": "F10.14",
+   "name": "Alcohol abuse with alcohol-induced mood disorder"
+  },
+  {
+   "code": "F10.150",
+   "name": "Alcohol abuse with alcohol-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F10.151",
+   "name": "Alcohol abuse with alcohol-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F10.159",
+   "name": "Alcohol abuse with alcohol-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F10.180",
+   "name": "Alcohol abuse with alcohol-induced anxiety disorder"
+  },
+  {
+   "code": "F10.181",
+   "name": "Alcohol abuse with alcohol-induced sexual dysfunction"
+  },
+  {
+   "code": "F10.182",
+   "name": "Alcohol abuse with alcohol-induced sleep disorder"
+  },
+  {
+   "code": "F10.188",
+   "name": "Alcohol abuse with other alcohol-induced disorder"
+  },
+  {
+   "code": "F10.19",
+   "name": "Alcohol abuse with unspecified alcohol-induced disorder"
+  },
+  {
+   "code": "F10.20",
+   "name": "Alcohol dependence, uncomplicated"
+  },
+  {
+   "code": "F10.21",
+   "name": "Alcohol dependence, in remission"
+  },
+  {
+   "code": "F10.220",
+   "name": "Alcohol dependence with intoxication, uncomplicated"
+  },
+  {
+   "code": "F10.221",
+   "name": "Alcohol dependence with intoxication delirium"
+  },
+  {
+   "code": "F10.229",
+   "name": "Alcohol dependence with intoxication, unspecified"
+  },
+  {
+   "code": "F10.230",
+   "name": "Alcohol dependence with withdrawal, uncomplicated"
+  },
+  {
+   "code": "F10.231",
+   "name": "Alcohol dependence with withdrawal delirium"
+  },
+  {
+   "code": "F10.232",
+   "name": "Alcohol dependence with withdrawal with perceptual disturbance"
+  },
+  {
+   "code": "F10.239",
+   "name": "Alcohol dependence with withdrawal, unspecified"
+  },
+  {
+   "code": "F10.24",
+   "name": "Alcohol dependence with alcohol-induced mood disorder"
+  },
+  {
+   "code": "F10.250",
+   "name": "Alcohol dependence with alcohol-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F10.251",
+   "name": "Alcohol dependence with alcohol-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F10.259",
+   "name": "Alcohol dependence with alcohol-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F10.26",
+   "name": "Alcohol dependence with alcohol-induced persisting amnestic disorder"
+  },
+  {
+   "code": "F10.27",
+   "name": "Alcohol dependence with alcohol-induced persisting dementia"
+  },
+  {
+   "code": "F10.280",
+   "name": "Alcohol dependence with alcohol-induced anxiety disorder"
+  },
+  {
+   "code": "F10.281",
+   "name": "Alcohol dependence with alcohol-induced sexual dysfunction"
+  },
+  {
+   "code": "F10.282",
+   "name": "Alcohol dependence with alcohol-induced sleep disorder"
+  },
+  {
+   "code": "F10.288",
+   "name": "Alcohol dependence with other alcohol-induced disorder"
+  },
+  {
+   "code": "F10.29",
+   "name": "Alcohol dependence with unspecified alcohol-induced disorder"
+  },
+  {
+   "code": "F10.90",
+   "name": "Alcohol use, unspecified, uncomplicated"
+  },
+  {
+   "code": "F10.91",
+   "name": "Alcohol use, unspecified, in remission"
+  },
+  {
+   "code": "F10.920",
+   "name": "Alcohol use, unspecified with intoxication, uncomplicated"
+  },
+  {
+   "code": "F10.921",
+   "name": "Alcohol use, unspecified with intoxication delirium"
+  },
+  {
+   "code": "F10.929",
+   "name": "Alcohol use, unspecified with intoxication, unspecified"
+  },
+  {
+   "code": "F10.930",
+   "name": "Alcohol use, unspecified with withdrawal, uncomplicated"
+  },
+  {
+   "code": "F10.931",
+   "name": "Alcohol use, unspecified with withdrawal delirium"
+  },
+  {
+   "code": "F10.932",
+   "name": "Alcohol use, unspecified with withdrawal with perceptual disturbance"
+  },
+  {
+   "code": "F10.939",
+   "name": "Alcohol use, unspecified with withdrawal, unspecified"
+  },
+  {
+   "code": "F10.94",
+   "name": "Alcohol use, unspecified with alcohol-induced mood disorder"
+  },
+  {
+   "code": "F10.950",
+   "name": "Alcohol use, unspecified with alcohol-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F10.951",
+   "name": "Alcohol use, unspecified with alcohol-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F10.959",
+   "name": "Alcohol use, unspecified with alcohol-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F10.96",
+   "name": "Alcohol use, unspecified with alcohol-induced persisting amnestic disorder"
+  },
+  {
+   "code": "F10.97",
+   "name": "Alcohol use, unspecified with alcohol-induced persisting dementia"
+  },
+  {
+   "code": "F10.980",
+   "name": "Alcohol use, unspecified with alcohol-induced anxiety disorder"
+  },
+  {
+   "code": "F10.981",
+   "name": "Alcohol use, unspecified with alcohol-induced sexual dysfunction"
+  },
+  {
+   "code": "F10.982",
+   "name": "Alcohol use, unspecified with alcohol-induced sleep disorder"
+  },
+  {
+   "code": "F10.988",
+   "name": "Alcohol use, unspecified with other alcohol-induced disorder"
+  },
+  {
+   "code": "F10.99",
+   "name": "Alcohol use, unspecified with unspecified alcohol-induced disorder"
+  },
+  {
+   "code": "F11.10",
+   "name": "Opioid abuse, uncomplicated"
+  },
+  {
+   "code": "F11.11",
+   "name": "Opioid abuse, in remission"
+  },
+  {
+   "code": "F11.120",
+   "name": "Opioid abuse with intoxication, uncomplicated"
+  },
+  {
+   "code": "F11.121",
+   "name": "Opioid abuse with intoxication delirium"
+  },
+  {
+   "code": "F11.122",
+   "name": "Opioid abuse with intoxication with perceptual disturbance"
+  },
+  {
+   "code": "F11.129",
+   "name": "Opioid abuse with intoxication, unspecified"
+  },
+  {
+   "code": "F11.13",
+   "name": "Opioid abuse with withdrawal"
+  },
+  {
+   "code": "F11.14",
+   "name": "Opioid abuse with opioid-induced mood disorder"
+  },
+  {
+   "code": "F11.150",
+   "name": "Opioid abuse with opioid-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F11.151",
+   "name": "Opioid abuse with opioid-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F11.159",
+   "name": "Opioid abuse with opioid-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F11.181",
+   "name": "Opioid abuse with opioid-induced sexual dysfunction"
+  },
+  {
+   "code": "F11.182",
+   "name": "Opioid abuse with opioid-induced sleep disorder"
+  },
+  {
+   "code": "F11.188",
+   "name": "Opioid abuse with other opioid-induced disorder"
+  },
+  {
+   "code": "F11.19",
+   "name": "Opioid abuse with unspecified opioid-induced disorder"
+  },
+  {
+   "code": "F11.20",
+   "name": "Opioid dependence, uncomplicated"
+  },
+  {
+   "code": "F11.21",
+   "name": "Opioid dependence, in remission"
+  },
+  {
+   "code": "F11.220",
+   "name": "Opioid dependence with intoxication, uncomplicated"
+  },
+  {
+   "code": "F11.221",
+   "name": "Opioid dependence with intoxication delirium"
+  },
+  {
+   "code": "F11.222",
+   "name": "Opioid dependence with intoxication with perceptual disturbance"
+  },
+  {
+   "code": "F11.229",
+   "name": "Opioid dependence with intoxication, unspecified"
+  },
+  {
+   "code": "F11.23",
+   "name": "Opioid dependence with withdrawal"
+  },
+  {
+   "code": "F11.24",
+   "name": "Opioid dependence with opioid-induced mood disorder"
+  },
+  {
+   "code": "F11.250",
+   "name": "Opioid dependence with opioid-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F11.251",
+   "name": "Opioid dependence with opioid-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F11.259",
+   "name": "Opioid dependence with opioid-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F11.281",
+   "name": "Opioid dependence with opioid-induced sexual dysfunction"
+  },
+  {
+   "code": "F11.282",
+   "name": "Opioid dependence with opioid-induced sleep disorder"
+  },
+  {
+   "code": "F11.288",
+   "name": "Opioid dependence with other opioid-induced disorder"
+  },
+  {
+   "code": "F11.29",
+   "name": "Opioid dependence with unspecified opioid-induced disorder"
+  },
+  {
+   "code": "F11.90",
+   "name": "Opioid use, unspecified, uncomplicated"
+  },
+  {
+   "code": "F11.91",
+   "name": "Opioid use, unspecified, in remission"
+  },
+  {
+   "code": "F11.920",
+   "name": "Opioid use, unspecified with intoxication, uncomplicated"
+  },
+  {
+   "code": "F11.921",
+   "name": "Opioid use, unspecified with intoxication delirium"
+  },
+  {
+   "code": "F11.922",
+   "name": "Opioid use, unspecified with intoxication with perceptual disturbance"
+  },
+  {
+   "code": "F11.929",
+   "name": "Opioid use, unspecified with intoxication, unspecified"
+  },
+  {
+   "code": "F11.93",
+   "name": "Opioid use, unspecified with withdrawal"
+  },
+  {
+   "code": "F11.94",
+   "name": "Opioid use, unspecified with opioid-induced mood disorder"
+  },
+  {
+   "code": "F11.950",
+   "name": "Opioid use, unspecified with opioid-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F11.951",
+   "name": "Opioid use, unspecified with opioid-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F11.959",
+   "name": "Opioid use, unspecified with opioid-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F11.981",
+   "name": "Opioid use, unspecified with opioid-induced sexual dysfunction"
+  },
+  {
+   "code": "F11.982",
+   "name": "Opioid use, unspecified with opioid-induced sleep disorder"
+  },
+  {
+   "code": "F11.988",
+   "name": "Opioid use, unspecified with other opioid-induced disorder"
+  },
+  {
+   "code": "F11.99",
+   "name": "Opioid use, unspecified with unspecified opioid-induced disorder"
+  },
+  {
+   "code": "F12.10",
+   "name": "Cannabis abuse, uncomplicated"
+  },
+  {
+   "code": "F12.11",
+   "name": "Cannabis abuse, in remission"
+  },
+  {
+   "code": "F12.120",
+   "name": "Cannabis abuse with intoxication, uncomplicated"
+  },
+  {
+   "code": "F12.121",
+   "name": "Cannabis abuse with intoxication delirium"
+  },
+  {
+   "code": "F12.122",
+   "name": "Cannabis abuse with intoxication with perceptual disturbance"
+  },
+  {
+   "code": "F12.129",
+   "name": "Cannabis abuse with intoxication, unspecified"
+  },
+  {
+   "code": "F12.13",
+   "name": "Cannabis abuse with withdrawal"
+  },
+  {
+   "code": "F12.150",
+   "name": "Cannabis abuse with psychotic disorder with delusions"
+  },
+  {
+   "code": "F12.151",
+   "name": "Cannabis abuse with psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F12.159",
+   "name": "Cannabis abuse with psychotic disorder, unspecified"
+  },
+  {
+   "code": "F12.180",
+   "name": "Cannabis abuse with cannabis-induced anxiety disorder"
+  },
+  {
+   "code": "F12.188",
+   "name": "Cannabis abuse with other cannabis-induced disorder"
+  },
+  {
+   "code": "F12.19",
+   "name": "Cannabis abuse with unspecified cannabis-induced disorder"
+  },
+  {
+   "code": "F12.20",
+   "name": "Cannabis dependence, uncomplicated"
+  },
+  {
+   "code": "F12.21",
+   "name": "Cannabis dependence, in remission"
+  },
+  {
+   "code": "F12.220",
+   "name": "Cannabis dependence with intoxication, uncomplicated"
+  },
+  {
+   "code": "F12.221",
+   "name": "Cannabis dependence with intoxication delirium"
+  },
+  {
+   "code": "F12.222",
+   "name": "Cannabis dependence with intoxication with perceptual disturbance"
+  },
+  {
+   "code": "F12.229",
+   "name": "Cannabis dependence with intoxication, unspecified"
+  },
+  {
+   "code": "F12.23",
+   "name": "Cannabis dependence with withdrawal"
+  },
+  {
+   "code": "F12.250",
+   "name": "Cannabis dependence with psychotic disorder with delusions"
+  },
+  {
+   "code": "F12.251",
+   "name": "Cannabis dependence with psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F12.259",
+   "name": "Cannabis dependence with psychotic disorder, unspecified"
+  },
+  {
+   "code": "F12.280",
+   "name": "Cannabis dependence with cannabis-induced anxiety disorder"
+  },
+  {
+   "code": "F12.288",
+   "name": "Cannabis dependence with other cannabis-induced disorder"
+  },
+  {
+   "code": "F12.29",
+   "name": "Cannabis dependence with unspecified cannabis-induced disorder"
+  },
+  {
+   "code": "F12.90",
+   "name": "Cannabis use, unspecified, uncomplicated"
+  },
+  {
+   "code": "F12.91",
+   "name": "Cannabis use, unspecified, in remission"
+  },
+  {
+   "code": "F12.920",
+   "name": "Cannabis use, unspecified with intoxication, uncomplicated"
+  },
+  {
+   "code": "F12.921",
+   "name": "Cannabis use, unspecified with intoxication delirium"
+  },
+  {
+   "code": "F12.922",
+   "name": "Cannabis use, unspecified with intoxication with perceptual disturbance"
+  },
+  {
+   "code": "F12.929",
+   "name": "Cannabis use, unspecified with intoxication, unspecified"
+  },
+  {
+   "code": "F12.93",
+   "name": "Cannabis use, unspecified with withdrawal"
+  },
+  {
+   "code": "F12.950",
+   "name": "Cannabis use, unspecified with psychotic disorder with delusions"
+  },
+  {
+   "code": "F12.951",
+   "name": "Cannabis use, unspecified with psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F12.959",
+   "name": "Cannabis use, unspecified with psychotic disorder, unspecified"
+  },
+  {
+   "code": "F12.980",
+   "name": "Cannabis use, unspecified with anxiety disorder"
+  },
+  {
+   "code": "F12.988",
+   "name": "Cannabis use, unspecified with other cannabis-induced disorder"
+  },
+  {
+   "code": "F12.99",
+   "name": "Cannabis use, unspecified with unspecified cannabis-induced disorder"
+  },
+  {
+   "code": "F13.10",
+   "name": "Sedative, hypnotic or anxiolytic abuse, uncomplicated"
+  },
+  {
+   "code": "F13.11",
+   "name": "Sedative, hypnotic or anxiolytic abuse, in remission"
+  },
+  {
+   "code": "F13.120",
+   "name": "Sedative, hypnotic or anxiolytic abuse with intoxication, uncomplicated"
+  },
+  {
+   "code": "F13.121",
+   "name": "Sedative, hypnotic or anxiolytic abuse with intoxication delirium"
+  },
+  {
+   "code": "F13.129",
+   "name": "Sedative, hypnotic or anxiolytic abuse with intoxication, unspecified"
+  },
+  {
+   "code": "F13.130",
+   "name": "Sedative, hypnotic or anxiolytic abuse with withdrawal, uncomplicated"
+  },
+  {
+   "code": "F13.131",
+   "name": "Sedative, hypnotic or anxiolytic abuse with withdrawal delirium"
+  },
+  {
+   "code": "F13.132",
+   "name": "Sedative, hypnotic or anxiolytic abuse with withdrawal with perceptual disturbance"
+  },
+  {
+   "code": "F13.139",
+   "name": "Sedative, hypnotic or anxiolytic abuse with withdrawal, unspecified"
+  },
+  {
+   "code": "F13.14",
+   "name": "Sedative, hypnotic or anxiolytic abuse with sedative, hypnotic or anxiolytic-induced mood disorder"
+  },
+  {
+   "code": "F13.150",
+   "name": "Sedative, hypnotic or anxiolytic abuse with sedative, hypnotic or anxiolytic-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F13.151",
+   "name": "Sedative, hypnotic or anxiolytic abuse with sedative, hypnotic or anxiolytic-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F13.159",
+   "name": "Sedative, hypnotic or anxiolytic abuse with sedative, hypnotic or anxiolytic-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F13.180",
+   "name": "Sedative, hypnotic or anxiolytic abuse with sedative, hypnotic or anxiolytic-induced anxiety disorder"
+  },
+  {
+   "code": "F13.181",
+   "name": "Sedative, hypnotic or anxiolytic abuse with sedative, hypnotic or anxiolytic-induced sexual dysfunction"
+  },
+  {
+   "code": "F13.182",
+   "name": "Sedative, hypnotic or anxiolytic abuse with sedative, hypnotic or anxiolytic-induced sleep disorder"
+  },
+  {
+   "code": "F13.188",
+   "name": "Sedative, hypnotic or anxiolytic abuse with other sedative, hypnotic or anxiolytic-induced disorder"
+  },
+  {
+   "code": "F13.19",
+   "name": "Sedative, hypnotic or anxiolytic abuse with unspecified sedative, hypnotic or anxiolytic-induced disorder"
+  },
+  {
+   "code": "F13.20",
+   "name": "Sedative, hypnotic or anxiolytic dependence, uncomplicated"
+  },
+  {
+   "code": "F13.21",
+   "name": "Sedative, hypnotic or anxiolytic dependence, in remission"
+  },
+  {
+   "code": "F13.220",
+   "name": "Sedative, hypnotic or anxiolytic dependence with intoxication, uncomplicated"
+  },
+  {
+   "code": "F13.221",
+   "name": "Sedative, hypnotic or anxiolytic dependence with intoxication delirium"
+  },
+  {
+   "code": "F13.229",
+   "name": "Sedative, hypnotic or anxiolytic dependence with intoxication, unspecified"
+  },
+  {
+   "code": "F13.230",
+   "name": "Sedative, hypnotic or anxiolytic dependence with withdrawal, uncomplicated"
+  },
+  {
+   "code": "F13.231",
+   "name": "Sedative, hypnotic or anxiolytic dependence with withdrawal delirium"
+  },
+  {
+   "code": "F13.232",
+   "name": "Sedative, hypnotic or anxiolytic dependence with withdrawal with perceptual disturbance"
+  },
+  {
+   "code": "F13.239",
+   "name": "Sedative, hypnotic or anxiolytic dependence with withdrawal, unspecified"
+  },
+  {
+   "code": "F13.24",
+   "name": "Sedative, hypnotic or anxiolytic dependence with sedative, hypnotic or anxiolytic-induced mood disorder"
+  },
+  {
+   "code": "F13.250",
+   "name": "Sedative, hypnotic or anxiolytic dependence with sedative, hypnotic or anxiolytic-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F13.251",
+   "name": "Sedative, hypnotic or anxiolytic dependence with sedative, hypnotic or anxiolytic-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F13.259",
+   "name": "Sedative, hypnotic or anxiolytic dependence with sedative, hypnotic or anxiolytic-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F13.26",
+   "name": "Sedative, hypnotic or anxiolytic dependence with sedative, hypnotic or anxiolytic-induced persisting amnestic disorder"
+  },
+  {
+   "code": "F13.27",
+   "name": "Sedative, hypnotic or anxiolytic dependence with sedative, hypnotic or anxiolytic-induced persisting dementia"
+  },
+  {
+   "code": "F13.280",
+   "name": "Sedative, hypnotic or anxiolytic dependence with sedative, hypnotic or anxiolytic-induced anxiety disorder"
+  },
+  {
+   "code": "F13.281",
+   "name": "Sedative, hypnotic or anxiolytic dependence with sedative, hypnotic or anxiolytic-induced sexual dysfunction"
+  },
+  {
+   "code": "F13.282",
+   "name": "Sedative, hypnotic or anxiolytic dependence with sedative, hypnotic or anxiolytic-induced sleep disorder"
+  },
+  {
+   "code": "F13.288",
+   "name": "Sedative, hypnotic or anxiolytic dependence with other sedative, hypnotic or anxiolytic-induced disorder"
+  },
+  {
+   "code": "F13.29",
+   "name": "Sedative, hypnotic or anxiolytic dependence with unspecified sedative, hypnotic or anxiolytic-induced disorder"
+  },
+  {
+   "code": "F13.90",
+   "name": "Sedative, hypnotic, or anxiolytic use, unspecified, uncomplicated"
+  },
+  {
+   "code": "F13.91",
+   "name": "Sedative, hypnotic or anxiolytic use, unspecified, in remission"
+  },
+  {
+   "code": "F13.920",
+   "name": "Sedative, hypnotic or anxiolytic use, unspecified with intoxication, uncomplicated"
+  },
+  {
+   "code": "F13.921",
+   "name": "Sedative, hypnotic or anxiolytic use, unspecified with intoxication delirium"
+  },
+  {
+   "code": "F13.929",
+   "name": "Sedative, hypnotic or anxiolytic use, unspecified with intoxication, unspecified"
+  },
+  {
+   "code": "F13.930",
+   "name": "Sedative, hypnotic or anxiolytic use, unspecified with withdrawal, uncomplicated"
+  },
+  {
+   "code": "F13.931",
+   "name": "Sedative, hypnotic or anxiolytic use, unspecified with withdrawal delirium"
+  },
+  {
+   "code": "F13.932",
+   "name": "Sedative, hypnotic or anxiolytic use, unspecified with withdrawal with perceptual disturbances"
+  },
+  {
+   "code": "F13.939",
+   "name": "Sedative, hypnotic or anxiolytic use, unspecified with withdrawal, unspecified"
+  },
+  {
+   "code": "F13.94",
+   "name": "Sedative, hypnotic or anxiolytic use, unspecified with sedative, hypnotic or anxiolytic-induced mood disorder"
+  },
+  {
+   "code": "F13.950",
+   "name": "Sedative, hypnotic or anxiolytic use, unspecified with sedative, hypnotic or anxiolytic-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F13.951",
+   "name": "Sedative, hypnotic or anxiolytic use, unspecified with sedative, hypnotic or anxiolytic-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F13.959",
+   "name": "Sedative, hypnotic or anxiolytic use, unspecified with sedative, hypnotic or anxiolytic-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F13.96",
+   "name": "Sedative, hypnotic or anxiolytic use, unspecified with sedative, hypnotic or anxiolytic-induced persisting amnestic disorder"
+  },
+  {
+   "code": "F13.97",
+   "name": "Sedative, hypnotic or anxiolytic use, unspecified with sedative, hypnotic or anxiolytic-induced persisting dementia"
+  },
+  {
+   "code": "F13.980",
+   "name": "Sedative, hypnotic or anxiolytic use, unspecified with sedative, hypnotic or anxiolytic-induced anxiety disorder"
+  },
+  {
+   "code": "F13.981",
+   "name": "Sedative, hypnotic or anxiolytic use, unspecified with sedative, hypnotic or anxiolytic-induced sexual dysfunction"
+  },
+  {
+   "code": "F13.982",
+   "name": "Sedative, hypnotic or anxiolytic use, unspecified with sedative, hypnotic or anxiolytic-induced sleep disorder"
+  },
+  {
+   "code": "F13.988",
+   "name": "Sedative, hypnotic or anxiolytic use, unspecified with other sedative, hypnotic or anxiolytic-induced disorder"
+  },
+  {
+   "code": "F13.99",
+   "name": "Sedative, hypnotic or anxiolytic use, unspecified with unspecified sedative, hypnotic or anxiolytic-induced disorder"
+  },
+  {
+   "code": "F14.10",
+   "name": "Cocaine abuse, uncomplicated"
+  },
+  {
+   "code": "F14.11",
+   "name": "Cocaine abuse, in remission"
+  },
+  {
+   "code": "F14.120",
+   "name": "Cocaine abuse with intoxication, uncomplicated"
+  },
+  {
+   "code": "F14.121",
+   "name": "Cocaine abuse with intoxication with delirium"
+  },
+  {
+   "code": "F14.122",
+   "name": "Cocaine abuse with intoxication with perceptual disturbance"
+  },
+  {
+   "code": "F14.129",
+   "name": "Cocaine abuse with intoxication, unspecified"
+  },
+  {
+   "code": "F14.13",
+   "name": "Cocaine abuse, unspecified with withdrawal"
+  },
+  {
+   "code": "F14.14",
+   "name": "Cocaine abuse with cocaine-induced mood disorder"
+  },
+  {
+   "code": "F14.150",
+   "name": "Cocaine abuse with cocaine-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F14.151",
+   "name": "Cocaine abuse with cocaine-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F14.159",
+   "name": "Cocaine abuse with cocaine-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F14.180",
+   "name": "Cocaine abuse with cocaine-induced anxiety disorder"
+  },
+  {
+   "code": "F14.181",
+   "name": "Cocaine abuse with cocaine-induced sexual dysfunction"
+  },
+  {
+   "code": "F14.182",
+   "name": "Cocaine abuse with cocaine-induced sleep disorder"
+  },
+  {
+   "code": "F14.188",
+   "name": "Cocaine abuse with other cocaine-induced disorder"
+  },
+  {
+   "code": "F14.19",
+   "name": "Cocaine abuse with unspecified cocaine-induced disorder"
+  },
+  {
+   "code": "F14.20",
+   "name": "Cocaine dependence, uncomplicated"
+  },
+  {
+   "code": "F14.21",
+   "name": "Cocaine dependence, in remission"
+  },
+  {
+   "code": "F14.220",
+   "name": "Cocaine dependence with intoxication, uncomplicated"
+  },
+  {
+   "code": "F14.221",
+   "name": "Cocaine dependence with intoxication delirium"
+  },
+  {
+   "code": "F14.222",
+   "name": "Cocaine dependence with intoxication with perceptual disturbance"
+  },
+  {
+   "code": "F14.229",
+   "name": "Cocaine dependence with intoxication, unspecified"
+  },
+  {
+   "code": "F14.23",
+   "name": "Cocaine dependence with withdrawal"
+  },
+  {
+   "code": "F14.24",
+   "name": "Cocaine dependence with cocaine-induced mood disorder"
+  },
+  {
+   "code": "F14.250",
+   "name": "Cocaine dependence with cocaine-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F14.251",
+   "name": "Cocaine dependence with cocaine-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F14.259",
+   "name": "Cocaine dependence with cocaine-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F14.280",
+   "name": "Cocaine dependence with cocaine-induced anxiety disorder"
+  },
+  {
+   "code": "F14.281",
+   "name": "Cocaine dependence with cocaine-induced sexual dysfunction"
+  },
+  {
+   "code": "F14.282",
+   "name": "Cocaine dependence with cocaine-induced sleep disorder"
+  },
+  {
+   "code": "F14.288",
+   "name": "Cocaine dependence with other cocaine-induced disorder"
+  },
+  {
+   "code": "F14.29",
+   "name": "Cocaine dependence with unspecified cocaine-induced disorder"
+  },
+  {
+   "code": "F14.90",
+   "name": "Cocaine use, unspecified, uncomplicated"
+  },
+  {
+   "code": "F14.91",
+   "name": "Cocaine use, unspecified, in remission"
+  },
+  {
+   "code": "F14.920",
+   "name": "Cocaine use, unspecified with intoxication, uncomplicated"
+  },
+  {
+   "code": "F14.921",
+   "name": "Cocaine use, unspecified with intoxication delirium"
+  },
+  {
+   "code": "F14.922",
+   "name": "Cocaine use, unspecified with intoxication with perceptual disturbance"
+  },
+  {
+   "code": "F14.929",
+   "name": "Cocaine use, unspecified with intoxication, unspecified"
+  },
+  {
+   "code": "F14.93",
+   "name": "Cocaine use, unspecified with withdrawal"
+  },
+  {
+   "code": "F14.94",
+   "name": "Cocaine use, unspecified with cocaine-induced mood disorder"
+  },
+  {
+   "code": "F14.950",
+   "name": "Cocaine use, unspecified with cocaine-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F14.951",
+   "name": "Cocaine use, unspecified with cocaine-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F14.959",
+   "name": "Cocaine use, unspecified with cocaine-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F14.980",
+   "name": "Cocaine use, unspecified with cocaine-induced anxiety disorder"
+  },
+  {
+   "code": "F14.981",
+   "name": "Cocaine use, unspecified with cocaine-induced sexual dysfunction"
+  },
+  {
+   "code": "F14.982",
+   "name": "Cocaine use, unspecified with cocaine-induced sleep disorder"
+  },
+  {
+   "code": "F14.988",
+   "name": "Cocaine use, unspecified with other cocaine-induced disorder"
+  },
+  {
+   "code": "F14.99",
+   "name": "Cocaine use, unspecified with unspecified cocaine-induced disorder"
+  },
+  {
+   "code": "F15.10",
+   "name": "Other stimulant abuse, uncomplicated"
+  },
+  {
+   "code": "F15.11",
+   "name": "Other stimulant abuse, in remission"
+  },
+  {
+   "code": "F15.120",
+   "name": "Other stimulant abuse with intoxication, uncomplicated"
+  },
+  {
+   "code": "F15.121",
+   "name": "Other stimulant abuse with intoxication delirium"
+  },
+  {
+   "code": "F15.122",
+   "name": "Other stimulant abuse with intoxication with perceptual disturbance"
+  },
+  {
+   "code": "F15.129",
+   "name": "Other stimulant abuse with intoxication, unspecified"
+  },
+  {
+   "code": "F15.13",
+   "name": "Other stimulant abuse with withdrawal"
+  },
+  {
+   "code": "F15.14",
+   "name": "Other stimulant abuse with stimulant-induced mood disorder"
+  },
+  {
+   "code": "F15.150",
+   "name": "Other stimulant abuse with stimulant-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F15.151",
+   "name": "Other stimulant abuse with stimulant-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F15.159",
+   "name": "Other stimulant abuse with stimulant-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F15.180",
+   "name": "Other stimulant abuse with stimulant-induced anxiety disorder"
+  },
+  {
+   "code": "F15.181",
+   "name": "Other stimulant abuse with stimulant-induced sexual dysfunction"
+  },
+  {
+   "code": "F15.182",
+   "name": "Other stimulant abuse with stimulant-induced sleep disorder"
+  },
+  {
+   "code": "F15.188",
+   "name": "Other stimulant abuse with other stimulant-induced disorder"
+  },
+  {
+   "code": "F15.19",
+   "name": "Other stimulant abuse with unspecified stimulant-induced disorder"
+  },
+  {
+   "code": "F15.20",
+   "name": "Other stimulant dependence, uncomplicated"
+  },
+  {
+   "code": "F15.21",
+   "name": "Other stimulant dependence, in remission"
+  },
+  {
+   "code": "F15.220",
+   "name": "Other stimulant dependence with intoxication, uncomplicated"
+  },
+  {
+   "code": "F15.221",
+   "name": "Other stimulant dependence with intoxication delirium"
+  },
+  {
+   "code": "F15.222",
+   "name": "Other stimulant dependence with intoxication with perceptual disturbance"
+  },
+  {
+   "code": "F15.229",
+   "name": "Other stimulant dependence with intoxication, unspecified"
+  },
+  {
+   "code": "F15.23",
+   "name": "Other stimulant dependence with withdrawal"
+  },
+  {
+   "code": "F15.24",
+   "name": "Other stimulant dependence with stimulant-induced mood disorder"
+  },
+  {
+   "code": "F15.250",
+   "name": "Other stimulant dependence with stimulant-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F15.251",
+   "name": "Other stimulant dependence with stimulant-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F15.259",
+   "name": "Other stimulant dependence with stimulant-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F15.280",
+   "name": "Other stimulant dependence with stimulant-induced anxiety disorder"
+  },
+  {
+   "code": "F15.281",
+   "name": "Other stimulant dependence with stimulant-induced sexual dysfunction"
+  },
+  {
+   "code": "F15.282",
+   "name": "Other stimulant dependence with stimulant-induced sleep disorder"
+  },
+  {
+   "code": "F15.288",
+   "name": "Other stimulant dependence with other stimulant-induced disorder"
+  },
+  {
+   "code": "F15.29",
+   "name": "Other stimulant dependence with unspecified stimulant-induced disorder"
+  },
+  {
+   "code": "F15.90",
+   "name": "Other stimulant use, unspecified, uncomplicated"
+  },
+  {
+   "code": "F15.91",
+   "name": "Other stimulant use, unspecified, in remission"
+  },
+  {
+   "code": "F15.920",
+   "name": "Other stimulant use, unspecified with intoxication, uncomplicated"
+  },
+  {
+   "code": "F15.921",
+   "name": "Other stimulant use, unspecified with intoxication delirium"
+  },
+  {
+   "code": "F15.922",
+   "name": "Other stimulant use, unspecified with intoxication with perceptual disturbance"
+  },
+  {
+   "code": "F15.929",
+   "name": "Other stimulant use, unspecified with intoxication, unspecified"
+  },
+  {
+   "code": "F15.93",
+   "name": "Other stimulant use, unspecified with withdrawal"
+  },
+  {
+   "code": "F15.94",
+   "name": "Other stimulant use, unspecified with stimulant-induced mood disorder"
+  },
+  {
+   "code": "F15.950",
+   "name": "Other stimulant use, unspecified with stimulant-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F15.951",
+   "name": "Other stimulant use, unspecified with stimulant-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F15.959",
+   "name": "Other stimulant use, unspecified with stimulant-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F15.980",
+   "name": "Other stimulant use, unspecified with stimulant-induced anxiety disorder"
+  },
+  {
+   "code": "F15.981",
+   "name": "Other stimulant use, unspecified with stimulant-induced sexual dysfunction"
+  },
+  {
+   "code": "F15.982",
+   "name": "Other stimulant use, unspecified with stimulant-induced sleep disorder"
+  },
+  {
+   "code": "F15.988",
+   "name": "Other stimulant use, unspecified with other stimulant-induced disorder"
+  },
+  {
+   "code": "F15.99",
+   "name": "Other stimulant use, unspecified with unspecified stimulant-induced disorder"
+  },
+  {
+   "code": "F16.10",
+   "name": "Hallucinogen abuse, uncomplicated"
+  },
+  {
+   "code": "F16.11",
+   "name": "Hallucinogen abuse, in remission"
+  },
+  {
+   "code": "F16.120",
+   "name": "Hallucinogen abuse with intoxication, uncomplicated"
+  },
+  {
+   "code": "F16.121",
+   "name": "Hallucinogen abuse with intoxication with delirium"
+  },
+  {
+   "code": "F16.122",
+   "name": "Hallucinogen abuse with intoxication with perceptual disturbance"
+  },
+  {
+   "code": "F16.129",
+   "name": "Hallucinogen abuse with intoxication, unspecified"
+  },
+  {
+   "code": "F16.14",
+   "name": "Hallucinogen abuse with hallucinogen-induced mood disorder"
+  },
+  {
+   "code": "F16.150",
+   "name": "Hallucinogen abuse with hallucinogen-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F16.151",
+   "name": "Hallucinogen abuse with hallucinogen-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F16.159",
+   "name": "Hallucinogen abuse with hallucinogen-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F16.180",
+   "name": "Hallucinogen abuse with hallucinogen-induced anxiety disorder"
+  },
+  {
+   "code": "F16.183",
+   "name": "Hallucinogen abuse with hallucinogen persisting perception disorder (flashbacks)"
+  },
+  {
+   "code": "F16.188",
+   "name": "Hallucinogen abuse with other hallucinogen-induced disorder"
+  },
+  {
+   "code": "F16.19",
+   "name": "Hallucinogen abuse with unspecified hallucinogen-induced disorder"
+  },
+  {
+   "code": "F16.20",
+   "name": "Hallucinogen dependence, uncomplicated"
+  },
+  {
+   "code": "F16.21",
+   "name": "Hallucinogen dependence, in remission"
+  },
+  {
+   "code": "F16.220",
+   "name": "Hallucinogen dependence with intoxication, uncomplicated"
+  },
+  {
+   "code": "F16.221",
+   "name": "Hallucinogen dependence with intoxication with delirium"
+  },
+  {
+   "code": "F16.229",
+   "name": "Hallucinogen dependence with intoxication, unspecified"
+  },
+  {
+   "code": "F16.24",
+   "name": "Hallucinogen dependence with hallucinogen-induced mood disorder"
+  },
+  {
+   "code": "F16.250",
+   "name": "Hallucinogen dependence with hallucinogen-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F16.251",
+   "name": "Hallucinogen dependence with hallucinogen-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F16.259",
+   "name": "Hallucinogen dependence with hallucinogen-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F16.280",
+   "name": "Hallucinogen dependence with hallucinogen-induced anxiety disorder"
+  },
+  {
+   "code": "F16.283",
+   "name": "Hallucinogen dependence with hallucinogen persisting perception disorder (flashbacks)"
+  },
+  {
+   "code": "F16.288",
+   "name": "Hallucinogen dependence with other hallucinogen-induced disorder"
+  },
+  {
+   "code": "F16.29",
+   "name": "Hallucinogen dependence with unspecified hallucinogen-induced disorder"
+  },
+  {
+   "code": "F16.90",
+   "name": "Hallucinogen use, unspecified, uncomplicated"
+  },
+  {
+   "code": "F16.91",
+   "name": "Hallucinogen use, unspecified, in remission"
+  },
+  {
+   "code": "F16.920",
+   "name": "Hallucinogen use, unspecified with intoxication, uncomplicated"
+  },
+  {
+   "code": "F16.921",
+   "name": "Hallucinogen use, unspecified with intoxication with delirium"
+  },
+  {
+   "code": "F16.929",
+   "name": "Hallucinogen use, unspecified with intoxication, unspecified"
+  },
+  {
+   "code": "F16.94",
+   "name": "Hallucinogen use, unspecified with hallucinogen-induced mood disorder"
+  },
+  {
+   "code": "F16.950",
+   "name": "Hallucinogen use, unspecified with hallucinogen-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F16.951",
+   "name": "Hallucinogen use, unspecified with hallucinogen-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F16.959",
+   "name": "Hallucinogen use, unspecified with hallucinogen-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F16.980",
+   "name": "Hallucinogen use, unspecified with hallucinogen-induced anxiety disorder"
+  },
+  {
+   "code": "F16.983",
+   "name": "Hallucinogen use, unspecified with hallucinogen persisting perception disorder (flashbacks)"
+  },
+  {
+   "code": "F16.988",
+   "name": "Hallucinogen use, unspecified with other hallucinogen-induced disorder"
+  },
+  {
+   "code": "F16.99",
+   "name": "Hallucinogen use, unspecified with unspecified hallucinogen-induced disorder"
+  },
+  {
+   "code": "F17.200",
+   "name": "Nicotine dependence, unspecified, uncomplicated"
+  },
+  {
+   "code": "F17.201",
+   "name": "Nicotine dependence, unspecified, in remission"
+  },
+  {
+   "code": "F17.203",
+   "name": "Nicotine dependence unspecified, with withdrawal"
+  },
+  {
+   "code": "F17.208",
+   "name": "Nicotine dependence, unspecified, with other nicotine-induced disorders"
+  },
+  {
+   "code": "F17.209",
+   "name": "Nicotine dependence, unspecified, with unspecified nicotine-induced disorders"
+  },
+  {
+   "code": "F17.210",
+   "name": "Nicotine dependence, cigarettes, uncomplicated"
+  },
+  {
+   "code": "F17.211",
+   "name": "Nicotine dependence, cigarettes, in remission"
+  },
+  {
+   "code": "F17.213",
+   "name": "Nicotine dependence, cigarettes, with withdrawal"
+  },
+  {
+   "code": "F17.218",
+   "name": "Nicotine dependence, cigarettes, with other nicotine-induced disorders"
+  },
+  {
+   "code": "F17.219",
+   "name": "Nicotine dependence, cigarettes, with unspecified nicotine-induced disorders"
+  },
+  {
+   "code": "F17.220",
+   "name": "Nicotine dependence, chewing tobacco, uncomplicated"
+  },
+  {
+   "code": "F17.221",
+   "name": "Nicotine dependence, chewing tobacco, in remission"
+  },
+  {
+   "code": "F17.223",
+   "name": "Nicotine dependence, chewing tobacco, with withdrawal"
+  },
+  {
+   "code": "F17.228",
+   "name": "Nicotine dependence, chewing tobacco, with other nicotine-induced disorders"
+  },
+  {
+   "code": "F17.229",
+   "name": "Nicotine dependence, chewing tobacco, with unspecified nicotine-induced disorders"
+  },
+  {
+   "code": "F17.290",
+   "name": "Nicotine dependence, other tobacco product, uncomplicated"
+  },
+  {
+   "code": "F17.291",
+   "name": "Nicotine dependence, other tobacco product, in remission"
+  },
+  {
+   "code": "F17.293",
+   "name": "Nicotine dependence, other tobacco product, with withdrawal"
+  },
+  {
+   "code": "F17.298",
+   "name": "Nicotine dependence, other tobacco product, with other nicotine-induced disorders"
+  },
+  {
+   "code": "F17.299",
+   "name": "Nicotine dependence, other tobacco product, with unspecified nicotine-induced disorders"
+  },
+  {
+   "code": "F18.10",
+   "name": "Inhalant abuse, uncomplicated"
+  },
+  {
+   "code": "F18.11",
+   "name": "Inhalant abuse, in remission"
+  },
+  {
+   "code": "F18.120",
+   "name": "Inhalant abuse with intoxication, uncomplicated"
+  },
+  {
+   "code": "F18.121",
+   "name": "Inhalant abuse with intoxication delirium"
+  },
+  {
+   "code": "F18.129",
+   "name": "Inhalant abuse with intoxication, unspecified"
+  },
+  {
+   "code": "F18.14",
+   "name": "Inhalant abuse with inhalant-induced mood disorder"
+  },
+  {
+   "code": "F18.150",
+   "name": "Inhalant abuse with inhalant-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F18.151",
+   "name": "Inhalant abuse with inhalant-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F18.159",
+   "name": "Inhalant abuse with inhalant-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F18.17",
+   "name": "Inhalant abuse with inhalant-induced dementia"
+  },
+  {
+   "code": "F18.180",
+   "name": "Inhalant abuse with inhalant-induced anxiety disorder"
+  },
+  {
+   "code": "F18.188",
+   "name": "Inhalant abuse with other inhalant-induced disorder"
+  },
+  {
+   "code": "F18.19",
+   "name": "Inhalant abuse with unspecified inhalant-induced disorder"
+  },
+  {
+   "code": "F18.20",
+   "name": "Inhalant dependence, uncomplicated"
+  },
+  {
+   "code": "F18.21",
+   "name": "Inhalant dependence, in remission"
+  },
+  {
+   "code": "F18.220",
+   "name": "Inhalant dependence with intoxication, uncomplicated"
+  },
+  {
+   "code": "F18.221",
+   "name": "Inhalant dependence with intoxication delirium"
+  },
+  {
+   "code": "F18.229",
+   "name": "Inhalant dependence with intoxication, unspecified"
+  },
+  {
+   "code": "F18.24",
+   "name": "Inhalant dependence with inhalant-induced mood disorder"
+  },
+  {
+   "code": "F18.250",
+   "name": "Inhalant dependence with inhalant-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F18.251",
+   "name": "Inhalant dependence with inhalant-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F18.259",
+   "name": "Inhalant dependence with inhalant-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F18.27",
+   "name": "Inhalant dependence with inhalant-induced dementia"
+  },
+  {
+   "code": "F18.280",
+   "name": "Inhalant dependence with inhalant-induced anxiety disorder"
+  },
+  {
+   "code": "F18.288",
+   "name": "Inhalant dependence with other inhalant-induced disorder"
+  },
+  {
+   "code": "F18.29",
+   "name": "Inhalant dependence with unspecified inhalant-induced disorder"
+  },
+  {
+   "code": "F18.90",
+   "name": "Inhalant use, unspecified, uncomplicated"
+  },
+  {
+   "code": "F18.91",
+   "name": "Inhalant use, unspecified, in remission"
+  },
+  {
+   "code": "F18.920",
+   "name": "Inhalant use, unspecified with intoxication, uncomplicated"
+  },
+  {
+   "code": "F18.921",
+   "name": "Inhalant use, unspecified with intoxication with delirium"
+  },
+  {
+   "code": "F18.929",
+   "name": "Inhalant use, unspecified with intoxication, unspecified"
+  },
+  {
+   "code": "F18.94",
+   "name": "Inhalant use, unspecified with inhalant-induced mood disorder"
+  },
+  {
+   "code": "F18.950",
+   "name": "Inhalant use, unspecified with inhalant-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F18.951",
+   "name": "Inhalant use, unspecified with inhalant-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F18.959",
+   "name": "Inhalant use, unspecified with inhalant-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F18.97",
+   "name": "Inhalant use, unspecified with inhalant-induced persisting dementia"
+  },
+  {
+   "code": "F18.980",
+   "name": "Inhalant use, unspecified with inhalant-induced anxiety disorder"
+  },
+  {
+   "code": "F18.988",
+   "name": "Inhalant use, unspecified with other inhalant-induced disorder"
+  },
+  {
+   "code": "F18.99",
+   "name": "Inhalant use, unspecified with unspecified inhalant-induced disorder"
+  },
+  {
+   "code": "F19.10",
+   "name": "Other psychoactive substance abuse, uncomplicated"
+  },
+  {
+   "code": "F19.11",
+   "name": "Other psychoactive substance abuse, in remission"
+  },
+  {
+   "code": "F19.120",
+   "name": "Other psychoactive substance abuse with intoxication, uncomplicated"
+  },
+  {
+   "code": "F19.121",
+   "name": "Other psychoactive substance abuse with intoxication delirium"
+  },
+  {
+   "code": "F19.122",
+   "name": "Other psychoactive substance abuse with intoxication with perceptual disturbances"
+  },
+  {
+   "code": "F19.129",
+   "name": "Other psychoactive substance abuse with intoxication, unspecified"
+  },
+  {
+   "code": "F19.130",
+   "name": "Other psychoactive substance abuse with withdrawal, uncomplicated"
+  },
+  {
+   "code": "F19.131",
+   "name": "Other psychoactive substance abuse with withdrawal delirium"
+  },
+  {
+   "code": "F19.132",
+   "name": "Other psychoactive substance abuse with withdrawal with perceptual disturbance"
+  },
+  {
+   "code": "F19.139",
+   "name": "Other psychoactive substance abuse with withdrawal, unspecified"
+  },
+  {
+   "code": "F19.14",
+   "name": "Other psychoactive substance abuse with psychoactive substance-induced mood disorder"
+  },
+  {
+   "code": "F19.150",
+   "name": "Other psychoactive substance abuse with psychoactive substance-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F19.151",
+   "name": "Other psychoactive substance abuse with psychoactive substance-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F19.159",
+   "name": "Other psychoactive substance abuse with psychoactive substance-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F19.16",
+   "name": "Other psychoactive substance abuse with psychoactive substance-induced persisting amnestic disorder"
+  },
+  {
+   "code": "F19.17",
+   "name": "Other psychoactive substance abuse with psychoactive substance-induced persisting dementia"
+  },
+  {
+   "code": "F19.180",
+   "name": "Other psychoactive substance abuse with psychoactive substance-induced anxiety disorder"
+  },
+  {
+   "code": "F19.181",
+   "name": "Other psychoactive substance abuse with psychoactive substance-induced sexual dysfunction"
+  },
+  {
+   "code": "F19.182",
+   "name": "Other psychoactive substance abuse with psychoactive substance-induced sleep disorder"
+  },
+  {
+   "code": "F19.188",
+   "name": "Other psychoactive substance abuse with other psychoactive substance-induced disorder"
+  },
+  {
+   "code": "F19.19",
+   "name": "Other psychoactive substance abuse with unspecified psychoactive substance-induced disorder"
+  },
+  {
+   "code": "F19.20",
+   "name": "Other psychoactive substance dependence, uncomplicated"
+  },
+  {
+   "code": "F19.21",
+   "name": "Other psychoactive substance dependence, in remission"
+  },
+  {
+   "code": "F19.220",
+   "name": "Other psychoactive substance dependence with intoxication, uncomplicated"
+  },
+  {
+   "code": "F19.221",
+   "name": "Other psychoactive substance dependence with intoxication delirium"
+  },
+  {
+   "code": "F19.222",
+   "name": "Other psychoactive substance dependence with intoxication with perceptual disturbance"
+  },
+  {
+   "code": "F19.229",
+   "name": "Other psychoactive substance dependence with intoxication, unspecified"
+  },
+  {
+   "code": "F19.230",
+   "name": "Other psychoactive substance dependence with withdrawal, uncomplicated"
+  },
+  {
+   "code": "F19.231",
+   "name": "Other psychoactive substance dependence with withdrawal delirium"
+  },
+  {
+   "code": "F19.232",
+   "name": "Other psychoactive substance dependence with withdrawal with perceptual disturbance"
+  },
+  {
+   "code": "F19.239",
+   "name": "Other psychoactive substance dependence with withdrawal, unspecified"
+  },
+  {
+   "code": "F19.24",
+   "name": "Other psychoactive substance dependence with psychoactive substance-induced mood disorder"
+  },
+  {
+   "code": "F19.250",
+   "name": "Other psychoactive substance dependence with psychoactive substance-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F19.251",
+   "name": "Other psychoactive substance dependence with psychoactive substance-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F19.259",
+   "name": "Other psychoactive substance dependence with psychoactive substance-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F19.26",
+   "name": "Other psychoactive substance dependence with psychoactive substance-induced persisting amnestic disorder"
+  },
+  {
+   "code": "F19.27",
+   "name": "Other psychoactive substance dependence with psychoactive substance-induced persisting dementia"
+  },
+  {
+   "code": "F19.280",
+   "name": "Other psychoactive substance dependence with psychoactive substance-induced anxiety disorder"
+  },
+  {
+   "code": "F19.281",
+   "name": "Other psychoactive substance dependence with psychoactive substance-induced sexual dysfunction"
+  },
+  {
+   "code": "F19.282",
+   "name": "Other psychoactive substance dependence with psychoactive substance-induced sleep disorder"
+  },
+  {
+   "code": "F19.288",
+   "name": "Other psychoactive substance dependence with other psychoactive substance-induced disorder"
+  },
+  {
+   "code": "F19.29",
+   "name": "Other psychoactive substance dependence with unspecified psychoactive substance-induced disorder"
+  },
+  {
+   "code": "F19.90",
+   "name": "Other psychoactive substance use, unspecified, uncomplicated"
+  },
+  {
+   "code": "F19.91",
+   "name": "Other psychoactive substance use, unspecified, in remission"
+  },
+  {
+   "code": "F19.920",
+   "name": "Other psychoactive substance use, unspecified with intoxication, uncomplicated"
+  },
+  {
+   "code": "F19.921",
+   "name": "Other psychoactive substance use, unspecified with intoxication with delirium"
+  },
+  {
+   "code": "F19.922",
+   "name": "Other psychoactive substance use, unspecified with intoxication with perceptual disturbance"
+  },
+  {
+   "code": "F19.929",
+   "name": "Other psychoactive substance use, unspecified with intoxication, unspecified"
+  },
+  {
+   "code": "F19.930",
+   "name": "Other psychoactive substance use, unspecified with withdrawal, uncomplicated"
+  },
+  {
+   "code": "F19.931",
+   "name": "Other psychoactive substance use, unspecified with withdrawal delirium"
+  },
+  {
+   "code": "F19.932",
+   "name": "Other psychoactive substance use, unspecified with withdrawal with perceptual disturbance"
+  },
+  {
+   "code": "F19.939",
+   "name": "Other psychoactive substance use, unspecified with withdrawal, unspecified"
+  },
+  {
+   "code": "F19.94",
+   "name": "Other psychoactive substance use, unspecified with psychoactive substance-induced mood disorder"
+  },
+  {
+   "code": "F19.950",
+   "name": "Other psychoactive substance use, unspecified with psychoactive substance-induced psychotic disorder with delusions"
+  },
+  {
+   "code": "F19.951",
+   "name": "Other psychoactive substance use, unspecified with psychoactive substance-induced psychotic disorder with hallucinations"
+  },
+  {
+   "code": "F19.959",
+   "name": "Other psychoactive substance use, unspecified with psychoactive substance-induced psychotic disorder, unspecified"
+  },
+  {
+   "code": "F19.96",
+   "name": "Other psychoactive substance use, unspecified with psychoactive substance-induced persisting amnestic disorder"
+  },
+  {
+   "code": "F19.97",
+   "name": "Other psychoactive substance use, unspecified with psychoactive substance-induced persisting dementia"
+  },
+  {
+   "code": "F19.980",
+   "name": "Other psychoactive substance use, unspecified with psychoactive substance-induced anxiety disorder"
+  },
+  {
+   "code": "F19.981",
+   "name": "Other psychoactive substance use, unspecified with psychoactive substance-induced sexual dysfunction"
+  },
+  {
+   "code": "F19.982",
+   "name": "Other psychoactive substance use, unspecified with psychoactive substance-induced sleep disorder"
+  },
+  {
+   "code": "F19.988",
+   "name": "Other psychoactive substance use, unspecified with other psychoactive substance-induced disorder"
+  },
+  {
+   "code": "F19.99",
+   "name": "Other psychoactive substance use, unspecified with unspecified psychoactive substance-induced disorder"
+  },
+  {
+   "code": "F20.0",
+   "name": "Paranoid schizophrenia"
+  },
+  {
+   "code": "F20.1",
+   "name": "Disorganized schizophrenia"
+  },
+  {
+   "code": "F20.2",
+   "name": "Catatonic schizophrenia"
+  },
+  {
+   "code": "F20.3",
+   "name": "Undifferentiated schizophrenia"
+  },
+  {
+   "code": "F20.5",
+   "name": "Residual schizophrenia"
+  },
+  {
+   "code": "F20.81",
+   "name": "Schizophreniform disorder"
+  },
+  {
+   "code": "F20.89",
+   "name": "Other schizophrenia"
+  },
+  {
+   "code": "F20.9",
+   "name": "Schizophrenia, unspecified"
+  },
+  {
+   "code": "F21",
+   "name": "Schizotypal disorder"
+  },
+  {
+   "code": "F22",
+   "name": "Delusional disorders"
+  },
+  {
+   "code": "F23",
+   "name": "Brief psychotic disorder"
+  },
+  {
+   "code": "F24",
+   "name": "Shared psychotic disorder"
+  },
+  {
+   "code": "F25.0",
+   "name": "Schizoaffective disorder, bipolar type"
+  },
+  {
+   "code": "F25.1",
+   "name": "Schizoaffective disorder, depressive type"
+  },
+  {
+   "code": "F25.8",
+   "name": "Other schizoaffective disorders"
+  },
+  {
+   "code": "F25.9",
+   "name": "Schizoaffective disorder, unspecified"
+  },
+  {
+   "code": "F28",
+   "name": "Other psychotic disorder not due to a substance or known physiological condition"
+  },
+  {
+   "code": "F29",
+   "name": "Unspecified psychosis not due to a substance or known physiological condition"
+  },
+  {
+   "code": "F30.10",
+   "name": "Manic episode without psychotic symptoms, unspecified"
+  },
+  {
+   "code": "F30.11",
+   "name": "Manic episode without psychotic symptoms, mild"
+  },
+  {
+   "code": "F30.12",
+   "name": "Manic episode without psychotic symptoms, moderate"
+  },
+  {
+   "code": "F30.13",
+   "name": "Manic episode, severe, without psychotic symptoms"
+  },
+  {
+   "code": "F30.2",
+   "name": "Manic episode, severe with psychotic symptoms"
+  },
+  {
+   "code": "F30.3",
+   "name": "Manic episode in partial remission"
+  },
+  {
+   "code": "F30.4",
+   "name": "Manic episode in full remission"
+  },
+  {
+   "code": "F30.8",
+   "name": "Other manic episodes"
+  },
+  {
+   "code": "F30.9",
+   "name": "Manic episode, unspecified"
+  },
+  {
+   "code": "F31.0",
+   "name": "Bipolar disorder, current episode hypomanic"
+  },
+  {
+   "code": "F31.10",
+   "name": "Bipolar disorder, current episode manic without psychotic features, unspecified"
+  },
+  {
+   "code": "F31.11",
+   "name": "Bipolar disorder, current episode manic without psychotic features, mild"
+  },
+  {
+   "code": "F31.12",
+   "name": "Bipolar disorder, current episode manic without psychotic features, moderate"
+  },
+  {
+   "code": "F31.13",
+   "name": "Bipolar disorder, current episode manic without psychotic features, severe"
+  },
+  {
+   "code": "F31.2",
+   "name": "Bipolar disorder, current episode manic severe with psychotic features"
+  },
+  {
+   "code": "F31.30",
+   "name": "Bipolar disorder, current episode depressed, mild or moderate severity, unspecified"
+  },
+  {
+   "code": "F31.31",
+   "name": "Bipolar disorder, current episode depressed, mild"
+  },
+  {
+   "code": "F31.32",
+   "name": "Bipolar disorder, current episode depressed, moderate"
+  },
+  {
+   "code": "F31.4",
+   "name": "Bipolar disorder, current episode depressed, severe, without psychotic features"
+  },
+  {
+   "code": "F31.5",
+   "name": "Bipolar disorder, current episode depressed, severe, with psychotic features"
+  },
+  {
+   "code": "F31.60",
+   "name": "Bipolar disorder, current episode mixed, unspecified"
+  },
+  {
+   "code": "F31.61",
+   "name": "Bipolar disorder, current episode mixed, mild"
+  },
+  {
+   "code": "F31.62",
+   "name": "Bipolar disorder, current episode mixed, moderate"
+  },
+  {
+   "code": "F31.63",
+   "name": "Bipolar disorder, current episode mixed, severe, without psychotic features"
+  },
+  {
+   "code": "F31.64",
+   "name": "Bipolar disorder, current episode mixed, severe, with psychotic features"
+  },
+  {
+   "code": "F31.70",
+   "name": "Bipolar disorder, currently in remission, most recent episode unspecified"
+  },
+  {
+   "code": "F31.71",
+   "name": "Bipolar disorder, in partial remission, most recent episode hypomanic"
+  },
+  {
+   "code": "F31.72",
+   "name": "Bipolar disorder, in full remission, most recent episode hypomanic"
+  },
+  {
+   "code": "F31.73",
+   "name": "Bipolar disorder, in partial remission, most recent episode manic"
+  },
+  {
+   "code": "F31.74",
+   "name": "Bipolar disorder, in full remission, most recent episode manic"
+  },
+  {
+   "code": "F31.75",
+   "name": "Bipolar disorder, in partial remission, most recent episode depressed"
+  },
+  {
+   "code": "F31.76",
+   "name": "Bipolar disorder, in full remission, most recent episode depressed"
+  },
+  {
+   "code": "F31.77",
+   "name": "Bipolar disorder, in partial remission, most recent episode mixed"
+  },
+  {
+   "code": "F31.78",
+   "name": "Bipolar disorder, in full remission, most recent episode mixed"
+  },
+  {
+   "code": "F31.81",
+   "name": "Bipolar II disorder"
+  },
+  {
+   "code": "F31.89",
+   "name": "Other bipolar disorder"
+  },
+  {
+   "code": "F31.9",
+   "name": "Bipolar disorder, unspecified"
+  },
+  {
+   "code": "F32.0",
+   "name": "Major depressive disorder, single episode, mild"
+  },
+  {
+   "code": "F32.1",
+   "name": "Major depressive disorder, single episode, moderate"
+  },
+  {
+   "code": "F32.2",
+   "name": "Major depressive disorder, single episode, severe without psychotic features"
+  },
+  {
+   "code": "F32.3",
+   "name": "Major depressive disorder, single episode, severe with psychotic features"
+  },
+  {
+   "code": "F32.4",
+   "name": "Major depressive disorder, single episode, in partial remission"
+  },
+  {
+   "code": "F32.5",
+   "name": "Major depressive disorder, single episode, in full remission"
+  },
+  {
+   "code": "F32.81",
+   "name": "Premenstrual dysphoric disorder"
+  },
+  {
+   "code": "F32.89",
+   "name": "Other specified depressive episodes"
+  },
+  {
+   "code": "F32.9",
+   "name": "Major depressive disorder, single episode, unspecified"
+  },
+  {
+   "code": "F32.A",
+   "name": "Depression, unspecified"
+  },
+  {
+   "code": "F33.0",
+   "name": "Major depressive disorder, recurrent, mild"
+  },
+  {
+   "code": "F33.1",
+   "name": "Major depressive disorder, recurrent, moderate"
+  },
+  {
+   "code": "F33.2",
+   "name": "Major depressive disorder, recurrent severe without psychotic features"
+  },
+  {
+   "code": "F33.3",
+   "name": "Major depressive disorder, recurrent, severe with psychotic symptoms"
+  },
+  {
+   "code": "F33.40",
+   "name": "Major depressive disorder, recurrent, in remission, unspecified"
+  },
+  {
+   "code": "F33.41",
+   "name": "Major depressive disorder, recurrent, in partial remission"
+  },
+  {
+   "code": "F33.42",
+   "name": "Major depressive disorder, recurrent, in full remission"
+  },
+  {
+   "code": "F33.8",
+   "name": "Other recurrent depressive disorders"
+  },
+  {
+   "code": "F33.9",
+   "name": "Major depressive disorder, recurrent, unspecified"
+  },
+  {
+   "code": "F34.0",
+   "name": "Cyclothymic disorder"
+  },
+  {
+   "code": "F34.1",
+   "name": "Dysthymic disorder"
+  },
+  {
+   "code": "F34.81",
+   "name": "Disruptive mood dysregulation disorder"
+  },
+  {
+   "code": "F34.89",
+   "name": "Other specified persistent mood disorders"
+  },
+  {
+   "code": "F34.9",
+   "name": "Persistent mood [affective] disorder, unspecified"
+  },
+  {
+   "code": "F39",
+   "name": "Unspecified mood [affective] disorder"
+  },
+  {
+   "code": "F40.00",
+   "name": "Agoraphobia, unspecified"
+  },
+  {
+   "code": "F40.01",
+   "name": "Agoraphobia with panic disorder"
+  },
+  {
+   "code": "F40.02",
+   "name": "Agoraphobia without panic disorder"
+  },
+  {
+   "code": "F40.10",
+   "name": "Social phobia, unspecified"
+  },
+  {
+   "code": "F40.11",
+   "name": "Social phobia, generalized"
+  },
+  {
+   "code": "F40.210",
+   "name": "Arachnophobia"
+  },
+  {
+   "code": "F40.218",
+   "name": "Other animal type phobia"
+  },
+  {
+   "code": "F40.220",
+   "name": "Fear of thunderstorms"
+  },
+  {
+   "code": "F40.228",
+   "name": "Other natural environment type phobia"
+  },
+  {
+   "code": "F40.230",
+   "name": "Fear of blood"
+  },
+  {
+   "code": "F40.231",
+   "name": "Fear of injections and transfusions"
+  },
+  {
+   "code": "F40.232",
+   "name": "Fear of other medical care"
+  },
+  {
+   "code": "F40.233",
+   "name": "Fear of injury"
+  },
+  {
+   "code": "F40.240",
+   "name": "Claustrophobia"
+  },
+  {
+   "code": "F40.241",
+   "name": "Acrophobia"
+  },
+  {
+   "code": "F40.242",
+   "name": "Fear of bridges"
+  },
+  {
+   "code": "F40.243",
+   "name": "Fear of flying"
+  },
+  {
+   "code": "F40.248",
+   "name": "Other situational type phobia"
+  },
+  {
+   "code": "F40.290",
+   "name": "Androphobia"
+  },
+  {
+   "code": "F40.291",
+   "name": "Gynephobia"
+  },
+  {
+   "code": "F40.298",
+   "name": "Other specified phobia"
+  },
+  {
+   "code": "F40.8",
+   "name": "Other phobic anxiety disorders"
+  },
+  {
+   "code": "F40.9",
+   "name": "Phobic anxiety disorder, unspecified"
+  },
+  {
+   "code": "F41.0",
+   "name": "Panic disorder [episodic paroxysmal anxiety]"
+  },
+  {
+   "code": "F41.1",
+   "name": "Generalized anxiety disorder"
+  },
+  {
+   "code": "F41.3",
+   "name": "Other mixed anxiety disorders"
+  },
+  {
+   "code": "F41.8",
+   "name": "Other specified anxiety disorders"
+  },
+  {
+   "code": "F41.9",
+   "name": "Anxiety disorder, unspecified"
+  },
+  {
+   "code": "F42.2",
+   "name": "Mixed obsessional thoughts and acts"
+  },
+  {
+   "code": "F42.3",
+   "name": "Hoarding disorder"
+  },
+  {
+   "code": "F42.4",
+   "name": "Excoriation (skin-picking) disorder"
+  },
+  {
+   "code": "F42.8",
+   "name": "Other obsessive-compulsive disorder"
+  },
+  {
+   "code": "F42.9",
+   "name": "Obsessive-compulsive disorder, unspecified"
+  },
+  {
+   "code": "F43.0",
+   "name": "Acute stress reaction"
+  },
+  {
+   "code": "F43.10",
+   "name": "Post-traumatic stress disorder, unspecified"
+  },
+  {
+   "code": "F43.11",
+   "name": "Post-traumatic stress disorder, acute"
+  },
+  {
+   "code": "F43.12",
+   "name": "Post-traumatic stress disorder, chronic"
+  },
+  {
+   "code": "F43.20",
+   "name": "Adjustment disorder, unspecified"
+  },
+  {
+   "code": "F43.21",
+   "name": "Adjustment disorder with depressed mood"
+  },
+  {
+   "code": "F43.22",
+   "name": "Adjustment disorder with anxiety"
+  },
+  {
+   "code": "F43.23",
+   "name": "Adjustment disorder with mixed anxiety and depressed mood"
+  },
+  {
+   "code": "F43.24",
+   "name": "Adjustment disorder with disturbance of conduct"
+  },
+  {
+   "code": "F43.25",
+   "name": "Adjustment disorder with mixed disturbance of emotions and conduct"
+  },
+  {
+   "code": "F43.29",
+   "name": "Adjustment disorder with other symptoms"
+  },
+  {
+   "code": "F43.81",
+   "name": "Prolonged grief disorder"
+  },
+  {
+   "code": "F43.89",
+   "name": "Other reactions to severe stress"
+  },
+  {
+   "code": "F43.9",
+   "name": "Reaction to severe stress, unspecified"
+  },
+  {
+   "code": "F44.0",
+   "name": "Dissociative amnesia"
+  },
+  {
+   "code": "F44.1",
+   "name": "Dissociative fugue"
+  },
+  {
+   "code": "F44.2",
+   "name": "Dissociative stupor"
+  },
+  {
+   "code": "F44.4",
+   "name": "Conversion disorder with motor symptom or deficit"
+  },
+  {
+   "code": "F44.5",
+   "name": "Conversion disorder with seizures or convulsions"
+  },
+  {
+   "code": "F44.6",
+   "name": "Conversion disorder with sensory symptom or deficit"
+  },
+  {
+   "code": "F44.7",
+   "name": "Conversion disorder with mixed symptom presentation"
+  },
+  {
+   "code": "F44.81",
+   "name": "Dissociative identity disorder"
+  },
+  {
+   "code": "F44.89",
+   "name": "Other dissociative and conversion disorders"
+  },
+  {
+   "code": "F44.9",
+   "name": "Dissociative and conversion disorder, unspecified"
+  },
+  {
+   "code": "F45.0",
+   "name": "Somatization disorder"
+  },
+  {
+   "code": "F45.1",
+   "name": "Undifferentiated somatoform disorder"
+  },
+  {
+   "code": "F45.20",
+   "name": "Hypochondriacal disorder, unspecified"
+  },
+  {
+   "code": "F45.21",
+   "name": "Hypochondriasis"
+  },
+  {
+   "code": "F45.22",
+   "name": "Body dysmorphic disorder"
+  },
+  {
+   "code": "F45.29",
+   "name": "Other hypochondriacal disorders"
+  },
+  {
+   "code": "F45.41",
+   "name": "Pain disorder exclusively related to psychological factors"
+  },
+  {
+   "code": "F45.42",
+   "name": "Pain disorder with related psychological factors"
+  },
+  {
+   "code": "F45.8",
+   "name": "Other somatoform disorders"
+  },
+  {
+   "code": "F45.9",
+   "name": "Somatoform disorder, unspecified"
+  },
+  {
+   "code": "F48.1",
+   "name": "Depersonalization-derealization syndrome"
+  },
+  {
+   "code": "F48.2",
+   "name": "Pseudobulbar affect"
+  },
+  {
+   "code": "F48.8",
+   "name": "Other specified nonpsychotic mental disorders"
+  },
+  {
+   "code": "F48.9",
+   "name": "Nonpsychotic mental disorder, unspecified"
+  },
+  {
+   "code": "F50.00",
+   "name": "Anorexia nervosa, unspecified"
+  },
+  {
+   "code": "F50.010",
+   "name": "Anorexia nervosa, restricting type, mild"
+  },
+  {
+   "code": "F50.011",
+   "name": "Anorexia nervosa, restricting type, moderate"
+  },
+  {
+   "code": "F50.012",
+   "name": "Anorexia nervosa, restricting type, severe"
+  },
+  {
+   "code": "F50.013",
+   "name": "Anorexia nervosa, restricting type, extreme"
+  },
+  {
+   "code": "F50.014",
+   "name": "Anorexia nervosa, restricting type, in remission"
+  },
+  {
+   "code": "F50.019",
+   "name": "Anorexia nervosa, restricting type, unspecified"
+  },
+  {
+   "code": "F50.020",
+   "name": "Anorexia nervosa, binge eating/purging type, mild"
+  },
+  {
+   "code": "F50.021",
+   "name": "Anorexia nervosa, binge eating/purging type, moderate"
+  },
+  {
+   "code": "F50.022",
+   "name": "Anorexia nervosa, binge eating/purging type, severe"
+  },
+  {
+   "code": "F50.023",
+   "name": "Anorexia nervosa, binge eating/purging type, extreme"
+  },
+  {
+   "code": "F50.024",
+   "name": "Anorexia nervosa, binge eating/purging type, in remission"
+  },
+  {
+   "code": "F50.029",
+   "name": "Anorexia nervosa, binge eating/purging type, unspecified"
+  },
+  {
+   "code": "F50.20",
+   "name": "Bulimia nervosa, unspecified"
+  },
+  {
+   "code": "F50.21",
+   "name": "Bulimia nervosa, mild"
+  },
+  {
+   "code": "F50.22",
+   "name": "Bulimia nervosa, moderate"
+  },
+  {
+   "code": "F50.23",
+   "name": "Bulimia nervosa, severe"
+  },
+  {
+   "code": "F50.24",
+   "name": "Bulimia nervosa, extreme"
+  },
+  {
+   "code": "F50.25",
+   "name": "Bulimia nervosa, in remission"
+  },
+  {
+   "code": "F50.810",
+   "name": "Binge eating disorder, mild"
+  },
+  {
+   "code": "F50.811",
+   "name": "Binge eating disorder, moderate"
+  },
+  {
+   "code": "F50.812",
+   "name": "Binge eating disorder, severe"
+  },
+  {
+   "code": "F50.813",
+   "name": "Binge eating disorder, extreme"
+  },
+  {
+   "code": "F50.814",
+   "name": "Binge eating disorder, in remission"
+  },
+  {
+   "code": "F50.819",
+   "name": "Binge eating disorder, unspecified"
+  },
+  {
+   "code": "F50.82",
+   "name": "Avoidant/restrictive food intake disorder"
+  },
+  {
+   "code": "F50.83",
+   "name": "Pica in adults"
+  },
+  {
+   "code": "F50.84",
+   "name": "Rumination disorder in adults"
+  },
+  {
+   "code": "F50.89",
+   "name": "Other specified eating disorder"
+  },
+  {
+   "code": "F50.9",
+   "name": "Eating disorder, unspecified"
+  },
+  {
+   "code": "F51.01",
+   "name": "Primary insomnia"
+  },
+  {
+   "code": "F51.02",
+   "name": "Adjustment insomnia"
+  },
+  {
+   "code": "F51.03",
+   "name": "Paradoxical insomnia"
+  },
+  {
+   "code": "F51.04",
+   "name": "Psychophysiologic insomnia"
+  },
+  {
+   "code": "F51.05",
+   "name": "Insomnia due to other mental disorder"
+  },
+  {
+   "code": "F51.09",
+   "name": "Other insomnia not due to a substance or known physiological condition"
+  },
+  {
+   "code": "F51.11",
+   "name": "Primary hypersomnia"
+  },
+  {
+   "code": "F51.12",
+   "name": "Insufficient sleep syndrome"
+  },
+  {
+   "code": "F51.13",
+   "name": "Hypersomnia due to other mental disorder"
+  },
+  {
+   "code": "F51.19",
+   "name": "Other hypersomnia not due to a substance or known physiological condition"
+  },
+  {
+   "code": "F51.3",
+   "name": "Sleepwalking [somnambulism]"
+  },
+  {
+   "code": "F51.4",
+   "name": "Sleep terrors [night terrors]"
+  },
+  {
+   "code": "F51.5",
+   "name": "Nightmare disorder"
+  },
+  {
+   "code": "F51.8",
+   "name": "Other sleep disorders not due to a substance or known physiological condition"
+  },
+  {
+   "code": "F51.9",
+   "name": "Sleep disorder not due to a substance or known physiological condition, unspecified"
+  },
+  {
+   "code": "F52.0",
+   "name": "Hypoactive sexual desire disorder"
+  },
+  {
+   "code": "F52.1",
+   "name": "Sexual aversion disorder"
+  },
+  {
+   "code": "F52.21",
+   "name": "Male erectile disorder"
+  },
+  {
+   "code": "F52.22",
+   "name": "Female sexual arousal disorder"
+  },
+  {
+   "code": "F52.31",
+   "name": "Female orgasmic disorder"
+  },
+  {
+   "code": "F52.32",
+   "name": "Male orgasmic disorder"
+  },
+  {
+   "code": "F52.4",
+   "name": "Premature ejaculation"
+  },
+  {
+   "code": "F52.5",
+   "name": "Vaginismus not due to a substance or known physiological condition"
+  },
+  {
+   "code": "F52.6",
+   "name": "Dyspareunia not due to a substance or known physiological condition"
+  },
+  {
+   "code": "F52.8",
+   "name": "Other sexual dysfunction not due to a substance or known physiological condition"
+  },
+  {
+   "code": "F52.9",
+   "name": "Unspecified sexual dysfunction not due to a substance or known physiological condition"
+  },
+  {
+   "code": "F53.0",
+   "name": "Postpartum depression"
+  },
+  {
+   "code": "F53.1",
+   "name": "Puerperal psychosis"
+  },
+  {
+   "code": "F54",
+   "name": "Psychological and behavioral factors associated with disorders or diseases classified elsewhere"
+  },
+  {
+   "code": "F55.0",
+   "name": "Abuse of antacids"
+  },
+  {
+   "code": "F55.1",
+   "name": "Abuse of herbal or folk remedies"
+  },
+  {
+   "code": "F55.2",
+   "name": "Abuse of laxatives"
+  },
+  {
+   "code": "F55.3",
+   "name": "Abuse of steroids or hormones"
+  },
+  {
+   "code": "F55.4",
+   "name": "Abuse of vitamins"
+  },
+  {
+   "code": "F55.8",
+   "name": "Abuse of other non-psychoactive substances"
+  },
+  {
+   "code": "F59",
+   "name": "Unspecified behavioral syndromes associated with physiological disturbances and physical factors"
+  },
+  {
+   "code": "F60.0",
+   "name": "Paranoid personality disorder"
+  },
+  {
+   "code": "F60.1",
+   "name": "Schizoid personality disorder"
+  },
+  {
+   "code": "F60.2",
+   "name": "Antisocial personality disorder"
+  },
+  {
+   "code": "F60.3",
+   "name": "Borderline personality disorder"
+  },
+  {
+   "code": "F60.4",
+   "name": "Histrionic personality disorder"
+  },
+  {
+   "code": "F60.5",
+   "name": "Obsessive-compulsive personality disorder"
+  },
+  {
+   "code": "F60.6",
+   "name": "Avoidant personality disorder"
+  },
+  {
+   "code": "F60.7",
+   "name": "Dependent personality disorder"
+  },
+  {
+   "code": "F60.81",
+   "name": "Narcissistic personality disorder"
+  },
+  {
+   "code": "F60.89",
+   "name": "Other specific personality disorders"
+  },
+  {
+   "code": "F60.9",
+   "name": "Personality disorder, unspecified"
+  },
+  {
+   "code": "F63.0",
+   "name": "Pathological gambling"
+  },
+  {
+   "code": "F63.1",
+   "name": "Pyromania"
+  },
+  {
+   "code": "F63.2",
+   "name": "Kleptomania"
+  },
+  {
+   "code": "F63.3",
+   "name": "Trichotillomania"
+  },
+  {
+   "code": "F63.81",
+   "name": "Intermittent explosive disorder"
+  },
+  {
+   "code": "F63.89",
+   "name": "Other impulse disorders"
+  },
+  {
+   "code": "F63.9",
+   "name": "Impulse disorder, unspecified"
+  },
+  {
+   "code": "F64.0",
+   "name": "Transsexualism"
+  },
+  {
+   "code": "F64.1",
+   "name": "Dual role transvestism"
+  },
+  {
+   "code": "F64.2",
+   "name": "Gender identity disorder of childhood"
+  },
+  {
+   "code": "F64.8",
+   "name": "Other gender identity disorders"
+  },
+  {
+   "code": "F64.9",
+   "name": "Gender identity disorder, unspecified"
+  },
+  {
+   "code": "F65.0",
+   "name": "Fetishism"
+  },
+  {
+   "code": "F65.1",
+   "name": "Transvestic fetishism"
+  },
+  {
+   "code": "F65.2",
+   "name": "Exhibitionism"
+  },
+  {
+   "code": "F65.3",
+   "name": "Voyeurism"
+  },
+  {
+   "code": "F65.4",
+   "name": "Pedophilia"
+  },
+  {
+   "code": "F65.50",
+   "name": "Sadomasochism, unspecified"
+  },
+  {
+   "code": "F65.51",
+   "name": "Sexual masochism"
+  },
+  {
+   "code": "F65.52",
+   "name": "Sexual sadism"
+  },
+  {
+   "code": "F65.81",
+   "name": "Frotteurism"
+  },
+  {
+   "code": "F65.89",
+   "name": "Other paraphilias"
+  },
+  {
+   "code": "F65.9",
+   "name": "Paraphilia, unspecified"
+  },
+  {
+   "code": "F66",
+   "name": "Other sexual disorders"
+  },
+  {
+   "code": "F68.10",
+   "name": "Factitious disorder imposed on self, unspecified"
+  },
+  {
+   "code": "F68.11",
+   "name": "Factitious disorder imposed on self, with predominantly psychological signs and symptoms"
+  },
+  {
+   "code": "F68.12",
+   "name": "Factitious disorder imposed on self, with predominantly physical signs and symptoms"
+  },
+  {
+   "code": "F68.13",
+   "name": "Factitious disorder imposed on self, with combined psychological and physical signs and symptoms"
+  },
+  {
+   "code": "F68.A",
+   "name": "Factitious disorder imposed on another"
+  },
+  {
+   "code": "F68.8",
+   "name": "Other specified disorders of adult personality and behavior"
+  },
+  {
+   "code": "F69",
+   "name": "Unspecified disorder of adult personality and behavior"
+  },
+  {
+   "code": "F70",
+   "name": "Mild intellectual disabilities"
+  },
+  {
+   "code": "F71",
+   "name": "Moderate intellectual disabilities"
+  },
+  {
+   "code": "F72",
+   "name": "Severe intellectual disabilities"
+  },
+  {
+   "code": "F73",
+   "name": "Profound intellectual disabilities"
+  },
+  {
+   "code": "F78.A1",
+   "name": "SYNGAP1-related intellectual disability"
+  },
+  {
+   "code": "F78.A9",
+   "name": "Other genetic related intellectual disability"
+  },
+  {
+   "code": "F79",
+   "name": "Unspecified intellectual disabilities"
+  },
+  {
+   "code": "F80.0",
+   "name": "Phonological disorder"
+  },
+  {
+   "code": "F80.1",
+   "name": "Expressive language disorder"
+  },
+  {
+   "code": "F80.2",
+   "name": "Mixed receptive-expressive language disorder"
+  },
+  {
+   "code": "F80.4",
+   "name": "Speech and language development delay due to hearing loss"
+  },
+  {
+   "code": "F80.81",
+   "name": "Childhood onset fluency disorder"
+  },
+  {
+   "code": "F80.82",
+   "name": "Social pragmatic communication disorder"
+  },
+  {
+   "code": "F80.89",
+   "name": "Other developmental disorders of speech and language"
+  },
+  {
+   "code": "F80.9",
+   "name": "Developmental disorder of speech and language, unspecified"
+  },
+  {
+   "code": "F81.0",
+   "name": "Specific reading disorder"
+  },
+  {
+   "code": "F81.2",
+   "name": "Mathematics disorder"
+  },
+  {
+   "code": "F81.81",
+   "name": "Disorder of written expression"
+  },
+  {
+   "code": "F81.89",
+   "name": "Other developmental disorders of scholastic skills"
+  },
+  {
+   "code": "F81.9",
+   "name": "Developmental disorder of scholastic skills, unspecified"
+  },
+  {
+   "code": "F82",
+   "name": "Specific developmental disorder of motor function"
+  },
+  {
+   "code": "F84.0",
+   "name": "Autistic disorder"
+  },
+  {
+   "code": "F84.2",
+   "name": "Rett's syndrome"
+  },
+  {
+   "code": "F84.3",
+   "name": "Other childhood disintegrative disorder"
+  },
+  {
+   "code": "F84.5",
+   "name": "Asperger's syndrome"
+  },
+  {
+   "code": "F84.8",
+   "name": "Other pervasive developmental disorders"
+  },
+  {
+   "code": "F84.9",
+   "name": "Pervasive developmental disorder, unspecified"
+  },
+  {
+   "code": "F88",
+   "name": "Other disorders of psychological development"
+  },
+  {
+   "code": "F89",
+   "name": "Unspecified disorder of psychological development"
+  },
+  {
+   "code": "F90.0",
+   "name": "Attention-deficit hyperactivity disorder, predominantly inattentive type"
+  },
+  {
+   "code": "F90.1",
+   "name": "Attention-deficit hyperactivity disorder, predominantly hyperactive type"
+  },
+  {
+   "code": "F90.2",
+   "name": "Attention-deficit hyperactivity disorder, combined type"
+  },
+  {
+   "code": "F90.8",
+   "name": "Attention-deficit hyperactivity disorder, other type"
+  },
+  {
+   "code": "F90.9",
+   "name": "Attention-deficit hyperactivity disorder, unspecified type"
+  },
+  {
+   "code": "F91.0",
+   "name": "Conduct disorder confined to family context"
+  },
+  {
+   "code": "F91.1",
+   "name": "Conduct disorder, childhood-onset type"
+  },
+  {
+   "code": "F91.2",
+   "name": "Conduct disorder, adolescent-onset type"
+  },
+  {
+   "code": "F91.3",
+   "name": "Oppositional defiant disorder"
+  },
+  {
+   "code": "F91.8",
+   "name": "Other conduct disorders"
+  },
+  {
+   "code": "F91.9",
+   "name": "Conduct disorder, unspecified"
+  },
+  {
+   "code": "F93.0",
+   "name": "Separation anxiety disorder of childhood"
+  },
+  {
+   "code": "F93.8",
+   "name": "Other childhood emotional disorders"
+  },
+  {
+   "code": "F93.9",
+   "name": "Childhood emotional disorder, unspecified"
+  },
+  {
+   "code": "F94.0",
+   "name": "Selective mutism"
+  },
+  {
+   "code": "F94.1",
+   "name": "Reactive attachment disorder of childhood"
+  },
+  {
+   "code": "F94.2",
+   "name": "Disinhibited attachment disorder of childhood"
+  },
+  {
+   "code": "F94.8",
+   "name": "Other childhood disorders of social functioning"
+  },
+  {
+   "code": "F94.9",
+   "name": "Childhood disorder of social functioning, unspecified"
+  },
+  {
+   "code": "F95.0",
+   "name": "Transient tic disorder"
+  },
+  {
+   "code": "F95.1",
+   "name": "Chronic motor or vocal tic disorder"
+  },
+  {
+   "code": "F95.2",
+   "name": "Tourette's disorder"
+  },
+  {
+   "code": "F95.8",
+   "name": "Other tic disorders"
+  },
+  {
+   "code": "F95.9",
+   "name": "Tic disorder, unspecified"
+  },
+  {
+   "code": "F98.0",
+   "name": "Enuresis not due to a substance or known physiological condition"
+  },
+  {
+   "code": "F98.1",
+   "name": "Encopresis not due to a substance or known physiological condition"
+  },
+  {
+   "code": "F98.21",
+   "name": "Rumination disorder of infancy and childhood"
+  },
+  {
+   "code": "F98.29",
+   "name": "Other feeding disorders of infancy and early childhood"
+  },
+  {
+   "code": "F98.3",
+   "name": "Pica of infancy and childhood"
+  },
+  {
+   "code": "F98.4",
+   "name": "Stereotyped movement disorders"
+  },
+  {
+   "code": "F98.5",
+   "name": "Adult onset fluency disorder"
+  },
+  {
+   "code": "F98.8",
+   "name": "Other specified behavioral and emotional disorders with onset usually occurring in childhood and adolescence"
+  },
+  {
+   "code": "F98.9",
+   "name": "Unspecified behavioral and emotional disorders with onset usually occurring in childhood and adolescence"
+  },
+  {
+   "code": "F99",
+   "name": "Mental disorder, not otherwise specified"
+  }
+ ],
+ "observacao": "Conjunto de codigos usado pelo DSM-5-TR. Descricoes no original em ingles, como publicadas."
+}

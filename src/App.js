@@ -939,7 +939,7 @@ async function generateDiagnosisFromClinicalData(element) {
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result, sources, mode } = await requestClinicalAi("diagnosis", buildClinicalAiPrompt("diagnosis", context.target, context.patient, context.previous, context.isReturn), context.target?.aiMode, buildRagQuery("diagnosis", context.target));
+    const { result, sources, mode, codeWarnings } = await requestClinicalAi("diagnosis", buildClinicalAiPrompt("diagnosis", context.target, context.patient, context.previous, context.isReturn), context.target?.aiMode, buildRagQuery("diagnosis", context.target));
     // Sem completar as vagas que sobram: se a IA propos duas sindromicas,
     // mostra duas. Antes o catalogo local enchia o resto das tres categorias
     // com o mesmo punhado de entidades nosologicas, o que fazia uma nosologia
@@ -963,7 +963,13 @@ async function generateDiagnosisFromClinicalData(element) {
       diferenciais: "",
       ragSources: sources,
       aiMode: mode,
-      aiStatus: `Propostas para você assinalar: ${countLabel(syndromicOptions.length, "sindrômica")}, ${countLabel(nosologicalOptions.length, "nosológica")} e ${countLabel(etiologicalOptions.length, "etiológica")}. As hipóteses do médico foram mantidas.`,
+      aiStatus: `Propostas para você assinalar: ${countLabel(syndromicOptions.length, "sindrômica")}, ${countLabel(nosologicalOptions.length, "nosológica")} e ${countLabel(etiologicalOptions.length, "etiológica")}. As hipóteses do médico foram mantidas.`
+        // Dito na tela, não só no log: a hipótese chega sem código, e código
+        // ausente é normal em síndrome descritiva. Sem o aviso, um código
+        // inventado e removido se disfarçaria de código que nunca existiu.
+        + ((codeWarnings || []).length
+          ? ` Atenção: ${countLabel(codeWarnings.length, "código")} não conferia com a fonte oficial e foi removido — ${codeWarnings.join(" ")}`
+          : ""),
     };
   } catch (error) {
     // O catalogo local so entra aqui, quando nao ha resposta nenhuma, e dito

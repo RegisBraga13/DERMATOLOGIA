@@ -46,6 +46,10 @@ export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery
     result,
     text: data.text || clinicalAiTextFromResult(kind, result),
     sources: Array.isArray(data.sources) ? data.sources : [],
+    // Codigo que a IA inventou e o servidor removeu. Vai a tela: a hipotese
+    // chega sem codigo, e sem o aviso isso passaria por sindrome descritiva,
+    // que legitimamente nao tem codigo.
+    codeWarnings: Array.isArray(data.code_warnings) ? data.code_warnings : [],
     mode: data.mode || "current"
   };
 }

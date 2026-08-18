@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 import logging
 import os
+import re
 import secrets
 import threading
 import urllib.error
@@ -27,6 +28,20 @@ RXNAV_DISPLAY_TERMS = None
 RXNAV_LOCK = threading.Lock()
 RAG_MAX_RESULTS = 8
 RAG_SCORE_THRESHOLD = 0.55
+
+# --- Codigos diagnosticos -----------------------------------------------------
+# Tabelas oficiais montadas por scripts/build_code_tables.py. Codigo nao se
+# valida por leitura: "6A70 - Episodio depressivo" e uma linha que passa por
+# qualquer revisao e ainda assim esta errada num caso recorrente (6A71). A IA
+# comete o mesmo erro pelo mesmo motivo — le o codigo de dentro da prosa
+# recuperada. Aqui o codigo devolvido e conferido contra a fonte; o que nao
+# existir e removido, e a hipotese sai sem codigo em vez de sair com um
+# codigo inventado.
+CODE_TABLES_DIR = Path(__file__).resolve().parent / "src" / "data" / "codes"
+CODE_TABLES = None
+CODE_TABLES_LOCK = threading.Lock()
+CID11_PATTERN = re.compile(r"\b6[A-E][0-9A-Z]{2}(?:\.[0-9A-Z]+)?\b")
+ICD10CM_PATTERN = re.compile(r"\bF[0-9]{2}(?:\.[0-9A-Z]+)?\b")
 
 # --- Superfície estática servida ---------------------------------------------
 # O handler serve o diretório do projeto inteiro. Sem uma barreira explícita,
@@ -525,6 +540,61 @@ def validate_result(kind, result):
     return result
 
 
+def load_code_tables():
+    """Le as tabelas oficiais uma vez. Ausentes, a conferencia nao acontece."""
+    global CODE_TABLES
+    with CODE_TABLES_LOCK:
+        if CODE_TABLES is None:
+            tables = {}
+            for key, filename in (("cid11", "icd11Cap6.json"), ("dsm5tr", "icd10cmF.json")):
+                path = CODE_TABLES_DIR / filename
+                if not path.exists():
+                    continue
+                try:
+                    data = json.loads(path.read_text(encoding="utf-8"))
+                    tables[key] = {entry["code"] for entry in data["codigos"]}
+                except (ValueError, KeyError, OSError) as error:
+                    logger.error("tabela de codigos %s ilegivel: %s", filename, error)
+            CODE_TABLES = tables
+        return CODE_TABLES
+
+
+def verify_diagnostic_codes(result):
+    """Remove codigo que nao existe na fonte oficial. Devolve os avisos.
+
+    Nao derruba a resposta inteira: um codigo errado nao invalida as outras
+    hipoteses, e a hipotese sem codigo ainda serve ao medico. O que nao pode
+    e sair um codigo que o medico tomaria por conferido.
+    """
+    tables = load_code_tables()
+    if not tables:
+        return []
+    patterns = {"cid11": CID11_PATTERN, "dsm5tr": ICD10CM_PATTERN}
+    labels = {"cid11": "CID-11", "dsm5tr": "DSM-5-TR (ICD-10-CM)"}
+    warnings = []
+    for group in ("syndromic_options", "nosological_options", "etiological_options"):
+        for option in result.get(group) or []:
+            for key, pattern in patterns.items():
+                known = tables.get(key)
+                value = option.get(key)
+                if not known or not isinstance(value, str) or not value.strip():
+                    continue
+                found = pattern.findall(value)
+                unknown = [code for code in found if code not in known]
+                if found and not unknown:
+                    continue
+                # Campo preenchido sem nenhum codigo no formato da fonte tambem
+                # e falha, e a mais perigosa: a IA devolveu "300.02" — o codigo
+                # do DSM-IV para TAG, nao o da ICD-10-CM que o DSM-5-TR usa.
+                # Uma verificacao que so confere o que ja tem o formato certo
+                # aprova justamente o codigo de outra classificacao.
+                motivo = (f"{', '.join(unknown)} nao existe na tabela oficial" if unknown
+                          else f"\"{value.strip()}\" nao tem o formato de um codigo")
+                option[key] = ""
+                warnings.append(f"{option.get('name') or 'hipotese sem nome'} ({labels[key]}): {motivo}; removido.")
+    return warnings
+
+
 def plain_text_from_result(kind, result):
     if kind == "anamnesis":
         return f"QP: {result['chief_complaint']}\nHDA: {result['hda']}"
@@ -533,10 +603,19 @@ def plain_text_from_result(kind, result):
     if kind == "refinement":
         return "\n".join(f"{item['topic']}: {item['prompt']}" for item in result["questions"])
     if kind == "diagnosis":
+        # Sem o filtro sai "CID-11: " pelado — nas sindromes descritivas, que
+        # nao tem codigo por natureza, e nas hipoteses cujo codigo inventado
+        # foi removido por verify_diagnostic_codes. Mesmo criterio do cliente
+        # em formatDiagnosticOption.
         def format_options(options):
-            return "\n".join(
-            f"{item['name']} - CID-11: {item['cid11']} - DSM-5-TR: {item['dsm5tr']}"
-            for item in options)
+            def one(item):
+                parts = [item.get("name") or ""]
+                if (item.get("cid11") or "").strip():
+                    parts.append(f"CID-11: {item['cid11']}")
+                if (item.get("dsm5tr") or "").strip():
+                    parts.append(f"DSM-5-TR: {item['dsm5tr']}")
+                return " - ".join(part for part in parts if part)
+            return "\n".join(one(item) for item in options)
         return "DIAGNOSTICO SINDROMICO:\n{}\n\nDIAGNOSTICO NOSOLOGICO:\n{}\n\nDIAGNOSTICO ETIOLOGICO:\n{}".format(
             format_options(result["syndromic_options"]), format_options(result["nosological_options"]), format_options(result["etiological_options"]))
     if kind == "treatment":
@@ -779,6 +858,9 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             except (ValueError, json.JSONDecodeError) as error:
                 self.send_json(502, {"error": "Resposta da IA fora do formato clinico validado.", "detail": str(error)})
                 return
+            code_warnings = verify_diagnostic_codes(result) if kind == "diagnosis" else []
+            if code_warnings:
+                logger.warning("codigos removidos da resposta: %s", "; ".join(code_warnings))
             public_sources_by_file = {}
             for source in sources:
                 key = source["file_id"] or source["filename"]
@@ -798,6 +880,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 "result": result,
                 "text": plain_text_from_result(kind, result),
                 "sources": public_sources,
+                "code_warnings": code_warnings,
             })
         except urllib.error.HTTPError as error:
             # O corpo da OpenAI pode ecoar trechos do prompt (dado clínico) e
