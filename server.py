@@ -566,8 +566,14 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
         return str(requested)
 
     def send_head(self):
-        suffix = Path(urllib.parse.urlparse(self.path).path).suffix.lower()
-        self._cacheable = suffix in CACHEABLE_SUFFIXES
+        parsed = urllib.parse.urlparse(self.path)
+        suffix = Path(parsed.path).suffix.lower()
+        # Cache eterno so para quem carrega versao na URL. O App.js foi
+        # dividido em modulos, e esses modulos sao importados sem ?v= — sem
+        # esta condicao eles ficavam um ano no cache do navegador sem nenhum
+        # meio de invalidar, e uma correcao publicada nunca chegava a quem ja
+        # tinha aberto o app.
+        self._cacheable = suffix in CACHEABLE_SUFFIXES and bool(parsed.query)
         return super().send_head()
 
     def end_headers(self):

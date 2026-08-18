@@ -180,7 +180,9 @@ function protectiveFactorSentence(value = "") {
 function genderedCivilStatus(value = "", sex = "") {
   const normalizedSex = normalizeText(sex);
   if (!/\(a\)/i.test(value)) return value.toLowerCase();
-  if (normalizedSex === "feminino") return value.replace(/\(a\)/i, "a").toLowerCase();
+  // O "o" antes de "(a)" faz parte da forma masculina e precisa sair junto:
+  // "Solteiro(a)" no feminino e "solteira", nao "solteiroa".
+  if (normalizedSex === "feminino") return value.replace(/o?\(a\)/i, "a").toLowerCase();
   if (normalizedSex === "masculino") return value.replace(/\(a\)/i, "").toLowerCase();
   return value.toLowerCase();
 }
@@ -203,7 +205,12 @@ export function conciseComplaintText(form = {}, isReturn = false) {
 export function conciseHdaText(form = {}, previous = null, isReturn = false) {
   if (isReturn) return cleanClinicalLine(returnStoryText(form, previous) || "História do retorno não informada");
   const qphda = anamnesisText(form);
-  const story = form.historia || remainingQphdaText(qphda, form.queixa);
+  // A HDA vem do campo que a extracao realmente preenche. form.historia nao e
+  // escrito em lugar nenhum do projeto: com ele na frente, toda consulta por
+  // voz caia no remainingQphdaText e despejava a transcricao inteira — com
+  // "Falante A:" e tudo — dentro da evolucao, que e texto de prontuario.
+  // Fica no fim da lista para nao quebrar registro antigo que o tenha.
+  const story = form.hdaManual || form.historia || remainingQphdaText(qphda, form.queixa);
   return cleanClinicalLine(story || "História da doença atual não informada");
 }
 
@@ -237,7 +244,8 @@ export function patientIdentificationText(patient = {}, withPrefix = true) {
   const fragments = [
     sexo ? `${withPrefix ? "Paciente " : ""}${sexo}` : withPrefix ? "Paciente" : "",
     age ? `${age} anos` : "",
-    patient.estadoCivil ? patient.estadoCivil.toLowerCase() : "",
+    // Mesma concordancia que a evolucao ja fazia: "solteira", nao "solteiro(a)".
+    patient.estadoCivil ? genderedCivilStatus(patient.estadoCivil, patient.sexo) : "",
     patient.ocupacao ? lowerFirst(patient.ocupacao) : ""
   ].filter(Boolean);
   return `${fragments.join(", ")}.`;

@@ -911,8 +911,10 @@ function saveClinicalRecord(scope) {
   return null;
 }
 
-function countLabel(total, word) {
-  return `${total} ${word}${total === 1 ? "" : "s"}`;
+// Recebe as duas formas em vez de anexar "s": "opcao medicamentosa" no plural
+// e "opcoes medicamentosas", nao "opcao medicamentosas".
+function countLabel(total, singular, plural = `${singular}s`) {
+  return `${total} ${total === 1 ? singular : plural}`;
 }
 
 async function generateDiagnosisFromClinicalData(element) {
@@ -1001,7 +1003,7 @@ async function generateTreatmentFromClinicalData(element) {
       condutaMedica: target?.condutaMedica || "",
       ragSources: sources,
       pharmaAiMode: mode,
-      treatmentStatus: `${countLabel(medicationOptions.length, "opção medicamentosa")} e ${countLabel(approachOptions.length, "outra abordagem")} geradas para revisao individual.`,
+      treatmentStatus: `${countLabel(medicationOptions.length, "opção medicamentosa", "opções medicamentosas")} e ${countLabel(approachOptions.length, "outra abordagem", "outras abordagens")} para revisão individual.`,
       aiStatus: "Sugestões de tratamento geradas pela IA para revisão médica."
     };
   } catch (error) {

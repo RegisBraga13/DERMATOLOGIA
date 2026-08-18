@@ -52,17 +52,39 @@ export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery
 
 export function buildRagQuery(kind, form = {}) {
   const diagnosis = treatmentDiagnosisText(form) || form.diagnosticoManual || "";
-  const symptoms = [
-    anamnesisText(form),
-    joinValues(form.maniaHipomaniaSintomas),
-    joinValues(form.ansiedadeSintomas),
-    joinValues(form.depressaoSintomas),
-    joinValues(form.psicoseSintomas),
-    joinValues(form.riscoSuicidioIndicadores),
+  // A busca vetorial recebe o dado ja estruturado, nao a transcricao bruta.
+  // Depois de uma entrevista por voz, anamnesisText devolve a conversa inteira
+  // — "Falante A: com dinheiro," e afins. Mil e quinhentos caracteres de fala
+  // coloquial diluem o embedding e derrubam todas as fontes abaixo do limiar,
+  // entao a consulta por voz voltava 422 num caso que a consulta digitada
+  // recuperava sem dificuldade. Os campos estruturados dizem a mesma coisa em
+  // vocabulario clinico: sao o que a extracao produziu a partir da conversa.
+  // As negativas ficam de fora da busca. "Nega sintomas relacionados" e "Nega
+  // ideacao, plano ou intencao suicida" nao se parecem com nada na literatura
+  // indexada, e arrastavam o embedding inteiro para longe: a mesma consulta
+  // recuperava zero fontes com elas e duas ou tres sem elas. Elas seguem no
+  // prompt, onde documentam o que foi perguntado e negado — o que a busca
+  // precisa e do que o paciente tem, nao do que ele nao tem.
+  const positives = values => arrayValue(values).filter(value => !normalizeText(value).startsWith("nega"));
+  const structured = [
+    form.queixa,
+    joinValues(positives(form.maniaHipomaniaSintomas)),
+    joinValues(positives(form.ansiedadeSintomas)),
+    joinValues(positives(form.depressaoSintomas)),
+    joinValues(positives(form.psicoseSintomas)),
+    joinValues(positives(form.sonoCaracteristicas)),
+    joinValues(positives(form.usoSubstanciasComportamentos)),
+    joinValues(positives(form.riscoSuicidioIndicadores)),
     mentalStateFindings(form).join("; ")
   ].filter(Boolean).join("; ");
-  if (kind === "anamnesis") return `Semiologia psiquiatrica para entrevista diagnostica: cronologia, curso, polaridade do humor, sintomas depressivos e maniacos, ansiedade, sono, psicose, risco suicida, substancias, causas medicas, funcionamento e fatores de protecao. Dados da narrativa: ${symptoms}`.slice(0, 4000);
-  if (kind === "refinement") return `Semiologia psiquiatrica para refinamento clinico: lacunas da anamnese, discriminacao entre sindromes, red flags, risco, psicose, bipolaridade, substancias, causas medicas, funcionamento e fatores de protecao. Dados ja registrados: ${symptoms}`.slice(0, 4000);
+  // Sem estrutura ainda — consulta digitada, ou antes da extracao — cai na
+  // narrativa, encurtada para nao repetir o mesmo problema.
+  const symptoms = structured || compactText(anamnesisText(form), 600);
+  // A anamnese e o refinamento rodam antes da extracao: ali a narrativa e o
+  // unico dado que existe.
+  const narrative = compactText(anamnesisText(form), 1200) || structured;
+  if (kind === "anamnesis") return `Semiologia psiquiatrica para entrevista diagnostica: cronologia, curso, polaridade do humor, sintomas depressivos e maniacos, ansiedade, sono, psicose, risco suicida, substancias, causas medicas, funcionamento e fatores de protecao. Dados da narrativa: ${narrative}`.slice(0, 4000);
+  if (kind === "refinement") return `Semiologia psiquiatrica para refinamento clinico: lacunas da anamnese, discriminacao entre sindromes, red flags, risco, psicose, bipolaridade, substancias, causas medicas, funcionamento e fatores de protecao. Dados ja registrados: ${narrative}`.slice(0, 4000);
   if (kind === "treatment") return `Diretrizes e tratamento de ${diagnosis}. Dados clinicos relevantes: ${symptoms}`.slice(0, 4000);
   if (kind === "diagnosis") return `Criterios diagnosticos e diagnostico diferencial para: ${symptoms}`.slice(0, 4000);
   if (kind === "medication") return `Psicofarmacologia de ${form.medicationGeneric || ""}: dose inicial, titulacao, dose alvo, efeitos colaterais, contraindicacoes e interacoes. Contexto clinico: ${diagnosis}; ${symptoms}`.slice(0, 4000);
