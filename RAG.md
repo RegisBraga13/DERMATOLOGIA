@@ -22,29 +22,43 @@ digito: o trecho que descreve episodio depressivo cita `6A70`, e o modelo copia
 `6A70` mesmo quando o caso e recorrente (`6A71`). Por isso codigo vem de tabela.
 
 ```bash
-python3 scripts/build_code_tables.py           # ICD-10-CM, sem credencial
-python3 scripts/build_code_tables.py --icd11   # tambem a CID-11
-python3 scripts/check_codes.py                 # confere o catalogo local
+python3 scripts/build_code_tables.py   # monta as tres tabelas
+python3 scripts/check_codes.py         # confere o catalogo local
 ```
 
-| Tabela | Fonte | Licenca | Credencial |
-| --- | --- | --- | --- |
-| `src/data/codes/icd10cmF.json` | CDC/NCHS, ICD-10-CM cap. F | Dominio publico | nao |
-| `src/data/codes/icd11Cap6.json` | OMS, CID-11 MMS cap. 6 | CC BY-ND 3.0 IGO | sim |
+| Tabela | Fonte | Licenca |
+| --- | --- | --- |
+| `src/data/codes/icd11Cap6.json` | OMS, CID-11 MMS cap. 6, tabulacao simples (pt) | CC BY-ND 3.0 IGO |
+| `src/data/codes/icd10cmF.json` | CDC/NCHS, ICD-10-CM cap. F | Dominio publico |
+| `src/data/codes/crosswalk.json` | OMS, mapa 11->10, cruzado com a ICD-10-CM | CC BY-ND + dominio publico |
 
-A ICD-10-CM e o conjunto de codigos que o DSM-5-TR imprime: o `F41.1` do DSM e
-codigo da ICD-10-CM, nao da APA. Nenhum dos dois livros e indexado — isto e
-tabela de codigo, o criterio diagnostico continua vindo da biblioteca RAG.
+Nenhuma exige credencial: os tres sao arquivos de release publicos. A ICD-10-CM
+e o conjunto de codigos que o DSM-5-TR imprime — o `F41.1` do DSM e codigo da
+ICD-10-CM, nao da APA —, entao nenhum dos dois livros precisa ser indexado.
+Isto e tabela de codigo; o criterio diagnostico continua vindo da RAG.
 
-Para a CID-11, registre-se de graca em <https://icd.who.int/icdapi> e ponha
-`ICD_API_CLIENT_ID` e `ICD_API_CLIENT_SECRET` no `.env`.
+## Como o codigo entra no prontuario
 
-O `server.py` confere contra essas tabelas todo codigo que a IA devolve. O que
-nao existir, ou nao tiver o formato da classificacao, e removido e a hipotese
-sai sem codigo — com aviso na tela, porque codigo ausente e normal em sindrome
-descritiva e sem o aviso um codigo inventado se disfarcaria de codigo que nunca
-existiu. Enquanto a tabela da CID-11 nao existir, os codigos `6xxx` passam sem
-conferencia.
+O codigo nao e gerado, e resolvido:
+
+1. A IA responde **nome e codigo da CID-11**. So isso.
+2. O `server.py` confere o codigo contra a tabela da OMS. Nao existindo,
+   reancora a hipotese pelo nome da entidade; falhando as duas, a hipotese
+   sai sem codigo.
+3. Ancorada, o **nome passa a ser o titulo oficial da OMS**. "Depressao Maior"
+   e "Transtorno depressivo recorrente" nao sao a mesma afirmacao, e so a
+   segunda corresponde ao codigo ao lado.
+4. O codigo do **DSM-5-TR e derivado** do da CID-11 pelo mapa oficial. Codigo
+   de DSM que venha na resposta da IA e descartado.
+
+Isso existe porque instrucao de prompt nao resolveu. Mesmo mandado nao usar os
+codigos numericos do DSM-IV, o modelo devolve `300.02` para TAG em chamada real
+— e continua devolvendo. Derivar tira a decisao dele.
+
+O mapa da OMS as vezes para na categoria: `6A71 -> F33`, e a ICD-10-CM
+subdivide em `F33.0..F33.9` conforme gravidade e sintoma psicotico. Nesse caso
+sai `F33.-` (notacao padrao de codigo incompleto) e a lista de candidatos vai
+no aviso, para o medico especificar. Codigo nao se completa por chute.
 
 ## Seguranca e qualidade
 

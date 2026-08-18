@@ -230,10 +230,11 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
     ],
     diagnosis: [
       "Analise de forma integrada e nao superficial toda a anamnese, os antecedentes, o impacto funcional, os riscos e cada dominio preenchido do exame psiquico.",
-      "Gere exatamente 3 hipoteses sindromicas, 3 hipoteses nosologicas e 2 hipoteses etiologicas.",
+      "Gere ate 3 hipoteses sindromicas, ate 3 nosologicas e ate 2 etiologicas: e teto, nao piso. Grupo vazio e resposta legitima quando o registro nao sustenta.",
       "As hipoteses sindromicas devem descrever a sindrome clinica; as nosologicas devem propor transtornos/diagnosticos; as etiologicas devem propor causas medicas, substancias ou contextos causais quando sustentados pelos dados.",
       "As hipoteses sao mero auxilio ao psiquiatra e nao substituem avaliacao, confirmacao de criterios, exame clinico ou decisao medica.",
-      "Cada opcao deve conter nome, CID-11 e DSM-5-TR no formato estruturado solicitado. Para hipoteses sindromicas ou etiologicas sem codigo especifico, informe 'N/A' de forma explicita."
+      "Cada opcao deve conter o nome e, quando existir, o codigo da CID-11 do capitulo 6. Use o titulo oficial da entidade como nome. Deixe o campo em branco quando nao houver codigo proprio — sindrome descritiva costuma nao ter — nunca escreva 'N/A'.",
+      "Deixe o campo DSM-5-TR em branco: o servidor o deriva do codigo da CID-11 pelo mapa oficial da OMS."
     ],
     treatment: [
       "Gere exatamente 3 opcoes de abordagem medicamentosa: primeira opcao, segunda opcao e uma opcao off-label, exclusivamente com dados do Assistant da IA atual ou do RAG com literatura.",
@@ -352,9 +353,14 @@ function promptResponseFormat(kind) {
       "DIAGNOSTICO ETIOLOGICO: ate 2 hipoteses, uma por linha.",
       "Formato de cada linha: Nome - CID-11: ... - DSM-5-TR: ...",
       "",
-      "No campo DSM-5-TR use o codigo alfanumerico da CID-10-MC, que e o que o",
-      "DSM-5-TR adota — F41.1, F32.1, F43.21. Nao use os numericos antigos da",
-      "CID-9-MC (296.22, 300.02, 309.0), que sao do DSM-IV.",
+      "No campo CID-11 use o codigo do capitulo 6 e, no nome, o titulo oficial",
+      "da entidade — 6A71 e 'Transtorno depressivo recorrente', nao 'Depressao",
+      "Maior'. Distinga episodio unico (6A70) de recorrente (6A71): sao codigos",
+      "diferentes e o registro precisa sustentar a escolha.",
+      "",
+      "Deixe o campo DSM-5-TR em branco. Ele nao e mais respondido aqui: o",
+      "servidor deriva o codigo do DSM-5-TR a partir do da CID-11, pelo mapa",
+      "oficial da OMS. Codigo do DSM que vier nesta resposta e descartado.",
       "",
       "Proponha menos hipoteses, ou nenhuma no grupo, quando o registro nao",
       "sustentar. Nao complete as vagas com rotulo inespecifico do tipo",

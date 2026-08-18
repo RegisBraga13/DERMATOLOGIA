@@ -1,0 +1,5307 @@
+{
+ "fonte": "OMS CID-11 MMS release 2025-01, capitulo 6, tabulacao simples (pt)",
+ "licenca": "CC BY-ND 3.0 IGO - titulos reproduzidos literalmente, traducao da propria OMS",
+ "gerado_em": "2026-08-18",
+ "gerado_por": "scripts/build_code_tables.py",
+ "total": 883,
+ "codigos": [
+  {
+   "code": "BlockL1-6A0",
+   "name": "Transtornos do neurodesenvolvimento",
+   "nameEN": "Neurodevelopmental disorders",
+   "kind": "block"
+  },
+  {
+   "code": "6A00",
+   "name": "Transtornos do desenvolvimento intelectual",
+   "nameEN": "Disorders of intellectual development",
+   "kind": "category"
+  },
+  {
+   "code": "6A00.0",
+   "name": "Transtorno leve do desenvolvimento intelectual",
+   "nameEN": "Disorder of intellectual development, mild",
+   "kind": "category"
+  },
+  {
+   "code": "6A00.1",
+   "name": "Transtorno moderado do desenvolvimento intelectual",
+   "nameEN": "Disorder of intellectual development, moderate",
+   "kind": "category"
+  },
+  {
+   "code": "6A00.2",
+   "name": "Transtorno grave do desenvolvimento intelectual",
+   "nameEN": "Disorder of intellectual development, severe",
+   "kind": "category"
+  },
+  {
+   "code": "6A00.3",
+   "name": "Transtorno profundo do desenvolvimento intelectual",
+   "nameEN": "Disorder of intellectual development, profound",
+   "kind": "category"
+  },
+  {
+   "code": "6A00.4",
+   "name": "Transtorno temporário do desenvolvimento intelectual",
+   "nameEN": "Disorder of intellectual development, provisional",
+   "kind": "category"
+  },
+  {
+   "code": "6A00.Z",
+   "name": "Transtornos do desenvolvimento intelectual não especificados",
+   "nameEN": "Disorders of intellectual development, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A01",
+   "name": "Transtornos do desenvolvimento da fala ou da linguagem",
+   "nameEN": "Developmental speech or language disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6A01.0",
+   "name": "Transtorno do desenvolvimento dos sons da fala",
+   "nameEN": "Developmental speech sound disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A01.1",
+   "name": "Transtorno do desenvolvimento da fluência da fala",
+   "nameEN": "Developmental speech fluency disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A01.2",
+   "name": "Transtorno do desenvolvimento da linguagem",
+   "nameEN": "Developmental language disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A01.20",
+   "name": "Transtorno do desenvolvimento da linguagem com comprometimento da linguagem receptiva e expressiva",
+   "nameEN": "Developmental language disorder with impairment of receptive and expressive language",
+   "kind": "category"
+  },
+  {
+   "code": "6A01.21",
+   "name": "Transtorno do desenvolvimento da linguagem com comprometimento principalmente da linguagem expressiva",
+   "nameEN": "Developmental language disorder with impairment of mainly expressive language",
+   "kind": "category"
+  },
+  {
+   "code": "6A01.22",
+   "name": "Transtorno do desenvolvimento da linguagem com comprometimento principalmente da linguagem pragmática",
+   "nameEN": "Developmental language disorder with impairment of mainly pragmatic language",
+   "kind": "category"
+  },
+  {
+   "code": "6A01.23",
+   "name": "Transtorno do desenvolvimento da linguagem com outro comprometimento especificado da linguagem",
+   "nameEN": "Developmental language disorder, with other specified language impairment",
+   "kind": "category"
+  },
+  {
+   "code": "6A01.Y",
+   "name": "Outro transtorno especificado do desenvolvimento da fala ou da linguagem",
+   "nameEN": "Other specified developmental speech or language disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6A01.Z",
+   "name": "Transtornos do desenvolvimento da fala ou da linguagem, não especificados",
+   "nameEN": "Developmental speech or language disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A02",
+   "name": "Transtorno do espectro autista",
+   "nameEN": "Autism spectrum disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A02.0",
+   "name": "Transtorno do espectro autista sem transtorno do desenvolvimento intelectual e com deficiência leve ou inexistente da linguagem funcional",
+   "nameEN": "Autism spectrum disorder without disorder of intellectual development and with mild or no impairment of functional language",
+   "kind": "category"
+  },
+  {
+   "code": "6A02.1",
+   "name": "Transtorno do espectro autista com transtorno do desenvolvimento intelectual com deficiência leve ou inexistente da linguagem funcional",
+   "nameEN": "Autism spectrum disorder with disorder of intellectual development and with mild or no impairment of functional language",
+   "kind": "category"
+  },
+  {
+   "code": "6A02.2",
+   "name": "Transtorno do espectro autista sem transtorno do desenvolvimento intelectual e com deficiência da linguagem funcional",
+   "nameEN": "Autism spectrum disorder without disorder of intellectual development and with impaired functional language",
+   "kind": "category"
+  },
+  {
+   "code": "6A02.3",
+   "name": "Transtorno do espectro autista com transtorno do desenvolvimento intelectual e deficiência da linguagem funcional",
+   "nameEN": "Autism spectrum disorder with disorder of intellectual development and with impaired functional language",
+   "kind": "category"
+  },
+  {
+   "code": "6A02.5",
+   "name": "Transtorno do espectro autista com transtorno do desenvolvimento intelectual e com ausência de linguagem funcional",
+   "nameEN": "Autism spectrum disorder with disorder of intellectual development and with absence of functional language",
+   "kind": "category"
+  },
+  {
+   "code": "6A02.Y",
+   "name": "Outro transtorno especificado do espectro autista",
+   "nameEN": "Other specified autism spectrum disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A02.Z",
+   "name": "Transtorno do espectro autista, não especificado",
+   "nameEN": "Autism spectrum disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A03",
+   "name": "Transtorno do desenvolvimento da aprendizagem",
+   "nameEN": "Developmental learning disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A03.0",
+   "name": "Transtorno do desenvolvimento da aprendizagem com comprometimento da leitura",
+   "nameEN": "Developmental learning disorder with impairment in reading",
+   "kind": "category"
+  },
+  {
+   "code": "6A03.1",
+   "name": "Transtorno do desenvolvimento da aprendizagem com comprometimento da expressão escrita",
+   "nameEN": "Developmental learning disorder with impairment in written expression",
+   "kind": "category"
+  },
+  {
+   "code": "6A03.2",
+   "name": "Transtorno do desenvolvimento da aprendizagem com comprometimento na matemática",
+   "nameEN": "Developmental learning disorder with impairment in mathematics",
+   "kind": "category"
+  },
+  {
+   "code": "6A03.3",
+   "name": "Transtorno do desenvolvimento da aprendizagem com outra deficiência especificada de aprendizagem",
+   "nameEN": "Developmental learning disorder with other specified impairment of learning",
+   "kind": "category"
+  },
+  {
+   "code": "6A03.Z",
+   "name": "Transtorno do desenvolvimento da aprendizagem, não especificado",
+   "nameEN": "Developmental learning disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A04",
+   "name": "Transtorno do desenvolvimento da coordenação motora",
+   "nameEN": "Developmental motor coordination disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A05",
+   "name": "Transtorno de déficit de atenção e hiperatividade",
+   "nameEN": "Attention deficit hyperactivity disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A05.0",
+   "name": "Transtorno de déficit de atenção e hiperatividade, apresentação predominantemente desatenta",
+   "nameEN": "Attention deficit hyperactivity disorder, predominantly inattentive presentation",
+   "kind": "category"
+  },
+  {
+   "code": "6A05.1",
+   "name": "Transtorno de déficit de atenção e hiperatividade, apresentação predominantemente hiperativa-impulsiva",
+   "nameEN": "Attention deficit hyperactivity disorder, predominantly hyperactive-impulsive presentation",
+   "kind": "category"
+  },
+  {
+   "code": "6A05.2",
+   "name": "Transtorno de déficit de atenção e hiperatividade, apresentação combinada",
+   "nameEN": "Attention deficit hyperactivity disorder, combined presentation",
+   "kind": "category"
+  },
+  {
+   "code": "6A05.Y",
+   "name": "Transtorno de déficit de atenção e hiperatividade, outra apresentação especificada",
+   "nameEN": "Attention deficit hyperactivity disorder, other specified presentation",
+   "kind": "category"
+  },
+  {
+   "code": "6A05.Z",
+   "name": "Transtorno de déficit de atenção e hiperatividade, apresentação não especificada",
+   "nameEN": "Attention deficit hyperactivity disorder, presentation unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A06",
+   "name": "Transtorno de movimento estereotipado",
+   "nameEN": "Stereotyped movement disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A06.0",
+   "name": "Transtorno de movimento estereotipado sem lesão autoprovocada",
+   "nameEN": "Stereotyped movement disorder without self-injury",
+   "kind": "category"
+  },
+  {
+   "code": "6A06.1",
+   "name": "Transtorno de movimento estereotipado com lesão autoprovocada",
+   "nameEN": "Stereotyped movement disorder with self-injury",
+   "kind": "category"
+  },
+  {
+   "code": "6A06.Z",
+   "name": "Transtorno de movimento estereotipado, não especificado",
+   "nameEN": "Stereotyped movement disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A0Y",
+   "name": "Outros transtornos do neurodesenvolvimento especificados",
+   "nameEN": "Other specified neurodevelopmental disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6A0Z",
+   "name": "Transtornos do neurodesenvolvimento não especificados",
+   "nameEN": "Neurodevelopmental disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL1-6A2",
+   "name": "Esquizofrenia ou outros transtornos psicóticos primários",
+   "nameEN": "Schizophrenia or other primary psychotic disorders",
+   "kind": "block"
+  },
+  {
+   "code": "6A20",
+   "name": "Esquizofrenia",
+   "nameEN": "Schizophrenia",
+   "kind": "category"
+  },
+  {
+   "code": "6A20.0",
+   "name": "Esquizofrenia, primeiro episódio",
+   "nameEN": "Schizophrenia, first episode",
+   "kind": "category"
+  },
+  {
+   "code": "6A20.00",
+   "name": "Esquizofrenia, primeiro episódio, atualmente sintomático",
+   "nameEN": "Schizophrenia, first episode, currently symptomatic",
+   "kind": "category"
+  },
+  {
+   "code": "6A20.01",
+   "name": "Esquizofrenia, primeiro episódio, em remissão parcial",
+   "nameEN": "Schizophrenia, first episode, in partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A20.02",
+   "name": "Esquizofrenia, primeiro episódio, em remissão completa",
+   "nameEN": "Schizophrenia, first episode, in full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A20.0Z",
+   "name": "Esquizofrenia, primeiro episódio, não especificada",
+   "nameEN": "Schizophrenia, first episode, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A20.1",
+   "name": "Esquizofrenia, episódios múltiplos",
+   "nameEN": "Schizophrenia, multiple episodes",
+   "kind": "category"
+  },
+  {
+   "code": "6A20.10",
+   "name": "Esquizofrenia, episódios múltiplos, atualmente sintomático",
+   "nameEN": "Schizophrenia, multiple episodes, currently symptomatic",
+   "kind": "category"
+  },
+  {
+   "code": "6A20.11",
+   "name": "Esquizofrenia, episódios múltiplos, em remissão parcial",
+   "nameEN": "Schizophrenia, multiple episodes, in partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A20.12",
+   "name": "Esquizofrenia, episódios múltiplos, em remissão completa",
+   "nameEN": "Schizophrenia, multiple episodes, in full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A20.1Z",
+   "name": "Esquizofrenia, episódios múltiplos, não especificada",
+   "nameEN": "Schizophrenia, multiple episodes, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A20.2",
+   "name": "Esquizofrenia, contínua",
+   "nameEN": "Schizophrenia, continuous",
+   "kind": "category"
+  },
+  {
+   "code": "6A20.20",
+   "name": "Esquizofrenia, contínua, atualmente sintomático",
+   "nameEN": "Schizophrenia, continuous, currently symptomatic",
+   "kind": "category"
+  },
+  {
+   "code": "6A20.21",
+   "name": "Esquizofrenia, contínua, em remissão parcial",
+   "nameEN": "Schizophrenia, continuous, in partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A20.22",
+   "name": "Esquizofrenia, contínua, em remissão completa",
+   "nameEN": "Schizophrenia, continuous, in full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A20.2Z",
+   "name": "Esquizofrenia, contínua, não especificada",
+   "nameEN": "Schizophrenia, continuous, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A20.Y",
+   "name": "Outro episódio especificado de esquizofrenia",
+   "nameEN": "Other specified episode of schizophrenia",
+   "kind": "category"
+  },
+  {
+   "code": "6A20.Z",
+   "name": "Esquizofrenia, episódio não especificado",
+   "nameEN": "Schizophrenia, episode unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A21",
+   "name": "Transtorno esquizoafetivo",
+   "nameEN": "Schizoaffective disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A21.0",
+   "name": "Transtorno esquizoafetivo, primeiro episódio",
+   "nameEN": "Schizoaffective disorder, first episode",
+   "kind": "category"
+  },
+  {
+   "code": "6A21.00",
+   "name": "Transtorno esquizoafetivo, primeiro episódio, atualmente sintomático",
+   "nameEN": "Schizoaffective disorder, first episode, currently symptomatic",
+   "kind": "category"
+  },
+  {
+   "code": "6A21.01",
+   "name": "Transtorno esquizoafetivo, primeiro episódio, em remissão parcial",
+   "nameEN": "Schizoaffective disorder, first episode, in partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A21.02",
+   "name": "Transtorno esquizoafetivo, primeiro episódio, em remissão completa",
+   "nameEN": "Schizoaffective disorder, first episode, in full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A21.0Z",
+   "name": "Transtorno esquizoafetivo, primeiro episódio, não especificado",
+   "nameEN": "Schizoaffective disorder, first episode, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A21.1",
+   "name": "Transtorno esquizoafetivo, episódios múltiplos",
+   "nameEN": "Schizoaffective disorder, multiple episodes",
+   "kind": "category"
+  },
+  {
+   "code": "6A21.10",
+   "name": "Transtorno esquizoafetivo, episódios múltiplos, atualmente sintomático",
+   "nameEN": "Schizoaffective disorder, multiple episodes, currently symptomatic",
+   "kind": "category"
+  },
+  {
+   "code": "6A21.11",
+   "name": "Transtorno esquizoafetivo, episódios múltiplos, em remissão parcial",
+   "nameEN": "Schizoaffective disorder, multiple episodes, in partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A21.12",
+   "name": "Transtorno esquizoafetivo, episódios múltiplos, em remissão completa",
+   "nameEN": "Schizoaffective disorder, multiple episodes, in full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A21.1Z",
+   "name": "Transtorno esquizoafetivo, episódios múltiplos, não especificado",
+   "nameEN": "Schizoaffective disorder, multiple episodes, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A21.2",
+   "name": "Transtorno esquizoafetivo, contínuo",
+   "nameEN": "Schizoaffective disorder, continuous",
+   "kind": "category"
+  },
+  {
+   "code": "6A21.20",
+   "name": "Transtorno esquizoafetivo, contínuo, atualmente sintomático",
+   "nameEN": "Schizoaffective disorder, continuous, currently symptomatic",
+   "kind": "category"
+  },
+  {
+   "code": "6A21.21",
+   "name": "Transtorno esquizoafetivo, contínuo, em remissão parcial",
+   "nameEN": "Schizoaffective disorder, continuous, in partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A21.22",
+   "name": "Transtorno esquizoafetivo, contínuo, em remissão completa",
+   "nameEN": "Schizoaffective disorder, continuous, in full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A21.2Z",
+   "name": "Transtorno esquizoafetivo, contínuo, não especificado",
+   "nameEN": "Schizoaffective disorder, continuous, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A21.Y",
+   "name": "Outro transtorno esquizoafetivo especificado",
+   "nameEN": "Other specified schizoaffective disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A21.Z",
+   "name": "Transtorno esquizoafetivo, não especificado",
+   "nameEN": "Schizoaffective disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A22",
+   "name": "Transtorno esquizotípico",
+   "nameEN": "Schizotypal disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A23",
+   "name": "Transtorno psicótico agudo e transitório",
+   "nameEN": "Acute and transient psychotic disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A23.0",
+   "name": "Transtorno psicótico agudo e transitório, primeiro episódio",
+   "nameEN": "Acute and transient psychotic disorder, first episode",
+   "kind": "category"
+  },
+  {
+   "code": "6A23.00",
+   "name": "Transtorno psicótico agudo e transitório, primeiro episódio, atualmente sintomático",
+   "nameEN": "Acute and transient psychotic disorder, first episode, currently symptomatic",
+   "kind": "category"
+  },
+  {
+   "code": "6A23.01",
+   "name": "Transtorno psicótico agudo e transitório, primeiro episódio, em remissão parcial",
+   "nameEN": "Acute and transient psychotic disorder, first episode, in partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A23.02",
+   "name": "Transtorno psicótico agudo e transitório, primeiro episódio, em remissão completa",
+   "nameEN": "Acute and transient psychotic disorder, first episode, in full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A23.0Z",
+   "name": "Transtorno psicótico agudo e transitório, primeiro episódio, não especificado",
+   "nameEN": "Acute and transient psychotic disorder, first episode, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A23.1",
+   "name": "Transtorno psicótico agudo e transitório, episódios múltiplos",
+   "nameEN": "Acute and transient psychotic disorder, multiple episodes",
+   "kind": "category"
+  },
+  {
+   "code": "6A23.10",
+   "name": "Transtorno psicótico agudo e transitório, episódios múltiplos, atualmente sintomático",
+   "nameEN": "Acute and transient psychotic disorder, multiple episodes, currently symptomatic",
+   "kind": "category"
+  },
+  {
+   "code": "6A23.11",
+   "name": "Transtorno psicótico agudo e transitório, episódios múltiplos, em remissão parcial",
+   "nameEN": "Acute and transient psychotic disorder, multiple episodes, in partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A23.12",
+   "name": "Transtorno psicótico agudo e transitório, episódios múltiplos, em remissão completa",
+   "nameEN": "Acute and transient psychotic disorder, multiple episodes, in full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A23.1Z",
+   "name": "Transtorno psicótico agudo e transitório, episódios múltiplos, não especificado",
+   "nameEN": "Acute and transient psychotic disorder, multiple episodes, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A23.Y",
+   "name": "Outro transtorno psicótico agudo e transitório especificado",
+   "nameEN": "Other specified acute and transient psychotic disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A23.Z",
+   "name": "Transtorno psicótico agudo e transitório não especificado",
+   "nameEN": "Acute and transient psychotic disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A24",
+   "name": "Transtorno delirante",
+   "nameEN": "Delusional disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A24.0",
+   "name": "Transtorno delirante, atualmente sintomático",
+   "nameEN": "Delusional disorder, currently symptomatic",
+   "kind": "category"
+  },
+  {
+   "code": "6A24.1",
+   "name": "Transtorno delirante, em remissão parcial",
+   "nameEN": "Delusional disorder, in partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A24.2",
+   "name": "Transtorno delirante, em remissão completa",
+   "nameEN": "Delusional disorder, in full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A24.Z",
+   "name": "Transtorno delirante não especificado",
+   "nameEN": "Delusional disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A25",
+   "name": "Manifestações sintomáticas de transtornos psicóticos primários",
+   "nameEN": "Symptomatic manifestations of primary psychotic disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6A25.0",
+   "name": "Sintomas positivos em transtornos psicóticos primários",
+   "nameEN": "Positive symptoms in primary psychotic disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6A25.1",
+   "name": "Sintomas negativos em transtornos psicóticos primários",
+   "nameEN": "Negative symptoms in primary psychotic disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6A25.2",
+   "name": "Sintomas de humor deprimido em transtornos psicóticos primários",
+   "nameEN": "Depressive mood symptoms in primary psychotic disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6A25.3",
+   "name": "Sintomas de humor maníaco em transtornos psicóticos primários",
+   "nameEN": "Manic mood symptoms in primary psychotic disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6A25.4",
+   "name": "Sintomas psicomotores em transtornos psicóticos primários",
+   "nameEN": "Psychomotor symptoms in primary psychotic disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6A25.5",
+   "name": "Sintomas cognitivos em transtornos psicóticos primários",
+   "nameEN": "Cognitive symptoms in primary psychotic disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6A2Y",
+   "name": "Outro transtorno psicótico primário especificado",
+   "nameEN": "Other specified primary psychotic disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A2Z",
+   "name": "Esquizofrenia ou outro transtorno psicótico primário não especificado",
+   "nameEN": "Schizophrenia or other primary psychotic disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL1-6A4",
+   "name": "Catatonia",
+   "nameEN": "Catatonia",
+   "kind": "block"
+  },
+  {
+   "code": "6A40",
+   "name": "Catatonia associada a outro transtorno mental",
+   "nameEN": "Catatonia associated with another mental disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A41",
+   "name": "Catatonia induzida por substâncias ou medicamentos",
+   "nameEN": "Catatonia induced by substances or medications",
+   "kind": "category"
+  },
+  {
+   "code": "6A4Z",
+   "name": "Catatonia não especificada",
+   "nameEN": "Catatonia, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL1-6A6",
+   "name": "Transtornos do humor",
+   "nameEN": "Mood disorders",
+   "kind": "block"
+  },
+  {
+   "code": "BlockL2-6A6",
+   "name": "Transtorno bipolar ou transtornos relacionados",
+   "nameEN": "Bipolar or related disorders",
+   "kind": "block"
+  },
+  {
+   "code": "6A60",
+   "name": "Transtorno bipolar tipo I",
+   "nameEN": "Bipolar type I disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A60.0",
+   "name": "Transtorno bipolar tipo I, episódio atual maníaco, sem sintomas psicóticos",
+   "nameEN": "Bipolar type I disorder, current episode manic, without psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6A60.1",
+   "name": "Transtorno bipolar tipo I, episódio atual maníaco, com sintomas psicóticos",
+   "nameEN": "Bipolar type I disorder, current episode manic, with psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6A60.2",
+   "name": "Transtorno bipolar tipo I, episódio atual hipomaníaco",
+   "nameEN": "Bipolar type I disorder, current episode hypomanic",
+   "kind": "category"
+  },
+  {
+   "code": "6A60.3",
+   "name": "Transtorno bipolar tipo I, episódio atual depressivo leve",
+   "nameEN": "Bipolar type I disorder, current episode depressive, mild",
+   "kind": "category"
+  },
+  {
+   "code": "6A60.4",
+   "name": "Transtorno bipolar tipo I, episódio atual depressivo, moderado sem sintomas psicóticos",
+   "nameEN": "Bipolar type I disorder, current episode depressive, moderate without psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6A60.5",
+   "name": "Transtorno bipolar tipo I, episódio atual depressivo, moderado com sintomas psicóticos",
+   "nameEN": "Bipolar type I disorder, current episode depressive, moderate with psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6A60.6",
+   "name": "Transtorno bipolar tipo I, episódio atual depressivo, grave sem sintomas psicóticos",
+   "nameEN": "Bipolar type I disorder, current episode depressive, severe without psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6A60.7",
+   "name": "Transtorno bipolar tipo I, episódio atual depressivo, grave com sintomas psicóticos",
+   "nameEN": "Bipolar type I disorder, current episode depressive, severe with psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6A60.8",
+   "name": "Transtorno bipolar tipo I, episódio atual depressivo, gravidade não especificada",
+   "nameEN": "Bipolar type I disorder, current episode depressive, unspecified severity",
+   "kind": "category"
+  },
+  {
+   "code": "6A60.9",
+   "name": "Transtorno bipolar tipo I, episódio atual misto, sem sintomas psicóticos",
+   "nameEN": "Bipolar type I disorder, current episode mixed, without psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6A60.A",
+   "name": "Transtorno bipolar tipo I, episódio atual misto, com sintomas psicóticos",
+   "nameEN": "Bipolar type I disorder, current episode mixed, with psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6A60.B",
+   "name": "Transtorno bipolar tipo I, atualmente em remissão parcial, episódio mais recente maníaco ou hipomaníaco",
+   "nameEN": "Bipolar type I disorder, currently in partial remission, most recent episode manic or hypomanic",
+   "kind": "category"
+  },
+  {
+   "code": "6A60.C",
+   "name": "Transtorno bipolar tipo I, atualmente em remissão parcial, episódio mais recente depressivo",
+   "nameEN": "Bipolar type I disorder, currently in partial remission, most recent episode depressive",
+   "kind": "category"
+  },
+  {
+   "code": "6A60.D",
+   "name": "Transtorno bipolar tipo I, atualmente em remissão parcial, episódio mais recente misto",
+   "nameEN": "Bipolar type I disorder, currently in partial remission, most recent episode mixed",
+   "kind": "category"
+  },
+  {
+   "code": "6A60.E",
+   "name": "Transtorno bipolar tipo I, atualmente em remissão parcial, episódio mais recente não especificado",
+   "nameEN": "Bipolar type I disorder, currently in partial remission, most recent episode unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A60.F",
+   "name": "Transtorno bipolar tipo I, atualmente em remissão completa",
+   "nameEN": "Bipolar type I disorder, currently in full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A60.Y",
+   "name": "Outro transtorno bipolar tipo I especificado",
+   "nameEN": "Other specified bipolar type I disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A60.Z",
+   "name": "Transtorno bipolar tipo I, não especificado",
+   "nameEN": "Bipolar type I disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A61",
+   "name": "Transtorno bipolar tipo II",
+   "nameEN": "Bipolar type II disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A61.0",
+   "name": "Transtorno bipolar tipo II, episódio atual hipomaníaco",
+   "nameEN": "Bipolar type II disorder, current episode hypomanic",
+   "kind": "category"
+  },
+  {
+   "code": "6A61.1",
+   "name": "Transtorno bipolar tipo II, episódio atual depressivo leve",
+   "nameEN": "Bipolar type II disorder, current episode depressive, mild",
+   "kind": "category"
+  },
+  {
+   "code": "6A61.2",
+   "name": "Transtorno bipolar tipo II, episódio atual depressivo, moderado sem sintomas psicóticos",
+   "nameEN": "Bipolar type II disorder, current episode depressive, moderate without psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6A61.3",
+   "name": "Transtorno bipolar tipo II, episódio atual depressivo, moderado com sintomas psicóticos",
+   "nameEN": "Bipolar type II disorder, current episode depressive, moderate with psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6A61.4",
+   "name": "Transtorno bipolar tipo II, episódio atual depressivo, grave sem sintomas psicóticos",
+   "nameEN": "Bipolar type II disorder, current episode depressive, severe without psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6A61.5",
+   "name": "Transtorno bipolar tipo II, episódio atual depressivo, grave com sintomas psicóticos",
+   "nameEN": "Bipolar type II disorder, current episode depressive, severe with psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6A61.6",
+   "name": "Transtorno bipolar tipo II, episódio atual depressivo, gravidade não especificada",
+   "nameEN": "Bipolar type II disorder, current episode depressive, unspecified severity",
+   "kind": "category"
+  },
+  {
+   "code": "6A61.7",
+   "name": "Transtorno bipolar tipo II, atualmente em remissão parcial, episódio mais recente hipomaníaco",
+   "nameEN": "Bipolar type II disorder, currently in partial remission, most recent episode hypomanic",
+   "kind": "category"
+  },
+  {
+   "code": "6A61.8",
+   "name": "Transtorno bipolar tipo II, atualmente em remissão parcial, episódio mais recente depressivo",
+   "nameEN": "Bipolar type II disorder, currently in partial remission, most recent episode depressive",
+   "kind": "category"
+  },
+  {
+   "code": "6A61.9",
+   "name": "Transtorno bipolar tipo II, atualmente em remissão parcial, episódio mais recente não especificado",
+   "nameEN": "Bipolar type II disorder, currently in partial remission, most recent episode unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A61.A",
+   "name": "Transtorno bipolar tipo II, atualmente em remissão completa",
+   "nameEN": "Bipolar type II disorder, currently in full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A61.Y",
+   "name": "Outro transtorno bipolar tipo II especificado",
+   "nameEN": "Other specified bipolar type II disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A61.Z",
+   "name": "Transtorno bipolar tipo II não especificado",
+   "nameEN": "Bipolar type II disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A62",
+   "name": "Transtorno ciclotímico",
+   "nameEN": "Cyclothymic disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A6Y",
+   "name": "Outro transtorno bipolar ou transtornos relacionados, especificados",
+   "nameEN": "Other specified bipolar or related disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6A6Z",
+   "name": "Transtorno bipolar ou transtornos relacionados, não especificados",
+   "nameEN": "Bipolar or related disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL2-6A7",
+   "name": "Transtornos depressivos",
+   "nameEN": "Depressive disorders",
+   "kind": "block"
+  },
+  {
+   "code": "6A70",
+   "name": "Transtorno depressivo, episódio único",
+   "nameEN": "Single episode depressive disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A70.0",
+   "name": "Transtorno depressivo, episódio único, leve",
+   "nameEN": "Single episode depressive disorder, mild",
+   "kind": "category"
+  },
+  {
+   "code": "6A70.1",
+   "name": "Transtorno depressivo com episódio único, moderado, sem sintomas psicóticos",
+   "nameEN": "Single episode depressive disorder, moderate, without psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6A70.2",
+   "name": "Transtorno depressivo, episódio único, moderado, com sintomas psicóticos",
+   "nameEN": "Single episode depressive disorder, moderate, with psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6A70.3",
+   "name": "Transtorno depressivo, episódio único, grave, sem sintomas psicóticos",
+   "nameEN": "Single episode depressive disorder, severe, without psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6A70.4",
+   "name": "Transtorno depressivo, episódio único, grave, com sintomas psicóticos",
+   "nameEN": "Single episode depressive disorder, severe, with psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6A70.5",
+   "name": "Transtorno depressivo, episódio único, gravidade não especificada",
+   "nameEN": "Single episode depressive disorder, unspecified severity",
+   "kind": "category"
+  },
+  {
+   "code": "6A70.6",
+   "name": "Transtorno depressivo, episódio único, atualmente em remissão parcial",
+   "nameEN": "Single episode depressive disorder, currently in partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A70.7",
+   "name": "Transtorno depressivo, episódio único, atualmente em remissão completa",
+   "nameEN": "Single episode depressive disorder, currently in full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A70.Y",
+   "name": "Outro transtorno depressivo, episódio único, especificado",
+   "nameEN": "Other specified single episode depressive disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A70.Z",
+   "name": "Transtorno depressivo, episódio único, não especificado",
+   "nameEN": "Single episode depressive disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A71",
+   "name": "Transtorno depressivo recorrente",
+   "nameEN": "Recurrent depressive disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A71.0",
+   "name": "Transtorno depressivo recorrente, episódio atual leve",
+   "nameEN": "Recurrent depressive disorder, current episode mild",
+   "kind": "category"
+  },
+  {
+   "code": "6A71.1",
+   "name": "Transtorno depressivo recorrente, episódio atual moderado, sem sintomas psicóticos",
+   "nameEN": "Recurrent depressive disorder, current episode moderate, without psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6A71.2",
+   "name": "Transtorno depressivo recorrente, episódio atual moderado, com sintomas psicóticos",
+   "nameEN": "Recurrent depressive disorder, current episode moderate, with psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6A71.3",
+   "name": "Transtorno depressivo recorrente, episódio atual grave, sem sintomas psicóticos",
+   "nameEN": "Recurrent depressive disorder, current episode severe, without psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6A71.4",
+   "name": "Transtorno depressivo recorrente, episódio atual grave, com sintomas psicóticos",
+   "nameEN": "Recurrent depressive disorder, current episode severe, with psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6A71.5",
+   "name": "Transtorno depressivo recorrente, episódio atual, de gravidade não especificada",
+   "nameEN": "Recurrent depressive disorder, current episode, unspecified severity",
+   "kind": "category"
+  },
+  {
+   "code": "6A71.6",
+   "name": "Transtorno depressivo recorrente, atualmente em remissão parcial",
+   "nameEN": "Recurrent depressive disorder, currently in partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A71.7",
+   "name": "Transtorno depressivo recorrente, atualmente em remissão completa",
+   "nameEN": "Recurrent depressive disorder, currently in full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6A71.Y",
+   "name": "Outro transtorno depressivo recorrente especificado",
+   "nameEN": "Other specified recurrent depressive disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A71.Z",
+   "name": "Transtorno depressivo recorrente não especificado",
+   "nameEN": "Recurrent depressive disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A72",
+   "name": "Transtorno distímico",
+   "nameEN": "Dysthymic disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A73",
+   "name": "Transtorno misto de depressão e ansiedade",
+   "nameEN": "Mixed depressive and anxiety disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6A7Y",
+   "name": "Outros transtornos depressivos especificados",
+   "nameEN": "Other specified depressive disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6A7Z",
+   "name": "Transtornos depressivos não especificados",
+   "nameEN": "Depressive disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6A80",
+   "name": "Apresentações sintomáticas e de curso para episódios de humor em transtornos de humor",
+   "nameEN": "Symptomatic and course presentations for mood episodes in mood disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6A80.0",
+   "name": "Sintomas ansiosos proeminentes em episódios de humor",
+   "nameEN": "Prominent anxiety symptoms in mood episodes",
+   "kind": "category"
+  },
+  {
+   "code": "6A80.1",
+   "name": "Ataques de pânico em episódios de humor",
+   "nameEN": "Panic attacks in mood episodes",
+   "kind": "category"
+  },
+  {
+   "code": "6A80.2",
+   "name": "Episódio depressivo persistente atual",
+   "nameEN": "Current depressive episode persistent",
+   "kind": "category"
+  },
+  {
+   "code": "6A80.3",
+   "name": "Episódio depressivo atual com melancolia",
+   "nameEN": "Current depressive episode with melancholia",
+   "kind": "category"
+  },
+  {
+   "code": "6A80.4",
+   "name": "Padrão sazonal de início do episódio de humor",
+   "nameEN": "Seasonal pattern of mood episode onset",
+   "kind": "category"
+  },
+  {
+   "code": "6A80.5",
+   "name": "Ciclagem rápida",
+   "nameEN": "Rapid cycling",
+   "kind": "category"
+  },
+  {
+   "code": "6A8Y",
+   "name": "Outros transtornos especificados de humor",
+   "nameEN": "Other specified mood disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6A8Z",
+   "name": "Transtornos do humor não especificados",
+   "nameEN": "Mood disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL1-6B0",
+   "name": "Transtornos de ansiedade ou relacionados ao medo",
+   "nameEN": "Anxiety or fear-related disorders",
+   "kind": "block"
+  },
+  {
+   "code": "6B00",
+   "name": "Transtorno de ansiedade generalizada",
+   "nameEN": "Generalised anxiety disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B01",
+   "name": "Transtorno de pânico",
+   "nameEN": "Panic disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B02",
+   "name": "Agorafobia",
+   "nameEN": "Agoraphobia",
+   "kind": "category"
+  },
+  {
+   "code": "6B03",
+   "name": "Fobia específica",
+   "nameEN": "Specific phobia",
+   "kind": "category"
+  },
+  {
+   "code": "6B04",
+   "name": "Transtorno de ansiedade social",
+   "nameEN": "Social anxiety disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B05",
+   "name": "Transtorno de ansiedade de separação",
+   "nameEN": "Separation anxiety disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B06",
+   "name": "Mutismo seletivo",
+   "nameEN": "Selective mutism",
+   "kind": "category"
+  },
+  {
+   "code": "6B0Y",
+   "name": "Outros transtornos de ansiedade ou relacionados ao medo especificados",
+   "nameEN": "Other specified anxiety or fear-related disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6B0Z",
+   "name": "Transtornos de ansiedade ou relacionados ao medo não especificados",
+   "nameEN": "Anxiety or fear-related disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL1-6B2",
+   "name": "Transtornos obsessivo-compulsivos ou relacionados",
+   "nameEN": "Obsessive-compulsive or related disorders",
+   "kind": "block"
+  },
+  {
+   "code": "6B20",
+   "name": "Transtorno obsessivo-compulsivo",
+   "nameEN": "Obsessive-compulsive disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B20.0",
+   "name": "Transtorno obsessivo-compulsivo com 'insight' bom a razoável",
+   "nameEN": "Obsessive-compulsive disorder with fair to good insight",
+   "kind": "category"
+  },
+  {
+   "code": "6B20.1",
+   "name": "Transtorno obsessivo-compulsivo com 'insight' pobre a ausente",
+   "nameEN": "Obsessive-compulsive disorder with poor to absent insight",
+   "kind": "category"
+  },
+  {
+   "code": "6B20.Z",
+   "name": "Transtorno obsessivo-compulsivo não especificado",
+   "nameEN": "Obsessive-compulsive disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6B21",
+   "name": "Transtorno dismórfico corporal",
+   "nameEN": "Body dysmorphic disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B21.0",
+   "name": "Transtorno dismórfico corporal com 'insight' bom a razoável",
+   "nameEN": "Body dysmorphic disorder with fair to good insight",
+   "kind": "category"
+  },
+  {
+   "code": "6B21.1",
+   "name": "Transtorno dismórfico corporal com 'insight' pobre a ausente",
+   "nameEN": "Body dysmorphic disorder with poor to absent insight",
+   "kind": "category"
+  },
+  {
+   "code": "6B21.Z",
+   "name": "Transtorno dismórfico corporal não especificado",
+   "nameEN": "Body dysmorphic disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6B22",
+   "name": "Transtorno de referência olfativa",
+   "nameEN": "Olfactory reference disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B22.0",
+   "name": "Transtorno de referência olfativa com 'insight' bom a razoável",
+   "nameEN": "Olfactory reference disorder with fair to good insight",
+   "kind": "category"
+  },
+  {
+   "code": "6B22.1",
+   "name": "Transtorno de referência olfativa com 'insight' pobre a ausente",
+   "nameEN": "Olfactory reference disorder with poor to absent insight",
+   "kind": "category"
+  },
+  {
+   "code": "6B22.Z",
+   "name": "Transtorno de referência olfativa, não especificado",
+   "nameEN": "Olfactory reference disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6B23",
+   "name": "Hipocondria",
+   "nameEN": "Hypochondriasis",
+   "kind": "category"
+  },
+  {
+   "code": "6B23.0",
+   "name": "Hipocondria com insight bom a razoável",
+   "nameEN": "Hypochondriasis with fair to good insight",
+   "kind": "category"
+  },
+  {
+   "code": "6B23.1",
+   "name": "Hipocondria com insight pobre a ausente",
+   "nameEN": "Hypochondriasis with poor to absent insight",
+   "kind": "category"
+  },
+  {
+   "code": "6B23.Z",
+   "name": "Hipocondria não especificada",
+   "nameEN": "Hypochondriasis, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6B24",
+   "name": "Transtorno de acumulação",
+   "nameEN": "Hoarding disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B24.0",
+   "name": "Transtorno de acumulação com 'insight' om a razoável",
+   "nameEN": "Hoarding disorder with fair to good insight",
+   "kind": "category"
+  },
+  {
+   "code": "6B24.1",
+   "name": "Transtorno de acumulação com 'insight' pobre a ausente",
+   "nameEN": "Hoarding disorder with poor to absent insight",
+   "kind": "category"
+  },
+  {
+   "code": "6B24.Z",
+   "name": "Transtorno de acumulação não especificado",
+   "nameEN": "Hoarding disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6B25",
+   "name": "Transtornos de comportamentos repetitivos focados no corpo",
+   "nameEN": "Body-focused repetitive behaviour disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6B25.0",
+   "name": "Tricotilomania",
+   "nameEN": "Trichotillomania",
+   "kind": "category"
+  },
+  {
+   "code": "6B25.1",
+   "name": "Transtorno de escoriação",
+   "nameEN": "Excoriation disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B25.Y",
+   "name": "Outros transtornos especificados de comportamentos repetitivos focados no corpo",
+   "nameEN": "Other specified body-focused repetitive behaviour disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6B25.Z",
+   "name": "Transtornos de comportamentos repetitivos focados no corpo, não especificados",
+   "nameEN": "Body-focused repetitive behaviour disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6B2Y",
+   "name": "Outros transtornos obsessivo-compulsivos ou relacionados especificados",
+   "nameEN": "Other specified obsessive-compulsive or related disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6B2Z",
+   "name": "Transtornos obsessivo-compulsivos ou relacionados não especificados",
+   "nameEN": "Obsessive-compulsive or related disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL1-6B4",
+   "name": "Transtornos associados especificamente ao estresse",
+   "nameEN": "Disorders specifically associated with stress",
+   "kind": "block"
+  },
+  {
+   "code": "6B40",
+   "name": "Transtorno de estresse pós-traumático",
+   "nameEN": "Post traumatic stress disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B41",
+   "name": "Transtorno de estresse pós-traumático complexo",
+   "nameEN": "Complex post traumatic stress disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B42",
+   "name": "Transtorno de luto prolongado",
+   "nameEN": "Prolonged grief disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B43",
+   "name": "Transtorno de adaptação",
+   "nameEN": "Adjustment disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B44",
+   "name": "Transtorno de apego reativo",
+   "nameEN": "Reactive attachment disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B45",
+   "name": "Transtorno de interação social desinibida",
+   "nameEN": "Disinhibited social engagement disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B4Y",
+   "name": "Outros transtornos relacionado especificamente ao estresse, especificados",
+   "nameEN": "Other specified disorders specifically associated with stress",
+   "kind": "category"
+  },
+  {
+   "code": "6B4Z",
+   "name": "Transtornos relacionados especificamente ao estresse, não especificados",
+   "nameEN": "Disorders specifically associated with stress, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL1-6B6",
+   "name": "Transtornos dissociativos",
+   "nameEN": "Dissociative disorders",
+   "kind": "block"
+  },
+  {
+   "code": "6B60",
+   "name": "Transtorno de sintoma neurológico dissociativo",
+   "nameEN": "Dissociative neurological symptom disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B60.0",
+   "name": "Transtorno de sintoma neurológico dissociativo, com distúrbio visual",
+   "nameEN": "Dissociative neurological symptom disorder, with visual disturbance",
+   "kind": "category"
+  },
+  {
+   "code": "6B60.1",
+   "name": "Transtorno de sintoma neurológico dissociativo, com distúrbio auditivo",
+   "nameEN": "Dissociative neurological symptom disorder, with auditory disturbance",
+   "kind": "category"
+  },
+  {
+   "code": "6B60.2",
+   "name": "Transtorno de sintoma neurológico dissociativo, com vertigem ou tontura",
+   "nameEN": "Dissociative neurological symptom disorder, with vertigo or dizziness",
+   "kind": "category"
+  },
+  {
+   "code": "6B60.3",
+   "name": "Transtorno de sintoma neurológico dissociativo, com outros distúrbios sensoriais",
+   "nameEN": "Dissociative neurological symptom disorder, with other sensory disturbance",
+   "kind": "category"
+  },
+  {
+   "code": "6B60.4",
+   "name": "Transtorno de sintoma neurológico dissociativo, com convulsões não epilépticas",
+   "nameEN": "Dissociative neurological symptom disorder, with non-epileptic seizures",
+   "kind": "category"
+  },
+  {
+   "code": "6B60.5",
+   "name": "Transtorno de sintoma neurológico dissociativo, com distúrbio da fala",
+   "nameEN": "Dissociative neurological symptom disorder, with speech disturbance",
+   "kind": "category"
+  },
+  {
+   "code": "6B60.6",
+   "name": "Transtorno de sintoma neurológico dissociativo, com paresia ou fraqueza",
+   "nameEN": "Dissociative neurological symptom disorder, with paresis or weakness",
+   "kind": "category"
+  },
+  {
+   "code": "6B60.7",
+   "name": "Transtorno de sintoma neurológico dissociativo, com distúrbio da marcha",
+   "nameEN": "Dissociative neurological symptom disorder, with gait disturbance",
+   "kind": "category"
+  },
+  {
+   "code": "6B60.8",
+   "name": "Transtorno de sintoma neurológico dissociativo, com distúrbio do movimento",
+   "nameEN": "Dissociative neurological symptom disorder, with movement disturbance",
+   "kind": "category"
+  },
+  {
+   "code": "6B60.80",
+   "name": "Transtorno de sintoma neurológico dissociativo, com coreia",
+   "nameEN": "Dissociative neurological symptom disorder, with chorea",
+   "kind": "category"
+  },
+  {
+   "code": "6B60.81",
+   "name": "Transtorno de sintoma neurológico dissociativo, com mioclonia",
+   "nameEN": "Dissociative neurological symptom disorder, with myoclonus",
+   "kind": "category"
+  },
+  {
+   "code": "6B60.82",
+   "name": "Transtorno de sintoma neurológico dissociativo, com tremor",
+   "nameEN": "Dissociative neurological symptom disorder, with tremor",
+   "kind": "category"
+  },
+  {
+   "code": "6B60.83",
+   "name": "Transtorno de sintoma neurológico dissociativo, com distonia",
+   "nameEN": "Dissociative neurological symptom disorder, with dystonia",
+   "kind": "category"
+  },
+  {
+   "code": "6B60.84",
+   "name": "Transtorno de sintoma neurológico dissociativo, com espasmo facial",
+   "nameEN": "Dissociative neurological symptom disorder, with facial spasm",
+   "kind": "category"
+  },
+  {
+   "code": "6B60.85",
+   "name": "Transtorno de sintoma neurológico dissociativo, com parkinsonismo",
+   "nameEN": "Dissociative neurological symptom disorder, with Parkinsonism",
+   "kind": "category"
+  },
+  {
+   "code": "6B60.8Y",
+   "name": "Transtorno de sintoma neurológico dissociativo, com outro distúrbio do movimento especificado",
+   "nameEN": "Dissociative neurological symptom disorder, with other specified movement disturbance",
+   "kind": "category"
+  },
+  {
+   "code": "6B60.8Z",
+   "name": "Transtorno de sintoma neurológico dissociativo, com distúrbio do movimento, não especificado",
+   "nameEN": "Dissociative neurological symptom disorder, with unspecified movement disturbance",
+   "kind": "category"
+  },
+  {
+   "code": "6B60.9",
+   "name": "Transtorno dissociativo de sintomas neurológicos, com sintomas cognitivos",
+   "nameEN": "Dissociative neurological symptom disorder, with cognitive symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6B60.Y",
+   "name": "Transtorno de sintoma neurológico dissociativo, com outros sintomas especificados",
+   "nameEN": "Dissociative neurological symptom disorder, with other specified symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6B60.Z",
+   "name": "Transtorno de sintoma neurológico dissociativo, com sintomas não especificados",
+   "nameEN": "Dissociative neurological symptom disorder, with unspecified symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6B61",
+   "name": "Amnésia dissociativa",
+   "nameEN": "Dissociative amnesia",
+   "kind": "category"
+  },
+  {
+   "code": "6B61.0",
+   "name": "Amnésia dissociativa com fuga dissociativa",
+   "nameEN": "Dissociative amnesia with dissociative fugue",
+   "kind": "category"
+  },
+  {
+   "code": "6B61.1",
+   "name": "Amnésia dissociativa sem fuga dissociativa",
+   "nameEN": "Dissociative amnesia without dissociative fugue",
+   "kind": "category"
+  },
+  {
+   "code": "6B61.Z",
+   "name": "Amnésia dissociativa não especificada",
+   "nameEN": "Dissociative amnesia, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6B62",
+   "name": "Transtorno de transe",
+   "nameEN": "Trance disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B63",
+   "name": "Transtorno de transe e de possessão",
+   "nameEN": "Possession trance disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B64",
+   "name": "Transtorno dissociativo de identidade",
+   "nameEN": "Dissociative identity disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B65",
+   "name": "Transtorno dissociativo de identidade parcial",
+   "nameEN": "Partial dissociative identity disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B66",
+   "name": "Transtorno de despersonalização-desrealização",
+   "nameEN": "Depersonalization-derealization disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B6Y",
+   "name": "Outros transtornos dissociativos especificados",
+   "nameEN": "Other specified dissociative disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6B6Z",
+   "name": "Transtornos dissociativos não especificados",
+   "nameEN": "Dissociative disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL1-6B8",
+   "name": "Transtornos alimentares ou da alimentação",
+   "nameEN": "Feeding or eating disorders",
+   "kind": "block"
+  },
+  {
+   "code": "6B80",
+   "name": "Anorexia nervosa",
+   "nameEN": "Anorexia Nervosa",
+   "kind": "category"
+  },
+  {
+   "code": "6B80.0",
+   "name": "Anorexia nervosa com peso corporal significativamente baixo",
+   "nameEN": "Anorexia Nervosa with significantly low body weight",
+   "kind": "category"
+  },
+  {
+   "code": "6B80.00",
+   "name": "Anorexia nervosa com peso corporal significativamente baixo, padrão restritivo",
+   "nameEN": "Anorexia Nervosa with significantly low body weight, restricting pattern",
+   "kind": "category"
+  },
+  {
+   "code": "6B80.01",
+   "name": "Anorexia nervosa com peso corporal significativamente baixo, padrão compulsão-purgação",
+   "nameEN": "Anorexia Nervosa with significantly low body weight, binge-purge pattern",
+   "kind": "category"
+  },
+  {
+   "code": "6B80.0Z",
+   "name": "Anorexia nervosa com peso corporal significativamente baixo, não especificada",
+   "nameEN": "Anorexia Nervosa with significantly low body weight, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6B80.1",
+   "name": "Anorexia nervosa com peso corporal perigosamente baixo",
+   "nameEN": "Anorexia Nervosa with dangerously low body weight",
+   "kind": "category"
+  },
+  {
+   "code": "6B80.10",
+   "name": "Anorexia nervosa com peso corporal perigosamente baixo, padrão restritivo",
+   "nameEN": "Anorexia Nervosa with dangerously low body weight, restricting pattern",
+   "kind": "category"
+  },
+  {
+   "code": "6B80.11",
+   "name": "Anorexia nervosa com peso corporal perigosamente baixo, padrão compulsão-purgação",
+   "nameEN": "Anorexia Nervosa with dangerously low body weight, binge-purge pattern",
+   "kind": "category"
+  },
+  {
+   "code": "6B80.1Z",
+   "name": "Anorexia nervosa com peso corporal perigosamente baixo, não especificada",
+   "nameEN": "Anorexia Nervosa with dangerously low body weight, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6B80.2",
+   "name": "Anorexia nervosa em recuperação com peso corporal normal",
+   "nameEN": "Anorexia Nervosa in recovery with normal body weight",
+   "kind": "category"
+  },
+  {
+   "code": "6B80.Y",
+   "name": "Outra anorexia nervosa especificada",
+   "nameEN": "Other specified anorexia Nervosa",
+   "kind": "category"
+  },
+  {
+   "code": "6B80.Z",
+   "name": "Anorexia nervosa não especificada",
+   "nameEN": "Anorexia Nervosa, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6B81",
+   "name": "Bulimia nervosa",
+   "nameEN": "Bulimia Nervosa",
+   "kind": "category"
+  },
+  {
+   "code": "6B82",
+   "name": "Transtorno da compulsão alimentar periódica",
+   "nameEN": "Binge eating disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B83",
+   "name": "Transtorno alimentar restritivo evitativo",
+   "nameEN": "Avoidant-restrictive food intake disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B84",
+   "name": "Pica",
+   "nameEN": "Pica",
+   "kind": "category"
+  },
+  {
+   "code": "6B85",
+   "name": "Transtorno de ruminação-regurgitação",
+   "nameEN": "Rumination-regurgitation disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6B8Y",
+   "name": "Outros transtornos alimentares ou da alimentação especificados",
+   "nameEN": "Other specified feeding or eating disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6B8Z",
+   "name": "Transtornos alimentares ou da alimentação não especificados",
+   "nameEN": "Feeding or eating disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL1-6C0",
+   "name": "Transtornos da eliminação",
+   "nameEN": "Elimination disorders",
+   "kind": "block"
+  },
+  {
+   "code": "6C00",
+   "name": "Enurese",
+   "nameEN": "Enuresis",
+   "kind": "category"
+  },
+  {
+   "code": "6C00.0",
+   "name": "Enurese noturna",
+   "nameEN": "Nocturnal enuresis",
+   "kind": "category"
+  },
+  {
+   "code": "6C00.1",
+   "name": "Enurese diurna",
+   "nameEN": "Diurnal enuresis",
+   "kind": "category"
+  },
+  {
+   "code": "6C00.2",
+   "name": "Enurese noturna e diurna",
+   "nameEN": "Nocturnal and diurnal enuresis",
+   "kind": "category"
+  },
+  {
+   "code": "6C00.Z",
+   "name": "Enurese não especificada",
+   "nameEN": "Enuresis, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C01",
+   "name": "Encoprese",
+   "nameEN": "Encopresis",
+   "kind": "category"
+  },
+  {
+   "code": "6C01.0",
+   "name": "Encoprese com constipação ou incontinência por transbordamento",
+   "nameEN": "Encopresis with constipation or overflow incontinence",
+   "kind": "category"
+  },
+  {
+   "code": "6C01.1",
+   "name": "Encoprese sem constipação ou incontinência por transbordamento",
+   "nameEN": "Encopresis without constipation or overflow incontinence",
+   "kind": "category"
+  },
+  {
+   "code": "6C01.Z",
+   "name": "Encoprese não especificada",
+   "nameEN": "Encopresis, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C0Z",
+   "name": "Transtornos da eliminação não especificados",
+   "nameEN": "Elimination disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL1-6C2",
+   "name": "Transtornos de sofrimento corporal ou experiência corporal",
+   "nameEN": "Disorders of bodily distress or bodily experience",
+   "kind": "block"
+  },
+  {
+   "code": "6C20",
+   "name": "Transtorno de sofrimento corporal",
+   "nameEN": "Bodily distress disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C20.0",
+   "name": "Transtorno de sofrimento corporal leve",
+   "nameEN": "Mild bodily distress disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C20.1",
+   "name": "Transtorno de sofrimento corporal moderado",
+   "nameEN": "Moderate bodily distress disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C20.2",
+   "name": "Transtorno de sofrimento corporal grave",
+   "nameEN": "Severe bodily distress disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C20.Z",
+   "name": "Transtorno de sofrimento corporal não especificado",
+   "nameEN": "Bodily distress disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C21",
+   "name": "Disforia de integridade corporal",
+   "nameEN": "Body integrity dysphoria",
+   "kind": "category"
+  },
+  {
+   "code": "6C2Y",
+   "name": "Outros transtornos de sofrimento corporal ou experiência corporal especificados",
+   "nameEN": "Other specified disorders of bodily distress or bodily experience",
+   "kind": "category"
+  },
+  {
+   "code": "6C2Z",
+   "name": "Transtornos de sofrimento corporal e experiência corporal não especificados",
+   "nameEN": "Disorders of bodily distress or bodily experience, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL1-6C4",
+   "name": "Transtornos decorrentes do uso de substâncias ou comportamentos aditivos",
+   "nameEN": "Disorders due to substance use or addictive behaviours",
+   "kind": "block"
+  },
+  {
+   "code": "BlockL2-6C4",
+   "name": "Transtornos decorrentes do uso de substâncias",
+   "nameEN": "Disorders due to substance use",
+   "kind": "block"
+  },
+  {
+   "code": "6C40",
+   "name": "Transtornos devidos ao uso de álcool",
+   "nameEN": "Disorders due to use of alcohol",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.0",
+   "name": "Episódio de uso nocivo de álcool",
+   "nameEN": "Episode of harmful use of alcohol",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.1",
+   "name": "Padrão de uso nocivo de álcool",
+   "nameEN": "Harmful pattern of use of alcohol",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.10",
+   "name": "Padrão de uso nocivo de álcool, episódico",
+   "nameEN": "Harmful pattern of use of alcohol, episodic",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.11",
+   "name": "Padrão de uso nocivo de álcool, contínuo",
+   "nameEN": "Harmful pattern of use of alcohol, continuous",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.1Z",
+   "name": "Padrão de uso nocivo de álcool, não especificado",
+   "nameEN": "Harmful pattern of use of alcohol, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.2",
+   "name": "Dependência de álcool",
+   "nameEN": "Alcohol dependence",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.20",
+   "name": "Dependência de álcool, uso atual, contínuo",
+   "nameEN": "Alcohol dependence, current use, continuous",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.21",
+   "name": "Dependência de álcool, uso atual, episódico",
+   "nameEN": "Alcohol dependence, current use, episodic",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.22",
+   "name": "Dependência de álcool, remissão completa inicial",
+   "nameEN": "Alcohol dependence, early full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.23",
+   "name": "Dependência de álcool, remissão parcial sustentada",
+   "nameEN": "Alcohol dependence, sustained partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.24",
+   "name": "Dependência de álcool, remissão completa sustentada",
+   "nameEN": "Alcohol dependence, sustained full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.2Z",
+   "name": "Dependência de álcool não especificada",
+   "nameEN": "Alcohol dependence, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.3",
+   "name": "Intoxicação por álcool",
+   "nameEN": "Alcohol intoxication",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.4",
+   "name": "Abstinência de álcool",
+   "nameEN": "Alcohol withdrawal",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.40",
+   "name": "Abstinência de álcool, não complicada",
+   "nameEN": "Alcohol withdrawal, uncomplicated",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.41",
+   "name": "Abstinência de álcool com distúrbios da percepção",
+   "nameEN": "Alcohol withdrawal with perceptual disturbances",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.42",
+   "name": "Abstinência de álcool com convulsões",
+   "nameEN": "Alcohol withdrawal with seizures",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.43",
+   "name": "Abstinência de álcool com distúrbios da percepção e convulsões",
+   "nameEN": "Alcohol withdrawal with perceptual disturbances and seizures",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.4Z",
+   "name": "Abstinência de álcool não especificada",
+   "nameEN": "Alcohol withdrawal, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.5",
+   "name": "Delirium induzido por álcool",
+   "nameEN": "Alcohol-induced delirium",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.6",
+   "name": "Transtorno psicótico induzido por álcool",
+   "nameEN": "Alcohol-induced psychotic disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.60",
+   "name": "Transtorno psicótico induzido por álcool com alucinações",
+   "nameEN": "Alcohol-induced psychotic disorder with hallucinations",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.61",
+   "name": "Transtorno psicótico induzido por álcool com delírios",
+   "nameEN": "Alcohol-induced psychotic disorder with delusions",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.62",
+   "name": "Transtorno psicótico induzido por álcool com sintomas psicóticos mistos",
+   "nameEN": "Alcohol-induced psychotic disorder with mixed psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.6Z",
+   "name": "Transtorno psicótico induzido por álcool, não especificado",
+   "nameEN": "Alcohol-induced psychotic disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.7",
+   "name": "Alguns transtornos mentais ou comportamentais induzidos por álcool, especificados",
+   "nameEN": "Certain specified alcohol-induced mental or behavioural disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.70",
+   "name": "Transtorno do humor induzido por álcool",
+   "nameEN": "Alcohol-induced mood disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.71",
+   "name": "Transtorno de ansiedade induzido por álcool",
+   "nameEN": "Alcohol-induced anxiety disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.Y",
+   "name": "Outros transtornos especificados devidos ao uso de álcool",
+   "nameEN": "Other specified disorders due to use of alcohol",
+   "kind": "category"
+  },
+  {
+   "code": "6C40.Z",
+   "name": "Transtornos devidos ao uso de álcool, não especificados",
+   "nameEN": "Disorders due to use of alcohol, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C41",
+   "name": "Transtornos devidos ao uso de cannabis",
+   "nameEN": "Disorders due to use of cannabis",
+   "kind": "category"
+  },
+  {
+   "code": "6C41.0",
+   "name": "Episódio de uso nocivo de cannabis",
+   "nameEN": "Episode of harmful use of cannabis",
+   "kind": "category"
+  },
+  {
+   "code": "6C41.1",
+   "name": "Padrão de uso nocivo de cannabis",
+   "nameEN": "Harmful pattern of use of cannabis",
+   "kind": "category"
+  },
+  {
+   "code": "6C41.10",
+   "name": "Padrão de uso nocivo de cannabis, episódico",
+   "nameEN": "Harmful pattern of use of cannabis, episodic",
+   "kind": "category"
+  },
+  {
+   "code": "6C41.11",
+   "name": "Padrão de uso nocivo de cannabis, contínuo",
+   "nameEN": "Harmful pattern of use of cannabis, continuous",
+   "kind": "category"
+  },
+  {
+   "code": "6C41.1Z",
+   "name": "Padrão de uso nocivo de cannabis, não especificado",
+   "nameEN": "Harmful pattern of use of cannabis, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C41.2",
+   "name": "Dependência de cannabis",
+   "nameEN": "Cannabis dependence",
+   "kind": "category"
+  },
+  {
+   "code": "6C41.20",
+   "name": "Dependência de cannabis, uso atual",
+   "nameEN": "Cannabis dependence, current use",
+   "kind": "category"
+  },
+  {
+   "code": "6C41.21",
+   "name": "Dependência de cannabis, remissão completa inicial",
+   "nameEN": "Cannabis dependence, early full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C41.22",
+   "name": "Dependência de cannabis, remissão parcial sustentada",
+   "nameEN": "Cannabis dependence, sustained partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C41.23",
+   "name": "Dependência de cannabis, remissão completa sustentada",
+   "nameEN": "Cannabis dependence, sustained full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C41.2Z",
+   "name": "Dependência de cannabis, não especificada",
+   "nameEN": "Cannabis dependence, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C41.3",
+   "name": "Intoxicação por cannabis",
+   "nameEN": "Cannabis intoxication",
+   "kind": "category"
+  },
+  {
+   "code": "6C41.4",
+   "name": "Abstinência de cannabis",
+   "nameEN": "Cannabis withdrawal",
+   "kind": "category"
+  },
+  {
+   "code": "6C41.5",
+   "name": "Delirium induzido por cannabis",
+   "nameEN": "Cannabis-induced delirium",
+   "kind": "category"
+  },
+  {
+   "code": "6C41.6",
+   "name": "Transtorno psicótico induzido por cannabis",
+   "nameEN": "Cannabis-induced psychotic disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C41.7",
+   "name": "Alguns transtornos mentais ou comportamentais induzidos por cannabis, especificados",
+   "nameEN": "Certain specified cannabis-induced mental or behavioural disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6C41.70",
+   "name": "Transtorno de humor induzido por cannabis",
+   "nameEN": "Cannabis-induced mood disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C41.71",
+   "name": "Transtorno de ansiedade induzido por cannabis",
+   "nameEN": "Cannabis-induced anxiety disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C41.Y",
+   "name": "Outros transtornos especificados devidos ao uso de cannabis",
+   "nameEN": "Other specified disorders due to use of cannabis",
+   "kind": "category"
+  },
+  {
+   "code": "6C41.Z",
+   "name": "Transtornos devidos ao uso de cannabis, não especificados",
+   "nameEN": "Disorders due to use of cannabis, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C42",
+   "name": "Transtornos devidos ao uso de canabinoides sintéticos",
+   "nameEN": "Disorders due to use of synthetic cannabinoids",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.0",
+   "name": "Episódio de uso nocivo de canabinoides sintéticos",
+   "nameEN": "Episode of harmful use of synthetic cannabinoids",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.1",
+   "name": "Padrão de uso nocivo de canabinoides sintéticos",
+   "nameEN": "Harmful pattern of use of synthetic cannabinoids",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.10",
+   "name": "Padrão de uso nocivo de canabinoides sintéticos, episódico",
+   "nameEN": "Harmful pattern of use of synthetic cannabinoids, episodic",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.11",
+   "name": "Padrão de uso nocivo de canabinoides sintéticos, contínuo",
+   "nameEN": "Harmful pattern of use of synthetic cannabinoids, continuous",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.1Y",
+   "name": "Outro padrão de uso nocivo de canabinóides sintéticos, especificado",
+   "nameEN": "Other specified harmful pattern of use of synthetic cannabinoids",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.1Z",
+   "name": "Padrão de uso nocivo de canabinoides sintéticos, não especificado",
+   "nameEN": "Harmful pattern of use of synthetic cannabinoids, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.2",
+   "name": "Dependência de canabinoides sintéticos",
+   "nameEN": "Synthetic cannabinoid dependence",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.20",
+   "name": "Dependência de canabinoides sintéticos, uso atual",
+   "nameEN": "Synthetic cannabinoid dependence, current use",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.21",
+   "name": "Dependência de canabinoides sintéticos, remissão completa inicial",
+   "nameEN": "Synthetic cannabinoid dependence, early full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.22",
+   "name": "Dependência de canabinoides sintéticos, remissão parcial sustentada",
+   "nameEN": "Synthetic cannabinoid dependence, sustained partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.23",
+   "name": "Dependência de canabinoides sintéticos, remissão completa sustentada",
+   "nameEN": "Synthetic cannabinoid dependence, sustained full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.2Y",
+   "name": "Outra dependência especificada de canabinoides sintéticos",
+   "nameEN": "Other specified synthetic cannabinoid dependence",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.2Z",
+   "name": "Dependência de canabinoides sintéticos, não especificada",
+   "nameEN": "Synthetic cannabinoid dependence, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.3",
+   "name": "Intoxicação por canabinoides sintéticos",
+   "nameEN": "Synthetic cannabinoid intoxication",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.4",
+   "name": "Abstinência de canabinoides sintéticos",
+   "nameEN": "Synthetic cannabinoid withdrawal",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.5",
+   "name": "Delirium induzido por canabinoides sintéticos",
+   "nameEN": "Synthetic cannabinoid-induced delirium",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.6",
+   "name": "Transtorno psicótico induzido por canabinoides sintéticos",
+   "nameEN": "Synthetic cannabinoid-induced psychotic disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.7",
+   "name": "Alguns transtornos mentais ou comportamentais induzidos por canabinoides sintéticos, especificados",
+   "nameEN": "Certain specified synthetic cannabinoids-induced mental or behavioural disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.70",
+   "name": "Transtorno do humor induzido por canabinoides sintéticos",
+   "nameEN": "Synthetic cannabinoid-induced mood disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.71",
+   "name": "Transtorno de ansiedade induzido por canabinoides sintéticos",
+   "nameEN": "Synthetic cannabinoid-induced anxiety disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.Y",
+   "name": "Outros transtornos especificados devidos ao uso de canabinoides sintéticos",
+   "nameEN": "Other specified disorders due to use of synthetic cannabinoids",
+   "kind": "category"
+  },
+  {
+   "code": "6C42.Z",
+   "name": "Transtornos devidos ao uso de canabinoides sintéticos, não especificados",
+   "nameEN": "Disorders due to use of synthetic cannabinoids, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C43",
+   "name": "Transtornos devidos ao uso de opioides",
+   "nameEN": "Disorders due to use of opioids",
+   "kind": "category"
+  },
+  {
+   "code": "6C43.0",
+   "name": "Episódio de uso nocivo de opioides",
+   "nameEN": "Episode of harmful use of opioids",
+   "kind": "category"
+  },
+  {
+   "code": "6C43.1",
+   "name": "Padrão de uso nocivo de opioides",
+   "nameEN": "Harmful pattern of use of opioids",
+   "kind": "category"
+  },
+  {
+   "code": "6C43.10",
+   "name": "Padrão de uso nocivo de opioides, episódico",
+   "nameEN": "Harmful pattern of use of opioids, episodic",
+   "kind": "category"
+  },
+  {
+   "code": "6C43.11",
+   "name": "Padrão de uso nocivo de opioides, contínuo",
+   "nameEN": "Harmful pattern of use of opioids, continuous",
+   "kind": "category"
+  },
+  {
+   "code": "6C43.1Z",
+   "name": "Padrão de uso nocivo de opioides, não especificado",
+   "nameEN": "Harmful pattern of use of opioids, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C43.2",
+   "name": "Dependência de opioides",
+   "nameEN": "Opioid dependence",
+   "kind": "category"
+  },
+  {
+   "code": "6C43.20",
+   "name": "Dependência de opioides, uso atual",
+   "nameEN": "Opioid dependence, current use",
+   "kind": "category"
+  },
+  {
+   "code": "6C43.21",
+   "name": "Dependência de opioides, remissão completa inicial",
+   "nameEN": "Opioid dependence, early full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C43.22",
+   "name": "Dependência de opioides, remissão parcial sustentada",
+   "nameEN": "Opioid dependence, sustained partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C43.23",
+   "name": "Dependência de opioides, remissão completa sustentada",
+   "nameEN": "Opioid dependence, sustained full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C43.2Z",
+   "name": "Dependência de opioides não especificada",
+   "nameEN": "Opioid dependence, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C43.3",
+   "name": "Intoxicação por opioides",
+   "nameEN": "Opioid intoxication",
+   "kind": "category"
+  },
+  {
+   "code": "6C43.4",
+   "name": "Abstinência de opioides",
+   "nameEN": "Opioid withdrawal",
+   "kind": "category"
+  },
+  {
+   "code": "6C43.5",
+   "name": "Delirium induzido por opioides",
+   "nameEN": "Opioid-induced delirium",
+   "kind": "category"
+  },
+  {
+   "code": "6C43.6",
+   "name": "Transtorno psicótico induzido por opioides",
+   "nameEN": "Opioid-induced psychotic disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C43.7",
+   "name": "Alguns transtornos mentais ou comportamentais induzidos por opioides, especificados",
+   "nameEN": "Certain specified opioid-induced mental or behavioural disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6C43.70",
+   "name": "Transtorno do humor induzido por opioides",
+   "nameEN": "Opioid-induced mood disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C43.71",
+   "name": "Transtorno de ansiedade induzido por opioides",
+   "nameEN": "Opioid-induced anxiety disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C43.Y",
+   "name": "Outros transtornos especificados devidos ao uso de opioides,",
+   "nameEN": "Other specified disorders due to use of opioids",
+   "kind": "category"
+  },
+  {
+   "code": "6C43.Z",
+   "name": "Transtornos devidos ao uso de opioides, não especificados",
+   "nameEN": "Disorders due to use of opioids, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C44",
+   "name": "Transtornos devidos ao uso de sedativos, hipnóticos ou ansiolíticos",
+   "nameEN": "Disorders due to use of sedatives, hypnotics or anxiolytics",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.0",
+   "name": "Episódio de uso nocivo de sedativos, hipnóticos ou ansiolíticos",
+   "nameEN": "Episode of harmful use of sedatives, hypnotics or anxiolytics",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.1",
+   "name": "Padrão de uso nocivo de sedativos, hipnóticos ou ansiolíticos",
+   "nameEN": "Harmful pattern of use of sedatives, hypnotics or anxiolytics",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.10",
+   "name": "Padrão de uso nocivo de sedativos, hipnóticos ou ansiolíticos, episódico",
+   "nameEN": "Harmful pattern of use of sedatives, hypnotics or anxiolytics, episodic",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.11",
+   "name": "Padrão de uso nocivo de sedativos, hipnóticos ou ansiolíticos, contínuo",
+   "nameEN": "Harmful pattern of use of sedatives, hypnotics or anxiolytics, continuous",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.1Z",
+   "name": "Padrão de uso nocivo de sedativos, hipnóticos ou ansiolíticos, não especificado",
+   "nameEN": "Harmful pattern of use of sedatives, hypnotics or anxiolytics, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.2",
+   "name": "Dependência de sedativos, hipnóticos ou ansiolíticos",
+   "nameEN": "Sedative, hypnotic or anxiolytic dependence",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.20",
+   "name": "Dependência de sedativos, hipnóticos ou ansiolíticos, uso atual",
+   "nameEN": "Sedative, hypnotic or anxiolytic dependence, current use",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.21",
+   "name": "Dependência de sedativos, hipnóticos ou ansiolíticos, remissão completa inicial",
+   "nameEN": "Sedative, hypnotic or anxiolytic dependence, early full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.22",
+   "name": "Dependência de sedativos, hipnóticos ou ansiolíticos, remissão parcial sustentada",
+   "nameEN": "Sedative, hypnotic or anxiolytic dependence, sustained partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.23",
+   "name": "Dependência de sedativos, hipnóticos ou ansiolíticos, remissão completa sustentada",
+   "nameEN": "Sedative, hypnotic or anxiolytic dependence, sustained full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.2Z",
+   "name": "Dependência de sedativos, hipnóticos ou ansiolíticos, não especificada",
+   "nameEN": "Sedative, hypnotic or anxiolytic dependence, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.3",
+   "name": "Intoxicação por sedativos, hipnóticos ou ansiolíticos",
+   "nameEN": "Sedative, hypnotic or anxiolytic intoxication",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.4",
+   "name": "Abstinência de sedativos, hipnóticos ou ansiolíticos",
+   "nameEN": "Sedative, hypnotic or anxiolytic withdrawal",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.40",
+   "name": "Abstinência de sedativos, hipnóticos ou ansiolíticos, não complicada",
+   "nameEN": "Sedative, hypnotic or anxiolytic withdrawal, uncomplicated",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.41",
+   "name": "Abstinência de sedativos, hipnóticos ou ansiolíticos, com distúrbios da percepção",
+   "nameEN": "Sedative, hypnotic or anxiolytic withdrawal, with perceptual disturbances",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.42",
+   "name": "Abstinência de sedativos, hipnóticos ou ansiolíticos, com convulsões",
+   "nameEN": "Sedative, hypnotic or anxiolytic withdrawal, with seizures",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.43",
+   "name": "Abstinência de sedativos, hipnóticos ou ansiolíticos com distúrbios da percepção e convulsões",
+   "nameEN": "Sedative, hypnotic or anxiolytic withdrawal, with perceptual disturbances and seizures",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.4Z",
+   "name": "Abstinência de sedativos, hipnóticos ou ansiolíticos, não especificada",
+   "nameEN": "Sedative, hypnotic or anxiolytic withdrawal, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.5",
+   "name": "Delirium induzido por sedativos, hipnóticos ou ansiolíticos",
+   "nameEN": "Sedative, hypnotic or anxiolytic-induced delirium",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.6",
+   "name": "Transtorno psicótico induzido por sedativos, hipnóticos ou ansiolíticos",
+   "nameEN": "Sedative, hypnotic or anxiolytic-induced psychotic disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.7",
+   "name": "Alguns transtornos mentais ou comportamentais induzidos por sedativos, hipnóticos ou ansiolíticos, especificados",
+   "nameEN": "Certain specified sedatives, hypnotics or anxiolytic-induced mental or behavioural disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.70",
+   "name": "Transtorno do humor induzido por sedativos, hipnóticos ou ansiolíticos",
+   "nameEN": "Sedative, hypnotic or anxiolytic-induced mood disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.71",
+   "name": "Transtorno de ansiedade induzido por sedativos, hipnóticos ou ansiolíticos",
+   "nameEN": "Sedative, hypnotic or anxiolytic-induced anxiety disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.Y",
+   "name": "Outros transtornos especificados devidos ao uso de sedativos, hipnóticos ou ansiolíticos,",
+   "nameEN": "Other specified disorders due to use of sedatives, hypnotics or anxiolytics",
+   "kind": "category"
+  },
+  {
+   "code": "6C44.Z",
+   "name": "Transtornos devidos ao uso de sedativos, hipnóticos ou ansiolíticos, não especificados",
+   "nameEN": "Disorders due to use of sedatives, hypnotics or anxiolytics, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C45",
+   "name": "Transtornos devidos ao uso de cocaína",
+   "nameEN": "Disorders due to use of cocaine",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.0",
+   "name": "Episódio de uso nocivo de cocaína",
+   "nameEN": "Episode of harmful use of cocaine",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.1",
+   "name": "Padrão de uso nocivo de cocaína",
+   "nameEN": "Harmful pattern of use of cocaine",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.10",
+   "name": "Padrão de uso nocivo de cocaína, episódico",
+   "nameEN": "Harmful pattern of use of cocaine, episodic",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.11",
+   "name": "Padrão de uso nocivo de cocaína, contínuo",
+   "nameEN": "Harmful pattern of use of cocaine, continuous",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.1Z",
+   "name": "Padrão de uso nocivo de cocaína, não especificado",
+   "nameEN": "Harmful pattern of use of cocaine, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.2",
+   "name": "Dependência de cocaína",
+   "nameEN": "Cocaine dependence",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.20",
+   "name": "Dependência de cocaína, uso atual",
+   "nameEN": "Cocaine dependence, current use",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.21",
+   "name": "Dependência de cocaína, remissão completa inicial",
+   "nameEN": "Cocaine dependence, early full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.22",
+   "name": "Dependência de cocaína, remissão parcial sustentada",
+   "nameEN": "Cocaine dependence, sustained partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.23",
+   "name": "Dependência de cocaína, remissão completa sustentada",
+   "nameEN": "Cocaine dependence, sustained full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.2Z",
+   "name": "Dependência de cocaína, não especificada",
+   "nameEN": "Cocaine dependence, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.3",
+   "name": "Intoxicação por cocaína",
+   "nameEN": "Cocaine intoxication",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.4",
+   "name": "Abstinência de cocaína",
+   "nameEN": "Cocaine withdrawal",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.5",
+   "name": "Delirium induzido por cocaína",
+   "nameEN": "Cocaine-induced delirium",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.6",
+   "name": "Transtorno psicótico induzido por cocaína",
+   "nameEN": "Cocaine-induced psychotic disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.60",
+   "name": "Transtorno psicótico induzido por cocaína com alucinações",
+   "nameEN": "Cocaine-induced psychotic disorder with hallucinations",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.61",
+   "name": "Transtorno psicótico induzido por cocaína com delírios",
+   "nameEN": "Cocaine-induced psychotic disorder with delusions",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.62",
+   "name": "Transtorno psicótico induzido por cocaína com sintomas psicóticos mistos",
+   "nameEN": "Cocaine-induced psychotic disorder with mixed psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.6Z",
+   "name": "Transtorno psicótico induzido por cocaína, não especificado",
+   "nameEN": "Cocaine-induced psychotic disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.7",
+   "name": "Alguns transtornos mentais ou comportamentais induzidos por cocaína, especificados",
+   "nameEN": "Certain specified cocaine-induced mental or behavioural disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.70",
+   "name": "Transtorno do humor induzido por cocaína",
+   "nameEN": "Cocaine-induced mood disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.71",
+   "name": "Transtorno de ansiedade induzido por cocaína",
+   "nameEN": "Cocaine-induced anxiety disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.72",
+   "name": "Transtorno obsessivo-compulsivo ou transtorno relacionado induzido por cocaína",
+   "nameEN": "Cocaine-induced obsessive-compulsive or related disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.73",
+   "name": "Transtorno do controle de impulsos induzido por cocaína",
+   "nameEN": "Cocaine-induced impulse control disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.Y",
+   "name": "Outros transtornos especificados devidos ao uso de cocaína",
+   "nameEN": "Other specified disorders due to use of cocaine",
+   "kind": "category"
+  },
+  {
+   "code": "6C45.Z",
+   "name": "Transtornos devidos ao uso de cocaína, não especificados",
+   "nameEN": "Disorders due to use of cocaine, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C46",
+   "name": "Transtornos devidos ao uso de estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona",
+   "nameEN": "Disorders due to use of stimulants including amphetamines, methamphetamine or methcathinone",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.0",
+   "name": "Episódio de uso nocivo de estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona",
+   "nameEN": "Episode of harmful use of stimulants including amphetamines, methamphetamine or methcathinone",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.1",
+   "name": "Padrão de uso nocivo de estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona",
+   "nameEN": "Harmful pattern of use of stimulants including amphetamines, methamphetamine or methcathinone",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.10",
+   "name": "Padrão de uso nocivo de estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona, episódico",
+   "nameEN": "Harmful pattern of use of stimulants including amphetamines, methamphetamine or methcathinone, episodic",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.11",
+   "name": "Padrão de uso nocivo de estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona, contínuo",
+   "nameEN": "Harmful pattern of use of stimulants including amphetamines, methamphetamine or methcathinone, continuous",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.1Z",
+   "name": "Padrão de uso nocivo de estimulantes, incluindo anfetaminas, metanfetamina e metcatinona, não especificado",
+   "nameEN": "Harmful pattern of use of stimulants including amphetamines, methamphetamine and methcathinone, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.2",
+   "name": "Dependência de estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona",
+   "nameEN": "Stimulant dependence including amphetamines, methamphetamine or methcathinone",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.20",
+   "name": "Dependência de estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona, uso atual",
+   "nameEN": "Stimulant dependence including amphetamines, methamphetamine or methcathinone, current use",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.21",
+   "name": "Dependência de estimulantes, incluindo anfetaminas, metanfetaminas ou metcatinona, remissão completa inicial",
+   "nameEN": "Stimulant dependence including amphetamines, methamphetamine or methcathinone, early full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.22",
+   "name": "Dependência de estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona, remissão parcial sustentada",
+   "nameEN": "Stimulant dependence including amphetamines, methamphetamine or methcathinone, sustained partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.23",
+   "name": "Dependência de estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona, remissão completa sustentada",
+   "nameEN": "Stimulant dependence including amphetamines, methamphetamine or methcathinone, sustained full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.2Z",
+   "name": "Dependência de estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona, não especificada",
+   "nameEN": "Stimulant dependence including amphetamines, methamphetamine or methcathinone, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.3",
+   "name": "Intoxicação por estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona",
+   "nameEN": "Stimulant intoxication including amphetamines, methamphetamine or methcathinone",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.4",
+   "name": "Abstinência de estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona",
+   "nameEN": "Stimulant withdrawal including amphetamines, methamphetamine or methcathinone",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.5",
+   "name": "Delirium induzido por estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona",
+   "nameEN": "Stimulant-induced delirium including amphetamines, methamphetamine or methcathinone",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.6",
+   "name": "Transtorno psicótico induzido por estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona",
+   "nameEN": "Stimulant-induced psychotic disorder including amphetamines, methamphetamine or methcathinone",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.60",
+   "name": "Transtorno psicótico induzido por estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona, com alucinações",
+   "nameEN": "Stimulant-induced psychotic disorder including amphetamines, methamphetamine or methcathinone with hallucinations",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.61",
+   "name": "Transtorno psicótico induzido por estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona, com delírios",
+   "nameEN": "Stimulant-induced psychotic disorder including amphetamines, methamphetamine or methcathinone with delusions",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.62",
+   "name": "Transtorno psicótico induzido por estimulantes, incluindo anfetaminas, mas excluindo cafeína ou cocaína, com sintomas psicóticos mistos",
+   "nameEN": "Stimulant-induced psychotic disorder including amphetamines but excluding caffeine or cocaine with mixed psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.6Z",
+   "name": "Transtorno psicótico induzido por estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona, não especificado",
+   "nameEN": "Stimulant-induced psychotic disorder including amphetamines, methamphetamine or methcathinone, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.7",
+   "name": "Alguns transtornos mentais ou do comportamento induzidos por estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona, especificados",
+   "nameEN": "Certain specified stimulant-induced mental or behavioural disorders including amphetamines, methamphetamine or methcathinone",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.70",
+   "name": "Transtorno do humor induzido por estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona",
+   "nameEN": "Stimulant-induced mood disorder including amphetamines, methamphetamine or methcathinone",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.71",
+   "name": "Transtorno de ansiedade induzido por estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona",
+   "nameEN": "Stimulant-induced anxiety disorder including amphetamines, methamphetamine or methcathinone",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.72",
+   "name": "Transtorno obsessivo-compulsivo ou transtorno relacionado induzido por estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona",
+   "nameEN": "Stimulant-induced obsessive-compulsive or related disorder including amphetamines, methamphetamine or methcathinone",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.73",
+   "name": "Transtorno de controle de impulsos induzido por estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona",
+   "nameEN": "Stimulant-induced impulse control disorder including amphetamines, methamphetamine or methcathinone",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.Y",
+   "name": "Outros transtornos especificados devidos ao uso de estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona",
+   "nameEN": "Other specified disorders due to use of stimulants including amphetamines, methamphetamine or methcathinone",
+   "kind": "category"
+  },
+  {
+   "code": "6C46.Z",
+   "name": "Transtornos devidos ao uso de estimulantes, incluindo anfetaminas, metanfetamina ou metcatinona, não especificados",
+   "nameEN": "Disorders due to use of stimulants including amphetamines, methamphetamine or methcathinone, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C47",
+   "name": "Transtornos devidos ao uso de catinonas sintéticas",
+   "nameEN": "Disorders due to use of synthetic cathinones",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.0",
+   "name": "Episódio de uso nocivo de catinonas sintéticas",
+   "nameEN": "Episode of harmful use of synthetic cathinones",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.1",
+   "name": "Padrão de uso nocivo de catinonas sintéticas",
+   "nameEN": "Harmful pattern of use of synthetic cathinones",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.10",
+   "name": "Padrão nocivo de uso de catinonas sintéticas, episódico",
+   "nameEN": "Harmful pattern of use of synthetic cathinones, episodic",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.11",
+   "name": "Padrão nocivo de uso de catinonas sintéticas, contínuo",
+   "nameEN": "Harmful use of synthetic cathinones, continuous",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.1Y",
+   "name": "Outro padrão de uso nocivo de catinonas sintéticas, especificado",
+   "nameEN": "Other specified harmful pattern of use of synthetic cathinones",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.1Z",
+   "name": "Padrão de uso nocivo de catinonas sintéticas, não especificado",
+   "nameEN": "Harmful pattern of use of synthetic cathinones, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.2",
+   "name": "Dependência de catinonas sintéticas",
+   "nameEN": "Synthetic cathinone dependence",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.20",
+   "name": "Dependência de catinonas sintéticas, uso atual",
+   "nameEN": "Synthetic cathinone dependence, current use",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.21",
+   "name": "Dependência de catinonas sintéticas, remissão completa inicial",
+   "nameEN": "Synthetic cathinone dependence, early full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.22",
+   "name": "Dependência de catinonas sintéticas, remissão parcial sustentada",
+   "nameEN": "Synthetic cathinone dependence, sustained partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.23",
+   "name": "Dependência de catinonas sintéticas, remissão completa sustentada",
+   "nameEN": "Synthetic cathinone dependence, sustained full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.2Y",
+   "name": "Outra dependência especificada de catinonas sintéticas",
+   "nameEN": "Other specified synthetic cathinone dependence",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.2Z",
+   "name": "Dependência de catinonas sintéticas, não especificada",
+   "nameEN": "Synthetic cathinone dependence, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.3",
+   "name": "Intoxicação por catinonas sintéticas",
+   "nameEN": "Synthetic cathinone intoxication",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.4",
+   "name": "Abstinência de catinonas sintéticas",
+   "nameEN": "Synthetic cathinone withdrawal",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.5",
+   "name": "Delirium induzido por catinonas sintéticas",
+   "nameEN": "Synthetic cathinone-induced delirium",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.6",
+   "name": "Transtorno psicótico induzido por catinonas sintéticas",
+   "nameEN": "Synthetic cathinone-induced psychotic disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.60",
+   "name": "Transtorno psicótico induzido por catinonas sintéticas com alucinações",
+   "nameEN": "Synthetic cathinone-induced psychotic disorder with hallucinations",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.61",
+   "name": "Transtorno psicótico induzido por catinonas sintéticas com delírios",
+   "nameEN": "Synthetic cathinone-induced psychotic disorder with delusions",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.62",
+   "name": "Transtorno psicótico induzido por catinonas sintéticas com sintomas psicóticos mistos",
+   "nameEN": "Synthetic cathinone-induced psychotic disorder with mixed psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.6Z",
+   "name": "Transtorno psicótico induzido por catinonas sintéticas, não especificado",
+   "nameEN": "Synthetic cathinone-induced psychotic disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.7",
+   "name": "Alguns transtornos mentais ou do comportamento comportamentais induzidos por catinonas sintéticas, especificados",
+   "nameEN": "Certain specified synthetic cathinone-induced mental or behavioural disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.70",
+   "name": "Transtorno de humor induzido por catinonas sintéticas",
+   "nameEN": "Synthetic cathinone-induced mood disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.71",
+   "name": "Transtorno de ansiedade induzido por catinonas sintéticas",
+   "nameEN": "Synthetic cathinone-induced anxiety disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.72",
+   "name": "Transtorno obsessivo-compulsivo ou síndrome relacionada induzida por catinonas sintéticas",
+   "nameEN": "Synthetic cathinone-induced obsessive-compulsive or related syndrome",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.73",
+   "name": "Transtorno do controle de impulsos induzido por catinonas sintéticas",
+   "nameEN": "Synthetic cathinone-induced impulse control disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.Y",
+   "name": "Outros transtornos especificados devidos ao uso de catinonas sintéticas",
+   "nameEN": "Other specified disorders due to use of synthetic cathinones",
+   "kind": "category"
+  },
+  {
+   "code": "6C47.Z",
+   "name": "Transtornos devidos ao uso de catinonas sintéticas, não especificados",
+   "nameEN": "Disorders due to use of synthetic cathinones, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C48",
+   "name": "Transtornos devidos ao uso de cafeína",
+   "nameEN": "Disorders due to use of caffeine",
+   "kind": "category"
+  },
+  {
+   "code": "6C48.0",
+   "name": "Episódio de uso nocivo de cafeína",
+   "nameEN": "Episode of harmful use of caffeine",
+   "kind": "category"
+  },
+  {
+   "code": "6C48.1",
+   "name": "Padrão de uso nocivo de cafeína",
+   "nameEN": "Harmful pattern of use of caffeine",
+   "kind": "category"
+  },
+  {
+   "code": "6C48.10",
+   "name": "Padrão de uso nocivo de cafeína, episódico",
+   "nameEN": "Harmful pattern of use of caffeine, episodic",
+   "kind": "category"
+  },
+  {
+   "code": "6C48.11",
+   "name": "Padrão de uso nocivo de cafeína, contínuo",
+   "nameEN": "Harmful pattern of use of caffeine, continuous",
+   "kind": "category"
+  },
+  {
+   "code": "6C48.1Z",
+   "name": "Padrão de uso nocivo de cafeína, não especificado",
+   "nameEN": "Harmful pattern of use of caffeine, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C48.2",
+   "name": "Intoxicação por cafeína",
+   "nameEN": "Caffeine intoxication",
+   "kind": "category"
+  },
+  {
+   "code": "6C48.3",
+   "name": "Abstinência de cafeína",
+   "nameEN": "Caffeine withdrawal",
+   "kind": "category"
+  },
+  {
+   "code": "6C48.4",
+   "name": "Alguns transtornos mentais ou do comportamento induzidos por cafeína, especificados",
+   "nameEN": "Certain specified caffeine-induced mental or behavioural disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6C48.40",
+   "name": "Transtorno de ansiedade induzido por cafeína",
+   "nameEN": "Caffeine-induced anxiety disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C48.Y",
+   "name": "Outros transtornos especificados devidos ao uso de cafeína",
+   "nameEN": "Other specified disorders due to use of caffeine",
+   "kind": "category"
+  },
+  {
+   "code": "6C48.Z",
+   "name": "Transtornos devidos ao uso de cafeína, não especificado",
+   "nameEN": "Disorders due to use of caffeine, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C49",
+   "name": "Transtornos devidos ao uso de alucinógenos",
+   "nameEN": "Disorders due to use of hallucinogens",
+   "kind": "category"
+  },
+  {
+   "code": "6C49.0",
+   "name": "Episódio de uso nocivo de alucinógenos",
+   "nameEN": "Episode of harmful use of hallucinogens",
+   "kind": "category"
+  },
+  {
+   "code": "6C49.1",
+   "name": "Padrão de uso nocivo de alucinógenos",
+   "nameEN": "Harmful pattern of use of hallucinogens",
+   "kind": "category"
+  },
+  {
+   "code": "6C49.10",
+   "name": "Padrão de uso nocivo de alucinógenos, episódico",
+   "nameEN": "Harmful pattern of use of hallucinogens, episodic",
+   "kind": "category"
+  },
+  {
+   "code": "6C49.11",
+   "name": "Padrão de uso nocivo de alucinógenos, contínuo",
+   "nameEN": "Harmful pattern of use of hallucinogens, continuous",
+   "kind": "category"
+  },
+  {
+   "code": "6C49.1Z",
+   "name": "Padrão de uso nocivo de alucinógenos, não especificado",
+   "nameEN": "Harmful pattern of use of hallucinogens, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C49.2",
+   "name": "Dependêcia de alucinógenos",
+   "nameEN": "Hallucinogen dependence",
+   "kind": "category"
+  },
+  {
+   "code": "6C49.20",
+   "name": "Dependência de alucinógenos, uso atual",
+   "nameEN": "Hallucinogen dependence, current use",
+   "kind": "category"
+  },
+  {
+   "code": "6C49.21",
+   "name": "Dependência de alucinógenos, remissão completa inicial",
+   "nameEN": "Hallucinogen dependence, early full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C49.22",
+   "name": "Dependência de alucinógenos, remissão parcial sustentada",
+   "nameEN": "Hallucinogen dependence, sustained partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C49.23",
+   "name": "Dependência de alucinógenos, remissão completa sustentada",
+   "nameEN": "Hallucinogen dependence, sustained full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C49.2Z",
+   "name": "Dependência de alucinógenos, não especificada",
+   "nameEN": "Hallucinogen dependence, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C49.3",
+   "name": "Intoxicação por alucinógenos",
+   "nameEN": "Hallucinogen intoxication",
+   "kind": "category"
+  },
+  {
+   "code": "6C49.4",
+   "name": "Delirium induzido por alucinógenos",
+   "nameEN": "Hallucinogen-induced delirium",
+   "kind": "category"
+  },
+  {
+   "code": "6C49.5",
+   "name": "Transtorno psicótico induzido por alucinógenos",
+   "nameEN": "Hallucinogen-induced psychotic disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C49.6",
+   "name": "Alguns transtornos mentais ou comportamentais induzidos por alucinógenos, especificados",
+   "nameEN": "Certain specified hallucinogen-induced mental or behavioural disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6C49.60",
+   "name": "Transtorno do humor induzido por alucinógenos",
+   "nameEN": "Hallucinogen-induced mood disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C49.61",
+   "name": "Transtorno de ansiedade induzido por alucinógenos",
+   "nameEN": "Hallucinogen-induced anxiety disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C49.Y",
+   "name": "Outros transtornos especificados devidos ao uso de alucinógenos",
+   "nameEN": "Other specified disorders due to use of hallucinogens",
+   "kind": "category"
+  },
+  {
+   "code": "6C49.Z",
+   "name": "Transtornos devidos ao uso de alucinógenos, não especificados",
+   "nameEN": "Disorders due to use of hallucinogens, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4A",
+   "name": "Transtornos devidos ao uso de nicotina",
+   "nameEN": "Disorders due to use of nicotine",
+   "kind": "category"
+  },
+  {
+   "code": "6C4A.0",
+   "name": "Episódio de uso nocivo de nicotina",
+   "nameEN": "Episode of harmful use of nicotine",
+   "kind": "category"
+  },
+  {
+   "code": "6C4A.1",
+   "name": "Padrão de uso nocivo de nicotina",
+   "nameEN": "Harmful pattern of use of nicotine",
+   "kind": "category"
+  },
+  {
+   "code": "6C4A.10",
+   "name": "Padrão de uso nocivo de nicotina, episódico",
+   "nameEN": "Harmful pattern of use of nicotine, episodic",
+   "kind": "category"
+  },
+  {
+   "code": "6C4A.11",
+   "name": "Padrão de uso nocivo de nicotina, contínuo",
+   "nameEN": "Harmful pattern of use of nicotine, continuous",
+   "kind": "category"
+  },
+  {
+   "code": "6C4A.1Z",
+   "name": "Padrão de uso nocivo de nicotina, não especificado",
+   "nameEN": "Harmful pattern of use of nicotine, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4A.2",
+   "name": "Dependência de nicotina",
+   "nameEN": "Nicotine dependence",
+   "kind": "category"
+  },
+  {
+   "code": "6C4A.20",
+   "name": "Dependência de nicotina, uso atual",
+   "nameEN": "Nicotine dependence, current use",
+   "kind": "category"
+  },
+  {
+   "code": "6C4A.21",
+   "name": "Dependência de nicotina, remissão completa inicial",
+   "nameEN": "Nicotine dependence, early full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C4A.22",
+   "name": "Dependência de nicotina, remissão parcial sustentada",
+   "nameEN": "Nicotine dependence, sustained partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C4A.23",
+   "name": "Dependência de nicotina, remissão completa sustentada",
+   "nameEN": "Nicotine dependence, sustained full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C4A.2Z",
+   "name": "Dependência de nicotina, não especificada",
+   "nameEN": "Nicotine dependence, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4A.3",
+   "name": "Intoxicação por nicotina",
+   "nameEN": "Nicotine intoxication",
+   "kind": "category"
+  },
+  {
+   "code": "6C4A.4",
+   "name": "Abstinência de nicotina",
+   "nameEN": "Nicotine withdrawal",
+   "kind": "category"
+  },
+  {
+   "code": "6C4A.Y",
+   "name": "Outros transtornos especificados devidos ao uso de nicotina",
+   "nameEN": "Other specified disorders due to use of nicotine",
+   "kind": "category"
+  },
+  {
+   "code": "6C4A.Z",
+   "name": "Transtornos devidos ao uso de nicotina, não especificados",
+   "nameEN": "Disorders due to use of nicotine, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4B",
+   "name": "Transtornos devidos ao uso de inalantes voláteis",
+   "nameEN": "Disorders due to use of volatile inhalants",
+   "kind": "category"
+  },
+  {
+   "code": "6C4B.0",
+   "name": "Episódio de uso nocivo de inalantes voláteis",
+   "nameEN": "Episode of harmful use of volatile inhalants",
+   "kind": "category"
+  },
+  {
+   "code": "6C4B.1",
+   "name": "Padrão de uso nocivo de inalantes voláteis",
+   "nameEN": "Harmful pattern of use of volatile inhalants",
+   "kind": "category"
+  },
+  {
+   "code": "6C4B.10",
+   "name": "Padrão de uso nocivo de inalantes voláteis, episódico",
+   "nameEN": "Harmful pattern of use of volatile inhalants, episodic",
+   "kind": "category"
+  },
+  {
+   "code": "6C4B.11",
+   "name": "Padrão de uso nocivo de inalantes voláteis, contínuo",
+   "nameEN": "Harmful pattern of use of volatile inhalants, continuous",
+   "kind": "category"
+  },
+  {
+   "code": "6C4B.1Z",
+   "name": "Padrão de uso nocivo de inalantes voláteis, não especificado",
+   "nameEN": "Harmful pattern of use of volatile inhalants, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4B.2",
+   "name": "Dependência de inalantes voláteis",
+   "nameEN": "Volatile inhalant dependence",
+   "kind": "category"
+  },
+  {
+   "code": "6C4B.20",
+   "name": "Dependência de inalantes voláteis, uso atual",
+   "nameEN": "Volatile inhalant dependence, current use",
+   "kind": "category"
+  },
+  {
+   "code": "6C4B.21",
+   "name": "Dependência de inalantes voláteis, remissão completa inicial",
+   "nameEN": "Volatile inhalant dependence, early full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C4B.22",
+   "name": "Dependência de inalantes voláteis, remissão parcial sustentada",
+   "nameEN": "Volatile inhalant dependence, sustained partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C4B.23",
+   "name": "Dependência de inalantes voláteis, remissão completa sustentada",
+   "nameEN": "Volatile inhalant dependence, sustained full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C4B.2Z",
+   "name": "Dependência de inalantes voláteis, não especificada",
+   "nameEN": "Volatile inhalant dependence, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4B.3",
+   "name": "Intoxicação por inalantes voláteis",
+   "nameEN": "Volatile inhalant intoxication",
+   "kind": "category"
+  },
+  {
+   "code": "6C4B.4",
+   "name": "Abstinência de inalantes voláteis",
+   "nameEN": "Volatile inhalant withdrawal",
+   "kind": "category"
+  },
+  {
+   "code": "6C4B.5",
+   "name": "Delirium induzido por inalantes voláteis",
+   "nameEN": "Volatile inhalant-induced delirium",
+   "kind": "category"
+  },
+  {
+   "code": "6C4B.6",
+   "name": "Transtorno psicótico induzido por inalantes voláteis",
+   "nameEN": "Volatile inhalant-induced psychotic disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C4B.7",
+   "name": "Alguns transtornos mentais ou comportamentais induzidos por inalantes voláteis, especificados",
+   "nameEN": "Certain specified volatile inhalants-induced mental or behavioural disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6C4B.70",
+   "name": "Transtorno do humor induzido por inalantes voláteis",
+   "nameEN": "Volatile inhalant-induced mood disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C4B.71",
+   "name": "Transtorno de ansiedade induzido por inalantes voláteis",
+   "nameEN": "Volatile inhalant-induced anxiety disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C4B.Y",
+   "name": "Outros transtornos especificados devidos ao uso de inalantes voláteis",
+   "nameEN": "Other specified disorders due to use of volatile inhalants",
+   "kind": "category"
+  },
+  {
+   "code": "6C4B.Z",
+   "name": "Transtornos devidos ao uso de inalantes voláteis, não especificados",
+   "nameEN": "Disorders due to use of volatile inhalants, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4C",
+   "name": "Transtornos devidos ao uso de MDMA ou drogas relacionadas, incluindo MDA",
+   "nameEN": "Disorders due to use of MDMA or related drugs, including MDA",
+   "kind": "category"
+  },
+  {
+   "code": "6C4C.0",
+   "name": "Episódio de uso nocivo de MDMA ou drogas relacionadas, incluindo MDA",
+   "nameEN": "Episode of harmful use of MDMA or related drugs, including MDA",
+   "kind": "category"
+  },
+  {
+   "code": "6C4C.1",
+   "name": "Padrão nocivo de uso de MDMA ou drogas relacionadas, incluindo MDA",
+   "nameEN": "Harmful pattern of use of MDMA or related drugs, including MDA",
+   "kind": "category"
+  },
+  {
+   "code": "6C4C.10",
+   "name": "Padrão de uso nocivo de MDMA ou drogas relacionadas, incluindo MDA, episódico",
+   "nameEN": "Harmful use of MDMA or related drugs, including MDA, episodic",
+   "kind": "category"
+  },
+  {
+   "code": "6C4C.11",
+   "name": "Padrão de uso nocivo de MDMA ou drogas relacionadas, incluindo MDA, contínuo",
+   "nameEN": "Harmful use of MDMA or related drugs, including MDA, continuous",
+   "kind": "category"
+  },
+  {
+   "code": "6C4C.1Z",
+   "name": "Padrão nocivo de uso de MDMA ou drogas relacionadas, incluindo MDA, não especificado",
+   "nameEN": "Harmful pattern of use of MDMA or related drugs, including MDA, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4C.2",
+   "name": "Dependência de MDMA ou drogas relacionadas, incluindo MDA",
+   "nameEN": "MDMA or related drug dependence, including MDA",
+   "kind": "category"
+  },
+  {
+   "code": "6C4C.20",
+   "name": "Dependência de MDMA ou drogas relacionadas, incluindo MDA, uso atual",
+   "nameEN": "MDMA or related drug dependence, including MDA, current use",
+   "kind": "category"
+  },
+  {
+   "code": "6C4C.21",
+   "name": "Dependência de MDMA ou drogas relacionadas, incluindo MDA, remissão completa inicial",
+   "nameEN": "MDMA or related drug dependence, including MDA, early full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C4C.22",
+   "name": "Dependência de MDMA ou drogas relacionadas, incluindo MDA, remissão parcial sustentada",
+   "nameEN": "MDMA or related drug dependence, including MDA, sustained partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C4C.23",
+   "name": "Dependência de MDMA ou drogas relacionadas, incluindo MDA, remissão completa sustentada",
+   "nameEN": "MDMA or related drug dependence, including MDA, sustained full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C4C.2Z",
+   "name": "Dependência de MDMA ou drogas relacionadas, incluindo MDA, não especificada",
+   "nameEN": "MDMA or related drug dependence, including MDA, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4C.3",
+   "name": "Intoxicação por MDMA ou drogas relacionadas, incluindo MDA",
+   "nameEN": "MDMA or related drug intoxication, including MDA",
+   "kind": "category"
+  },
+  {
+   "code": "6C4C.4",
+   "name": "Abstinência de MDMA ou drogas relacionadas, incluindo MDA",
+   "nameEN": "MDMA or related drug withdrawal, including MDA",
+   "kind": "category"
+  },
+  {
+   "code": "6C4C.5",
+   "name": "Delirium induzido por MDMA ou drogas relacionadas, incluindo MDA",
+   "nameEN": "MDMA or related drug-induced delirium, including MDA",
+   "kind": "category"
+  },
+  {
+   "code": "6C4C.6",
+   "name": "Transtorno psicótico induzido por MDMA ou drogas relacionadas, incluindo MDA",
+   "nameEN": "MDMA or related drug-induced psychotic disorder, including MDA",
+   "kind": "category"
+  },
+  {
+   "code": "6C4C.7",
+   "name": "Alguns transtornos mentais ou comportamentais induzidos por MDMA ou drogas relacionadas, incluindo MDA, especificados",
+   "nameEN": "Certain specified MDMA or related drug-induced mental or behavioural disorders, including MDA",
+   "kind": "category"
+  },
+  {
+   "code": "6C4C.70",
+   "name": "Transtorno do humor induzido por MDMA ou drogas relacionadas, incluindo MDA",
+   "nameEN": "MDMA or related drug-induced mood disorder, including MDA",
+   "kind": "category"
+  },
+  {
+   "code": "6C4C.71",
+   "name": "Transtorno de ansiedade induzido por MDMA ou drogas relacionadas",
+   "nameEN": "MDMA or related drug-induced anxiety disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C4C.Y",
+   "name": "Outros transtornos especificados devidos ao uso de MDMA ou drogas relacionadas, incluindo MDA",
+   "nameEN": "Other specified disorders due to use of MDMA or related drugs, including MDA",
+   "kind": "category"
+  },
+  {
+   "code": "6C4C.Z",
+   "name": "Transtornos devidos ao uso de MDMA ou drogas relacionadas, incluindo MDA, não especificados",
+   "nameEN": "Disorders due to use of MDMA or related drugs, including MDA, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4D",
+   "name": "Transtornos devidos ao uso de drogas dissociativas, incluindo quetamina e fenciclidina [PCP]",
+   "nameEN": "Disorders due to use of dissociative drugs including ketamine and phencyclidine [PCP]",
+   "kind": "category"
+  },
+  {
+   "code": "6C4D.0",
+   "name": "Episódio de uso nocivo de drogas dissociativas, incluindo quetamina ou PCP",
+   "nameEN": "Episode of harmful use of dissociative drugs including ketamine or PCP",
+   "kind": "category"
+  },
+  {
+   "code": "6C4D.1",
+   "name": "Padrão de uso nocivo de drogas dissociativas, incluindo quetamina ou PCP",
+   "nameEN": "Harmful pattern of use of dissociative drugs, including ketamine or PCP",
+   "kind": "category"
+  },
+  {
+   "code": "6C4D.10",
+   "name": "Padrão de uso nocivo de drogas dissociativas, incluindo quetamina ou PCP, episódico",
+   "nameEN": "Harmful pattern of use of dissociative drugs including ketamine or PCP, episodic",
+   "kind": "category"
+  },
+  {
+   "code": "6C4D.11",
+   "name": "Padrão de uso nocivo de drogas dissociativas, incluindo quetamina ou PCP, contínuo",
+   "nameEN": "Harmful pattern of use of dissociative drugs including ketamine or PCP, continuous",
+   "kind": "category"
+  },
+  {
+   "code": "6C4D.1Z",
+   "name": "Padrão de uso nocivo de drogas dissociativas, incluindo quetamina ou PCP, não especificado",
+   "nameEN": "Harmful pattern of use of dissociative drugs, including ketamine or PCP, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4D.2",
+   "name": "Dependência de drogas dissociativas, incluindo quetamina ou PCP",
+   "nameEN": "Dissociative drug dependence including ketamine or PCP",
+   "kind": "category"
+  },
+  {
+   "code": "6C4D.20",
+   "name": "Dependência de drogas dissociativas, incluindo quetamina ou PCP, uso atual",
+   "nameEN": "Dissociative drug dependence including Ketamine or PCP, current use",
+   "kind": "category"
+  },
+  {
+   "code": "6C4D.21",
+   "name": "Dependência de drogas dissociativas, incluindo quetamina ou PCP, remissão completa inicial",
+   "nameEN": "Dissociative drug dependence including ketamine or PCP, early full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C4D.22",
+   "name": "Dependência de drogas dissociativas, incluindo quetamina ou PCP, remissão parcial sustentada",
+   "nameEN": "Dissociative drug dependence including Ketamine or PCP, sustained partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C4D.23",
+   "name": "Dependência de drogas dissociativas, incluindo quetamina ou PCP, remissão completa sustentada",
+   "nameEN": "Dissociative drug dependence including Ketamine or PCP, sustained full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C4D.2Z",
+   "name": "Dependência de drogas dissociativas, incluindo quetamina ou PCP, não especificada",
+   "nameEN": "Dissociative drug dependence including ketamine or PCP, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4D.3",
+   "name": "Intoxicação por drogas dissociativas, incluindo quetamina ou PCP",
+   "nameEN": "Dissociative drug intoxication including Ketamine or PCP",
+   "kind": "category"
+  },
+  {
+   "code": "6C4D.4",
+   "name": "Delirium induzido por drogas dissociativas, incluindo quetamina ou PCP",
+   "nameEN": "Dissociative drug-induced delirium including ketamine or PCP",
+   "kind": "category"
+  },
+  {
+   "code": "6C4D.5",
+   "name": "Transtorno psicótico induzido por drogas dissociativas, incluindo quetamina ou PCP",
+   "nameEN": "Dissociative drug-induced psychotic disorder including Ketamine or PCP",
+   "kind": "category"
+  },
+  {
+   "code": "6C4D.6",
+   "name": "Alguns transtornos mentais ou comportamentais dissociativos induzidos por drogas, incluindo quetamina e fenciclidina [PCP], especificados",
+   "nameEN": "Certain specified dissociative drug-induced mental or behavioural disorders, including ketamine and phencyclidine [PCP]",
+   "kind": "category"
+  },
+  {
+   "code": "6C4D.60",
+   "name": "Transtorno do humor induzido por drogas dissociativas incluindo quetamina ou PCP",
+   "nameEN": "Dissociative drug-induced mood disorder including Ketamine or PCP",
+   "kind": "category"
+  },
+  {
+   "code": "6C4D.61",
+   "name": "Transtorno de ansiedade induzido por drogas dissociativas, incluindo quetamina ou PCP",
+   "nameEN": "Dissociative drug-induced anxiety disorder including Ketamine or PCP",
+   "kind": "category"
+  },
+  {
+   "code": "6C4D.Y",
+   "name": "Outros transtornos especificados devidos ao uso de drogas dissociativas, incluindo quetamina e fenciclidina [PCP]",
+   "nameEN": "Other specified disorders due to use of dissociative drugs including ketamine and phencyclidine [PCP]",
+   "kind": "category"
+  },
+  {
+   "code": "6C4D.Z",
+   "name": "Transtornos devidos ao uso de drogas dissociativas, incluindo quetamina e fenciclidina [PCP], não especificados",
+   "nameEN": "Disorders due to use of dissociative drugs including ketamine and phencyclidine [PCP], unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E",
+   "name": "Transtornos devidos ao uso de outras substâncias psicoativas especificadas, incluindo medicamentos",
+   "nameEN": "Disorders due to use of other specified psychoactive substances, including medications",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.0",
+   "name": "Episódio de uso nocivo de outra substância psicoativa especificada",
+   "nameEN": "Episode of harmful use of other specified psychoactive substance",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.1",
+   "name": "Padrão de uso nocivo de outra substância psicoativa especificada",
+   "nameEN": "Harmful pattern of use of other specified psychoactive substance",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.10",
+   "name": "Padrão de uso nocivo de outra substância psicoativa especificada, episódico",
+   "nameEN": "Harmful pattern of use of other specified psychoactive substance, episodic",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.11",
+   "name": "Padrão de uso nocivo de outra substância psicoativa especificada, contínuo",
+   "nameEN": "Harmful pattern of use of other specified psychoactive substance, continuous",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.1Z",
+   "name": "Padrão de uso nocivo de outra substância psicoativa especificada, não especificado",
+   "nameEN": "Harmful pattern of use of other specified psychoactive substance, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.2",
+   "name": "Dependência de outra substância psicoativa especificada",
+   "nameEN": "Other specified psychoactive substance dependence",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.20",
+   "name": "Dependência de outra substância psicoativa especificada, uso atual",
+   "nameEN": "Other specified psychoactive substance dependence, current use",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.21",
+   "name": "Dependência de outra substância psicoativa especificada, remissão completa inicial",
+   "nameEN": "Other specified psychoactive substance dependence, early full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.22",
+   "name": "Dependência de outra substância psicoativa especificada, remissão parcial sustentada",
+   "nameEN": "Other specified psychoactive substance dependence, sustained partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.23",
+   "name": "Dependência de outra substância psicoativa especificada, remissão completa sustentada",
+   "nameEN": "Other specified psychoactive substance dependence, sustained full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.2Z",
+   "name": "Dependência de outra substância psicoativa especificada, não especificada",
+   "nameEN": "Other specified psychoactive substance dependence, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.3",
+   "name": "Intoxicação por outra substância psicoativa especificada",
+   "nameEN": "Other specified psychoactive substance intoxication",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.4",
+   "name": "Abstinência de outra substância psicoativa especificada",
+   "nameEN": "Other specified psychoactive substance withdrawal",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.40",
+   "name": "Abstinência de outra substância psicoativa especificada, não complicada",
+   "nameEN": "Other specified psychoactive substance withdrawal, uncomplicated",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.41",
+   "name": "Abstinência de outra substância psicoativa especificada com distúrbios da percepção",
+   "nameEN": "Other specified psychoactive substance withdrawal, with perceptual disturbances",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.42",
+   "name": "Abstinência de outra substância psicoativa especificada, com convulsões",
+   "nameEN": "Other specified psychoactive substance withdrawal, with seizures",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.43",
+   "name": "Abstinência de outra substância psicoativa especificada, com distúrbios da percepção e convulsões",
+   "nameEN": "Other specified psychoactive substance withdrawal, with perceptual disturbances and seizures",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.4Z",
+   "name": "Abstinência de outra substância psicoativa especificada, não especificada",
+   "nameEN": "Other specified psychoactive substance withdrawal, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.5",
+   "name": "Delirium induzido por outra substância psicoativa especificada, incluindo medicamentos",
+   "nameEN": "Delirium induced by other specified psychoactive substance including medications",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.6",
+   "name": "Transtorno psicótico induzido por uso de outra substância psicoativa especificada",
+   "nameEN": "Psychotic disorder induced by other specified psychoactive substance",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.7",
+   "name": "Alguns outros transtornos mentais ou comportamentais induzidos por outra substância psicoativa, especificados",
+   "nameEN": "Certain other specified psychoactive substance-induced mental or behavioural disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.70",
+   "name": "Transtorno do humor induzido por outra substância psicoativa especificada",
+   "nameEN": "Mood disorder induced by other specified psychoactive substance",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.71",
+   "name": "Transtorno de ansiedade induzido por outra substância psicoativa especificada",
+   "nameEN": "Anxiety disorder induced by other specified psychoactive substance",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.72",
+   "name": "Transtorno obsessivo-compulsivo ou transtorno relacionado induzido por outra substância psicoativa especificada",
+   "nameEN": "Obsessive-compulsive or related disorder induced by other specified psychoactive substance",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.73",
+   "name": "Transtorno do controle de impulsos induzido por outra substância psicoativa especificada",
+   "nameEN": "Impulse control disorder induced by other specified psychoactive substance",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.Y",
+   "name": "Outros transtornos especificados devidos ao uso de outras substâncias psicoativas especificadas, incluindo medicamentos",
+   "nameEN": "Other specified disorders due to use of other specified psychoactive substances, including medications",
+   "kind": "category"
+  },
+  {
+   "code": "6C4E.Z",
+   "name": "Transtornos devidos ao uso de outras substâncias psicoativas especificadas, incluindo medicamentos, não especificados",
+   "nameEN": "Disorders due to use of other specified psychoactive substances, including medications, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F",
+   "name": "Transtornos devidos ao uso de múltiplas substâncias psicoativas especificadas, incluindo medicamentos",
+   "nameEN": "Disorders due to use of multiple specified psychoactive substances, including medications",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.0",
+   "name": "Episódio de uso nocivo de múltiplas substâncias psicoativas especificadas",
+   "nameEN": "Episode of harmful use of multiple specified psychoactive substances",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.1",
+   "name": "Padrão de uso nocivo de múltiplas substâncias psicoativas especificadas",
+   "nameEN": "Harmful pattern of use of multiple specified psychoactive substances",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.10",
+   "name": "Padrão de uso nocivo de múltiplas substâncias psicoativas especificadas, episódico",
+   "nameEN": "Harmful pattern of use of multiple specified psychoactive substances, episodic",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.11",
+   "name": "Padrão de uso nocivo de múltiplas substâncias psicoativas especificadas, contínuo",
+   "nameEN": "Harmful pattern of use of multiple specified psychoactive substances, continuous",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.1Z",
+   "name": "Padrão de uso nocivo de múltiplas substâncias psicoativas especificadas, não especificado",
+   "nameEN": "Harmful pattern of use of multiple specified psychoactive substances, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.2",
+   "name": "Dependência de múltiplas substâncias psicoativas especificadas",
+   "nameEN": "Multiple specified psychoactive substances dependence",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.20",
+   "name": "Dependência de múltiplas substâncias psicoativas especificadas, uso atual",
+   "nameEN": "Multiple specified psychoactive substances dependence, current use",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.21",
+   "name": "Dependência de múltiplas substâncias psicoativas especificadas, remissão completa inicial",
+   "nameEN": "Multiple specified psychoactive substances dependence, early full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.22",
+   "name": "Dependência de múltiplas substâncias psicoativas especificadas, remissão parcial sustentada",
+   "nameEN": "Multiple specified psychoactive substances dependence, sustained partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.23",
+   "name": "Dependência de múltiplas substâncias psicoativas especificadas, remissão completa sustentada",
+   "nameEN": "Multiple specified psychoactive substances dependence, sustained full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.2Z",
+   "name": "Dependência de múltiplas substâncias psicoativas especificadas, não especificada",
+   "nameEN": "Multiple specified psychoactive substances dependence, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.3",
+   "name": "Intoxicação devida a múltiplas substâncias psicoativas especificadas",
+   "nameEN": "Intoxication due to multiple specified psychoactive substances",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.4",
+   "name": "Abstinência de múltiplas substâncias psicoativas especificadas",
+   "nameEN": "Multiple specified psychoactive substances withdrawal",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.40",
+   "name": "Abstinência de múltiplas substâncias psicoativas especificadas, não complicada",
+   "nameEN": "Multiple specified psychoactive substances withdrawal, uncomplicated",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.41",
+   "name": "Abstinência de múltiplas substâncias psicoativas especificadas, com distúrbios da percepção",
+   "nameEN": "Multiple specified psychoactive substances withdrawal, with perceptual disturbances",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.42",
+   "name": "Abstinência de múltiplas substâncias psicoativas especificadas, com convulsões",
+   "nameEN": "Multiple specified psychoactive substances withdrawal, with seizures",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.43",
+   "name": "Abstinência de múltiplas substâncias psicoativas especificadas, com distúrbios da percepção e convulsões",
+   "nameEN": "Multiple specified psychoactive substances withdrawal, with perceptual disturbances and seizures",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.4Y",
+   "name": "Outra abstinência especificada de múltiplas substâncias psicoativas especificadas",
+   "nameEN": "Other specified multiple specified psychoactive substances withdrawal",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.4Z",
+   "name": "Abstinência de múltiplas substâncias psicoativas especificadas, não especificada",
+   "nameEN": "Multiple specified psychoactive substances withdrawal, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.5",
+   "name": "Delirium induzido por múltiplas substâncias psicoativas especificadas, incluindo medicamentos",
+   "nameEN": "Delirium induced by multiple specified psychoactive substances including medications",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.6",
+   "name": "Transtorno psicótico induzido por múltiplas substâncias psicoativas especificadas",
+   "nameEN": "Psychotic disorder induced by multiple specified psychoactive substances",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.7",
+   "name": "Alguns transtornos mentais ou comportamentais induzidos por múltiplas substâncias psicoativas, especificados",
+   "nameEN": "Certain multiple specified psychoactive substances-induced mental or behavioural disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.70",
+   "name": "Transtorno de humor induzido por múltiplas substâncias psicoativas especificadas",
+   "nameEN": "Mood disorder induced by multiple specified psychoactive substances",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.71",
+   "name": "Transtorno de ansiedade induzido por múltiplas substâncias psicoativas especificadas",
+   "nameEN": "Anxiety disorder induced by multiple specified psychoactive substances",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.72",
+   "name": "Transtorno obsessivo-compulsivo ou transtorno relacionado induzido por múltiplas substâncias psicoativas especificadas",
+   "nameEN": "Obsessive-compulsive or related disorder induced by multiple specified psychoactive substances",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.73",
+   "name": "Síndrome do controle de impulsos induzido por múltiplas substâncias psicoativas especificadas",
+   "nameEN": "Impulse control syndrome induced by multiple specified psychoactive substances",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.Y",
+   "name": "Outros transtornos especificados devidos ao uso de múltiplas substâncias psicoativas especificadas, incluindo medicamentos",
+   "nameEN": "Other specified disorders due to use of multiple specified psychoactive substances, including medications",
+   "kind": "category"
+  },
+  {
+   "code": "6C4F.Z",
+   "name": "Transtornos devidos ao uso de múltiplas substâncias psicoativas especificadas, incluindo medicamentos, não especificados",
+   "nameEN": "Disorders due to use of multiple specified psychoactive substances, including medications, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G",
+   "name": "Transtornos devidos ao uso de substâncias psicoativas desconhecidas ou não especificadas",
+   "nameEN": "Disorders due to use of unknown or unspecified psychoactive substances",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.0",
+   "name": "Episódio de uso nocivo de substâncias psicoativas desconhecidas ou não especificadas",
+   "nameEN": "Episode of harmful use of unknown or unspecified psychoactive substances",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.1",
+   "name": "Padrão de uso nocivo de substância psicoativa desconhecida ou não especificada",
+   "nameEN": "Harmful pattern of use of unknown or unspecified psychoactive substance",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.10",
+   "name": "Padrão de uso nocivo de substância psicoativa desconhecida ou não especificada, episódico",
+   "nameEN": "Harmful pattern of use of unknown or unspecified psychoactive substance, episodic",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.11",
+   "name": "Padrão de uso nocivo de substância psicoativa desconhecida ou não especificada, contínuo",
+   "nameEN": "Harmful pattern of use of unknown or unspecified psychoactive substance, continuous",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.1Z",
+   "name": "Padrão de uso nocivo de substância psicoativa desconhecida ou não especificada, não especificado",
+   "nameEN": "Harmful pattern of use of unknown or unspecified psychoactive substance, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.2",
+   "name": "Dependência de substância psicoativa desconhecida ou não especificada",
+   "nameEN": "Unknown or unspecified psychoactive substance dependence",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.20",
+   "name": "Dependência de substância psicoativa desconhecida ou não especificada, uso atual",
+   "nameEN": "Unknown or unspecified psychoactive substance dependence, current use",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.21",
+   "name": "Dependência de substância psicoativa desconhecida ou não especificada, remissão completa inicial",
+   "nameEN": "Unknown or unspecified psychoactive substance dependence, early full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.22",
+   "name": "Dependência de substância psicoativa desconhecida ou não especificada, remissão parcial sustentada",
+   "nameEN": "Unknown or unspecified psychoactive substance dependence, sustained partial remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.23",
+   "name": "Dependência de substância psicoativa desconhecida ou não especificada, remissão completa sustentada",
+   "nameEN": "Unknown or unspecified psychoactive substance dependence, sustained full remission",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.2Z",
+   "name": "Dependência de substância psicoativa desconhecida ou não especificada, substância e estado de remissão não especificados",
+   "nameEN": "Unknown or unspecified psychoactive substance dependence, substance and state of remission unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.3",
+   "name": "Intoxicação devida a substância psicoativa desconhecida ou não especificada",
+   "nameEN": "Intoxication due to unknown or unspecified psychoactive substance",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.4",
+   "name": "Abstinência devida a substância psicoativa desconhecida ou não especificada",
+   "nameEN": "Withdrawal due to unknown or unspecified psychoactive substance",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.40",
+   "name": "Abstinência devida a substância psicoativa desconhecida ou não especificada, não complicada",
+   "nameEN": "Withdrawal due to unknown or unspecified psychoactive substance, uncomplicated",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.41",
+   "name": "Abstinência devida a substância psicoativa desconhecida ou não especificada, com distúrbios da percepção",
+   "nameEN": "Withdrawal due to unknown or unspecified psychoactive substance, with perceptual disturbances",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.42",
+   "name": "Abstinência devida a substância psicoativa desconhecida ou não especificada, com convulsões",
+   "nameEN": "Withdrawal due to unknown or unspecified psychoactive substance, with seizures",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.43",
+   "name": "Abstinência devida a substância psicoativa desconhecida ou não especificada, com distúrbios da percepção e convulsões",
+   "nameEN": "Withdrawal due to unknown or unspecified psychoactive, with perceptual disturbances and seizures",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.4Z",
+   "name": "Abstinência devida a substância psicoativa desconhecida ou não especificada, não especificada",
+   "nameEN": "Withdrawal due to unknown or unspecified psychoactive substance, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.5",
+   "name": "Delirium induzido por substância psicoativa desconhecida ou não especificada",
+   "nameEN": "Delirium induced by unknown or unspecified psychoactive substance",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.6",
+   "name": "Transtorno psicótico induzido por substância psicoativa desconhecida ou não especificada",
+   "nameEN": "Psychotic disorder induced by unknown or unspecified psychoactive substance",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.7",
+   "name": "Alguns transtornos mentais ou comportamentais induzidos por substâncias psicoativas desconhecidas ou não especificadas",
+   "nameEN": "Certain unknown or unspecified psychoactive substance-induced mental or behavioural disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.70",
+   "name": "Transtorno do humor induzido por substância psicoativa desconhecida ou não especificada",
+   "nameEN": "Mood disorder induced by unknown or unspecified psychoactive substance",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.71",
+   "name": "Transtorno de ansiedade induzido por substância psicoativa desconhecida ou não especificada",
+   "nameEN": "Anxiety disorder induced by unknown or unspecified psychoactive substance",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.72",
+   "name": "Transtorno obsessivo-compulsivo ou transtorno relacionado induzido por substância psicoativa desconhecida ou não especificada",
+   "nameEN": "Obsessive-compulsive or related disorder induced by unknown or unspecified psychoactive substance",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.73",
+   "name": "Transtorno do controle de impulsos induzido por substância psicoativa desconhecida ou não especificada",
+   "nameEN": "Impulse control disorder induced by unknown or unspecified psychoactive substance",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.Y",
+   "name": "Outros transtornos especificados devidos ao uso de substâncias psicoativas desconhecidas ou não especificadas",
+   "nameEN": "Other specified disorders due to use of unknown or unspecified psychoactive substances",
+   "kind": "category"
+  },
+  {
+   "code": "6C4G.Z",
+   "name": "Transtornos devidos ao uso de substâncias psicoativas desconhecidas ou não especificadas, não especificados",
+   "nameEN": "Disorders due to use of unknown or unspecified psychoactive substances, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4H",
+   "name": "Transtornos devidos ao uso de substâncias não psicoativas",
+   "nameEN": "Disorders due to use of non-psychoactive substances",
+   "kind": "category"
+  },
+  {
+   "code": "6C4H.0",
+   "name": "Episódio de uso nocivo de substâncias não psicoativas",
+   "nameEN": "Episode of harmful use of non-psychoactive substances",
+   "kind": "category"
+  },
+  {
+   "code": "6C4H.1",
+   "name": "Padrão de uso nocivo de substâncias não psicoativas",
+   "nameEN": "Harmful pattern of use of non-psychoactive substances",
+   "kind": "category"
+  },
+  {
+   "code": "6C4H.10",
+   "name": "Padrão de uso nocivo de substâncias não psicoativas, episódico",
+   "nameEN": "Harmful pattern of use of non-psychoactive substances, episodic",
+   "kind": "category"
+  },
+  {
+   "code": "6C4H.11",
+   "name": "Padrão de uso nocivo de substâncias não psicoativas, contínuo",
+   "nameEN": "Harmful pattern of use of non-psychoactive substances, continuous",
+   "kind": "category"
+  },
+  {
+   "code": "6C4H.1Z",
+   "name": "Padrão de uso nocivo de substâncias não psicoativas, não especificado",
+   "nameEN": "Harmful pattern of use of non-psychoactive substances, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4H.Y",
+   "name": "Outros transtornos especificados devidos ao uso de substâncias não psicoativas",
+   "nameEN": "Other specified disorders due to use of non-psychoactive substances",
+   "kind": "category"
+  },
+  {
+   "code": "6C4H.Z",
+   "name": "Transtornos devidos ao uso de substâncias não psicoativas, não especificado",
+   "nameEN": "Disorders due to use of non-psychoactive substances, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C4Y",
+   "name": "Outros transtornos especificados decorrentes do uso de substâncias",
+   "nameEN": "Other specified disorders due to substance use",
+   "kind": "category"
+  },
+  {
+   "code": "6C4Z",
+   "name": "Transtornos decorrentes do uso de substâncias, não especificados",
+   "nameEN": "Disorders due to substance use, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL2-6C5",
+   "name": "Transtornos devidos a comportamentos aditivos",
+   "nameEN": "Disorders due to addictive behaviours",
+   "kind": "block"
+  },
+  {
+   "code": "6C50",
+   "name": "Transtorno de jogo",
+   "nameEN": "Gambling disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C50.0",
+   "name": "Transtorno do jogo, predominantemente off-line",
+   "nameEN": "Gambling disorder, predominantly offline",
+   "kind": "category"
+  },
+  {
+   "code": "6C50.1",
+   "name": "Transtorno do jogo, predominantemente on-line",
+   "nameEN": "Gambling disorder, predominantly online",
+   "kind": "category"
+  },
+  {
+   "code": "6C50.Z",
+   "name": "Transtorno do jogo, não especificado",
+   "nameEN": "Gambling disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C51",
+   "name": "Transtorno de jogo eletrônico",
+   "nameEN": "Gaming disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C51.0",
+   "name": "Transtorno do jogo eletrônico, predominantemente on-line",
+   "nameEN": "Gaming disorder, predominantly online",
+   "kind": "category"
+  },
+  {
+   "code": "6C51.1",
+   "name": "Transtorno de jogo eletrônico, predominantemente off-line",
+   "nameEN": "Gaming disorder, predominantly offline",
+   "kind": "category"
+  },
+  {
+   "code": "6C51.Z",
+   "name": "Transtorno de jogo eletrônico, não especificado",
+   "nameEN": "Gaming disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C5Y",
+   "name": "Outros transtornos especificados devidos a comportamentos aditivos",
+   "nameEN": "Other specified disorders due to addictive behaviours",
+   "kind": "category"
+  },
+  {
+   "code": "6C5Z",
+   "name": "Transtornos devidos a comportamentos aditivos, não especificados",
+   "nameEN": "Disorders due to addictive behaviours, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL1-6C7",
+   "name": "Transtornos do controle de impulsos",
+   "nameEN": "Impulse control disorders",
+   "kind": "block"
+  },
+  {
+   "code": "6C70",
+   "name": "Piromania",
+   "nameEN": "Pyromania",
+   "kind": "category"
+  },
+  {
+   "code": "6C71",
+   "name": "Cleptomania",
+   "nameEN": "Kleptomania",
+   "kind": "category"
+  },
+  {
+   "code": "6C72",
+   "name": "Transtorno do comportamento sexual compulsivo",
+   "nameEN": "Compulsive sexual behaviour disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C73",
+   "name": "Transtorno explosivo intermitente",
+   "nameEN": "Intermittent explosive disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C7Y",
+   "name": "Outros transtornos especificados do controle de impulsos",
+   "nameEN": "Other specified impulse control disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6C7Z",
+   "name": "Transtornos não especificados do controle de impulsos",
+   "nameEN": "Impulse control disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL1-6C9",
+   "name": "Transtornos de comportamento disruptivo ou dissocial",
+   "nameEN": "Disruptive behaviour or dissocial disorders",
+   "kind": "block"
+  },
+  {
+   "code": "6C90",
+   "name": "Transtorno desafiador de oposição",
+   "nameEN": "Oppositional defiant disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C90.0",
+   "name": "Transtorno desafiador de oposição com irritabilidade-raiva crônicas",
+   "nameEN": "Oppositional defiant disorder with chronic irritability-anger",
+   "kind": "category"
+  },
+  {
+   "code": "6C90.00",
+   "name": "Transtorno desafiador de oposição com irritabilidade-raiva crônicas com emoções pró-sociais limitadas",
+   "nameEN": "Oppositional defiant disorder with chronic irritability-anger with limited prosocial emotions",
+   "kind": "category"
+  },
+  {
+   "code": "6C90.01",
+   "name": "Transtorno desafiador de oposição com irritabilidade-raiva crônicas com emoções pró-sociais típicas",
+   "nameEN": "Oppositional defiant disorder with chronic irritability-anger with typical prosocial emotions",
+   "kind": "category"
+  },
+  {
+   "code": "6C90.0Z",
+   "name": "Transtorno desafiador de oposição com irritabilidade-raiva crônicas, não especificada",
+   "nameEN": "Oppositional defiant disorder with chronic irritability-anger, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C90.1",
+   "name": "Transtorno desafiador de oposição sem irritabilidade-raiva crônicas",
+   "nameEN": "Oppositional defiant disorder without chronic irritability-anger",
+   "kind": "category"
+  },
+  {
+   "code": "6C90.10",
+   "name": "Transtorno desafiador de oposição sem irritabilidade-raiva crônicas com emoções pró-sociais limitadas",
+   "nameEN": "Oppositional defiant disorder without chronic irritability-anger with limited prosocial emotions",
+   "kind": "category"
+  },
+  {
+   "code": "6C90.11",
+   "name": "Transtorno desafiador de oposição sem irritabilidade-raiva crônicas com emoções pró-sociais típicas",
+   "nameEN": "Oppositional defiant disorder without chronic irritability-anger with typical prosocial emotions",
+   "kind": "category"
+  },
+  {
+   "code": "6C90.1Z",
+   "name": "Transtorno desafiador de oposição sem irritabilidade-raiva crônicas, não especificado",
+   "nameEN": "Oppositional defiant disorder without chronic irritability-anger, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C90.Z",
+   "name": "Transtorno desafiador de oposição, não especificado",
+   "nameEN": "Oppositional defiant disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C91",
+   "name": "Transtorno de conduta dissocial",
+   "nameEN": "Conduct-dissocial disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6C91.0",
+   "name": "Transtorno de conduta dissocial, início na infância",
+   "nameEN": "Conduct-dissocial disorder, childhood onset",
+   "kind": "category"
+  },
+  {
+   "code": "6C91.00",
+   "name": "Transtorno de conduta dissocial, início da infância, com emoções pró-sociais limitadas",
+   "nameEN": "Conduct-dissocial disorder, childhood onset with limited prosocial emotions",
+   "kind": "category"
+  },
+  {
+   "code": "6C91.01",
+   "name": "Transtorno de conduta dissocial, início na infância, com emoções pró-sociais típicas",
+   "nameEN": "Conduct-dissocial disorder, childhood onset with typical prosocial emotions",
+   "kind": "category"
+  },
+  {
+   "code": "6C91.0Z",
+   "name": "Transtorno de conduta dissocial, início na infância, não especificado",
+   "nameEN": "Conduct-dissocial disorder, childhood onset, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C91.1",
+   "name": "Transtorno de conduta dissocial, início na adolescência",
+   "nameEN": "Conduct-dissocial disorder, adolescent onset",
+   "kind": "category"
+  },
+  {
+   "code": "6C91.10",
+   "name": "Transtorno de conduta dissocial, início na adolescência, com emoções pró-sociais limitadas",
+   "nameEN": "Conduct-dissocial disorder, adolescent onset with limited prosocial emotions",
+   "kind": "category"
+  },
+  {
+   "code": "6C91.11",
+   "name": "Transtorno de conduta dissocial, início da adolescência, com emoções pró-sociais típicas",
+   "nameEN": "Conduct-dissocial disorder, adolescent onset with typical prosocial emotions",
+   "kind": "category"
+  },
+  {
+   "code": "6C91.1Y",
+   "name": "Outro transtorno especificado de conduta dissocial, início na adolescência,",
+   "nameEN": "Other specified conduct-dissocial disorder, adolescent onset",
+   "kind": "category"
+  },
+  {
+   "code": "6C91.Z",
+   "name": "Transtorno de conduta dissocial não especificado",
+   "nameEN": "Conduct-dissocial disorder, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6C9Y",
+   "name": "Outros transtornos de comportamento disruptivo ou antissocial especificados",
+   "nameEN": "Other specified disruptive behaviour or dissocial disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6C9Z",
+   "name": "Transtornos de comportamento disruptivo ou antissocial não especificados",
+   "nameEN": "Disruptive behaviour or dissocial disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL1-6D1",
+   "name": "Transtornos de personalidade e traços relacionados",
+   "nameEN": "Personality disorders and related traits",
+   "kind": "block"
+  },
+  {
+   "code": "6D10",
+   "name": "Transtorno de personalidade",
+   "nameEN": "Personality disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6D10.0",
+   "name": "Transtorno de personalidade leve",
+   "nameEN": "Mild personality disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6D10.1",
+   "name": "Transtorno de personalidade moderado",
+   "nameEN": "Moderate personality disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6D10.2",
+   "name": "Transtorno de personalidade grave",
+   "nameEN": "Severe personality disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6D10.Z",
+   "name": "Transtorno de personalidade, gravidade não especificada",
+   "nameEN": "Personality disorder, severity unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6D11",
+   "name": "Traços ou padrões de personalidade proeminentes",
+   "nameEN": "Prominent personality traits or patterns",
+   "kind": "category"
+  },
+  {
+   "code": "6D11.0",
+   "name": "Afetividade negativa em transtorno de personalidade ou dificuldade de personalidade",
+   "nameEN": "Negative affectivity in personality disorder or personality difficulty",
+   "kind": "category"
+  },
+  {
+   "code": "6D11.1",
+   "name": "Distanciamento em transtorno de personalidade ou dificuldade de personalidade",
+   "nameEN": "Detachment in personality disorder or personality difficulty",
+   "kind": "category"
+  },
+  {
+   "code": "6D11.2",
+   "name": "Antissocialidade em transtorno de personalidade ou dificuldade de personalidade",
+   "nameEN": "Dissociality in personality disorder or personality difficulty",
+   "kind": "category"
+  },
+  {
+   "code": "6D11.3",
+   "name": "Desinibição em transtorno de personalidade ou dificuldade de personalidade",
+   "nameEN": "Disinhibition in personality disorder or personality difficulty",
+   "kind": "category"
+  },
+  {
+   "code": "6D11.4",
+   "name": "Anancastia em transtorno de personalidade ou dificuldade de personalidade",
+   "nameEN": "Anankastia in personality disorder or personality difficulty",
+   "kind": "category"
+  },
+  {
+   "code": "6D11.5",
+   "name": "Padrão 'borderline'",
+   "nameEN": "Borderline pattern",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL1-6D3",
+   "name": "Transtornos parafílicos",
+   "nameEN": "Paraphilic disorders",
+   "kind": "block"
+  },
+  {
+   "code": "6D30",
+   "name": "Transtorno exibicionista",
+   "nameEN": "Exhibitionistic disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6D31",
+   "name": "Transtorno voyeurista",
+   "nameEN": "Voyeuristic disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6D32",
+   "name": "Transtorno pedofílico",
+   "nameEN": "Pedophilic disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6D33",
+   "name": "Transtorno do sadismo sexual coercivo",
+   "nameEN": "Coercive sexual sadism disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6D34",
+   "name": "Transtorno frotteurista",
+   "nameEN": "Frotteuristic disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6D35",
+   "name": "Outro transtorno parafílico envolvendo indivíduos que não consentiram",
+   "nameEN": "Other paraphilic disorder involving non-consenting individuals",
+   "kind": "category"
+  },
+  {
+   "code": "6D36",
+   "name": "Transtorno parafílico envolvendo comportamento solitário ou com indivíduos que consentiram",
+   "nameEN": "Paraphilic disorder involving solitary behaviour or consenting individuals",
+   "kind": "category"
+  },
+  {
+   "code": "6D3Z",
+   "name": "Transtornos parafílicos não especificados",
+   "nameEN": "Paraphilic disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL1-6D5",
+   "name": "Transtornos factícios",
+   "nameEN": "Factitious disorders",
+   "kind": "block"
+  },
+  {
+   "code": "6D50",
+   "name": "Transtorno factício autoimposto",
+   "nameEN": "Factitious disorder imposed on self",
+   "kind": "category"
+  },
+  {
+   "code": "6D51",
+   "name": "Transtorno factício imposto a outro",
+   "nameEN": "Factitious disorder imposed on another",
+   "kind": "category"
+  },
+  {
+   "code": "6D5Z",
+   "name": "Transtornos factícios não especificados",
+   "nameEN": "Factitious disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL1-6D7",
+   "name": "Transtornos neurocognitivos",
+   "nameEN": "Neurocognitive disorders",
+   "kind": "block"
+  },
+  {
+   "code": "6D70",
+   "name": "Delirium",
+   "nameEN": "Delirium",
+   "kind": "category"
+  },
+  {
+   "code": "6D70.0",
+   "name": "Delirium devido a doença classificada em outra parte",
+   "nameEN": "Delirium due to disease classified elsewhere",
+   "kind": "category"
+  },
+  {
+   "code": "6D70.1",
+   "name": "Delirium devido a substâncias psicoativas incluindo medicamentos",
+   "nameEN": "Delirium due to psychoactive substances including medications",
+   "kind": "category"
+  },
+  {
+   "code": "6D70.2",
+   "name": "Delirium devido a múltiplos fatores etiológicos",
+   "nameEN": "Delirium due to multiple etiological factors",
+   "kind": "category"
+  },
+  {
+   "code": "6D70.Y",
+   "name": "Delirium, outra causa especificada",
+   "nameEN": "Delirium, other specified cause",
+   "kind": "category"
+  },
+  {
+   "code": "6D70.Z",
+   "name": "Delirium, causa não especificada ou desconhecida",
+   "nameEN": "Delirium, unspecified or unknown cause",
+   "kind": "category"
+  },
+  {
+   "code": "6D71",
+   "name": "Transtorno neurocognitivo leve",
+   "nameEN": "Mild neurocognitive disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6D72",
+   "name": "Transtorno amnéstico",
+   "nameEN": "Amnestic disorder",
+   "kind": "category"
+  },
+  {
+   "code": "6D72.0",
+   "name": "Transtorno amnéstico devido a doenças classificadas em outra parte",
+   "nameEN": "Amnestic disorder due to diseases classified elsewhere",
+   "kind": "category"
+  },
+  {
+   "code": "6D72.1",
+   "name": "Transtorno amnéstico devido a substâncias psicoativas, incluindo medicamentos",
+   "nameEN": "Amnestic disorder due to psychoactive substances including medications",
+   "kind": "category"
+  },
+  {
+   "code": "6D72.10",
+   "name": "Transtorno amnéstico devido ao uso de álcool",
+   "nameEN": "Amnestic disorder due to use of alcohol",
+   "kind": "category"
+  },
+  {
+   "code": "6D72.11",
+   "name": "Transtorno amnéstico devido ao uso de sedativos, hipnóticos ou ansiolíticos",
+   "nameEN": "Amnestic disorder due to use of sedatives, hypnotics or anxiolytics",
+   "kind": "category"
+  },
+  {
+   "code": "6D72.12",
+   "name": "Transtorno amnéstico devido ao uso de outra substância psicoativa especificada, incluindo medicamentos",
+   "nameEN": "Amnestic disorder due to other specified psychoactive substance including medications",
+   "kind": "category"
+  },
+  {
+   "code": "6D72.13",
+   "name": "Transtorno amnéstico devido ao uso de inalantes voláteis",
+   "nameEN": "Amnestic disorder due to use of volatile inhalants",
+   "kind": "category"
+  },
+  {
+   "code": "6D72.Y",
+   "name": "Transtorno amnéstico, outra causa especificada",
+   "nameEN": "Amnestic disorder, other specified cause",
+   "kind": "category"
+  },
+  {
+   "code": "6D72.Z",
+   "name": "Transtorno amnéstico, causa desconhecida ou não especificada",
+   "nameEN": "Amnestic disorder, unknown or unspecified cause",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL2-6D8",
+   "name": "Demência",
+   "nameEN": "Dementia",
+   "kind": "block"
+  },
+  {
+   "code": "6D80",
+   "name": "Demência devida à doença de Alzheimer",
+   "nameEN": "Dementia due to Alzheimer disease",
+   "kind": "category"
+  },
+  {
+   "code": "6D80.0",
+   "name": "Demência devida à doença de Alzheimer com início precoce",
+   "nameEN": "Dementia due to Alzheimer disease with early onset",
+   "kind": "category"
+  },
+  {
+   "code": "6D80.1",
+   "name": "Demência devida à doença de Alzheimer, com início tardio",
+   "nameEN": "Dementia due to Alzheimer disease with late onset",
+   "kind": "category"
+  },
+  {
+   "code": "6D80.2",
+   "name": "Demência da doença de Alzheimer, tipo misto, com doença cerebrovascular",
+   "nameEN": "Alzheimer disease dementia, mixed type, with cerebrovascular disease",
+   "kind": "category"
+  },
+  {
+   "code": "6D80.3",
+   "name": "Demência da doença de Alzheimer, tipo misto, com outras etiologias não vasculares",
+   "nameEN": "Alzheimer disease dementia, mixed type, with other nonvascular aetiologies",
+   "kind": "category"
+  },
+  {
+   "code": "6D80.Z",
+   "name": "Demência devida à doença de Alzheimer, início desconhecido ou não especificado",
+   "nameEN": "Dementia due to Alzheimer disease, onset unknown or unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6D81",
+   "name": "Demência devida a doença cerebrovascular",
+   "nameEN": "Dementia due to cerebrovascular disease",
+   "kind": "category"
+  },
+  {
+   "code": "6D82",
+   "name": "Demência devida à doença de corpos de Lewy",
+   "nameEN": "Dementia due to Lewy body disease",
+   "kind": "category"
+  },
+  {
+   "code": "6D83",
+   "name": "Demência frontotemporal",
+   "nameEN": "Frontotemporal dementia",
+   "kind": "category"
+  },
+  {
+   "code": "6D84",
+   "name": "Demência devida a substâncias psicoativas incluindo medicamentos",
+   "nameEN": "Dementia due to psychoactive substances including medications",
+   "kind": "category"
+  },
+  {
+   "code": "6D84.0",
+   "name": "Demência decorrente do uso de álcool",
+   "nameEN": "Dementia due to use of alcohol",
+   "kind": "category"
+  },
+  {
+   "code": "6D84.1",
+   "name": "Demência devida ao uso de sedativos, hipnóticos ou ansiolíticos",
+   "nameEN": "Dementia due to use of sedatives, hypnotics or anxiolytics",
+   "kind": "category"
+  },
+  {
+   "code": "6D84.2",
+   "name": "Demência devida ao uso de inalantes voláteis",
+   "nameEN": "Dementia due to use of volatile inhalants",
+   "kind": "category"
+  },
+  {
+   "code": "6D84.Y",
+   "name": "Demência devida a outra substância psicoativa especificada",
+   "nameEN": "Dementia due to other specified psychoactive substance",
+   "kind": "category"
+  },
+  {
+   "code": "6D85",
+   "name": "Demência devida a doenças classificadas em outra parte",
+   "nameEN": "Dementia due to diseases classified elsewhere",
+   "kind": "category"
+  },
+  {
+   "code": "6D85.0",
+   "name": "Demência devida à doença de Parkinson",
+   "nameEN": "Dementia due to Parkinson disease",
+   "kind": "category"
+  },
+  {
+   "code": "6D85.1",
+   "name": "Demência devida à doença da Huntington",
+   "nameEN": "Dementia due to Huntington disease",
+   "kind": "category"
+  },
+  {
+   "code": "6D85.2",
+   "name": "Demência devido à exposição a metais pesados e outras toxinas",
+   "nameEN": "Dementia due to exposure to heavy metals and other toxins",
+   "kind": "category"
+  },
+  {
+   "code": "6D85.3",
+   "name": "Demência devida ao vírus da imunodeficiência humana",
+   "nameEN": "Dementia due to human immunodeficiency virus",
+   "kind": "category"
+  },
+  {
+   "code": "6D85.4",
+   "name": "Demência devida à esclerose múltipla",
+   "nameEN": "Dementia due to multiple sclerosis",
+   "kind": "category"
+  },
+  {
+   "code": "6D85.5",
+   "name": "Demência devida a doença priônica",
+   "nameEN": "Dementia due to prion disease",
+   "kind": "category"
+  },
+  {
+   "code": "6D85.6",
+   "name": "Demência devida à hidrocefalia de pressão normal",
+   "nameEN": "Dementia due to normal pressure hydrocephalus",
+   "kind": "category"
+  },
+  {
+   "code": "6D85.7",
+   "name": "Demência devida a traumatismo craniano",
+   "nameEN": "Dementia due to injury to the head",
+   "kind": "category"
+  },
+  {
+   "code": "6D85.8",
+   "name": "Demência devido à pelagra",
+   "nameEN": "Dementia due to pellagra",
+   "kind": "category"
+  },
+  {
+   "code": "6D85.9",
+   "name": "Demência devida à síndrome de Down",
+   "nameEN": "Dementia due to Down syndrome",
+   "kind": "category"
+  },
+  {
+   "code": "6D85.Y",
+   "name": "Demência devida a outras doenças especificadas classificadas em outra parte",
+   "nameEN": "Dementia due to other specified diseases classified elsewhere",
+   "kind": "category"
+  },
+  {
+   "code": "6D86",
+   "name": "Distúrbios comportamentais ou psicológicos na demência",
+   "nameEN": "Behavioural or psychological disturbances in dementia",
+   "kind": "category"
+  },
+  {
+   "code": "6D86.0",
+   "name": "Sintomas psicóticos na demência",
+   "nameEN": "Psychotic symptoms in dementia",
+   "kind": "category"
+  },
+  {
+   "code": "6D86.1",
+   "name": "Sintomas de humor na demência",
+   "nameEN": "Mood symptoms in dementia",
+   "kind": "category"
+  },
+  {
+   "code": "6D86.2",
+   "name": "Sintomas de ansiedade na demência",
+   "nameEN": "Anxiety symptoms in dementia",
+   "kind": "category"
+  },
+  {
+   "code": "6D86.3",
+   "name": "Apatia na demência",
+   "nameEN": "Apathy in dementia",
+   "kind": "category"
+  },
+  {
+   "code": "6D86.4",
+   "name": "Agitação ou agressividade na demência",
+   "nameEN": "Agitation or aggression in dementia",
+   "kind": "category"
+  },
+  {
+   "code": "6D86.5",
+   "name": "Desinibição na demência",
+   "nameEN": "Disinhibition in dementia",
+   "kind": "category"
+  },
+  {
+   "code": "6D86.6",
+   "name": "Perambulação na demência",
+   "nameEN": "Wandering in dementia",
+   "kind": "category"
+  },
+  {
+   "code": "6D86.Y",
+   "name": "Outros distúrbios comportamentais ou psicológicos especificados na demência",
+   "nameEN": "Other specified behavioural or psychological disturbances in dementia",
+   "kind": "category"
+  },
+  {
+   "code": "6D86.Z",
+   "name": "Distúrbios comportamentais ou psicológicos na demência, não especificados",
+   "nameEN": "Behavioural or psychological disturbances in dementia, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6D8Y",
+   "name": "Demência, outra causa especificada",
+   "nameEN": "Dementia, other specified cause",
+   "kind": "category"
+  },
+  {
+   "code": "6D8Z",
+   "name": "Demência, causa desconhecida ou não especificada",
+   "nameEN": "Dementia, unknown or unspecified cause",
+   "kind": "category"
+  },
+  {
+   "code": "6E0Y",
+   "name": "Outros transtornos neurocognitivos especificados",
+   "nameEN": "Other specified neurocognitive disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6E0Z",
+   "name": "Transtornos neurocognitivos não especificados",
+   "nameEN": "Neurocognitive disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL1-6E2",
+   "name": "Transtornos mentais ou comportamentais associados a gravidez, parto ou puerpério",
+   "nameEN": "Mental or behavioural disorders associated with pregnancy, childbirth or the puerperium",
+   "kind": "block"
+  },
+  {
+   "code": "6E20",
+   "name": "Transtornos mentais ou comportamentais associados a gravidez, o parto ou o puerpério, sem sintomas psicóticos",
+   "nameEN": "Mental or behavioural disorders associated with pregnancy, childbirth or the puerperium, without psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6E21",
+   "name": "Transtornos mentais ou comportamentais associados a gravidez, o parto ou o puerpério, com sintomas psicóticos",
+   "nameEN": "Mental or behavioural disorders associated with pregnancy, childbirth or the puerperium, with psychotic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6E2Z",
+   "name": "Transtornos mentais ou comportamentais associados a gravidez, parto ou puerpério, não especificados",
+   "nameEN": "Mental or behavioural disorders associated with pregnancy, childbirth or the puerperium, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6E40",
+   "name": "Fatores psicológicos ou comportamentais que afetam transtornos ou doenças classificados em outra parte",
+   "nameEN": "Psychological or behavioural factors affecting disorders or diseases classified elsewhere",
+   "kind": "category"
+  },
+  {
+   "code": "6E40.0",
+   "name": "Transtorno mental afetando transtornos ou doenças classificados em outra parte",
+   "nameEN": "Mental disorder affecting disorders or diseases classified elsewhere",
+   "kind": "category"
+  },
+  {
+   "code": "6E40.1",
+   "name": "Sintomas psicológicos afetando transtornos ou doenças classificados em outra parte",
+   "nameEN": "Psychological symptoms affecting disorders or diseases classified elsewhere",
+   "kind": "category"
+  },
+  {
+   "code": "6E40.2",
+   "name": "Traços de personalidade ou estilos de enfrentamento afetando transtornos ou doenças classificados em outra parte",
+   "nameEN": "Personality traits or coping style affecting disorders or diseases classified elsewhere",
+   "kind": "category"
+  },
+  {
+   "code": "6E40.3",
+   "name": "Comportamentos de saúde mal adaptativos afetando transtornos ou doenças classificados em outra parte",
+   "nameEN": "Maladaptive health behaviours affecting disorders or diseases classified elsewhere",
+   "kind": "category"
+  },
+  {
+   "code": "6E40.4",
+   "name": "Resposta fisiológica relacionada ao estresse afetando transtornos ou doenças classificados em outra parte",
+   "nameEN": "Stress-related physiological response affecting disorders or diseases classified elsewhere",
+   "kind": "category"
+  },
+  {
+   "code": "6E40.Y",
+   "name": "Outros fatores psicológicos ou comportamentais que afetam transtornos ou doenças classificados em outra parte, especificados",
+   "nameEN": "Other specified psychological or behavioural factors affecting disorders or diseases classified elsewhere",
+   "kind": "category"
+  },
+  {
+   "code": "6E40.Z",
+   "name": "Fatores psicológicos ou comportamentais que afetam transtornos ou doenças classificados em outra parte, não especificados.",
+   "nameEN": "Psychological or behavioural factors affecting disorders or diseases classified elsewhere, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "BlockL1-6E6",
+   "name": "Síndromes mentais ou comportamentais secundárias associadas a transtornos ou doenças classificados em outra parte",
+   "nameEN": "Secondary mental or behavioural syndromes associated with disorders or diseases classified elsewhere",
+   "kind": "block"
+  },
+  {
+   "code": "6E60",
+   "name": "Síndrome do neurodesenvolvimento secundária",
+   "nameEN": "Secondary neurodevelopmental syndrome",
+   "kind": "category"
+  },
+  {
+   "code": "6E60.0",
+   "name": "Síndrome da fala ou da linguagem secundária",
+   "nameEN": "Secondary speech or language syndrome",
+   "kind": "category"
+  },
+  {
+   "code": "6E60.Y",
+   "name": "Outra síndrome do neurodesenvolvimento secundária, especificada",
+   "nameEN": "Other specified secondary neurodevelopmental syndrome",
+   "kind": "category"
+  },
+  {
+   "code": "6E60.Z",
+   "name": "Síndrome do neurodesenvolvimento secundária, não especificada",
+   "nameEN": "Secondary neurodevelopmental syndrome, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6E61",
+   "name": "Síndrome psicótica secundária",
+   "nameEN": "Secondary psychotic syndrome",
+   "kind": "category"
+  },
+  {
+   "code": "6E61.0",
+   "name": "Síndrome psicótica secundária com alucinações",
+   "nameEN": "Secondary psychotic syndrome, with hallucinations",
+   "kind": "category"
+  },
+  {
+   "code": "6E61.1",
+   "name": "Síndrome psicótica secundária com delírios",
+   "nameEN": "Secondary psychotic syndrome, with delusions",
+   "kind": "category"
+  },
+  {
+   "code": "6E61.2",
+   "name": "Síndrome psicótica secundária com alucinações e delírios",
+   "nameEN": "Secondary psychotic syndrome, with hallucinations and delusions",
+   "kind": "category"
+  },
+  {
+   "code": "6E61.3",
+   "name": "Síndrome psicótica secundária com sintomas não especificados",
+   "nameEN": "Secondary psychotic syndrome, with unspecified symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6E62",
+   "name": "Síndrome de humor secundária",
+   "nameEN": "Secondary mood syndrome",
+   "kind": "category"
+  },
+  {
+   "code": "6E62.0",
+   "name": "Síndrome de humor secundária com sintomas depressivos",
+   "nameEN": "Secondary mood syndrome, with depressive symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6E62.1",
+   "name": "Síndrome de humor secundária com sintomas maníacos",
+   "nameEN": "Secondary mood syndrome, with manic symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6E62.2",
+   "name": "Síndrome de humor secundária com sintomas mistos",
+   "nameEN": "Secondary mood syndrome, with mixed symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6E62.3",
+   "name": "Síndrome de humor secundária com sintomas não especificados",
+   "nameEN": "Secondary mood syndrome, with unspecified symptoms",
+   "kind": "category"
+  },
+  {
+   "code": "6E63",
+   "name": "Síndrome de ansiedade secundária",
+   "nameEN": "Secondary anxiety syndrome",
+   "kind": "category"
+  },
+  {
+   "code": "6E64",
+   "name": "Síndrome obsessivo-compulsiva ou relacionada, secundária",
+   "nameEN": "Secondary obsessive-compulsive or related syndrome",
+   "kind": "category"
+  },
+  {
+   "code": "6E65",
+   "name": "Síndrome dissociativa secundária",
+   "nameEN": "Secondary dissociative syndrome",
+   "kind": "category"
+  },
+  {
+   "code": "6E66",
+   "name": "Síndrome do controle de impulsos secundária",
+   "nameEN": "Secondary impulse control syndrome",
+   "kind": "category"
+  },
+  {
+   "code": "6E67",
+   "name": "Síndrome neurocognitiva secundária",
+   "nameEN": "Secondary neurocognitive syndrome",
+   "kind": "category"
+  },
+  {
+   "code": "6E68",
+   "name": "Mudança de personalidade secundária",
+   "nameEN": "Secondary personality change",
+   "kind": "category"
+  },
+  {
+   "code": "6E69",
+   "name": "Síndrome catatônica secundária",
+   "nameEN": "Secondary catatonia syndrome",
+   "kind": "category"
+  },
+  {
+   "code": "6E6Y",
+   "name": "Outra síndrome mental ou comportamental secundária especificada",
+   "nameEN": "Other specified secondary mental or behavioural syndrome",
+   "kind": "category"
+  },
+  {
+   "code": "6E6Z",
+   "name": "Síndrome mental ou comportamental secundária não especificada",
+   "nameEN": "Secondary mental or behavioural syndrome, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "6E8Y",
+   "name": "Outros transtornos mentais, comportamentais ou do neurodesenvolvimento especificados",
+   "nameEN": "Other specified mental, behavioural or neurodevelopmental disorders",
+   "kind": "category"
+  },
+  {
+   "code": "6E8Z",
+   "name": "Transtornos mentais, comportamentais ou do neurodesenvolvimento não especificados",
+   "nameEN": "Mental, behavioural or neurodevelopmental disorders, unspecified",
+   "kind": "category"
+  }
+ ]
+}

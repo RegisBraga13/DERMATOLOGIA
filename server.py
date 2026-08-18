@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import secrets
+import unicodedata
 import threading
 import urllib.error
 import urllib.parse
@@ -546,52 +547,111 @@ def load_code_tables():
     with CODE_TABLES_LOCK:
         if CODE_TABLES is None:
             tables = {}
-            for key, filename in (("cid11", "icd11Cap6.json"), ("dsm5tr", "icd10cmF.json")):
+            for key, filename in (("cid11", "icd11Cap6.json"), ("dsm5tr", "icd10cmF.json"), ("crosswalk", "crosswalk.json")):
                 path = CODE_TABLES_DIR / filename
                 if not path.exists():
                     continue
                 try:
                     data = json.loads(path.read_text(encoding="utf-8"))
-                    tables[key] = {entry["code"] for entry in data["codigos"]}
-                except (ValueError, KeyError, OSError) as error:
+                except (ValueError, OSError) as error:
                     logger.error("tabela de codigos %s ilegivel: %s", filename, error)
+                    continue
+                if key == "crosswalk":
+                    tables[key] = {entry["cid11"]: entry for entry in data["codigos"]}
+                else:
+                    tables[key] = {entry["code"]: entry["name"] for entry in data["codigos"]}
             CODE_TABLES = tables
         return CODE_TABLES
 
 
-def verify_diagnostic_codes(result):
-    """Remove codigo que nao existe na fonte oficial. Devolve os avisos.
+def normalize_name(value):
+    """Compara nome sem acento, caixa nem pontuacao."""
+    texto = unicodedata.normalize("NFD", str(value or "").lower())
+    texto = "".join(c for c in texto if unicodedata.category(c) != "Mn")
+    return re.sub(r"[^a-z0-9]+", " ", texto).strip()
 
-    Nao derruba a resposta inteira: um codigo errado nao invalida as outras
-    hipoteses, e a hipotese sem codigo ainda serve ao medico. O que nao pode
-    e sair um codigo que o medico tomaria por conferido.
+
+def resolve_dsm_code(cid11_code, crosswalk):
+    """Deriva o codigo do DSM-5-TR a partir do da CID-11, pelo mapa da OMS.
+
+    O codigo do DSM nao e gerado pela IA, e consultado. O mapa da OMS e de uma
+    categoria so e as vezes para na categoria: 6A71 -> F33, e a ICD-10-CM
+    subdivide em F33.0..F33.9 conforme gravidade e sintoma psicotico. Esse
+    detalhe e clinico e esta com o medico, nao com o mapa. Nesse caso devolve a
+    categoria com o ponto-traco, notacao padrao de codigo incompleto, e os
+    candidatos para o medico especificar.
+    """
+    entry = crosswalk.get(cid11_code)
+    if not entry:
+        return "", []
+    candidates = entry.get("icd10cm") or []
+    mapped = entry.get("icd10") or ""
+    if any(item["code"] == mapped for item in candidates):
+        return mapped, []
+    if len(candidates) == 1:
+        return candidates[0]["code"], []
+    if mapped and candidates:
+        return f"{mapped}.-", candidates
+    return "", []
+
+
+def verify_diagnostic_codes(result):
+    """Ancora cada hipotese na CID-11 e deriva o codigo do DSM-5-TR.
+
+    Codigo nao e coisa que a IA produza de forma confiavel: numa chamada real
+    ela devolveu "300.02" para TAG, que e o codigo do DSM-IV. Aqui o unico
+    codigo aceito da IA e o da CID-11, e mesmo esse so vale se existir na
+    tabela da OMS; quando nao existe, a hipotese e reancorada pelo nome. O
+    codigo do DSM-5-TR nunca vem da IA — sai do mapa oficial 11->10.
+
+    Nao derruba a resposta: hipotese sem codigo ainda serve ao medico. O que
+    nao pode e sair um codigo que o medico tomaria por conferido.
     """
     tables = load_code_tables()
-    if not tables:
+    known11 = tables.get("cid11")
+    crosswalk = tables.get("crosswalk") or {}
+    if not known11:
         return []
-    patterns = {"cid11": CID11_PATTERN, "dsm5tr": ICD10CM_PATTERN}
-    labels = {"cid11": "CID-11", "dsm5tr": "DSM-5-TR (ICD-10-CM)"}
+    by_name = {normalize_name(name): code for code, name in known11.items()}
     warnings = []
     for group in ("syndromic_options", "nosological_options", "etiological_options"):
         for option in result.get(group) or []:
-            for key, pattern in patterns.items():
-                known = tables.get(key)
-                value = option.get(key)
-                if not known or not isinstance(value, str) or not value.strip():
-                    continue
-                found = pattern.findall(value)
-                unknown = [code for code in found if code not in known]
-                if found and not unknown:
-                    continue
-                # Campo preenchido sem nenhum codigo no formato da fonte tambem
-                # e falha, e a mais perigosa: a IA devolveu "300.02" — o codigo
-                # do DSM-IV para TAG, nao o da ICD-10-CM que o DSM-5-TR usa.
-                # Uma verificacao que so confere o que ja tem o formato certo
-                # aprova justamente o codigo de outra classificacao.
-                motivo = (f"{', '.join(unknown)} nao existe na tabela oficial" if unknown
-                          else f"\"{value.strip()}\" nao tem o formato de um codigo")
-                option[key] = ""
-                warnings.append(f"{option.get('name') or 'hipotese sem nome'} ({labels[key]}): {motivo}; removido.")
+            nome = option.get("name") or "hipotese sem nome"
+            bruto = option.get("cid11") if isinstance(option.get("cid11"), str) else ""
+            candidato = next((c for c in CID11_PATTERN.findall(bruto) if c in known11), "")
+            if not candidato:
+                # A IA errou ou nao deu o codigo: tenta ancorar pelo nome, que
+                # e o que ela sabe produzir. Titulo da OMS, comparado sem
+                # acento nem caixa.
+                candidato = by_name.get(normalize_name(nome), "")
+                if candidato:
+                    warnings.append(f"{nome}: CID-11 reancorado em {candidato} pelo nome da entidade.")
+                elif bruto.strip():
+                    warnings.append(f"{nome}: CID-11 \"{bruto.strip()}\" nao existe no capitulo 6; removido.")
+            # Ancorada a hipotese, o nome passa a ser o titulo oficial da OMS,
+            # nao a parafrase da IA. E o que a licenca CC BY-ND exige (titulo
+            # reproduzido literalmente) e o que o prontuario precisa: "Depressao
+            # Maior" e "Transtorno depressivo, episodio unico" nao sao a mesma
+            # afirmacao, e so a segunda corresponde ao codigo ao lado.
+            if candidato and normalize_name(nome) != normalize_name(known11[candidato]):
+                warnings.append(f"{nome}: renomeada para o titulo oficial da CID-11 \"{known11[candidato]}\".")
+            if candidato:
+                option["name"] = known11[candidato]
+            option["cid11"] = candidato
+
+            proposto = option.get("dsm5tr") if isinstance(option.get("dsm5tr"), str) else ""
+            derivado, candidatos = resolve_dsm_code(candidato, crosswalk) if candidato else ("", [])
+            option["dsm5tr"] = derivado
+            if candidatos:
+                option["dsm5tr_candidatos"] = [f"{item['code']} - {item['name']}" for item in candidatos]
+                warnings.append(
+                    f"{nome}: DSM-5-TR {derivado} e categoria — "
+                    f"especificar entre {', '.join(item['code'] for item in candidatos)}."
+                )
+            elif not derivado and candidato:
+                warnings.append(f"{nome}: sem correspondencia DSM-5-TR no mapa oficial da OMS para {candidato}.")
+            if proposto.strip() and proposto.strip() != derivado:
+                warnings.append(f"{nome}: DSM-5-TR proposto pela IA (\"{proposto.strip()}\") descartado; vale o mapa oficial.")
     return warnings
 
 

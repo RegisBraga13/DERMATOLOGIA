@@ -1,29 +1,29 @@
 #!/usr/bin/env python3
 """Monta as tabelas de codigo a partir das fontes oficiais.
 
-Duas fontes, duas licencas diferentes:
+Tres fontes, todas de download direto e sem credencial:
 
-CID-11 (capitulo 6)  OMS, via a ICD-API. Licenca CC BY-ND 3.0 IGO: o titulo
-                     e copiado literalmente, nunca reescrito. Precisa de
-                     credencial gratuita (veja README na secao Codigos).
-ICD-10-CM (cap. F)   CDC/NCHS, dominio publico, download direto sem conta.
-                     E o conjunto de codigos que o DSM-5-TR usa: o "F41.1"
-                     impresso no DSM e o codigo da ICD-10-CM, nao um codigo
-                     proprio da APA.
+CID-11 cap. 6    OMS, arquivo de release SimpleTabulation-ICD-11-MMS-pt.
+                 Licenca CC BY-ND 3.0 IGO: o titulo e copiado literalmente,
+                 nunca reescrito nem traduzido por nos — a traducao para o
+                 portugues e a da propria OMS.
+Mapa 11->10      OMS, mapping.zip. E o mapa da propria OMS, com a grossura
+                 que ele tem: as vezes devolve categoria, nao codigo folha.
+ICD-10-CM cap. F CDC/NCHS, dominio publico. E o conjunto de codigos que o
+                 DSM-5-TR imprime: o "F41.1" do DSM e codigo da ICD-10-CM,
+                 nao um codigo proprio da APA.
 
 Nenhum dos dois livros e indexado aqui. Isto e tabela de codigo, nao texto
 clinico: o criterio diagnostico continua vindo da RAG.
 
-    python3 scripts/build_code_tables.py           # so a ICD-10-CM
-    python3 scripts/build_code_tables.py --icd11   # tambem a CID-11
+    python3 scripts/build_code_tables.py
 """
 
 import argparse
+import csv
 import io
 import json
-import os
-import sys
-import urllib.parse
+import re
 import urllib.request
 import zipfile
 from datetime import date
@@ -32,13 +32,21 @@ from pathlib import Path
 DESTINO = Path(__file__).resolve().parent.parent / "src" / "data" / "codes"
 
 ICD10CM_ZIP = "https://ftp.cdc.gov/pub/health_statistics/nchs/publications/ICD10CM/{ano}/icd10cm-Code%20Descriptions-{ano}.zip"
-ICD11_TOKEN = "https://icdaccessmanagement.who.int/connect/token"
-ICD11_RAIZ = "https://id.who.int/icd/release/11/{release}/mms"
+MMS_ZIP = "https://icdcdn.who.int/static/releasefiles/{release}/SimpleTabulation-ICD-11-MMS-{idioma}.zip"
+MAPA_ZIP = "https://icdcdn.who.int/static/releasefiles/{release}/mapping.zip"
+
+CAPITULO_MENTAL = "06"
 
 
-def baixar(url, timeout=180):
+def baixar_zip(url, timeout=300):
     with urllib.request.urlopen(url, timeout=timeout) as resposta:
-        return resposta.read()
+        return zipfile.ZipFile(io.BytesIO(resposta.read()))
+
+
+def ler_tsv(pacote, sufixo):
+    nome = next(n for n in pacote.namelist() if n.endswith(sufixo))
+    texto = pacote.read(nome).decode("utf-8-sig", "replace")
+    return list(csv.DictReader(io.StringIO(texto), delimiter="\t"))
 
 
 def pontuar(codigo):
@@ -46,96 +54,88 @@ def pontuar(codigo):
     return codigo if len(codigo) <= 3 else f"{codigo[:3]}.{codigo[3:]}"
 
 
+def limpar_titulo(valor):
+    """A tabulacao marca profundidade com hifens: '- - - Transtorno...'."""
+    return re.sub(r"^(?:-\s*)+", "", (valor or "").strip()).strip()
+
+
 def montar_icd10cm(ano):
-    bruto = baixar(ICD10CM_ZIP.format(ano=ano))
-    with zipfile.ZipFile(io.BytesIO(bruto)) as pacote:
-        nome = next(n for n in pacote.namelist() if n.endswith(f"icd10cm-codes-{ano}.txt"))
-        linhas = pacote.read(nome).decode("utf-8", "replace").splitlines()
+    pacote = baixar_zip(ICD10CM_ZIP.format(ano=ano))
     entradas = []
-    for linha in linhas:
-        # O arquivo e de largura fixa: codigo, espacos, descricao longa.
+    nome = next(n for n in pacote.namelist() if n.endswith(f"icd10cm-codes-{ano}.txt"))
+    for linha in pacote.read(nome).decode("utf-8", "replace").splitlines():
+        # Largura fixa: codigo, espacos, descricao longa.
         codigo, _, descricao = linha.partition(" ")
-        if not codigo.startswith("F"):
-            continue
-        entradas.append({"code": pontuar(codigo.strip()), "name": descricao.strip()})
+        if codigo.startswith("F"):
+            entradas.append({"code": pontuar(codigo.strip()), "name": descricao.strip()})
     if not entradas:
-        raise SystemExit(f"nenhum codigo F encontrado em icd10cm-codes-{ano}.txt")
+        raise SystemExit(f"nenhum codigo F em icd10cm-codes-{ano}.txt")
     return entradas
 
 
-def token_icd11(client_id, client_secret):
-    dados = urllib.parse.urlencode({
-        "client_id": client_id,
-        "client_secret": client_secret,
-        "scope": "icdapi_access",
-        "grant_type": "client_credentials",
-    }).encode()
-    pedido = urllib.request.Request(ICD11_TOKEN, data=dados)
-    with urllib.request.urlopen(pedido, timeout=60) as resposta:
-        return json.load(resposta)["access_token"]
-
-
-def entidade(uri, token, idioma):
-    pedido = urllib.request.Request(uri, headers={
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/json",
-        "API-Version": "v2",
-        "Accept-Language": idioma,
-    })
-    with urllib.request.urlopen(pedido, timeout=60) as resposta:
-        return json.load(resposta)
-
-
 def montar_icd11(release, idioma):
-    client_id = os.environ.get("ICD_API_CLIENT_ID")
-    client_secret = os.environ.get("ICD_API_CLIENT_SECRET")
-    if not client_id or not client_secret:
-        raise SystemExit(
-            "faltam ICD_API_CLIENT_ID e ICD_API_CLIENT_SECRET.\n"
-            "Registre-se de graca em https://icd.who.int/icdapi (Register / API access)\n"
-            "e ponha as duas no .env."
-        )
-    token = token_icd11(client_id, client_secret)
-    raiz = entidade(ICD11_RAIZ.format(release=release), token, idioma)
-    capitulo = None
-    for uri in raiz.get("child", []):
-        filho = entidade(uri, token, idioma)
-        if filho.get("code") == "06" or uri.rstrip("/").endswith("/334423054"):
-            capitulo = filho
-            break
-    if capitulo is None:
-        raise SystemExit("capitulo 6 nao encontrado na raiz da MMS")
+    linhas = ler_tsv(baixar_zip(MMS_ZIP.format(release=release, idioma=idioma)),
+                     f"SimpleTabulation-ICD-11-MMS-{idioma}.txt")
+    entradas = []
+    for linha in linhas:
+        if (linha.get("ChapterNo") or "").strip() != CAPITULO_MENTAL:
+            continue
+        classe = (linha.get("ClassKind") or "").strip()
+        # Bloco nao tem Code proprio, tem BlockId; guardamos os dois para que
+        # "6A40-6A4Z" seja tao consultavel quanto "6A40".
+        codigo = (linha.get("Code") or "").strip() or (linha.get("BlockId") or "").strip()
+        titulo = limpar_titulo(linha.get("Title"))
+        if not codigo or not titulo:
+            continue
+        entradas.append({
+            "code": codigo,
+            "name": titulo,
+            "nameEN": limpar_titulo(linha.get("TitleEN")),
+            "kind": classe,
+        })
+    if not entradas:
+        raise SystemExit("nenhuma entrada do capitulo 6 na tabulacao da MMS")
+    return entradas
+
+
+def montar_crosswalk(release, icd11, icd10cm):
+    """CID-11 -> ICD-10 (mapa da OMS) -> codigos ICD-10-CM que caem embaixo.
+
+    O mapa da OMS devolve categoria em muitos casos (6A71 -> F33). A ICD-10-CM
+    subdivide (F33.0, F33.1, ...) conforme gravidade e sintoma psicotico, que
+    e detalhe clinico que so o registro do medico sustenta. Guardamos o codigo
+    do mapa e todos os filhos possiveis, sem escolher por ele.
+    """
+    linhas = ler_tsv(baixar_zip(MAPA_ZIP.format(release=release)), "11To10MapToOneCategory.txt")
+    conhecidos = {entrada["code"] for entrada in icd11}
+    folhas = sorted(entrada["code"] for entrada in icd10cm)
+    nomes10cm = {entrada["code"]: entrada["name"] for entrada in icd10cm}
 
     entradas = []
     vistos = set()
-
-    def descer(uri):
-        if uri in vistos:
-            return
-        vistos.add(uri)
-        item = entidade(uri, token, idioma)
-        codigo = (item.get("code") or "").strip()
-        titulo = (item.get("title") or {}).get("@value", "").strip()
-        # Bloco nao tem code proprio (so codeRange); guardamos os dois para que
-        # "6A40-6A4Z" seja tao consultavel quanto "6A40".
-        faixa = (item.get("classKind") == "block") and item.get("blockId")
-        if codigo and titulo:
-            entradas.append({"code": codigo, "name": titulo, "kind": item.get("classKind", "")})
-        elif faixa and titulo and item.get("codeRange"):
-            entradas.append({"code": item["codeRange"], "name": titulo, "kind": "block"})
-        for neto in item.get("child", []):
-            descer(neto)
-        sys.stderr.write(f"\r{len(entradas)} entradas")
-
-    for uri in capitulo.get("child", []):
-        descer(uri)
-    sys.stderr.write("\n")
+    for linha in linhas:
+        codigo11 = (linha.get("icd11Code") or "").strip()
+        codigo10 = (linha.get("icd10Code") or "").strip()
+        if not codigo11 or not codigo10 or codigo11 in vistos or codigo11 not in conhecidos:
+            continue
+        vistos.add(codigo11)
+        # Faixa ("F80-F89") nao expande: e mapa grosso demais para virar codigo.
+        candidatos = [] if "-" in codigo10 else [
+            folha for folha in folhas
+            if folha == codigo10 or folha.startswith(codigo10 + ".") or folha.startswith(codigo10)
+            and len(folha) > len(codigo10) and folha[len(codigo10)] in ".0123456789"
+        ]
+        entradas.append({
+            "cid11": codigo11,
+            "icd10": codigo10,
+            "icd10Title": (linha.get("icd10Title") or "").strip(),
+            "icd10cm": [{"code": c, "name": nomes10cm[c]} for c in sorted(set(candidatos))],
+        })
     return entradas
 
 
 def gravar(nome, entradas, fonte, licenca, extra=None):
     DESTINO.mkdir(parents=True, exist_ok=True)
-    caminho = DESTINO / nome
     corpo = {
         "fonte": fonte,
         "licenca": licenca,
@@ -146,33 +146,32 @@ def gravar(nome, entradas, fonte, licenca, extra=None):
     }
     if extra:
         corpo.update(extra)
-    caminho.write_text(json.dumps(corpo, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    print(f"{caminho.relative_to(DESTINO.parent.parent.parent)}: {len(entradas)} codigos")
+    (DESTINO / nome).write_text(json.dumps(corpo, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    print(f"src/data/codes/{nome}: {len(entradas)} entradas")
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ano", default="2026", help="edicao da ICD-10-CM (default 2026)")
-    parser.add_argument("--icd11", action="store_true", help="tambem montar a CID-11 (precisa de credencial)")
+    parser.add_argument("--ano", default="2026", help="edicao da ICD-10-CM")
     parser.add_argument("--release", default="2025-01", help="release da CID-11 MMS")
     parser.add_argument("--idioma", default="pt", help="idioma dos titulos da CID-11")
     args = parser.parse_args()
 
-    gravar(
-        "icd10cmF.json",
-        montar_icd10cm(args.ano),
-        f"CDC/NCHS ICD-10-CM FY{args.ano}, capitulo 5 (F01-F99)",
-        "Dominio publico (obra do governo dos EUA)",
-        {"observacao": "Conjunto de codigos usado pelo DSM-5-TR. Descricoes no original em ingles, como publicadas."},
-    )
+    icd10cm = montar_icd10cm(args.ano)
+    gravar("icd10cmF.json", icd10cm,
+           f"CDC/NCHS ICD-10-CM FY{args.ano}, capitulo 5 (F01-F99)",
+           "Dominio publico (obra do governo dos EUA)",
+           {"observacao": "Conjunto de codigos usado pelo DSM-5-TR. Descricoes no original em ingles."})
 
-    if args.icd11:
-        gravar(
-            "icd11Cap6.json",
-            montar_icd11(args.release, args.idioma),
-            f"OMS CID-11 MMS release {args.release}, capitulo 6",
-            "CC BY-ND 3.0 IGO - titulos reproduzidos literalmente, sem alteracao",
-        )
+    icd11 = montar_icd11(args.release, args.idioma)
+    gravar("icd11Cap6.json", icd11,
+           f"OMS CID-11 MMS release {args.release}, capitulo 6, tabulacao simples ({args.idioma})",
+           "CC BY-ND 3.0 IGO - titulos reproduzidos literalmente, traducao da propria OMS")
+
+    gravar("crosswalk.json", montar_crosswalk(args.release, icd11, icd10cm),
+           f"OMS, mapa 11To10MapToOneCategory do release {args.release}, cruzado com a ICD-10-CM",
+           "CC BY-ND 3.0 IGO (mapa da OMS) + dominio publico (ICD-10-CM)",
+           {"observacao": "O mapa da OMS e de uma categoria so e as vezes devolve categoria, nao codigo folha."})
 
 
 if __name__ == "__main__":
