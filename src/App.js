@@ -973,6 +973,47 @@ async function generateDiagnosisFromClinicalData(element) {
   render();
 }
 
+async function generateTreatmentFromClinicalData(element) {
+  const formElement = element.closest("form");
+  if (formElement) updateDraftFromForm(formElement);
+  const scope = view === "return" ? "return" : "consultation";
+  const target = scope === "return" ? draft.return : draft.consultation;
+  const diagnosisText = treatmentDiagnosisText(target || {});
+  if (!diagnosisText) return alert("Selecione ao menos uma hipotese diagnostica antes de gerar o tratamento.");
+  setClinicalAiStatus(scope, "Consultando IA real para tratamento...");
+  if (scope === "return") draft.return = { ...(draft.return || {}), treatmentStatus: "Consultando IA real para tratamento..." };
+  else draft.consultation = { ...(draft.consultation || {}), treatmentStatus: "Consultando IA real para tratamento..." };
+  render();
+  let suggestion;
+  try {
+    const context = clinicalAiContext(scope);
+    const { result, sources, mode } = await requestClinicalAi("treatment", buildClinicalAiPrompt("treatment", context.target, context.patient, context.previous, context.isReturn), context.target?.pharmaAiMode || "rag", buildRagQuery("treatment", context.target));
+    const medicationOptions = result.medication_options.map(formatMedicationTreatmentOption);
+    const approachOptions = result.non_pharmacological_options.map(formatNonPharmacologicalOption);
+    suggestion = {
+      tratamentoAiMedicamentos: medicationOptions.join("\n"),
+      tratamentoAiAbordagens: approachOptions.join("\n"),
+      tratamentoMedicamentosSelecionados: medicationOptions,
+      abordagensSelecionadas: approachOptions,
+      tratamentoMedicamentoso: "",
+      abordagensTerapeuticas: "",
+      examesLaboratoriais: requestedExamsText(target || {}),
+      condutaMedica: target?.condutaMedica || "",
+      ragSources: sources,
+      pharmaAiMode: mode,
+      treatmentStatus: `${countLabel(medicationOptions.length, "opção medicamentosa")} e ${countLabel(approachOptions.length, "outra abordagem")} geradas para revisao individual.`,
+      aiStatus: "Sugestões de tratamento geradas pela IA para revisão médica."
+    };
+  } catch (error) {
+    suggestion = (target?.pharmaAiMode || "rag") === "rag"
+      ? { ragSources: [], treatmentStatus: `RAG indisponivel: ${error.message}`, aiStatus: `RAG indisponivel: ${error.message}` }
+      : { ragSources: [], treatmentStatus: `IA indisponivel: ${error.message}`, aiStatus: `IA indisponivel: ${error.message}` };
+  }
+  if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
+  else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
+  render();
+}
+
 async function generateEvolutionFromClinicalData(element) {
   const formElement = element.closest("form");
   if (formElement) updateDraftFromForm(formElement);
