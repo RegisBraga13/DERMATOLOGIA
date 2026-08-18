@@ -4,6 +4,10 @@ import { fetchCep } from "./services/cepService.js";
 import { exportTextAsPdf } from "./services/pdfService.js?v=pdf-download-2";
 import { loadState, saveState, uid } from "./services/storageService.js";
 import { currentSession, pullState, pushState, signIn } from "./services/supabaseService.js";
+import { arrayValue, calculateAge, capitalizeFirst, cleanClinicalLine, clinicalPhrase, compactText, formatClinicalList, formatPlainList, joinValues, lowerFirst, mentalExamKeys, normalizeText, optionDisplayLabel, professionalClinicalTerms, professionalList, professionalListWithOther, stripFinalPeriod } from "./clinical/textFormat.js";
+import { ANAMNESIS_AI_FIELDS, EVOLUTION_REFRESH_PATTERNS, MENTAL_EXAM_AI_FIELDS, RETURN_BOILERPLATE_PHRASES, anamnesisQuestionGroups, consultationPages, doctorDiagnosisOptions, laboratoryExamRequestItems, returnPages } from "./clinical/vocabulary.js";
+import { escapeAttr, escapeHtml } from "./ui/html.js";
+import { clipboardIcon, folderIcon, homeIcon, lockIcon, microphoneIcon, personIcon, repeatIcon, themeIcon } from "./ui/icons.js";
 
 const app = document.querySelector("#app");
 let state = loadState();
@@ -29,269 +33,6 @@ let authSession = null;
 let authError = "";
 const RECORD_SEARCH_TEXT_CACHE = new WeakMap();
 const ENTRY_TIMESTAMP_CACHE = new WeakMap();
-const MENTAL_EXAM_KEYS = Object.freeze([
-  "aparencia",
-  "consciencia",
-  "atencao",
-  "orientacao",
-  "memoria",
-  "sensopercepcao",
-  "pensamentoCursoForma",
-  "pensamentoConteudo",
-  "linguagem",
-  "humor",
-  "afeto",
-  "psicomotricidade",
-  "vontade",
-  "juizoCritico"
-]);
-const PROFESSIONAL_TERM_REPLACEMENTS = Object.freeze([
-  [/\bnao\b/gi, "não"],
-  [/\bideacao\b/gi, "ideação"],
-  [/\bintencao\b/gi, "intenção"],
-  [/\bativacao\b/gi, "ativação"],
-  [/\bperseguicao\b/gi, "perseguição"],
-  [/\breferencia\b/gi, "referência"],
-  [/\bdesconfianca\b/gi, "desconfiança"],
-  [/\bvozes ou ruidos\b/gi, "vozes ou ruídos"],
-  [/\bdesorganizado\b/gi, "desorganizado"],
-  [/\bsensacao\b/gi, "sensação"],
-  [/\binterferencia\b/gi, "interferência"],
-  [/\bpensamento psicotico\b/gi, "pensamento psicótico"],
-  [/\bpsicotico\b/gi, "psicótico"],
-  [/\bconcentracao\b/gi, "concentração"],
-  [/\balucinacao\b/gi, "alucinação"],
-  [/\bdelirio\b/gi, "delírio"],
-  [/\bdoenca\b/gi, "doença"],
-  [/\bespaco\b/gi, "espaço"],
-  [/\bnegacao\b/gi, "negação"],
-  [/\bcritica\b/gi, "crítica"],
-  [/\bfuncoes mnesicas\b/gi, "funções mnésicas"],
-  [/\bantipsicotico\b/gi, "antipsicótico"],
-  [/\bprejuizo\b/gi, "prejuízo"],
-  [/\bhabitos\b/gi, "hábitos"],
-  [/\bsedacao\b/gi, "sedação"],
-  [/\balteracao\b/gi, "alteração"],
-  [/\bmetabolica\b/gi, "metabólica"],
-  [/\bdisfuncao\b/gi, "disfunção"],
-  [/\burgencia\b/gi, "urgência"],
-  [/\binternacao\b/gi, "internação"]
-]);
-const EVOLUTION_REFRESH_PATTERNS = Object.freeze([
-  /^\s*Paciente\s+/i,
-  /Durante o rastreio/i,
-  /Quanto ao\s+/i,
-  /No rastreio (depressivo|psicótico)/i,
-  /foram registrados:/i,
-  /foram assinalados:/i,
-  /registra-se nega/i,
-  /associa[cç][aã]o com sem fator claro/i,
-  /antecedentes m[eé]dicos de nega/i,
-  /exame ps[ií]quico, apresenta-se/i
-]);
-const RETURN_BOILERPLATE_PHRASES = Object.freeze([
-  "Sem antecedentes relevantes informados.",
-  "Sem antecedentes ou habitos relevantes informados ate o momento.",
-  "Sem alterações descritas no exame psíquico.",
-  "Paciente sem alteracoes descritas no exame psiquico.",
-  "Hipóteses diagnósticas não selecionadas.",
-  "Conduta médica e exames não registrados."
-]);
-const HTML_ESCAPE_ENTITIES = Object.freeze({
-  "&": "&amp;",
-  "<": "&lt;",
-  ">": "&gt;",
-  '"': "&quot;",
-  "'": "&#039;"
-});
-const consultationPages = [
-  ["anamnese", "Anamnese"],
-  ["psiquico", "Exame psiquico"],
-  ["neurologico", "Exame fisico"],
-  ["refinamento", "Refinamento"],
-  ["resumo", "Resumo"],
-  ["diagnostico", "Diagnostico"],
-  ["tratamento", "Tratamento"],
-  ["evolucao", "Historia clinica"],
-  ["medicamentos", "Medicamentos"]
-];
-const returnPages = [
-  ["evolucao-retorno", "Evolucao"],
-  ["texto-retorno", "Texto final"]
-];
-const doctorDiagnosisOptions = [
-  "Ausencia de psicopatologia de relevancia clinica - a mente esta funcionando dentro do esperado para os desafios atuais.",
-  "Sintomas reativos/adaptativos - sofrimento como reacao a um problema especifico, como luto, termino ou estresse profissional.",
-  "Z03.2 (CID-10) - Observacao por suspeita de transtornos mentais e de comportamento, quando a suspeita foi descartada.",
-  "Z00.4 (CID-10) - Exame psiquiatrico geral, incluindo exames admissionais sem psicopatologia identificada."
-];
-const laboratoryExamRequestItems = [
-  "Hemograma",
-  "Sodio",
-  "Potassio",
-  "Glicemia de jejum",
-  "Hemoglobina glicada (HbA1c)",
-  "Perfil lipidico",
-  "Creatinina",
-  "Ureia",
-  "TGO",
-  "TGP",
-  "TSH",
-  "T4 livre",
-  "Vitamina D",
-  "Vitamina B12",
-  "Folato"
-];
-const anamnesisQuestionGroups = [
-  {
-    title: "",
-    items: [
-      ["Impacto", [
-        {
-          key: "impactoSintomas",
-          response: "multiple",
-          question: "De que forma isso que voce esta sentindo atrapalha o seu trabalho, seus estudos ou suas relacoes?",
-          options: ["Nenhuma", "Leve", "Moderado", "Grave", "Outro"],
-          otherKey: "impactoSintomasOutro"
-        }
-      ]],
-      ["Mania/hipomania", [
-        {
-          key: "maniaHipomaniaSintomas",
-          response: "multiple",
-          question: "Ja teve periodos, por dias, que voce ficou:",
-          options: ["Nega sintomas relacionados", "Muito acelerado", "Com muita energia", "Falando mais", "Dormindo pouco", "Fazendo coisas impulsivas", "Outro"],
-          otherKey: "maniaHipomaniaSintomasOutro"
-        }
-      ]],
-      ["Ansiedade e panico", [
-        {
-          key: "ansiedadeSintomas",
-          response: "multiple",
-          options: [
-            "Falta de controle",
-            "Preocupacao excessiva",
-            "Tensao corporal",
-            "Dificuldade de focar",
-            "Agitacao",
-            "Irritabilidade",
-            "Sintomas fisicos"
-          ]
-        }
-      ]],
-      ["Sono", [
-        {
-          key: "sonoCaracteristicas",
-          response: "multiple",
-          options: [
-            "Sono reparador",
-            "Sono nao reparador",
-            "Dificuldade para adormecer",
-            "Despertares noturnos",
-            "Despertar precoce",
-            "Dormir em excesso"
-          ]
-        }
-      ]],
-      ["Apetite", [
-        {
-          key: "apetiteCaracteristicas",
-          response: "multiple",
-          options: [
-            "Reducao do apetite",
-            "Aumento do apetite",
-            "Compulsao alimentar",
-            "Perda de peso recente",
-            "Ganho de peso recente"
-          ]
-        }
-      ]],
-      ["Sintomas depressivos", [
-        {
-          key: "depressaoSintomas",
-          response: "multiple",
-          options: [
-            "Desinteresse ou falta de prazer",
-            "Desanimo ou desesperanca",
-            "Cansaco ou falta de energia",
-            "Dificuldade de concentracao",
-            "Fala lenta",
-            "Agitacao",
-            "Baixa autoestima",
-            "Sentimento de ruina",
-            "Sentimento de estorvo para a familia"
-          ]
-        }
-      ]]
-    ]
-  },
-  {
-    title: "Perguntas apos vinculo com o paciente",
-    items: [
-      ["Paranoia e sintomas psicoticos", [
-        {
-          key: "psicoseSintomas",
-          response: "multiple",
-          options: [
-            "Nega sintomas relacionados",
-            "Ideias de perseguicao",
-            "Sensacao de estar sendo observado ou comentado",
-            "Ideias de referencia",
-            "Desconfianca excessiva",
-            "Vozes ou ruidos sem fonte externa",
-            "Visoes sem fonte externa",
-            "Sensacoes tateis ou odores sem fonte externa",
-            "Pensamento desorganizado",
-            "Comportamento desorganizado",
-            "Sensacao de controle ou interferencia no pensamento",
-            "Outro"
-          ],
-          otherKey: "psicoseSintomasOutro"
-        }
-      ]],
-      ["Habitos, substancias e comportamentos aditivos", [
-        {
-          key: "usoSubstanciasComportamentos",
-          response: "multiple",
-          options: [
-            "Nicotina",
-            "Alcool",
-            "Cafeina",
-            "Calmantes",
-            "Estimulantes",
-            "Cocaina",
-            "Opioides",
-            "Canabinoides",
-            "Jogos de Azar",
-            "Redes Sociais",
-            "Compras Compulsivas",
-            "Transtornos Alimentares"
-          ]
-        }
-      ]],
-      ["Risco de suicidio e desesperanca", [
-        {
-          key: "riscoSuicidioIndicadores",
-          response: "multiple",
-          options: [
-            "Nega ideacao, plano ou intencao suicida",
-            "Desesperanca",
-            "Desejo de morrer ou de nao acordar",
-            "Ideacao suicida",
-            "Plano suicida definido",
-            "Intencao suicida",
-            "Acesso a meios potencialmente letais",
-            "Comportamento preparatorio",
-            "Tentativa de suicidio previa",
-            "Autoagressao sem intencao suicida"
-          ]
-        },
-        { key: "riscoSuicidioRazoesViver", label: "Fatores impeditivos", question: "O que te impede de fazer isso hoje?", response: "text" },
-        { key: "riscoSuicidioRazoesParaViver", label: "Razoes para viver", question: "Quais sao suas razoes para viver?", response: "text" }
-      ]]
-    ]
-  }
-];
 
 const icons = {
   patient: personIcon(),
@@ -954,11 +695,6 @@ function treatmentOptionLines(value = "") {
   return String(value || "").split("\n").map(item => item.trim()).filter(Boolean);
 }
 
-function arrayValue(value) {
-  if (Array.isArray(value)) return value.filter(Boolean);
-  return value ? [value] : [];
-}
-
 function treatmentOptionCheckboxes(name, options, selectedValues) {
   return options.map(option => `
     <label class="diagnosis-option treatment-option">
@@ -1266,16 +1002,6 @@ function normalizedSingleChoiceValue(name, value) {
   return aliases[name]?.[selected] || selected;
 }
 
-const optionDisplayLabels = {
-  IN_PERSON: "Presencial",
-  TELECONSULTATION: "Online",
-  HYBRID: "Híbrida"
-};
-
-function optionDisplayLabel(option = "") {
-  return optionDisplayLabels[option] || option;
-}
-
 function pagesForScope(scope) {
   return scope === "consultation" ? consultationPages : returnPages;
 }
@@ -1308,7 +1034,6 @@ function pageStepActions(scope) {
     ${scope === "return" ? `<button class="secondary" type="submit">${recordLabel}</button>` : ""}
   </div>`;
 }
-
 
 function bindGlobalEvents() {
   app.querySelectorAll("[data-view]").forEach(button => {
@@ -1821,31 +1546,6 @@ function setClinicalAiStatus(scope, message) {
   if (scope === "return") draft.return = { ...(draft.return || {}), aiStatus: message };
   else draft.consultation = { ...(draft.consultation || {}), aiStatus: message };
 }
-
-const ANAMNESIS_AI_FIELDS = {
-  depressive_symptoms: ["depressaoSintomas", ["Desinteresse ou falta de prazer", "Desanimo ou desesperanca", "Cansaco ou falta de energia", "Dificuldade de concentracao", "Fala lenta", "Agitacao", "Baixa autoestima", "Sentimento de ruina", "Sentimento de estorvo para a familia"]],
-  mania_hypomania: ["maniaHipomaniaSintomas", ["Nega sintomas relacionados", "Muito acelerado", "Com muita energia", "Falando mais", "Dormindo pouco", "Fazendo coisas impulsivas", "Outro"]],
-  anxiety_symptoms: ["ansiedadeSintomas", ["Falta de controle", "Preocupacao excessiva", "Tensao corporal", "Dificuldade de focar", "Agitacao", "Irritabilidade", "Sintomas fisicos"]],
-  sleep: ["sonoCaracteristicas", ["Sono reparador", "Sono nao reparador", "Dificuldade para adormecer", "Despertares noturnos", "Despertar precoce", "Dormir em excesso"]],
-  appetite: ["apetiteCaracteristicas", ["Reducao do apetite", "Aumento do apetite", "Compulsao alimentar", "Perda de peso recente", "Ganho de peso recente"]],
-  symptom_impact: ["impactoSintomas", ["Nenhuma", "Leve", "Moderado", "Grave", "Outro"]],
-  substances_behaviors: ["usoSubstanciasComportamentos", ["Nicotina", "Alcool", "Cafeina", "Calmantes", "Estimulantes", "Cocaina", "Opioides", "Canabinoides", "Jogos de Azar", "Redes Sociais", "Compras Compulsivas", "Transtornos Alimentares"]],
-  psychosis: ["psicoseSintomas", ["Nega sintomas relacionados", "Ideias de perseguicao", "Sensacao de estar sendo observado ou comentado", "Ideias de referencia", "Desconfianca excessiva", "Vozes ou ruidos sem fonte externa", "Visoes sem fonte externa", "Sensacoes tateis ou odores sem fonte externa", "Pensamento desorganizado", "Comportamento desorganizado", "Sensacao de controle ou interferencia no pensamento", "Outro"]],
-  suicide_risk: ["riscoSuicidioIndicadores", ["Nega ideacao, plano ou intencao suicida", "Desesperanca", "Desejo de morrer ou de nao acordar", "Ideacao suicida", "Plano suicida definido", "Intencao suicida", "Acesso a meios potencialmente letais", "Comportamento preparatorio", "Tentativa de suicidio previa", "Autoagressao sem intencao suicida"]],
-  previous_diagnoses: ["psiPrevios", optionGroups.psiPrevios],
-  previous_treatments: ["tratamentos", optionGroups.tratamentos],
-  family_history: ["familiares", optionGroups.familiares],
-  worsening_factors: ["fatores", optionGroups.fatores],
-  improving_factors: ["fatoresMelhora", optionGroups.fatoresMelhora],
-  functional_impact: ["impacto", optionGroups.impacto]
-};
-
-const MENTAL_EXAM_AI_FIELDS = {
-  appearance: "aparencia", attention: "atencao", orientation: "orientacao", memory: "memoria",
-  perception: "sensopercepcao", thought_course: "pensamentoCursoForma", thought_content: "pensamentoConteudo",
-  language: "linguagem", mood: "humor", affect: "afeto", psychomotor: "psicomotricidade",
-  volition: "vontade", judgment: "juizoCritico"
-};
 
 function canonicalAiSelections(values, allowed = []) {
   const byNormalized = new Map(allowed.map(option => [normalizeText(option), option]));
@@ -2504,12 +2204,6 @@ function fieldFromLabel(label, key, maxLength = 360) {
   return compactText(text, maxLength);
 }
 
-function compactText(value, maxLength = 900) {
-  const text = String(value || "").replace(/\s+/g, " ").trim();
-  if (text.length <= maxLength) return text;
-  return `${text.slice(0, maxLength).trim()}...`;
-}
-
 function treatmentDiagnosisText(form = {}) {
   return [
     selectedDiagnosisText(form),
@@ -2732,24 +2426,6 @@ function professionalMentalFinding(value = "") {
     .replace(/^crítica parcial$/i, "crítica parcialmente preservada");
 }
 
-function professionalList(value) {
-  return formatPlainList(arrayValue(value).map(item => lowerFirst(professionalClinicalTerms(item))));
-}
-
-function professionalListWithOther(value, otherValue = "") {
-  return formatPlainList([
-    ...arrayValue(value).filter(item => normalizeText(item) !== "outro"),
-    otherValue
-  ].filter(Boolean).map(item => lowerFirst(professionalClinicalTerms(item))));
-}
-
-function formatPlainList(items = []) {
-  const cleanItems = uniqueValues(items.map(item => String(item || "").trim()).filter(Boolean));
-  if (cleanItems.length <= 1) return cleanItems[0] || "";
-  if (cleanItems.length === 2) return `${cleanItems[0]} e ${cleanItems[1]}`;
-  return `${cleanItems.slice(0, -1).join(", ")} e ${cleanItems.at(-1)}`;
-}
-
 function protectiveFactorSentence(value = "") {
   const text = professionalClinicalTerms(stripFinalPeriod(value));
   if (/^nega ideação ou intenção suicida;\s*mantém vínculo e supervisão familiar$/i.test(text)) {
@@ -2758,23 +2434,12 @@ function protectiveFactorSentence(value = "") {
   return `Como fator protetivo, registra-se ${lowerFirst(text)}.`;
 }
 
-function professionalClinicalTerms(value = "") {
-  return PROFESSIONAL_TERM_REPLACEMENTS.reduce(
-    (text, [pattern, replacement]) => text.replace(pattern, replacement),
-    String(value || "")
-  );
-}
-
 function genderedCivilStatus(value = "", sex = "") {
   const normalizedSex = normalizeText(sex);
   if (!/\(a\)/i.test(value)) return value.toLowerCase();
   if (normalizedSex === "feminino") return value.replace(/\(a\)/i, "a").toLowerCase();
   if (normalizedSex === "masculino") return value.replace(/\(a\)/i, "").toLowerCase();
   return value.toLowerCase();
-}
-
-function capitalizeFirst(value = "") {
-  return value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : "";
 }
 
 function conciseIdentityText(patient = {}) {
@@ -2821,13 +2486,6 @@ function conciseMentalExamText(form = {}) {
 function conciseDiagnosticText(form = {}) {
   const selected = selectedDiagnosisText(form) || form.diagnosticoSelecionadoResumo || form.diagnosticoManual || "";
   return cleanClinicalLine(selected || "Hipóteses diagnósticas não selecionadas");
-}
-
-function cleanClinicalLine(value = "") {
-  return stripFinalPeriod(value)
-    .replace(/^\s*(QP|HDA)\s*:\s*/i, "")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function patientIdentificationText(patient = {}, withPrefix = true) {
@@ -2880,17 +2538,8 @@ function mentalStateFindings(form) {
     .filter(Boolean);
 }
 
-
-function uniqueValues(values) {
-  return [...new Set(values.filter(Boolean))];
-}
-
 function outdatedEvolutionText(value = "") {
   return normalizeText(value).startsWith("evolucao medica auxiliada por ia");
-}
-
-function stripFinalPeriod(value = "") {
-  return String(value || "").trim().replace(/[.\s]+$/g, "");
 }
 
 function firstLineFromQphda(value = "") {
@@ -2909,10 +2558,6 @@ function joinWithOutro(value, otherValue = "") {
   return [base, otherValue].filter(Boolean).join(base && otherValue ? ", " : "");
 }
 
-function mentalExamKeys() {
-  return MENTAL_EXAM_KEYS;
-}
-
 function clinicalMentalValues(form = {}, key = "") {
   return [
     ...arrayValue(form[key]).filter(item => normalizeText(item) !== "outro"),
@@ -2920,34 +2565,10 @@ function clinicalMentalValues(form = {}, key = "") {
   ].map(clinicalPhrase).filter(Boolean);
 }
 
-
-function clinicalPhrase(value = "") {
-  const cleaned = stripFinalPeriod(value)
-    .replace(/\s+/g, " ")
-    .replace(/^(aparencia|aparência|atitude|contato|consciencia|consciência|atencao|atenção|orientacao|orientação|memoria|memória|sensopercepcao|sensopercepção|linguagem|humor|afeto|psicomotricidade|vontade|juizo critico|juízo crítico|insight)\s*:\s*/i, "")
-    .replace(/^(memoria|memória)\s+/i, "")
-    .replace(/^(sensopercepcao|sensopercepção|linguagem|humor|afeto|consciencia|consciência|atencao|atenção|orientacao|orientação)\s+/i, "")
-    .replace(/^(paciente\s+)?/i, "")
-    .trim();
-  return lowerFirst(cleaned);
-}
-
-function formatClinicalList(items = []) {
-  const cleanItems = uniqueValues(items.map(clinicalPhrase).filter(Boolean));
-  if (cleanItems.length <= 1) return cleanItems[0] || "";
-  if (cleanItems.length === 2) return `${cleanItems[0]} e ${cleanItems[1]}`;
-  return `${cleanItems.slice(0, -1).join(", ")} e ${cleanItems.at(-1)}`;
-}
-
 function improvementSentence(value = "") {
   const text = lowerFirst(stripFinalPeriod(value)).replace(/^melhora\s+/i, "");
   const connector = normalizeText(text).startsWith("apos ") ? "" : "com ";
   return `Diz que a melhora geralmente ocorre ${connector}${text}.`;
-}
-
-function lowerFirst(value = "") {
-  const text = String(value).trim();
-  return text ? text.charAt(0).toLowerCase() + text.slice(1) : "";
 }
 
 function diagnosticRules() {
@@ -3025,10 +2646,6 @@ function diagnosticRules() {
   ];
 }
 
-function joinValues(value) {
-  return Array.isArray(value) ? value.filter(Boolean).join(", ") : value || "";
-}
-
 function requestedExamsText(form = {}) {
   const selected = Array.isArray(form.examesSolicitados)
     ? form.examesSolicitados.filter(Boolean)
@@ -3044,10 +2661,6 @@ function requestedExamsText(form = {}) {
 
 function anamnesisText(form = {}) {
   return form.qphda || [form.queixa && `QP: ${form.queixa}`, form.hdaManual && `HDA: ${form.hdaManual}`].filter(Boolean).join("\n");
-}
-
-function normalizeText(value) {
-  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
 function updateDraftFromForm(form) {
@@ -3551,48 +3164,4 @@ function setVoiceStatus(button, message, state = "") {
   if (!status) return;
   status.textContent = message;
   status.dataset.state = state;
-}
-
-function escapeHtml(value) {
-  return String(value || "").replace(/[&<>"']/g, char => HTML_ESCAPE_ENTITIES[char]);
-}
-
-function escapeAttr(value) {
-  return escapeHtml(value).replace(/`/g, "&#096;");
-}
-
-function calculateAge(dateValue) {
-  if (!dateValue) return "";
-  const birth = new Date(`${dateValue}T00:00:00`);
-  if (Number.isNaN(birth.getTime())) return "";
-  const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  const hadBirthday = today.getMonth() > birth.getMonth() || (today.getMonth() === birth.getMonth() && today.getDate() >= birth.getDate());
-  if (!hadBirthday) age -= 1;
-  return age >= 0 ? age : "";
-}
-
-function personIcon() {
-  return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
-}
-function clipboardIcon() {
-  return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 4h6l1 2h3v15H5V6h3l1-2Z" stroke="currentColor" stroke-width="2"/><path d="M9 11h6M9 15h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
-}
-function repeatIcon() {
-  return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-}
-function folderIcon() {
-  return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6h7l2 2h9v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6Z" stroke="currentColor" stroke-width="2"/></svg>`;
-}
-function lockIcon() {
-  return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3M5 10h14v11H5V10Z" stroke="currentColor" stroke-width="2"/></svg>`;
-}
-function homeIcon() {
-  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m4 10 8-7 8 7v10H4V10Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 20v-6h6v6" stroke="currentColor" stroke-width="1.8"/></svg>`;
-}
-function themeIcon() {
-  return `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
-}
-function microphoneIcon() {
-  return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="3" width="8" height="13" rx="4" stroke="currentColor" stroke-width="1.8"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`;
 }
