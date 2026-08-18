@@ -45,22 +45,6 @@ const MENTAL_EXAM_KEYS = Object.freeze([
   "vontade",
   "juizoCritico"
 ]);
-const NORMAL_MENTAL_EXAM_FINDINGS = Object.freeze({
-  aparencia: "apresenta aparencia cuidada, atitude colaborativa e contato visual adequado",
-  consciencia: "consciente",
-  atencao: "com atencao preservada",
-  orientacao: "orientado no tempo e no espaco",
-  memoria: "com funcoes mnesicas preservadas",
-  sensopercepcao: "sem alteracoes sensoperceptivas",
-  pensamentoCursoForma: "pensamento com curso e forma preservados",
-  pensamentoConteudo: "sem alteracoes relevantes do conteudo do pensamento",
-  linguagem: "com fala espontanea, coerente e compreensivel",
-  humor: "eutimico",
-  afeto: "afeto congruente e modulado",
-  psicomotricidade: "psicomotricidade sem alteracoes relevantes",
-  vontade: "vontade preservada",
-  juizoCritico: "com juizo critico preservado"
-});
 const PROFESSIONAL_TERM_REPLACEMENTS = Object.freeze([
   [/\bnao\b/gi, "não"],
   [/\bideacao\b/gi, "ideação"],
@@ -667,7 +651,7 @@ function mentalExamBody(form) {
     ["psicomotricidade", "Psicomotricidade"], ["vontade", "Vontade"], ["juizoCritico", "Juizo Critico (Insight)"]
   ];
   return groups.map(([key, label]) => `
-    ${chips(key, label, optionGroups[key].filter(option => option !== "NDN"), form[key])}
+    ${chips(key, label, optionGroups[key], form[key])}
   `).join("");
 }
 
@@ -2262,7 +2246,7 @@ function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = null, i
       "Prepare uma sugestao estruturada de exame psiquico somente a partir da anamnese ja revisada pelo medico.",
       "Nao infira normalidade quando nao houver suporte; use arrays vazios quando o dominio nao puder ser avaliado.",
       "O medico revisara e alterara todas as selecoes antes de prosseguir.",
-      `Use exclusivamente estes rotulos canonicos: ${JSON.stringify(Object.fromEntries(Object.entries(MENTAL_EXAM_AI_FIELDS).map(([key, formKey]) => [key, (optionGroups[formKey] || []).filter(option => option !== "NDN")])))}`
+      `Use exclusivamente estes rotulos canonicos: ${JSON.stringify(Object.fromEntries(Object.entries(MENTAL_EXAM_AI_FIELDS).map(([key, formKey]) => [key, (optionGroups[formKey] || [])])))}`
     ],
     refinement: [
       "Analise a anamnese revisada, o exame psiquico revisado e o exame fisico registrado.",
@@ -3052,18 +3036,12 @@ function mentalExamKeys() {
 }
 
 function clinicalMentalValues(form = {}, key = "") {
-  const values = valueList(form[key]);
-  const hasNdn = values.some(item => normalizeText(item) === "ndn");
   return [
-    hasNdn ? normalMentalExamFinding(key) : "",
-    ...values.filter(item => !["ndn", "outro"].includes(normalizeText(item))),
+    ...valueList(form[key]).filter(item => normalizeText(item) !== "outro"),
     form[`${key}Outro`]
   ].map(clinicalPhrase).filter(Boolean);
 }
 
-function normalMentalExamFinding(key = "") {
-  return NORMAL_MENTAL_EXAM_FINDINGS[key] || "";
-}
 
 function clinicalPhrase(value = "") {
   const cleaned = stripFinalPeriod(value)
