@@ -724,7 +724,10 @@ function mentalExam(form) {
 function mentalExamBody(form) {
   const groups = [
     ["aparencia", "Aparencia, Atitude e Contato"],
-    ["atencao", "Atencao/Vigilancia"], ["orientacao", "Consciencia/Orientacao"],
+    // consciencia estava fora desta lista: era lida no resumo, na evolucao e no
+    // diagnostico, mas nao tinha controle na tela e chegava sempre vazia.
+    ["consciencia", "Consciencia"],
+    ["atencao", "Atencao/Vigilancia"], ["orientacao", "Orientacao"],
     ["memoria", "Memoria"], ["sensopercepcao", "Sensopercepcao"],
     ["pensamentoCursoForma", "Pensamento (Curso e Forma)"], ["pensamentoConteudo", "Pensamento (Conteudo)"],
     ["linguagem", "Linguagem"], ["humor", "Humor (Estado Basal)"], ["afeto", "Afeto (Resposta)"],
@@ -1917,12 +1920,15 @@ async function generateDiagnosisFromClinicalData(element) {
       diagnosticoAiSindromico: syndromicOptions.join("\n"),
       diagnosticoAiNosologico: nosologicalOptions.join("\n"),
       diagnosticoAiEtiologico: etiologicalOptions.join("\n"),
-      diagnosticoSelecionado: [...selectedDoctorOptions, ...aiOptions],
+      // A IA propoe, nao assinala: so as hipoteses do proprio medico seguem
+      // marcadas. Assinalar por ele inverteria o onus — passaria a ser preciso
+      // descartar o que nao se quer, em vez de escolher o que se quer.
+      diagnosticoSelecionado: selectedDoctorOptions,
       diagnosticoManual: selectedDoctorOptions.join("\n"),
       diferenciais: "",
       ragSources: sources,
       aiMode: mode,
-      aiStatus: "3 hipóteses sindrômicas, 3 nosológicas e 2 etiológicas geradas. As hipóteses do médico foram mantidas.",
+      aiStatus: "3 hipóteses sindrômicas, 3 nosológicas e 2 etiológicas propostas para você assinalar. As hipóteses do médico foram mantidas.",
       controlValidations: mergeAiValidationItems(target || {}, aiOptions.map(option => ({
         field: "diagnosticoSelecionado", value: option, label: option, page: "diagnostico", evidence: "Dados clinicos informados nesta consulta"
       })))
@@ -1934,9 +1940,9 @@ async function generateDiagnosisFromClinicalData(element) {
       const fallbackOptions = [fallback.diagnosticoAiSindromico, fallback.diagnosticoAiNosologico, fallback.diagnosticoAiEtiologico].flatMap(value => String(value || "").split("\n").filter(Boolean));
       suggestion = {
         ...fallback,
-        diagnosticoSelecionado: [...selectedDiagnosisValues(target || {}).filter(option => doctorDiagnosisOptions.includes(option)), ...fallbackOptions],
+        diagnosticoSelecionado: selectedDiagnosisValues(target || {}).filter(option => doctorDiagnosisOptions.includes(option)),
         controlValidations: mergeAiValidationItems(target || {}, fallbackOptions.map(option => ({ field: "diagnosticoSelecionado", value: option, label: option, page: "diagnostico", evidence: "Regra clinica local de contingencia" }))),
-        aiStatus: "Hipóteses locais aplicadas como contingência e pendentes de revisão médica."
+        aiStatus: "Hipóteses locais propostas como contingência, pendentes de revisão médica."
       };
     }
   }
