@@ -339,6 +339,32 @@ export function anamnesisText(form = {}) {
   return form.qphda || [form.queixa && `QP: ${form.queixa}`, form.hdaManual && `HDA: ${form.hdaManual}`].filter(Boolean).join("\n");
 }
 
+// O refinamento fechava em si mesmo: o medico respondia as perguntas,
+// classificava as red flags e escrevia sua observacao, e nada disso saia da
+// tela e do resumo. O prompt do diagnostico ficava byte a byte identico ao de
+// antes de ele responder — a IA seguia raciocinando so com a anamnese
+// original. Aqui a resposta volta ao prontuario que o diagnostico e o
+// tratamento leem. Pergunta sem resposta nao entra: campo vazio e dado nao
+// informado, nunca negacao.
+export function refinementAnswersText(form = {}) {
+  const plan = form.refinementPlan || {};
+  const lines = [];
+  (plan.questions || []).forEach((item, index) => {
+    const answer = joinValues(form[`refinementQuestion_${index}`]);
+    if (answer) lines.push(`${item.topic || "Pergunta"} - ${cleanClinicalLine(item.prompt || "")}: ${answer}`);
+  });
+  [["Red flag", "red_flags", "refinementRedFlag"],
+   ["Observacao", "observations", "refinementObservation"],
+   ["Ponto importante", "important_points", "refinementImportant"]].forEach(([label, key, prefix]) => {
+    (plan[key] || []).forEach((item, index) => {
+      const decision = form[`${prefix}_${index}`];
+      if (decision) lines.push(`${label} - ${cleanClinicalLine(item.topic || "")}: ${decision}`);
+    });
+  });
+  if (form.refinementDoctorNotes) lines.push(`Observacao do medico: ${cleanClinicalLine(form.refinementDoctorNotes)}`);
+  return lines.join("\n");
+}
+
 export function shouldRefreshEvolutionNarrative(value = "") {
   const text = String(value || "");
   return EVOLUTION_REFRESH_PATTERNS.some(pattern => pattern.test(text));

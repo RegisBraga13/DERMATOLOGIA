@@ -1,5 +1,5 @@
 import { formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharmacologicalOption, normalizeDiagnosticOptions, parseTreatmentResponse } from "../clinical/diagnosis.js";
-import { anamnesisText, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, patientIdentificationText, professionalSelectedTreatmentItems, requestedExamsText, returnStoryText, treatmentDiagnosisText } from "../clinical/narrative.js";
+import { anamnesisText, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, patientIdentificationText, professionalSelectedTreatmentItems, refinementAnswersText, requestedExamsText, returnStoryText, treatmentDiagnosisText } from "../clinical/narrative.js";
 import { arrayValue, cleanClinicalLine, compactText, formatClinicalList, joinValues, normalizeText, stripFinalPeriod } from "../clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, MENTAL_EXAM_AI_FIELDS } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js?v=tratamento-3";
@@ -79,7 +79,11 @@ export function buildRagQuery(kind, form = {}) {
     joinValues(positives(form.sonoCaracteristicas)),
     joinValues(positives(form.usoSubstanciasComportamentos)),
     joinValues(positives(form.riscoSuicidioIndicadores)),
-    mentalStateFindings(form).join("; ")
+    mentalStateFindings(form).join("; "),
+    // O que o medico esclareceu no refinamento tambem orienta a busca: sem
+    // isso, a literatura recuperada ignora justamente a lacuna que ele acabou
+    // de fechar.
+    compactText(refinementAnswersText(form), 600)
   ].filter(Boolean).join("; ");
   // Sem estrutura ainda — consulta digitada, ou antes da extracao — cai na
   // narrativa, encurtada para nao repetir o mesmo problema.
@@ -320,6 +324,11 @@ function clinicalPromptData(form = {}, patient = {}, previous = null, isReturn =
     `Antecedentes familiares: ${joinWithOutro(form.familiares, form.familiaresOutro) || "nao informado"}.`,
     `Substancias/habitos: ${joinWithOutro(form.substancias, form.substanciasOutro) || joinWithOutro(form.usoSubstanciasComportamentos, form.usoSubstanciasComportamentosOutro) || "nao informado"}.`,
     `Exame psiquico: ${mentalStateFindings(form).length ? formatClinicalList(mentalStateFindings(form)) : "nao informado"}.`,
+    // O exame fisico nunca chegou aqui. No caso de teste, as cicatrizes de
+    // autolesao em antebraco estavam registradas e o diagnostico nao as via.
+    `Exame fisico: ${stripFinalPeriod(form.fisico || "") || "nao informado"}.`,
+    // Fecha o laco do refinamento: o que o medico respondeu volta ao raciocinio.
+    refinementAnswersText(form) ? `Refinamento clinico respondido pelo medico:\n${refinementAnswersText(form)}` : "",
     `Hipoteses diagnosticas selecionadas/acrescentadas: ${stripFinalPeriod(treatmentDiagnosisText(form)) || stripFinalPeriod(form.diagnosticoManual || "") || "nao informado"}.`,
     `Diagnostico registrado: ${stripFinalPeriod(form.diagnosticoManual || "") || "nao informado"}.`,
     `Diferenciais registrados: ${stripFinalPeriod(form.diferenciais || "") || "nao informado"}.`,
