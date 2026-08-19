@@ -22,8 +22,17 @@ export function selectedDiagnosisValues(form = {}) {
   return values.filter(Boolean);
 }
 
+// "Outro" e a marca de que o medico escreveu a propria hipotese. Aqui ela e
+// trocada pelo texto que ele escreveu — este e o funil por onde a hipotese
+// chega ao prontuario, ao tratamento e a evolucao. selectedDiagnosisValues
+// continua devolvendo o valor cru, porque e ele que decide qual caixa aparece
+// marcada na tela.
 export function selectedDiagnosisText(form = {}) {
-  return selectedDiagnosisValues(form).join("\n");
+  const escrita = String(form.diagnosticoMedicoOutro || "").trim();
+  return selectedDiagnosisValues(form)
+    .map(value => (normalizeText(value) === "outro" ? escrita : value))
+    .filter(Boolean)
+    .join("\n");
 }
 
 export function normalizeDiagnosticOptions(value = "", limit = 5) {

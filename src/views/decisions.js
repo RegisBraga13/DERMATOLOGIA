@@ -32,6 +32,7 @@ export function diagnosisModule(form) {
     <div class="diagnosis-group diagnosis-doctor-group">
       <h4>Hipóteses do médico</h4>
       <div class="diagnosis-options">${diagnosisOptionCheckboxes(doctorDiagnosisOptions, selectedValues)}</div>
+      ${textarea("diagnosticoMedicoOutro", "Ao marcar \"Outro\": escreva a hipótese e os códigos", form.diagnosticoMedicoOutro, "Ex.: Transtorno de ansiedade generalizada - CID-11: 6B00 - DSM-5-TR: F41.1", 2)}
     </div>
   `;
 }
@@ -44,7 +45,7 @@ function diagnosisCategory(label, options, selectedValues) {
     : "sem hipóteses";
   return `<div class="diagnosis-group"><h4>${label} — ${total}</h4>
       <div class="diagnosis-options">
-        ${options.length ? diagnosisOptionCheckboxes(options, selectedValues) : `<p class="diagnosis-empty">O registro atual não sustenta hipótese nesta categoria.</p>`}
+        ${options.length ? diagnosisOptionCheckboxes(options, selectedValues) : `<p class="diagnosis-empty">O registro atual não sustenta hipótese nesta categoria. Veja <strong>Hipóteses do médico</strong>.</p>`}
       </div>
     </div>`;
 }

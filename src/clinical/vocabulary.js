@@ -93,7 +93,8 @@ export const doctorDiagnosisOptions = [
   "Ausencia de psicopatologia de relevancia clinica - a mente esta funcionando dentro do esperado para os desafios atuais.",
   "Sintomas reativos/adaptativos - sofrimento como reacao a um problema especifico, como luto, termino ou estresse profissional.",
   "Z03.2 (CID-10) - Observacao por suspeita de transtornos mentais e de comportamento, quando a suspeita foi descartada.",
-  "Z00.4 (CID-10) - Exame psiquiatrico geral, incluindo exames admissionais sem psicopatologia identificada."
+  "Z00.4 (CID-10) - Exame psiquiatrico geral, incluindo exames admissionais sem psicopatologia identificada.",
+  "Outro"
 ];
 
 export const laboratoryExamRequestItems = [
