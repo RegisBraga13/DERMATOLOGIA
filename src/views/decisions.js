@@ -2,7 +2,7 @@ import { diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, dia
 import { buildEvolutionNarrative, normalizeEvolutionNarrative, outdatedEvolutionText, requestedExamsText, returnEvolutionContainsIdentity, shouldRefreshEvolutionNarrative } from "../clinical/narrative.js";
 import { arrayValue, normalizeText } from "../clinical/textFormat.js";
 import { doctorDiagnosisOptions } from "../clinical/vocabulary.js";
-import { optionGroups } from "../data/examOptions.js?v=tratamento-1";
+import { optionGroups } from "../data/examOptions.js?v=tratamento-2";
 import { chips, textarea } from "../ui/controls.js";
 import { escapeAttr, escapeHtml } from "../ui/html.js";
 

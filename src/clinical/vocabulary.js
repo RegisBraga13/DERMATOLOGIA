@@ -1,4 +1,4 @@
-import { optionGroups } from "../data/examOptions.js?v=tratamento-1";
+import { optionGroups } from "../data/examOptions.js?v=tratamento-2";
 
 export const MENTAL_EXAM_KEYS = Object.freeze([
   "aparencia",
