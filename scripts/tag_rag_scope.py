@@ -41,6 +41,7 @@ MAPA = (
     # pontas. Marcar um deles como so uma coisa perderia metade do livro.
     ("tratado psiquiatria", "ambos"),
     ("manual_do_residente", "ambos"),
+    ("entrevista psiquiatrica", "ambos"),
 )
 
 
