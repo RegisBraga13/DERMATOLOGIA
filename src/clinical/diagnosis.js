@@ -54,29 +54,6 @@ export function formatDiagnosticOption(item = {}) {
   ].filter(Boolean).join(" - ");
 }
 
-// A hipotese aparece so com o nome, mas guarda por dentro o codigo da CID-11
-// em que foi ancorada. Sem isso, na hora de codificar o diagnostico aprovado
-// so restaria o texto livre para casar com a tabela — e "Depressao Maior" nao
-// casa com "Transtorno depressivo recorrente" por nenhuma comparacao textual.
-function parseStoredJson(value) {
-  if (value && typeof value === "object") return value;
-  try {
-    const parsed = JSON.parse(String(value || ""));
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-export function diagnosticCodeAnchors(form = {}) {
-  return parseStoredJson(form.diagnosticoAncoras);
-}
-
-export function diagnosticCodes(form = {}) {
-  const stored = parseStoredJson(form.diagnosticoCodigos);
-  return Array.isArray(stored.itens) ? stored : { itens: [], geradoEm: "" };
-}
-
 export function buildDiagnosticSuggestion(form) {
   const qphdaText = anamnesisText(form);
   const sourceText = [
@@ -100,16 +77,7 @@ export function buildDiagnosticSuggestion(form) {
     .filter(rule => rule.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
-  // Mesmo criterio da IA: a hipotese aparece so com o nome, e a ancora fica
-  // guardada. Se o catalogo continuasse colando codigo na linha, a via de
-  // contingencia entregaria codigo sem passar pela aprovacao do medico —
-  // justamente o que o fluxo novo tira do caminho.
-  const anchors = { ...diagnosticCodeAnchors(form) };
-  const namesOf = rules => rules.map(rule => {
-    const code = (rule.cid11 || "").trim().split(" ")[0];
-    if (code) anchors[rule.name] = code;
-    return rule.name;
-  }).join("\n");
+  const namesOf = rules => rules.map(formatDiagnosticOption).join("\n");
   const syndromic = namesOf(byCategory("sindromico", 3));
   const nosological = namesOf(byCategory("nosologico", 3));
   const selectedDoctorOptions = selectedDiagnosisValues(form).filter(option => doctorDiagnosisOptions.includes(option));
@@ -117,8 +85,6 @@ export function buildDiagnosticSuggestion(form) {
     diagnosticoAiSindromico: syndromic,
     diagnosticoAiNosologico: nosological,
     diagnosticoAiEtiologico: namesOf(byCategory("etiologico", 2)),
-    diagnosticoAncoras: JSON.stringify(anchors),
-    diagnosticoCodigos: "",
     // Campos antigos, mantidos para os prontuarios ja salvos.
     diagnosticoAiOpcoes: syndromic,
     diagnosticoAiOutrasOpcoes: nosological,
@@ -167,12 +133,12 @@ export function formatNonPharmacologicalOption(option = {}) {
 function diagnosticRules() {
   return [
     {
-      name: "Depressao Maior",
+      name: "Depressão Maior",
       categoria: "nosologico",
       // 6A70 e episodio UNICO; recorrente e 6A71. A regra nao distingue os dois
       // porque nao pergunta episodios previos, entao carrega os dois codigos.
       cid11: "6A70/6A71 - Episodio depressivo unico ou transtorno depressivo recorrente",
-      dsm5tr: "Transtorno depressivo maior, episodio depressivo maior",
+      dsm5tr: "F32.9/F33.9 - Episodio unico ou recorrente, nao especificado",
       terms: ["hipotimia", "anedonia", "deprim", "lentificacao", "hipobulia", "despertar precoce", "ideacao suicida"],
       differential: "luto, transtorno bipolar, uso de substancias, hipotireoidismo e transtorno de ajustamento."
     },
@@ -180,15 +146,15 @@ function diagnosticRules() {
       name: "Transtorno de Ansiedade Generalizada",
       categoria: "nosologico",
       cid11: "6B00 - Transtorno de ansiedade generalizada",
-      dsm5tr: "Transtorno de ansiedade generalizada",
+      dsm5tr: "F41.1 - Generalized anxiety disorder",
       terms: ["humor ansioso", "ansios", "preocupacoes excessivas", "inquietude", "tensao", "panico"],
       differential: "transtorno do panico, ansiedade social, TOC, hipertireoidismo e uso de estimulantes."
     },
     {
-      name: "Depressao Bipolar",
+      name: "Depressão Bipolar",
       categoria: "nosologico",
       cid11: "6A60/6A61 - Transtorno bipolar tipo I/tipo II",
-      dsm5tr: "Transtorno bipolar I ou II",
+      dsm5tr: "F31.9 - Bipolar disorder, unspecified",
       terms: ["hipertimia", "euforia", "reducao da necessidade de sono", "fuga de ideias", "logorreia", "aceleracao", "hiperbulia"],
       differential: "TDAH, uso de substancias, transtorno de personalidade borderline e episodio depressivo unipolar."
     },
@@ -196,15 +162,15 @@ function diagnosticRules() {
       name: "Transtorno Obsessivo-Compulsivo",
       categoria: "nosologico",
       cid11: "6B20 - Transtorno obsessivo-compulsivo",
-      dsm5tr: "Transtorno obsessivo-compulsivo",
+      dsm5tr: "F42.2 - Mixed obsessional thoughts and acts",
       terms: ["obsessoes", "compulsividade", "toc", "rituais", "intrusivos"],
       differential: "ansiedade generalizada, transtornos relacionados a trauma, tiques e transtorno de personalidade obsessivo-compulsiva."
     },
     {
-      name: "Transtorno Psicotico Primario ou Secundario",
+      name: "Transtorno Psicótico Primário ou Secundário",
       categoria: "nosologico",
       cid11: "6A20-6A2Z - Espectro da esquizofrenia e outros transtornos psicoticos primarios",
-      dsm5tr: "Espectro da esquizofrenia e outros transtornos psicoticos",
+      dsm5tr: "F20.9/F29 - Esquizofrenia ou psicose nao especificada",
       terms: ["alucinacao", "delirio", "juizo prejudicado", "critica prejudicada", "desconfianca", "afrouxamento", "descarrilamento"],
       differential: "transtorno bipolar com sintomas psicoticos, depressao psicotica, delirium, epilepsia e substancias."
     },
@@ -212,162 +178,152 @@ function diagnosticRules() {
       name: "Transtorno Relacionado a Trauma ou Estresse",
       categoria: "nosologico",
       cid11: "6B40/6B43 - TEPT ou transtorno de ajustamento",
-      dsm5tr: "TEPT ou transtorno de ajustamento",
+      dsm5tr: "F43.10/F43.20 - TEPT ou transtorno de adaptacao",
       terms: ["tept", "trauma", "luto", "separacao", "estresse", "conflito", "ajustamento"],
       differential: "depressao maior, ansiedade generalizada, luto prolongado e transtorno de personalidade."
     },
     {
-      name: "Transtorno por Uso de Substancias",
+      name: "Transtorno por Uso de Substâncias",
       categoria: "nosologico",
       cid11: "6C40-6C4Z - Transtornos por uso de substancias",
-      dsm5tr: "Transtornos relacionados a substancias e transtornos aditivos",
+      dsm5tr: "F10.20/F19.20 - Dependencia de alcool ou de outra substancia",
       terms: ["alcool", "cannabis", "cocaina", "crack", "opioides", "benzodiazepinicos", "substancias"],
       differential: "transtornos primarios do humor, ansiedade, psicose induzida por substancias e abstinencia/intoxicacao."
     },
     {
-      name: "Transtorno do Panico",
+      name: "Transtorno de Pânico",
       categoria: "nosologico",
       cid11: "6B01 - Transtorno do panico",
-      dsm5tr: "Transtorno do panico",
+      dsm5tr: "F41.0 - Panic disorder",
       terms: ["panico", "palpitacoes", "falta de ar", "sudorese", "morte iminente", "crises"],
       differential: "ansiedade generalizada, ansiedade social, arritmias, hipertireoidismo e uso de estimulantes."
     },
     {
-      name: "Transtorno de Deficit de Atencao e Hiperatividade",
+      name: "Transtorno de Déficit de Atenção e Hiperatividade",
       categoria: "nosologico",
       cid11: "6A05 - Transtorno de deficit de atencao e hiperatividade",
-      dsm5tr: "Transtorno de deficit de atencao/hiperatividade",
+      dsm5tr: "F90.9 - ADHD, unspecified type",
       terms: ["desatencao", "dificuldade de concentracao", "impulsividade", "hiperatividade", "procrastinacao"],
       differential: "transtornos do humor, ansiedade, privacao de sono, uso de substancias e dificuldades de aprendizagem."
     },
     {
-      name: "Transtorno Alimentar ou da Alimentacao",
+      name: "Transtorno Alimentar ou da Alimentação",
       categoria: "nosologico",
       cid11: "6B80-6B8Z - Transtornos alimentares ou da alimentacao",
-      dsm5tr: "Transtornos alimentares e da ingestao de alimentos",
+      dsm5tr: "F50.9 - Eating disorder, unspecified",
       terms: ["compulsao alimentar", "restricao alimentar", "perda de peso", "ganho de peso", "imagem corporal"],
       differential: "depressao, ansiedade, condicoes endocrinas, efeitos medicamentosos e transtorno dismorfico corporal."
     },
     {
-      name: "Sindrome Depressiva",
+      name: "Síndrome Depressiva",
       categoria: "sindromico",
       cid11: "",
-      dsm5tr: "",
       terms: ["hipotimia", "anedonia", "deprim", "hipobulia", "lentificacao", "desanimo", "choro facil", "desesperanca", "ideacao suicida", "culpa", "desvalia"],
       differential: "episodio depressivo maior, depressao bipolar, luto, transtorno de ajustamento, hipotireoidismo e depressao secundaria a substancias."
     },
     {
-      name: "Sindrome Maniaca ou Hipomaniaca",
+      name: "Síndrome Maníaca ou Hipomaníaca",
       categoria: "sindromico",
       cid11: "",
-      dsm5tr: "",
       terms: ["hipertimia", "euforia", "expansiv", "logorreia", "fuga de ideias", "hiperbulia", "reducao da necessidade de sono", "grandiosidade", "taquipsiquismo", "gastos excessivos"],
       differential: "transtorno bipolar tipo I ou II, mania induzida por substancias ou medicamentos, TDAH e transtorno de personalidade."
     },
     {
-      name: "Sindrome Ansiosa",
+      name: "Síndrome Ansiosa",
       categoria: "sindromico",
       cid11: "",
-      dsm5tr: "",
       terms: ["ansios", "apreensao", "preocupacao excessiva", "inquietude", "tensao corporal", "tensao muscular", "hipervigilancia"],
       differential: "ansiedade generalizada, transtorno do panico, ansiedade social, hipertireoidismo e uso de estimulantes."
     },
     {
-      name: "Sindrome Psicotica",
+      name: "Síndrome Psicótica",
       categoria: "sindromico",
       cid11: "",
-      dsm5tr: "",
       terms: ["alucinacao", "delirio", "descarrilamento", "afrouxamento", "critica prejudicada", "juizo prejudicado", "desconfianca", "autorreferencia", "desorganizacao"],
       differential: "esquizofrenia e transtornos psicoticos primarios, psicose afetiva, delirium, psicose induzida por substancias e causa organica."
     },
     {
-      name: "Sindrome Obsessivo-Compulsiva",
+      name: "Síndrome Obsessivo-Compulsiva",
       categoria: "sindromico",
       cid11: "",
-      dsm5tr: "",
       terms: ["obsessoes", "compulsoes", "compulsividade", "rituais", "intrusivos", "verificacao", "lavagem", "simetria"],
       differential: "TOC, transtornos do espectro obsessivo-compulsivo, tiques, ansiedade generalizada e personalidade obsessivo-compulsiva."
     },
     {
-      name: "Sindrome Catatonica",
+      name: "Síndrome Catatônica",
       categoria: "sindromico",
       // 6A40 sozinho e "catatonia associada a outro transtorno mental". Como a
       // regra e sindromica e nao afirma a causa, vai o bloco inteiro: 6A41 e
       // induzida por substancia e 6E69 e secundaria a condicao medica.
       cid11: "6A40-6A4Z - Catatonia",
-      dsm5tr: "Catatonia",
+      dsm5tr: "F06.1 - Catatonic disorder due to known physiological condition",
       terms: ["catatonia", "estupor", "negativismo", "flexibilidade cerea", "mutismo", "ecolalia", "ecopraxia", "estereotipias", "posturas bizarras"],
       differential: "catatonia associada a transtorno do humor ou psicotico, catatonia secundaria a condicao medica e sindrome neuroleptica maligna."
     },
     {
-      name: "Sindrome Confusional Aguda (Delirium)",
+      name: "Síndrome Confusional Aguda (Delirium)",
       categoria: "sindromico",
       cid11: "6D70 - Delirium",
-      dsm5tr: "Delirium",
+      dsm5tr: "F05 - Delirium due to known physiological condition",
       terms: ["rebaixamento do nivel de consciencia", "obnubilacao", "confusao mental", "inicio agudo", "flutuacao", "torpor", "letargia", "inversao do ciclo sono-vigilia"],
       differential: "demencia, estado pos-ictal, intoxicacao ou abstinencia, infeccao, disturbio metabolico e causa medicamentosa."
     },
     {
-      name: "Sindrome Demencial",
+      name: "Síndrome Demencial",
       categoria: "sindromico",
       cid11: "6D80-6D8Z - Demencia",
-      dsm5tr: "Transtorno neurocognitivo maior",
+      dsm5tr: "F03.90 - Unspecified dementia",
       terms: ["declinio cognitivo", "perda de memoria", "amnesia", "esquecimento progressivo", "apraxia", "afasia", "agnosia", "prejuizo funcional progressivo"],
       differential: "delirium, transtorno neurocognitivo leve, depressao com prejuizo cognitivo e causas reversiveis (B12, tireoide, hidrocefalia)."
     },
     {
-      name: "Sindrome de Agitacao Psicomotora",
+      name: "Síndrome de Agitação Psicomotora",
       categoria: "sindromico",
       cid11: "",
-      dsm5tr: "",
       terms: ["agitacao psicomotora", "hiperatividade motora", "inquietude psicomotora", "heteroagressividade", "hostilidade", "contencao"],
       differential: "mania, psicose em atividade, delirium, intoxicacao ou abstinencia, acatisia e dor nao reconhecida."
     },
     {
-      name: "Sindrome Dissociativa ou Conversiva",
+      name: "Síndrome Dissociativa ou Conversiva",
       categoria: "sindromico",
       cid11: "",
-      dsm5tr: "",
       terms: ["dissociacao", "despersonalizacao", "desrealizacao", "conversao", "amnesia dissociativa", "crise nao epileptica"],
       differential: "epilepsia, transtornos relacionados a trauma, simulacao e condicao neurologica."
     },
     {
-      name: "Sindrome de Abstinencia",
+      name: "Síndrome de Abstinência",
       categoria: "sindromico",
       cid11: "",
-      dsm5tr: "",
       terms: ["abstinencia", "fissura", "craving", "tremores", "sudorese", "interrupcao abrupta", "retirada"],
       differential: "abstinencia de alcool, benzodiazepinicos ou opioides, delirium tremens, ansiedade primaria e causa clinica."
     },
     {
-      name: "Sindrome de Intoxicacao Aguda",
+      name: "Síndrome de Intoxicação Aguda",
       categoria: "sindromico",
       cid11: "",
-      dsm5tr: "",
       terms: ["intoxicacao", "embriaguez", "uso recente", "hiperemia conjuntival", "midriase", "miose", "disartria"],
       differential: "intoxicacao por substancia especifica, delirium, causa metabolica e efeito medicamentoso."
     },
     {
-      name: "Induzido por Substancia",
+      name: "Induzido por Substância",
       categoria: "etiologico",
       cid11: "6C40-6C4Z - Transtornos por uso de substancias",
-      dsm5tr: "Transtornos induzidos por substancias",
+      dsm5tr: "F19.90 - Other psychoactive substance use, unspecified",
       terms: ["alcool", "cannabis", "cocaina", "crack", "opioides", "anfetamina", "estimulantes", "benzodiazepinicos", "substancias", "uso de drogas"],
       differential: "transtorno primario coexistente, intoxicacao, abstinencia e transtorno persistente induzido por substancia."
     },
     {
-      name: "Secundario a Condicao Medica Geral",
+      name: "Secundário a Condição Médica Geral",
       categoria: "etiologico",
       cid11: "6E60-6E6Z - Sindromes mentais ou comportamentais secundarias",
-      dsm5tr: "Transtorno mental devido a outra condicao medica",
+      dsm5tr: "F06.8 - Other specified mental disorders due to known physiological condition",
       terms: ["hipotireoidismo", "hipertireoidismo", "anemia", "neoplasia", "epilepsia", "avc", "tce", "traumatismo cranioencefalico", "lupus", "hiv", "sifilis", "diabetes", "insuficiencia renal", "apneia do sono"],
       differential: "transtorno mental primario, causa medicamentosa e transtorno induzido por substancia."
     },
     {
-      name: "Iatrogenico ou Medicamentoso",
+      name: "Iatrogênico ou Medicamentoso",
       categoria: "etiologico",
       cid11: "",
-      dsm5tr: "",
       terms: ["corticoide", "corticoides", "interferon", "isotretinoina", "efeito adverso", "efeito colateral", "polifarmacia", "inicio de medicacao", "troca de medicacao"],
       differential: "condicao medica de base, transtorno primario e interacao medicamentosa."
     },
@@ -375,7 +331,6 @@ function diagnosticRules() {
       name: "Relacionado a Estressor Psicossocial",
       categoria: "etiologico",
       cid11: "",
-      dsm5tr: "",
       terms: ["luto por morte", "falecimento", "separacao", "divorcio", "desemprego", "demissao", "violencia", "abuso", "estressor", "perda recente"],
       differential: "transtorno de ajustamento, TEPT, luto prolongado, episodio depressivo desencadeado e reacao normal ao estressor."
     },
@@ -383,15 +338,13 @@ function diagnosticRules() {
       name: "Neurodegenerativo ou Lesional do SNC",
       categoria: "etiologico",
       cid11: "",
-      dsm5tr: "",
       terms: ["parkinson", "alzheimer", "lesao cerebral", "tumor cerebral", "hidrocefalia", "esclerose multipla", "huntington", "neurocirurgia"],
       differential: "demencia de outra etiologia, delirium, sequela vascular e causa metabolica."
     },
     {
-      name: "Carga Familiar ou Genetica",
+      name: "Carga Familiar ou Genética",
       categoria: "etiologico",
       cid11: "",
-      dsm5tr: "",
       terms: ["historia familiar", "antecedentes familiares", "parente de primeiro grau", "familiar com transtorno", "carga familiar"],
       differential: "avaliar peso do fator familiar diante de estressores atuais e de causas clinicas."
     }

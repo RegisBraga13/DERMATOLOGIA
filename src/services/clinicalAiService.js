@@ -54,24 +54,6 @@ export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery
   };
 }
 
-// Consulta a tabela local de codigos. Nao passa pela OpenAI e nao usa chave:
-// codificar o diagnostico aprovado continua funcionando com o app offline.
-export async function requestDiagnosticCodes(names = []) {
-  const response = await fetch("/api/diagnostic-codes", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ names })
-  });
-  let data = {};
-  try {
-    data = await response.json();
-  } catch {
-    data = {};
-  }
-  if (!response.ok) throw new Error(data.error || "Falha ao consultar as tabelas de codigo.");
-  return Array.isArray(data.codes) ? data.codes : [];
-}
-
 export function buildRagQuery(kind, form = {}) {
   const diagnosis = treatmentDiagnosisText(form) || form.diagnosticoManual || "";
   // A busca vetorial recebe o dado ja estruturado, nao a transcricao bruta.
@@ -251,8 +233,7 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "Gere ate 3 hipoteses sindromicas, ate 3 nosologicas e ate 2 etiologicas: e teto, nao piso. Grupo vazio e resposta legitima quando o registro nao sustenta.",
       "As hipoteses sindromicas devem descrever a sindrome clinica; as nosologicas devem propor transtornos/diagnosticos; as etiologicas devem propor causas medicas, substancias ou contextos causais quando sustentados pelos dados.",
       "As hipoteses sao mero auxilio ao psiquiatra e nao substituem avaliacao, confirmacao de criterios, exame clinico ou decisao medica.",
-      "Cada opcao deve conter o nome e, quando existir, o codigo da CID-11 do capitulo 6. Use o titulo oficial da entidade como nome. Deixe o campo em branco quando nao houver codigo proprio — sindrome descritiva costuma nao ter — nunca escreva 'N/A'.",
-      "Deixe o campo DSM-5-TR em branco: o servidor o deriva do codigo da CID-11 pelo mapa oficial da OMS."
+      "Cada opcao deve conter nome, codigo da CID-11 e codigo do DSM-5-TR. Deixe o campo em branco quando nao houver codigo proprio — sindrome descritiva costuma nao ter — nunca escreva 'N/A'.",
     ],
     treatment: [
       "Gere exatamente 3 opcoes de abordagem medicamentosa: primeira opcao, segunda opcao e uma opcao off-label, exclusivamente com dados do Assistant da IA atual ou do RAG com literatura.",
@@ -371,14 +352,12 @@ function promptResponseFormat(kind) {
       "DIAGNOSTICO ETIOLOGICO: ate 2 hipoteses, uma por linha.",
       "Formato de cada linha: Nome - CID-11: ... - DSM-5-TR: ...",
       "",
-      "No campo CID-11 use o codigo do capitulo 6 e, no nome, o titulo oficial",
-      "da entidade — 6A71 e 'Transtorno depressivo recorrente', nao 'Depressao",
-      "Maior'. Distinga episodio unico (6A70) de recorrente (6A71): sao codigos",
-      "diferentes e o registro precisa sustentar a escolha.",
+      "Toda hipotese leva os dois codigos: CID-11 e DSM-5-TR. Sao classificacoes",
+      "independentes — um nao se deduz do outro, e os nomes as vezes diferem.",
       "",
-      "Deixe o campo DSM-5-TR em branco. Ele nao e mais respondido aqui: o",
-      "servidor deriva o codigo do DSM-5-TR a partir do da CID-11, pelo mapa",
-      "oficial da OMS. Codigo do DSM que vier nesta resposta e descartado.",
+      "No DSM-5-TR use o codigo alfanumerico da CID-10-MC, que e o que o DSM",
+      "adota: F41.1, F33.1, F90.9. Nao use os numericos do DSM-IV (300.02).",
+      "Distinga episodio unico (6A70/F32) de recorrente (6A71/F33).",
       "",
       "Proponha menos hipoteses, ou nenhuma no grupo, quando o registro nao",
       "sustentar. Nao complete as vagas com rotulo inespecifico do tipo",

@@ -1,11 +1,11 @@
-import { buildDiagnosticSuggestion, diagnosticCodeAnchors, diagnosticCodes, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, formatMedicationTreatmentOption, formatNonPharmacologicalOption, normalizeDiagnosticOptions, parseTreatmentResponse, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
+import { buildDiagnosticSuggestion, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharmacologicalOption, normalizeDiagnosticOptions, parseTreatmentResponse, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
 import { anamnesisText, buildEvolutionNarrative, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, outdatedEvolutionText, patientIdentificationText, professionalSelectedTreatmentItems, removeReturnBoilerplate, requestedExamsText, returnEvolutionContainsIdentity, returnStoryText, shouldRefreshEvolutionNarrative, treatmentDiagnosisText } from "./clinical/narrative.js";
 import { arrayValue, calculateAge, capitalizeFirst, cleanClinicalLine, clinicalPhrase, compactText, formatClinicalList, formatPlainList, joinValues, lowerFirst, mentalExamKeys, normalizedSingleChoiceValue, normalizeText, optionDisplayLabel, professionalClinicalTerms, professionalList, professionalListWithOther, stripFinalPeriod } from "./clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, anamnesisQuestionGroups, consultationPages, doctorDiagnosisOptions, EVOLUTION_REFRESH_PATTERNS, laboratoryExamRequestItems, MENTAL_EXAM_AI_FIELDS, pagesForScope, RETURN_BOILERPLATE_PHRASES, returnPages } from "./clinical/vocabulary.js";
 import { optionGroups } from "./data/examOptions.js?v=tratamento-1";
 import { medications } from "./data/medications.js?v=medicamentos-1";
 import { fetchCep } from "./services/cepService.js";
-import { buildClinicalAiPrompt, buildRagQuery, canonicalAiSelections, localRefinementPlan, requestClinicalAi, requestDiagnosticCodes } from "./services/clinicalAiService.js";
+import { buildClinicalAiPrompt, buildRagQuery, canonicalAiSelections, localRefinementPlan, requestClinicalAi } from "./services/clinicalAiService.js";
 import { buildMedicationAutofill, localMedicationSuggestions } from "./services/medicationService.js";
 import { exportTextAsPdf } from "./services/pdfService.js?v=pdf-download-2";
 import { loadState, mergeStates, saveState, uid } from "./services/storageService.js";
@@ -808,9 +808,6 @@ function bindActions() {
       if (action === "start-refinement") await startRefinement(element);
       if (action === "save-next-page") await saveCurrentPageAndAdvance(element);
       if (action === "generate-diagnosis") await generateDiagnosisFromClinicalData(element);
-      if (action === "code-diagnosis") await codeSelectedDiagnoses(element);
-      if (action === "pick-diagnosis-code") pickDiagnosisEntity(element);
-      if (action === "pick-dsm-code") pickDsmCode(element);
       if (action === "generate-treatment") await generateTreatmentFromClinicalData(element);
       if (action === "generate-evolution") await generateEvolutionFromClinicalData(element);
       if (action === "generate-medication-ai") await generateMedicationFromClinicalData(element);
@@ -932,69 +929,6 @@ function countLabel(total, singular, plural = `${singular}s`) {
   return `${total} ${total === 1 ? singular : plural}`;
 }
 
-// Codificar e passo do medico, sob pedido, depois de aprovar o diagnostico.
-// A consulta e a tabela local: nao chama a OpenAI e funciona sem rede.
-async function codeSelectedDiagnoses(element) {
-  const formElement = element.closest("form");
-  if (formElement) updateDraftFromForm(formElement);
-  const scope = view === "return" ? "return" : "consultation";
-  const target = scope === "return" ? draft.return : draft.consultation;
-  const selecionados = selectedDiagnosisValues(target || {});
-  if (!selecionados.length) return;
-  const anchors = diagnosticCodeAnchors(target || {});
-  target.codingStatus = "Consultando as tabelas oficiais...";
-  render();
-  try {
-    // Manda a ancora junto quando existe: o nome que o medico ve pode ter sido
-    // editado, e a ancora e o que liga a hipotese a entidade da CID-11.
-    const itens = await requestDiagnosticCodes(selecionados.map(nome => anchors[nome] ? `${nome} ${anchors[nome]}` : nome));
-    const ajustados = itens.map((item, index) => ({ ...item, name: selecionados[index] || item.name }));
-    const semCodigo = ajustados.filter(item => !item.cid11).length;
-    const aEspecificar = ajustados.filter(item => (item.candidatos || []).length).length;
-    target.diagnosticoCodigos = JSON.stringify({ itens: ajustados, geradoEm: new Date().toISOString() });
-    target.codingStatus = [
-      `${countLabel(ajustados.length - semCodigo, "diagnóstico codificado", "diagnósticos codificados")}.`,
-      semCodigo ? `${countLabel(semCodigo, "sem correspondência")} na CID-11.` : "",
-      aEspecificar ? `${countLabel(aEspecificar, "aguarda")} a especificação da gravidade.` : ""
-    ].filter(Boolean).join(" ");
-  } catch (error) {
-    target.codingStatus = `Falha ao codificar: ${error.message}`;
-  }
-  render();
-}
-
-function updateDiagnosisCode(element, mutate) {
-  const scope = view === "return" ? "return" : "consultation";
-  const target = scope === "return" ? draft.return : draft.consultation;
-  const alvo = element.dataset.alvo || "";
-  const codes = diagnosticCodes(target || {});
-  const itens = codes.itens.map(item => (item.name === alvo ? mutate(item, element.value) : item));
-  target.diagnosticoCodigos = JSON.stringify({ ...codes, itens });
-  render();
-}
-
-// O medico escolheu a entidade: refaz a consulta so para essa linha, para que
-// o codigo do DSM venha do mapa e nao da escolha.
-async function pickDiagnosisEntity(element) {
-  const scope = view === "return" ? "return" : "consultation";
-  const target = scope === "return" ? draft.return : draft.consultation;
-  const alvo = element.dataset.alvo || "";
-  try {
-    const [resolvido] = await requestDiagnosticCodes([`${alvo} ${element.value}`]);
-    if (!resolvido) return;
-    const anchors = { ...diagnosticCodeAnchors(target || {}), [alvo]: element.value };
-    target.diagnosticoAncoras = JSON.stringify(anchors);
-    updateDiagnosisCode(element, () => ({ ...resolvido, name: alvo }));
-  } catch (error) {
-    target.codingStatus = `Falha ao codificar: ${error.message}`;
-    render();
-  }
-}
-
-function pickDsmCode(element) {
-  updateDiagnosisCode(element, (item, value) => ({ ...item, dsm5tr: value, dsm5trEscolhido: value, dsm5trTitle: (item.candidatos || []).find(c => c.code === value)?.name || "", candidatos: item.candidatos }));
-}
-
 async function generateDiagnosisFromClinicalData(element) {
   const formElement = element.closest("form");
   if (formElement) updateDraftFromForm(formElement);
@@ -1011,25 +945,18 @@ async function generateDiagnosisFromClinicalData(element) {
     // com o mesmo punhado de entidades nosologicas, o que fazia uma nosologia
     // aparecer rotulada como sindrome — e as vezes duas vezes, em categorias
     // diferentes, porque a deduplicacao era so dentro de cada grupo.
-    // So o nome. Codigo nao acompanha hipotese: acompanha diagnostico, e
-    // diagnostico e o que o medico aprova. Codificar as tres propostas seria
-    // codificar o que ele ainda nao aceitou — e obrigaria a decidir gravidade
-    // e recorrencia antes da decisao que define as duas.
-    const formatGroup = (items, count) => (items || []).map(item => item.name || "")
+    // Cada hipotese sai com os dois codigos, nas tres categorias, e o medico
+    // escolhe. CID-11 e DSM-5-TR sao classificacoes independentes: a mesma
+    // entidade tem codigo proprio em cada uma, e o servidor confere cada um
+    // contra a sua tabela oficial antes de chegar aqui.
+    const formatGroup = (items, count) => (items || []).map(formatDiagnosticOption)
       .filter(Boolean)
       .filter((option, index, list) => list.indexOf(option) === index).slice(0, count);
-    // A ancora fica guardada, invisivel: sem ela, na hora de codificar so
-    // restaria texto livre para casar com a tabela.
-    const anchors = { ...diagnosticCodeAnchors(target || {}) };
-    [result.syndromic_options, result.nosological_options, result.etiological_options]
-      .flatMap(group => group || [])
-      .forEach(item => { if (item.name && item.cid11) anchors[item.name] = item.cid11; });
     // A deduplicacao era so dentro de cada grupo, entao a mesma entidade saia
     // duas vezes em categorias diferentes: numa chamada real de um caso de TAG,
     // "Transtorno de ansiedade generalizada" apareceu como sindromica E como
     // nosologica. Qual das duas esta certa e juizo clinico, entao o programa
-    // nao escolhe em silencio: mantem a primeira e diz que aconteceu, porque
-    // a duplicata denuncia confusao da IA sobre aquela entidade.
+    // nao escolhe em silencio: mantem uma e diz que aconteceu.
     const jaVistos = new Map();
     const duplicadas = [];
     const uniqueGroup = (items, count, categoria) => formatGroup(items, count).filter(nome => {
@@ -1038,10 +965,10 @@ async function generateDiagnosisFromClinicalData(element) {
       jaVistos.set(chave, categoria);
       return true;
     });
-    // Nosologico primeiro, de proposito. Quando a mesma entidade sai nas duas
-    // categorias, a IA nao esta distinguindo sindrome de transtorno — e a
-    // leitura nosologica e a afirmacao mais especifica. Ficando com a
-    // sindromica, o caso de TAG esvaziava justamente a categoria util.
+    // Nosologico primeiro: quando a mesma entidade sai nas duas categorias, a
+    // IA nao esta distinguindo sindrome de transtorno, e a leitura nosologica
+    // e a afirmacao mais especifica. Ficar com a sindromica esvaziava a
+    // categoria util.
     const nosologicalOptions = uniqueGroup(result.nosological_options, 3, "Nosológico");
     const syndromicOptions = uniqueGroup(result.syndromic_options, 3, "Sindrômico");
     const etiologicalOptions = uniqueGroup(result.etiological_options, 2, "Etiológico");
@@ -1056,8 +983,6 @@ async function generateDiagnosisFromClinicalData(element) {
       diagnosticoSelecionado: selectedDoctorOptions,
       diagnosticoManual: selectedDoctorOptions.join("\n"),
       diferenciais: "",
-      diagnosticoAncoras: JSON.stringify(anchors),
-      diagnosticoCodigos: "",
       ragSources: sources,
       aiMode: mode,
       aiStatus: [

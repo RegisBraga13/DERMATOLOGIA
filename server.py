@@ -567,6 +567,11 @@ def load_code_tables():
                     tables[key] = {entry["cid11"]: entry for entry in data["codigos"]}
                 else:
                     tables[key] = {entry["code"]: entry["name"] for entry in data["codigos"]}
+                    if key == "cid11":
+                        # Titulo em ingles guardado a parte: e por ele que se
+                        # procura na ICD-10-CM quando o mapa da OMS falha, ja
+                        # que as descricoes do CDC sao em ingles.
+                        tables["cid11_en"] = {entry["code"]: entry.get("nameEN", "") for entry in data["codigos"]}
             CODE_TABLES = tables
         return CODE_TABLES
 
@@ -601,23 +606,52 @@ def resolve_dsm_code(cid11_code, crosswalk):
         # Notacao de codigo incompleto: "F33.-" quando falta a subdivisao, mas
         # "F51.0-" quando a categoria ja traz ponto — senao sai "F51.0.-".
         return (f"{mapped}-" if "." in mapped else f"{mapped}.-"), candidates
-    return "", []
+    # O mapa da OMS falha em dois casos reais, os dois por divergencia entre a
+    # ICD-10 e a ICD-10-CM: devolve faixa (6A05 -> "F80-F89", que alem de faixa
+    # e a errada — TDAH na ICD-10-CM e F90.x) ou devolve codigo que os EUA
+    # eliminaram (6D80 -> "F00", extinto: demencia de Alzheimer virou G30 mais
+    # F02.8x). Nao invento a correspondencia; procuro na ICD-10-CM pelo titulo
+    # oficial em ingles e devolvo candidatos para o medico escolher.
+    return "", search_icd10cm_by_title(cid11_code)
+
+
+def search_icd10cm_by_title(cid11_code):
+    """Candidatos da ICD-10-CM pelo titulo oficial em ingles da entidade."""
+    tables = load_code_tables()
+    titulo = (tables.get("cid11_en") or {}).get(cid11_code, "")
+    known10cm = tables.get("dsm5tr") or {}
+    generic = {"disorder", "disorders", "other", "specified", "unspecified", "due",
+               "with", "without", "and", "the", "class", "classified", "elsewhere"}
+    stems = [t[:5] for t in normalize_name(titulo).split() if len(t) >= 5 and t not in generic]
+    if not stems:
+        return []
+    marcados = []
+    for code, nome in known10cm.items():
+        tokens = normalize_name(nome).split()
+        score = sum(1 for stem in stems if any(tok.startswith(stem) for tok in tokens))
+        if score == len(stems):
+            marcados.append((score, -len(tokens), code, nome))
+    marcados.sort(reverse=True)
+    return [{"code": c, "name": n} for _, _, c, n in marcados[:8]]
 
 
 def verify_diagnostic_codes(result):
-    """Ancora cada hipotese na CID-11 e deriva o codigo do DSM-5-TR.
+    """Confere os dois codigos de cada hipotese, cada um contra a sua tabela.
 
-    Codigo nao e coisa que a IA produza de forma confiavel: numa chamada real
-    ela devolveu "300.02" para TAG, que e o codigo do DSM-IV. Aqui o unico
-    codigo aceito da IA e o da CID-11, e mesmo esse so vale se existir na
-    tabela da OMS; quando nao existe, a hipotese e reancorada pelo nome. O
-    codigo do DSM-5-TR nunca vem da IA — sai do mapa oficial 11->10.
+    CID-11 e DSM-5-TR sao classificacoes independentes: a mesma entidade tem um
+    codigo em cada uma, e nenhum dos dois se deduz do outro. Tratar o DSM como
+    funcao do CID-11 quebrava justamente onde as duas divergem — TDAH cai em
+    6A05 na CID-11 e em F90.x na ICD-10-CM, e o mapa da OMS devolve "F80-F89".
+
+    Entao cada codigo e conferido contra a sua propria fonte. O mapa 11->10
+    entra so como sugestao, quando um dos dois falta.
 
     Nao derruba a resposta: hipotese sem codigo ainda serve ao medico. O que
-    nao pode e sair um codigo que o medico tomaria por conferido.
+    nao pode e sair codigo que o medico tomaria por conferido.
     """
     tables = load_code_tables()
     known11 = tables.get("cid11")
+    known10cm = tables.get("dsm5tr") or {}
     crosswalk = tables.get("crosswalk") or {}
     if not known11:
         return []
@@ -626,99 +660,49 @@ def verify_diagnostic_codes(result):
     for group in ("syndromic_options", "nosological_options", "etiological_options"):
         for option in result.get(group) or []:
             nome = option.get("name") or "hipotese sem nome"
-            bruto = option.get("cid11") if isinstance(option.get("cid11"), str) else ""
-            candidato = next((c for c in CID11_PATTERN.findall(bruto) if c in known11), "")
-            if not candidato:
-                # A IA errou ou nao deu o codigo: tenta ancorar pelo nome, que
-                # e o que ela sabe produzir. Titulo da OMS, comparado sem
-                # acento nem caixa.
-                candidato = by_name.get(normalize_name(nome), "")
-                if candidato:
-                    warnings.append({"kind": "anchor", "text": f"{nome}: CID-11 reancorado em {candidato} pelo nome da entidade."})
-                elif bruto.strip():
-                    warnings.append({"kind": "anchor", "text": f"{nome}: CID-11 \"{bruto.strip()}\" nao existe nos capitulos 6 e 7; descartado."})
-            # Ancorada a hipotese, o nome passa a ser o titulo oficial da OMS,
-            # nao a parafrase da IA. E o que a licenca CC BY-ND exige (titulo
-            # reproduzido literalmente) e o que o prontuario precisa: "Depressao
-            # Maior" e "Transtorno depressivo, episodio unico" nao sao a mesma
-            # afirmacao, e so a segunda corresponde ao codigo ao lado.
-            if candidato and normalize_name(nome) != normalize_name(known11[candidato]):
-                warnings.append({"kind": "rename", "text": f"\"{nome}\" renomeada para o titulo oficial da CID-11: \"{known11[candidato]}\"."})
-            if candidato:
-                option["name"] = known11[candidato]
-            option["cid11"] = candidato
 
-            proposto = option.get("dsm5tr") if isinstance(option.get("dsm5tr"), str) else ""
-            derivado, candidatos = resolve_dsm_code(candidato, crosswalk) if candidato else ("", [])
-            option["dsm5tr"] = derivado
+            # --- CID-11, contra a tabela da OMS ---
+            bruto11 = option.get("cid11") if isinstance(option.get("cid11"), str) else ""
+            code11 = next((c for c in CID11_PATTERN.findall(bruto11) if c in known11), "")
+            if not code11:
+                code11 = by_name.get(normalize_name(nome), "")
+                if code11:
+                    warnings.append({"kind": "anchor", "text": f"{nome}: CID-11 reancorado em {code11} pelo nome da entidade."})
+                elif bruto11.strip():
+                    warnings.append({"kind": "anchor", "text": f"{nome}: CID-11 \"{bruto11.strip()}\" nao existe nos capitulos 6 e 7; descartado."})
+            # O nome da IA nao e substituido pelo titulo da OMS: a mesma
+            # entidade tem nome proprio em cada classificacao, e apagar um pelo
+            # outro perde informacao. Os dois titulos oficiais viajam ao lado
+            # do nome, cada um identificado pela sua fonte.
+            option["cid11"] = code11
+            option["cid11Title"] = known11.get(code11, "")
+
+            # --- DSM-5-TR, contra a ICD-10-CM, por conta propria ---
+            bruto10 = option.get("dsm5tr") if isinstance(option.get("dsm5tr"), str) else ""
+            code10 = next((c for c in ICD10CM_PATTERN.findall(bruto10) if c in known10cm), "")
+            if not code10 and bruto10.strip():
+                # Aqui entra o "300.02": codigo do DSM-IV, que nao existe na
+                # ICD-10-CM e nem tem o formato dela.
+                warnings.append({"kind": "code", "text": f"{nome}: DSM-5-TR \"{bruto10.strip()}\" nao existe na ICD-10-CM; descartado."})
+            candidatos = []
+            if not code10 and code11:
+                # Faltando o do DSM, o mapa da OMS sugere — nao decide.
+                sugerido, candidatos = resolve_dsm_code(code11, crosswalk)
+                if sugerido and "-" not in sugerido.rstrip("0123456789"):
+                    code10 = sugerido
+                    warnings.append({"kind": "code", "text": f"{nome}: DSM-5-TR {code10} sugerido pelo mapa oficial a partir de {code11}."})
+                elif sugerido:
+                    code10 = sugerido
+            option["dsm5tr"] = code10
+            option["dsm5trTitle"] = known10cm.get(code10, "")
             if candidatos:
                 option["dsm5tr_candidatos"] = [f"{item['code']} - {item['name']}" for item in candidatos]
                 warnings.append({"kind": "code", "text":
-                    f"{nome}: DSM-5-TR {derivado} e categoria — "
-                    f"especificar entre {', '.join(item['code'] for item in candidatos)}."})
-            elif not derivado and candidato:
-                warnings.append({"kind": "code", "text": f"{nome}: sem correspondencia DSM-5-TR no mapa oficial da OMS para {candidato}."})
-            if proposto.strip() and proposto.strip() != derivado:
-                warnings.append({"kind": "code", "text": f"{nome}: DSM-5-TR proposto pela IA (\"{proposto.strip()}\") descartado; vale o mapa oficial."})
+                    f"{nome}: DSM-5-TR a especificar entre "
+                    f"{', '.join(item['code'] for item in candidatos)}."})
+            elif not code10 and code11:
+                warnings.append({"kind": "code", "text": f"{nome}: sem codigo DSM-5-TR; a ICD-10-CM nao acompanha {code11}."})
     return warnings
-
-
-def lookup_diagnostic_codes(names):
-    """Codifica os diagnosticos que o medico aprovou.
-
-    Codificar e ato que segue a decisao clinica, nao a hipotese: por isso a
-    consulta acontece aqui, sob pedido, e nao no momento em que a IA propoe.
-
-    Tres caminhos, nessa ordem: codigo escrito dentro do proprio texto (as
-    hipoteses antigas salvas trazem "- CID-11: 6B00 -"), titulo oficial exato,
-    e por fim correspondencia parcial — que nao decide nada, so devolve os
-    candidatos para o medico escolher.
-    """
-    tables = load_code_tables()
-    known11 = tables.get("cid11") or {}
-    crosswalk = tables.get("crosswalk") or {}
-    known10cm = tables.get("dsm5tr") or {}
-    by_name = {normalize_name(title): code for code, title in known11.items()}
-
-    resultados = []
-    for raw in names:
-        nome = str(raw or "").strip()
-        if not nome:
-            continue
-        # "Nome - CID-11: 6B00 - DSM-5-TR: F41.1" -> so o nome, para a busca.
-        limpo = re.split(r"\s+-\s+(?:CID-11|DSM-5-TR):", nome)[0].strip()
-        code = next((c for c in CID11_PATTERN.findall(nome) if c in known11), "")
-        if not code:
-            code = by_name.get(normalize_name(limpo), "")
-        item = {"name": nome, "cid11": "", "cid11Title": "", "dsm5tr": "", "dsm5trTitle": "", "candidatos": [], "sugestoes": []}
-        if not code:
-            # Por radical, nao por substring: o medico escreve "Depressao
-            # Maior" e a entidade chama "Transtorno depressivo, episodio
-            # unico" — nenhuma das duas contem a outra, mas "depress" e comum.
-            # Palavra generica nao pontua, senao "transtorno" casa com metade
-            # do capitulo.
-            generic = {"transtorno", "transtornos", "sindrome", "sindromes", "outro", "outros",
-                       "outra", "outras", "devido", "devidos", "nao", "especificado", "especificados"}
-            stems = [t[:4] for t in normalize_name(limpo).split() if len(t) >= 5 and t not in generic]
-            if stems:
-                marcados = []
-                for c, t in known11.items():
-                    tokens = normalize_name(t).split()
-                    score = sum(1 for stem in stems if any(tok.startswith(stem) for tok in tokens))
-                    if score:
-                        marcados.append((score, -len(tokens), c, t))
-                marcados.sort(reverse=True)
-                item["sugestoes"] = [{"cid11": c, "title": t} for _, _, c, t in marcados[:8]]
-            resultados.append(item)
-            continue
-        item["cid11"] = code
-        item["cid11Title"] = known11[code]
-        dsm, candidatos = resolve_dsm_code(code, crosswalk)
-        item["dsm5tr"] = dsm
-        item["dsm5trTitle"] = known10cm.get(dsm, "")
-        item["candidatos"] = [{"code": c["code"], "name": c["name"]} for c in candidatos]
-        resultados.append(item)
-    return resultados
 
 
 def plain_text_from_result(kind, result):
@@ -861,26 +845,8 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             self.send_json(403, {"error": "Origem nao autorizada."})
             return
 
-        if self.path not in {"/api/clinical-ai", "/api/transcribe-consultation", "/api/diagnostic-codes"}:
+        if self.path not in {"/api/clinical-ai", "/api/transcribe-consultation"}:
             self.send_json(404, {"error": "Endpoint nao encontrado."})
-            return
-
-        # Consulta a tabela local: nao passa pela OpenAI e nao exige chave.
-        # Codificar continua funcionando com o app offline.
-        if self.path == "/api/diagnostic-codes":
-            try:
-                length = int(self.headers.get("Content-Length", "0"))
-                payload = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
-                names = payload.get("names")
-                if not isinstance(names, list) or len(names) > 40:
-                    self.send_json(400, {"error": "Envie ate 40 nomes de diagnostico."})
-                    return
-                self.send_json(200, {"ok": True, "codes": lookup_diagnostic_codes(names)})
-            except (ValueError, json.JSONDecodeError):
-                self.send_json(400, {"error": "Corpo invalido."})
-            except Exception:
-                logger.exception("Falha em /api/diagnostic-codes")
-                self.send_json(500, {"error": "Erro interno ao consultar as tabelas de codigo."})
             return
 
         api_key = os.environ.get("OPENAI_API_KEY")

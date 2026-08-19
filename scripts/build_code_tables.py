@@ -41,6 +41,12 @@ MAPA_ZIP = "https://icdcdn.who.int/static/releasefiles/{release}/mapping.zip"
 # capitulo vizinho.
 CAPITULOS = {"06", "07"}
 
+# Capitulo F mais G30/G31. As demencias degenerativas nao estao no F: a
+# ICD-10-CM codifica Alzheimer em G30 e degeneracao cerebral em G31, com o
+# F02.8x como manifestacao. Sem esses prefixos, "Demencia devida a doenca de
+# Alzheimer" nao encontra codigo nenhum, que era o que acontecia.
+PREFIXOS_10CM = ("F", "G30", "G31")
+
 
 def baixar_zip(url, timeout=300):
     with urllib.request.urlopen(url, timeout=timeout) as resposta:
@@ -70,10 +76,10 @@ def montar_icd10cm(ano):
     for linha in pacote.read(nome).decode("utf-8", "replace").splitlines():
         # Largura fixa: codigo, espacos, descricao longa.
         codigo, _, descricao = linha.partition(" ")
-        if codigo.startswith("F"):
+        if codigo.startswith(PREFIXOS_10CM):
             entradas.append({"code": pontuar(codigo.strip()), "name": descricao.strip()})
     if not entradas:
-        raise SystemExit(f"nenhum codigo F em icd10cm-codes-{ano}.txt")
+        raise SystemExit(f"nenhum codigo em icd10cm-codes-{ano}.txt")
     return entradas
 
 
@@ -166,7 +172,7 @@ def main():
 
     icd10cm = montar_icd10cm(args.ano)
     gravar("icd10cmF.json", icd10cm,
-           f"CDC/NCHS ICD-10-CM FY{args.ano}, capitulo 5 (F01-F99)",
+           f"CDC/NCHS ICD-10-CM FY{args.ano}, capitulo F (F01-F99) mais G30-G31",
            "Dominio publico (obra do governo dos EUA)",
            {"observacao": "Conjunto de codigos usado pelo DSM-5-TR. Descricoes no original em ingles."})
 

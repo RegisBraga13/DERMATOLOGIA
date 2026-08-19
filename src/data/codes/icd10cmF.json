@@ -1,9 +1,9 @@
 {
- "fonte": "CDC/NCHS ICD-10-CM FY2026, capitulo 5 (F01-F99)",
+ "fonte": "CDC/NCHS ICD-10-CM FY2026, capitulo F (F01-F99) mais G30-G31",
  "licenca": "Dominio publico (obra do governo dos EUA)",
  "gerado_em": "2026-08-19",
  "gerado_por": "scripts/build_code_tables.py",
- "total": 871,
+ "total": 889,
  "codigos": [
   {
    "code": "F01.50",
@@ -3488,6 +3488,78 @@
   {
    "code": "F99",
    "name": "Mental disorder, not otherwise specified"
+  },
+  {
+   "code": "G30.0",
+   "name": "Alzheimer's disease with early onset"
+  },
+  {
+   "code": "G30.1",
+   "name": "Alzheimer's disease with late onset"
+  },
+  {
+   "code": "G30.8",
+   "name": "Other Alzheimer's disease"
+  },
+  {
+   "code": "G30.9",
+   "name": "Alzheimer's disease, unspecified"
+  },
+  {
+   "code": "G31.01",
+   "name": "Pick's disease"
+  },
+  {
+   "code": "G31.09",
+   "name": "Other frontotemporal neurocognitive disorder"
+  },
+  {
+   "code": "G31.1",
+   "name": "Senile degeneration of brain, not elsewhere classified"
+  },
+  {
+   "code": "G31.2",
+   "name": "Degeneration of nervous system due to alcohol"
+  },
+  {
+   "code": "G31.80",
+   "name": "Leukodystrophy, unspecified"
+  },
+  {
+   "code": "G31.81",
+   "name": "Alpers disease"
+  },
+  {
+   "code": "G31.82",
+   "name": "Leigh's disease"
+  },
+  {
+   "code": "G31.83",
+   "name": "Neurocognitive disorder with Lewy bodies"
+  },
+  {
+   "code": "G31.84",
+   "name": "Mild cognitive impairment of uncertain or unknown etiology"
+  },
+  {
+   "code": "G31.85",
+   "name": "Corticobasal degeneration"
+  },
+  {
+   "code": "G31.86",
+   "name": "Alexander disease"
+  },
+  {
+   "code": "G31.87",
+   "name": "Primary progressive apraxia of speech"
+  },
+  {
+   "code": "G31.89",
+   "name": "Other specified degenerative diseases of nervous system"
+  },
+  {
+   "code": "G31.9",
+   "name": "Degenerative disease of nervous system, unspecified"
   }
  ],
  "observacao": "Conjunto de codigos usado pelo DSM-5-TR. Descricoes no original em ingles."
