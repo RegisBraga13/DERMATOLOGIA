@@ -1,4 +1,4 @@
-import { buildDiagnosticSuggestion, diagnosticCodeAnchors, diagnosticCodes, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharmacologicalOption, normalizeDiagnosticOptions, parseTreatmentResponse, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
+import { buildDiagnosticSuggestion, diagnosticCodeAnchors, diagnosticCodes, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, formatMedicationTreatmentOption, formatNonPharmacologicalOption, normalizeDiagnosticOptions, parseTreatmentResponse, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
 import { anamnesisText, buildEvolutionNarrative, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, outdatedEvolutionText, patientIdentificationText, professionalSelectedTreatmentItems, removeReturnBoilerplate, requestedExamsText, returnEvolutionContainsIdentity, returnStoryText, shouldRefreshEvolutionNarrative, treatmentDiagnosisText } from "./clinical/narrative.js";
 import { arrayValue, calculateAge, capitalizeFirst, cleanClinicalLine, clinicalPhrase, compactText, formatClinicalList, formatPlainList, joinValues, lowerFirst, mentalExamKeys, normalizedSingleChoiceValue, normalizeText, optionDisplayLabel, professionalClinicalTerms, professionalList, professionalListWithOther, stripFinalPeriod } from "./clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, anamnesisQuestionGroups, consultationPages, doctorDiagnosisOptions, EVOLUTION_REFRESH_PATTERNS, laboratoryExamRequestItems, MENTAL_EXAM_AI_FIELDS, pagesForScope, RETURN_BOILERPLATE_PHRASES, returnPages } from "./clinical/vocabulary.js";
@@ -1024,9 +1024,27 @@ async function generateDiagnosisFromClinicalData(element) {
     [result.syndromic_options, result.nosological_options, result.etiological_options]
       .flatMap(group => group || [])
       .forEach(item => { if (item.name && item.cid11) anchors[item.name] = item.cid11; });
-    const syndromicOptions = formatGroup(result.syndromic_options, 3);
-    const nosologicalOptions = formatGroup(result.nosological_options, 3);
-    const etiologicalOptions = formatGroup(result.etiological_options, 2);
+    // A deduplicacao era so dentro de cada grupo, entao a mesma entidade saia
+    // duas vezes em categorias diferentes: numa chamada real de um caso de TAG,
+    // "Transtorno de ansiedade generalizada" apareceu como sindromica E como
+    // nosologica. Qual das duas esta certa e juizo clinico, entao o programa
+    // nao escolhe em silencio: mantem a primeira e diz que aconteceu, porque
+    // a duplicata denuncia confusao da IA sobre aquela entidade.
+    const jaVistos = new Map();
+    const duplicadas = [];
+    const uniqueGroup = (items, count, categoria) => formatGroup(items, count).filter(nome => {
+      const chave = normalizeText(nome);
+      if (jaVistos.has(chave)) { duplicadas.push(`${nome} (mantida em ${jaVistos.get(chave)})`); return false; }
+      jaVistos.set(chave, categoria);
+      return true;
+    });
+    // Nosologico primeiro, de proposito. Quando a mesma entidade sai nas duas
+    // categorias, a IA nao esta distinguindo sindrome de transtorno — e a
+    // leitura nosologica e a afirmacao mais especifica. Ficando com a
+    // sindromica, o caso de TAG esvaziava justamente a categoria util.
+    const nosologicalOptions = uniqueGroup(result.nosological_options, 3, "Nosológico");
+    const syndromicOptions = uniqueGroup(result.syndromic_options, 3, "Sindrômico");
+    const etiologicalOptions = uniqueGroup(result.etiological_options, 2, "Etiológico");
     const selectedDoctorOptions = selectedDiagnosisValues(target || {}).filter(option => doctorDiagnosisOptions.includes(option));
     suggestion = {
       diagnosticoAiSindromico: syndromicOptions.join("\n"),
@@ -1042,13 +1060,15 @@ async function generateDiagnosisFromClinicalData(element) {
       diagnosticoCodigos: "",
       ragSources: sources,
       aiMode: mode,
-      aiStatus: `Propostas para você assinalar: ${countLabel(syndromicOptions.length, "sindrômica")}, ${countLabel(nosologicalOptions.length, "nosológica")} e ${countLabel(etiologicalOptions.length, "etiológica")}. As hipóteses do médico foram mantidas.`
-        // Dito na tela, não só no log: a hipótese chega sem código, e código
-        // ausente é normal em síndrome descritiva. Sem o aviso, um código
-        // inventado e removido se disfarçaria de código que nunca existiu.
-        + ((codeWarnings || []).length
-          ? ` Atenção: ${countLabel(codeWarnings.length, "código")} não conferia com a fonte oficial e foi removido — ${codeWarnings.join(" ")}`
-          : ""),
+      aiStatus: [
+        `Propostas para você assinalar: ${countLabel(syndromicOptions.length, "sindrômica")}, ${countLabel(nosologicalOptions.length, "nosológica")} e ${countLabel(etiologicalOptions.length, "etiológica")}. As hipóteses do médico foram mantidas.`,
+        // Renomear muda o que ele le na tela, entao e dito. Os avisos de codigo
+        // ficam no log: o codigo nao aparece nesta etapa, so na codificacao.
+        ...(codeWarnings || []).filter(item => item.kind === "rename").map(item => item.text),
+        duplicadas.length
+          ? `${countLabel(duplicadas.length, "hipótese saiu", "hipóteses saíram")} em mais de uma categoria: ${duplicadas.join("; ")}.`
+          : ""
+      ].filter(Boolean).join(" "),
     };
   } catch (error) {
     // O catalogo local so entra aqui, quando nao ha resposta nenhuma, e dito

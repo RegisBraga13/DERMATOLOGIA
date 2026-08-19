@@ -41,7 +41,9 @@ RAG_SCORE_THRESHOLD = 0.55
 CODE_TABLES_DIR = Path(__file__).resolve().parent / "src" / "data" / "codes"
 CODE_TABLES = None
 CODE_TABLES_LOCK = threading.Lock()
-CID11_PATTERN = re.compile(r"\b6[A-E][0-9A-Z]{2}(?:\.[0-9A-Z]+)?\b")
+# Capitulo 6 comeca em 6 (6B00) e o 7 em 7 (7A00). Sem o [67] o codigo de
+# insonia nao era nem reconhecido como codigo — caia no ramo de "sem formato".
+CID11_PATTERN = re.compile(r"\b[67][A-E][0-9A-Z]{2}(?:\.[0-9A-Z]+)?\b")
 ICD10CM_PATTERN = re.compile(r"\bF[0-9]{2}(?:\.[0-9A-Z]+)?\b")
 
 # --- Superfície estática servida ---------------------------------------------
@@ -507,11 +509,16 @@ def validate_result(kind, result):
             options = result.get(group)
             if not isinstance(options, list) or len(options) > limit:
                 raise ValueError(f"O grupo {group} aceita no maximo {limit} opcoes.")
+            # Opcao sem nome e descartada, nao fatal. Ela aparece de vez em
+            # quando — a IA emite uma entrada vazia para preencher o grupo — e
+            # derrubar a resposta inteira por causa dela custava as hipoteses
+            # boas junto. Grupo vazio ja e resposta legitima aqui.
+            descartadas = [o for o in options if not (isinstance(o, dict) and isinstance(o.get("name"), str) and o["name"].strip())]
+            if descartadas:
+                logger.warning("%s: %d opcao(oes) sem nome descartada(s)", group, len(descartadas))
+                options = [o for o in options if o not in descartadas]
+                result[group] = options
             for option in options:
-                if not isinstance(option, dict):
-                    raise ValueError("Opcao diagnostica invalida.")
-                if not isinstance(option.get("name"), str) or not option["name"].strip():
-                    raise ValueError("Opcao diagnostica sem nome.")
                 for key in ("cid11", "dsm5tr"):
                     if not isinstance(option.get(key), str):
                         raise ValueError("Codigo diagnostico invalido.")
@@ -547,7 +554,7 @@ def load_code_tables():
     with CODE_TABLES_LOCK:
         if CODE_TABLES is None:
             tables = {}
-            for key, filename in (("cid11", "icd11Cap6.json"), ("dsm5tr", "icd10cmF.json"), ("crosswalk", "crosswalk.json")):
+            for key, filename in (("cid11", "icd11Psi.json"), ("dsm5tr", "icd10cmF.json"), ("crosswalk", "crosswalk.json")):
                 path = CODE_TABLES_DIR / filename
                 if not path.exists():
                     continue
@@ -591,7 +598,9 @@ def resolve_dsm_code(cid11_code, crosswalk):
     if len(candidates) == 1:
         return candidates[0]["code"], []
     if mapped and candidates:
-        return f"{mapped}.-", candidates
+        # Notacao de codigo incompleto: "F33.-" quando falta a subdivisao, mas
+        # "F51.0-" quando a categoria ja traz ponto — senao sai "F51.0.-".
+        return (f"{mapped}-" if "." in mapped else f"{mapped}.-"), candidates
     return "", []
 
 
@@ -625,16 +634,16 @@ def verify_diagnostic_codes(result):
                 # acento nem caixa.
                 candidato = by_name.get(normalize_name(nome), "")
                 if candidato:
-                    warnings.append(f"{nome}: CID-11 reancorado em {candidato} pelo nome da entidade.")
+                    warnings.append({"kind": "anchor", "text": f"{nome}: CID-11 reancorado em {candidato} pelo nome da entidade."})
                 elif bruto.strip():
-                    warnings.append(f"{nome}: CID-11 \"{bruto.strip()}\" nao existe no capitulo 6; removido.")
+                    warnings.append({"kind": "anchor", "text": f"{nome}: CID-11 \"{bruto.strip()}\" nao existe nos capitulos 6 e 7; descartado."})
             # Ancorada a hipotese, o nome passa a ser o titulo oficial da OMS,
             # nao a parafrase da IA. E o que a licenca CC BY-ND exige (titulo
             # reproduzido literalmente) e o que o prontuario precisa: "Depressao
             # Maior" e "Transtorno depressivo, episodio unico" nao sao a mesma
             # afirmacao, e so a segunda corresponde ao codigo ao lado.
             if candidato and normalize_name(nome) != normalize_name(known11[candidato]):
-                warnings.append(f"{nome}: renomeada para o titulo oficial da CID-11 \"{known11[candidato]}\".")
+                warnings.append({"kind": "rename", "text": f"\"{nome}\" renomeada para o titulo oficial da CID-11: \"{known11[candidato]}\"."})
             if candidato:
                 option["name"] = known11[candidato]
             option["cid11"] = candidato
@@ -644,14 +653,13 @@ def verify_diagnostic_codes(result):
             option["dsm5tr"] = derivado
             if candidatos:
                 option["dsm5tr_candidatos"] = [f"{item['code']} - {item['name']}" for item in candidatos]
-                warnings.append(
+                warnings.append({"kind": "code", "text":
                     f"{nome}: DSM-5-TR {derivado} e categoria — "
-                    f"especificar entre {', '.join(item['code'] for item in candidatos)}."
-                )
+                    f"especificar entre {', '.join(item['code'] for item in candidatos)}."})
             elif not derivado and candidato:
-                warnings.append(f"{nome}: sem correspondencia DSM-5-TR no mapa oficial da OMS para {candidato}.")
+                warnings.append({"kind": "code", "text": f"{nome}: sem correspondencia DSM-5-TR no mapa oficial da OMS para {candidato}."})
             if proposto.strip() and proposto.strip() != derivado:
-                warnings.append(f"{nome}: DSM-5-TR proposto pela IA (\"{proposto.strip()}\") descartado; vale o mapa oficial.")
+                warnings.append({"kind": "code", "text": f"{nome}: DSM-5-TR proposto pela IA (\"{proposto.strip()}\") descartado; vale o mapa oficial."})
     return warnings
 
 
@@ -992,11 +1000,12 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             try:
                 result = validate_result(kind, parse_model_json(text))
             except (ValueError, json.JSONDecodeError) as error:
+                logger.error("resposta rejeitada (%s): %s", kind, text[:1200])
                 self.send_json(502, {"error": "Resposta da IA fora do formato clinico validado.", "detail": str(error)})
                 return
             code_warnings = verify_diagnostic_codes(result) if kind == "diagnosis" else []
             if code_warnings:
-                logger.warning("codigos removidos da resposta: %s", "; ".join(code_warnings))
+                logger.warning("ancoragem de codigos: %s", "; ".join(item["text"] for item in code_warnings))
             public_sources_by_file = {}
             for source in sources:
                 key = source["file_id"] or source["filename"]

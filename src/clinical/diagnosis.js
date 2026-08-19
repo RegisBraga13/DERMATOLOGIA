@@ -77,14 +77,6 @@ export function diagnosticCodes(form = {}) {
   return Array.isArray(stored.itens) ? stored : { itens: [], geradoEm: "" };
 }
 
-export function formatDiagnosticCodeLine(item = {}) {
-  return [
-    item.name,
-    item.cid11 ? `CID-11: ${item.cid11}` : "",
-    item.dsm5tr ? `DSM-5-TR: ${item.dsm5tr}` : ""
-  ].filter(Boolean).join(" - ");
-}
-
 export function buildDiagnosticSuggestion(form) {
   const qphdaText = anamnesisText(form);
   const sourceText = [

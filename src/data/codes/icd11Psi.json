@@ -1,9 +1,9 @@
 {
- "fonte": "OMS CID-11 MMS release 2025-01, capitulo 6, tabulacao simples (pt)",
+ "fonte": "OMS CID-11 MMS release 2025-01, capitulos 6 e 7, tabulacao simples (pt)",
  "licenca": "CC BY-ND 3.0 IGO - titulos reproduzidos literalmente, traducao da propria OMS",
  "gerado_em": "2026-08-19",
  "gerado_por": "scripts/build_code_tables.py",
- "total": 858,
+ "total": 937,
  "codigos": [
   {
    "code": "6A00",
@@ -5151,6 +5151,480 @@
    "code": "6E8Z",
    "name": "Transtornos mentais, comportamentais ou do neurodesenvolvimento não especificados",
    "nameEN": "Mental, behavioural or neurodevelopmental disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "7A00",
+   "name": "Insônia crônica",
+   "nameEN": "Chronic insomnia",
+   "kind": "category"
+  },
+  {
+   "code": "7A01",
+   "name": "Insônia de curta duração",
+   "nameEN": "Short-term insomnia",
+   "kind": "category"
+  },
+  {
+   "code": "7A0Z",
+   "name": "Transtornos de insônia não especificados",
+   "nameEN": "Insomnia disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "7A20",
+   "name": "Narcolepsia",
+   "nameEN": "Narcolepsy",
+   "kind": "category"
+  },
+  {
+   "code": "7A20.0",
+   "name": "Narcolepsia tipo 1",
+   "nameEN": "Narcolepsy, Type 1",
+   "kind": "category"
+  },
+  {
+   "code": "7A20.1",
+   "name": "Narcolepsia tipo 2",
+   "nameEN": "Narcolepsy, Type 2",
+   "kind": "category"
+  },
+  {
+   "code": "7A20.Z",
+   "name": "Narcolepsia não especificada",
+   "nameEN": "Narcolepsy, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "7A21",
+   "name": "Hipersonia idiopática",
+   "nameEN": "Idiopathic hypersomnia",
+   "kind": "category"
+  },
+  {
+   "code": "7A22",
+   "name": "Síndrome de Kleine-Levin",
+   "nameEN": "Kleine-Levin syndrome",
+   "kind": "category"
+  },
+  {
+   "code": "7A23",
+   "name": "Hipersonia devida a uma condição médica",
+   "nameEN": "Hypersomnia due to a medical condition",
+   "kind": "category"
+  },
+  {
+   "code": "7A24",
+   "name": "Hipersonia devida ao uso de medicamento ou substância",
+   "nameEN": "Hypersomnia due to a medication or substance",
+   "kind": "category"
+  },
+  {
+   "code": "7A25",
+   "name": "Hipersonia associada a um transtorno mental",
+   "nameEN": "Hypersomnia associated with a mental disorder",
+   "kind": "category"
+  },
+  {
+   "code": "7A26",
+   "name": "Síndrome do sono insuficiente",
+   "nameEN": "Insufficient sleep syndrome",
+   "kind": "category"
+  },
+  {
+   "code": "7A2Y",
+   "name": "Outros transtornos especificados de hipersonolência",
+   "nameEN": "Other specified hypersomnolence disorders",
+   "kind": "category"
+  },
+  {
+   "code": "7A2Z",
+   "name": "Transtornos de hipersonolência não especificados",
+   "nameEN": "Hypersomnolence disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "7A40",
+   "name": "Apneias centrais do sono",
+   "nameEN": "Central sleep apnoeas",
+   "kind": "category"
+  },
+  {
+   "code": "7A40.0",
+   "name": "Apneia central do sono primária",
+   "nameEN": "Primary central sleep apnoea",
+   "kind": "category"
+  },
+  {
+   "code": "7A40.1",
+   "name": "Apneia central do sono primária da infância",
+   "nameEN": "Primary central sleep apnoea of infancy",
+   "kind": "category"
+  },
+  {
+   "code": "7A40.2",
+   "name": "Apneia do sono central primária da prematuridade",
+   "nameEN": "Primary central sleep apnoea of prematurity",
+   "kind": "category"
+  },
+  {
+   "code": "7A40.3",
+   "name": "Apneia central do sono com respiração de Cheyne-Stokes",
+   "nameEN": "Central sleep apnea with Cheyne-Stokes breathing",
+   "kind": "category"
+  },
+  {
+   "code": "7A40.4",
+   "name": "Apneia central do sono devida a condição médica sem respiração de Cheyne-Stokes",
+   "nameEN": "Central sleep apnoea due to a medical condition without Cheyne-Stokes breathing",
+   "kind": "category"
+  },
+  {
+   "code": "7A40.5",
+   "name": "Apneia central do sono devida à respiração periódica de grandes altitudes.",
+   "nameEN": "Central sleep apnoea due to high-altitude periodic breathing",
+   "kind": "category"
+  },
+  {
+   "code": "7A40.6",
+   "name": "Apneia central do sono devida a medicação ou substância",
+   "nameEN": "Central sleep apnoea due to a medication or substance",
+   "kind": "category"
+  },
+  {
+   "code": "7A40.7",
+   "name": "Apneia central do sono emergente do tratamento",
+   "nameEN": "Treatment-emergent central sleep apnoea",
+   "kind": "category"
+  },
+  {
+   "code": "7A40.Y",
+   "name": "Outras apneias centrais do sono especificadas",
+   "nameEN": "Other specified central sleep apnoeas",
+   "kind": "category"
+  },
+  {
+   "code": "7A40.Z",
+   "name": "Apneias centrais do sono não especificadas",
+   "nameEN": "Central sleep apnoeas, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "7A41",
+   "name": "Apneia obstrutiva do sono",
+   "nameEN": "Obstructive sleep apnoea",
+   "kind": "category"
+  },
+  {
+   "code": "7A42",
+   "name": "Transtornos de hipóxia ou hipoventilação relacionados ao sono",
+   "nameEN": "Sleep-related hypoventilation or hypoxemia disorders",
+   "kind": "category"
+  },
+  {
+   "code": "7A42.0",
+   "name": "Síndrome obesidade-hipoventilação",
+   "nameEN": "Obesity hypoventilation syndrome",
+   "kind": "category"
+  },
+  {
+   "code": "7A42.1",
+   "name": "Hipoventilação alveolar central congênita relacionada ao sono",
+   "nameEN": "Congenital central alveolar sleep-related hypoventilation",
+   "kind": "category"
+  },
+  {
+   "code": "7A42.2",
+   "name": "Hipoventilação central não congênita com anormalidades hipotalâmicas",
+   "nameEN": "Non-congenital central hypoventilation with hypothalamic abnormalities",
+   "kind": "category"
+  },
+  {
+   "code": "7A42.3",
+   "name": "Hipoventilação alveolar central idiopática",
+   "nameEN": "Idiopathic central alveolar hypoventilation",
+   "kind": "category"
+  },
+  {
+   "code": "7A42.4",
+   "name": "Hipoventilação relacionada ao sono devida a medicamento ou substância",
+   "nameEN": "Sleep-related hypoventilation due to a medication or substance",
+   "kind": "category"
+  },
+  {
+   "code": "7A42.5",
+   "name": "Hipoventilação relacionada ao sono devida a condição médica",
+   "nameEN": "Sleep-related hypoventilation due to medical condition",
+   "kind": "category"
+  },
+  {
+   "code": "7A42.6",
+   "name": "Hipoxemia relacionada ao sono devida a condição médica",
+   "nameEN": "Sleep-related hypoxemia due to a medical condition",
+   "kind": "category"
+  },
+  {
+   "code": "7A42.Y",
+   "name": "Outros transtornos de hipóxia ou hipoventilação relacionados ao sono especificados",
+   "nameEN": "Other specified sleep-related hypoventilation or hypoxemia disorders",
+   "kind": "category"
+  },
+  {
+   "code": "7A42.Z",
+   "name": "Transtornos de hipóxia ou hipoventilação relacionados ao sono não especificados",
+   "nameEN": "Sleep-related hypoventilation or hypoxemia disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "7A4Y",
+   "name": "Outros transtornos respiratórios especificados relacionados ao sono",
+   "nameEN": "Other specified sleep-related breathing disorders",
+   "kind": "category"
+  },
+  {
+   "code": "7A4Z",
+   "name": "Transtornos respiratórios relacionados ao sono não especificado",
+   "nameEN": "Sleep-related breathing disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "7A60",
+   "name": "Transtorno de atraso de fase do sono-vigília",
+   "nameEN": "Delayed sleep-wake phase disorder",
+   "kind": "category"
+  },
+  {
+   "code": "7A61",
+   "name": "Transtorno de avanço de fase do sono-vigília",
+   "nameEN": "Advanced sleep-wake phase disorder",
+   "kind": "category"
+  },
+  {
+   "code": "7A62",
+   "name": "Transtorno de ritmo sono-vigília irregular",
+   "nameEN": "Irregular sleep-wake rhythm disorder",
+   "kind": "category"
+  },
+  {
+   "code": "7A63",
+   "name": "Transtorno de ritmo sono-vigília não 24 horas",
+   "nameEN": "Non-24 hour sleep-wake rhythm disorder",
+   "kind": "category"
+  },
+  {
+   "code": "7A64",
+   "name": "Transtorno do ritmo circadiano de sono-vigília, tipo turno de trabalho",
+   "nameEN": "Circadian rhythm sleep-wake disorder, shift work type",
+   "kind": "category"
+  },
+  {
+   "code": "7A65",
+   "name": "Transtorno do ritmo circadiano de sono-vigília, tipo jet lag",
+   "nameEN": "Circadian rhythm sleep-wake disorder, jet lag type",
+   "kind": "category"
+  },
+  {
+   "code": "7A6Z",
+   "name": "Transtornos do ritmo circadiano de sono-vigília, não especificado",
+   "nameEN": "Circadian rhythm sleep-wake disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "7A80",
+   "name": "Síndrome das pernas inquietas",
+   "nameEN": "Restless legs syndrome",
+   "kind": "category"
+  },
+  {
+   "code": "7A81",
+   "name": "Transtorno de movimentos periódicos dos membros",
+   "nameEN": "Periodic limb movement disorder",
+   "kind": "category"
+  },
+  {
+   "code": "7A82",
+   "name": "Cãibras nas pernas relacionadas ao sono",
+   "nameEN": "Sleep-related leg cramps",
+   "kind": "category"
+  },
+  {
+   "code": "7A83",
+   "name": "Bruxismo relacionado ao sono",
+   "nameEN": "Sleep-related bruxism",
+   "kind": "category"
+  },
+  {
+   "code": "7A84",
+   "name": "Transtorno de movimento rítmico relacionado ao sono",
+   "nameEN": "Sleep-related rhythmic movement disorder",
+   "kind": "category"
+  },
+  {
+   "code": "7A85",
+   "name": "Mioclonia do sono benigna da infância",
+   "nameEN": "Benign sleep myoclonus of infancy",
+   "kind": "category"
+  },
+  {
+   "code": "7A86",
+   "name": "Mioclonia proprioespinal do início do sono",
+   "nameEN": "Propriospinal myoclonus at sleep onset",
+   "kind": "category"
+  },
+  {
+   "code": "7A87",
+   "name": "Transtorno do movimento relacionado ao sono devido a condição médica",
+   "nameEN": "Sleep-related movement disorder due to a medical condition",
+   "kind": "category"
+  },
+  {
+   "code": "7A88",
+   "name": "Transtorno do movimento relacionado ao sono devido a droga ou substância",
+   "nameEN": "Sleep-related movement disorder due to a medication or substance",
+   "kind": "category"
+  },
+  {
+   "code": "7A8Y",
+   "name": "Outros transtornos do movimento relacionados ao sono especificados",
+   "nameEN": "Other specified sleep-related movement disorders",
+   "kind": "category"
+  },
+  {
+   "code": "7A8Z",
+   "name": "Transtornos do movimento relacionados ao sono não especificados",
+   "nameEN": "Sleep-related movement disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "7B00",
+   "name": "Transtornos do despertar do sono não REM",
+   "nameEN": "Disorders of arousal from non-REM sleep",
+   "kind": "category"
+  },
+  {
+   "code": "7B00.0",
+   "name": "Despertares confusionais",
+   "nameEN": "Confusional arousals",
+   "kind": "category"
+  },
+  {
+   "code": "7B00.1",
+   "name": "Transtorno de sonambulismo",
+   "nameEN": "Sleepwalking disorder",
+   "kind": "category"
+  },
+  {
+   "code": "7B00.2",
+   "name": "Terrores do sono",
+   "nameEN": "Sleep terrors",
+   "kind": "category"
+  },
+  {
+   "code": "7B00.3",
+   "name": "Transtorno alimentar relacionado ao sono",
+   "nameEN": "Sleep-related eating disorder",
+   "kind": "category"
+  },
+  {
+   "code": "7B00.Y",
+   "name": "Outros transtornos do despertar do sono não REM especificados",
+   "nameEN": "Other specified disorders of arousal from non-REM sleep",
+   "kind": "category"
+  },
+  {
+   "code": "7B00.Z",
+   "name": "Transtornos do despertar do sono não REM não especificados",
+   "nameEN": "Disorders of arousal from non-REM sleep, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "7B01",
+   "name": "Parassonias relacionadas ao sono REM",
+   "nameEN": "Parasomnias related to REM sleep",
+   "kind": "category"
+  },
+  {
+   "code": "7B01.0",
+   "name": "Transtorno comportamental do sono REM",
+   "nameEN": "REM sleep behaviour disorder",
+   "kind": "category"
+  },
+  {
+   "code": "7B01.1",
+   "name": "Paralisia do sono isolada recorrente",
+   "nameEN": "Recurrent isolated sleep paralysis",
+   "kind": "category"
+  },
+  {
+   "code": "7B01.2",
+   "name": "Transtorno de pesadelo",
+   "nameEN": "Nightmare disorder",
+   "kind": "category"
+  },
+  {
+   "code": "7B01.Y",
+   "name": "Outras parassonias relacionadas ao sono REM especificadas",
+   "nameEN": "Other specified parasomnias related to REM sleep",
+   "kind": "category"
+  },
+  {
+   "code": "7B01.Z",
+   "name": "Parassonias relacionadas ao sono REM não especificadas",
+   "nameEN": "Parasomnias related to REM sleep, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "7B02",
+   "name": "Outras parassonias",
+   "nameEN": "Other parasomnias",
+   "kind": "category"
+  },
+  {
+   "code": "7B02.0",
+   "name": "Síndrome da cabeça explodindo hipnagógica",
+   "nameEN": "Hypnagogic exploding head syndrome",
+   "kind": "category"
+  },
+  {
+   "code": "7B02.1",
+   "name": "Alucinações relacionadas ao sono",
+   "nameEN": "Sleep-related hallucinations",
+   "kind": "category"
+  },
+  {
+   "code": "7B02.2",
+   "name": "Transtorno de parassonia devido a uma condição médica",
+   "nameEN": "Parasomnia disorder due to a medical condition",
+   "kind": "category"
+  },
+  {
+   "code": "7B02.3",
+   "name": "Parassonia devida ao uso de medicamento ou substância",
+   "nameEN": "Parasomnia disorder due to a medication or substance",
+   "kind": "category"
+  },
+  {
+   "code": "7B0Y",
+   "name": "Outros transtornos de parassonia especificados",
+   "nameEN": "Other specified parasomnia disorders",
+   "kind": "category"
+  },
+  {
+   "code": "7B0Z",
+   "name": "Transtornos de parassonia não especificados",
+   "nameEN": "Parasomnia disorders, unspecified",
+   "kind": "category"
+  },
+  {
+   "code": "7B2Y",
+   "name": "Outros transtornos de sono-vigília especificados",
+   "nameEN": "Other specified sleep-wake disorders",
+   "kind": "category"
+  },
+  {
+   "code": "7B2Z",
+   "name": "Transtornos de sono-vigília não especificados",
+   "nameEN": "Sleep-wake disorders, unspecified",
    "kind": "category"
   }
  ]

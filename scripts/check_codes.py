@@ -21,7 +21,7 @@ CATALOGO = RAIZ / "src" / "clinical" / "diagnosis.js"
 TABELAS = RAIZ / "src" / "data" / "codes"
 
 # 6A70, 6A70/6A71, 6A40-6A4Z, 6C40-6C4Z
-CID11 = re.compile(r"\b6[A-E][0-9A-Z]{2}(?:\.[0-9A-Z]+)?\b")
+CID11 = re.compile(r"\b[67][A-E][0-9A-Z]{2}(?:\.[0-9A-Z]+)?\b")
 # F41.1, F05, F03.90
 ICD10CM = re.compile(r"\bF[0-9]{2}(?:\.[0-9A-Z]+)?\b")
 
@@ -43,7 +43,7 @@ def campos(texto):
 
 
 def main():
-    cid11 = carregar("icd11Cap6.json")
+    cid11 = carregar("icd11Psi.json")
     icd10cm = carregar("icd10cmF.json")
     if cid11 is None and icd10cm is None:
         print("nenhuma tabela em src/data/codes. Rode scripts/build_code_tables.py primeiro.")
@@ -65,7 +65,7 @@ def main():
                 continue
             conferidos += 1
             if codigo not in cid11:
-                problemas.append(f"{CATALOGO.name}:{numero}  {codigo} nao existe na CID-11 cap. 6")
+                problemas.append(f"{CATALOGO.name}:{numero}  {codigo} nao existe na CID-11 cap. 6/7")
         for codigo in ICD10CM.findall(valor):
             if icd10cm is None:
                 pulados.add("ICD-10-CM")

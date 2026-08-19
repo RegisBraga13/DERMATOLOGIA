@@ -3,7 +3,7 @@
  "licenca": "CC BY-ND 3.0 IGO (mapa da OMS) + dominio publico (ICD-10-CM)",
  "gerado_em": "2026-08-19",
  "gerado_por": "scripts/build_code_tables.py",
- "total": 858,
+ "total": 937,
  "codigos": [
   {
    "cid11": "6A00",
@@ -44456,6 +44456,657 @@
    "icd10": "F99-F99",
    "icd10Title": "Unspecified mental disorder",
    "icd10cm": []
+  },
+  {
+   "cid11": "7A00",
+   "icd10": "F51.0",
+   "icd10Title": "Nonorganic insomnia",
+   "icd10cm": [
+    {
+     "code": "F51.01",
+     "name": "Primary insomnia"
+    },
+    {
+     "code": "F51.02",
+     "name": "Adjustment insomnia"
+    },
+    {
+     "code": "F51.03",
+     "name": "Paradoxical insomnia"
+    },
+    {
+     "code": "F51.04",
+     "name": "Psychophysiologic insomnia"
+    },
+    {
+     "code": "F51.05",
+     "name": "Insomnia due to other mental disorder"
+    },
+    {
+     "code": "F51.09",
+     "name": "Other insomnia not due to a substance or known physiological condition"
+    }
+   ]
+  },
+  {
+   "cid11": "7A01",
+   "icd10": "F51.0",
+   "icd10Title": "Nonorganic insomnia",
+   "icd10cm": [
+    {
+     "code": "F51.01",
+     "name": "Primary insomnia"
+    },
+    {
+     "code": "F51.02",
+     "name": "Adjustment insomnia"
+    },
+    {
+     "code": "F51.03",
+     "name": "Paradoxical insomnia"
+    },
+    {
+     "code": "F51.04",
+     "name": "Psychophysiologic insomnia"
+    },
+    {
+     "code": "F51.05",
+     "name": "Insomnia due to other mental disorder"
+    },
+    {
+     "code": "F51.09",
+     "name": "Other insomnia not due to a substance or known physiological condition"
+    }
+   ]
+  },
+  {
+   "cid11": "7A0Z",
+   "icd10": "G47.0",
+   "icd10Title": "Disorders of initiating and maintaining sleep [insomnias]",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A20",
+   "icd10": "G47.4",
+   "icd10Title": "Narcolepsy and cataplexy",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A20.0",
+   "icd10": "G47.4",
+   "icd10Title": "Narcolepsy and cataplexy",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A20.1",
+   "icd10": "G47.4",
+   "icd10Title": "Narcolepsy and cataplexy",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A20.Z",
+   "icd10": "G47.4",
+   "icd10Title": "Narcolepsy and cataplexy",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A21",
+   "icd10": "G47.1",
+   "icd10Title": "Disorders of excessive somnolence [hypersomnias]",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A22",
+   "icd10": "G47.8",
+   "icd10Title": "Other sleep disorders",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A23",
+   "icd10": "F51.9",
+   "icd10Title": "Nonorganic sleep disorder, unspecified",
+   "icd10cm": [
+    {
+     "code": "F51.9",
+     "name": "Sleep disorder not due to a substance or known physiological condition, unspecified"
+    }
+   ]
+  },
+  {
+   "cid11": "7A24",
+   "icd10": "G47.1",
+   "icd10Title": "Disorders of excessive somnolence [hypersomnias]",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A25",
+   "icd10": "F51.9",
+   "icd10Title": "Nonorganic sleep disorder, unspecified",
+   "icd10cm": [
+    {
+     "code": "F51.9",
+     "name": "Sleep disorder not due to a substance or known physiological condition, unspecified"
+    }
+   ]
+  },
+  {
+   "cid11": "7A26",
+   "icd10": "F51.1",
+   "icd10Title": "Nonorganic hypersomnia",
+   "icd10cm": [
+    {
+     "code": "F51.11",
+     "name": "Primary hypersomnia"
+    },
+    {
+     "code": "F51.12",
+     "name": "Insufficient sleep syndrome"
+    },
+    {
+     "code": "F51.13",
+     "name": "Hypersomnia due to other mental disorder"
+    },
+    {
+     "code": "F51.19",
+     "name": "Other hypersomnia not due to a substance or known physiological condition"
+    }
+   ]
+  },
+  {
+   "cid11": "7A2Y",
+   "icd10": "F51.9",
+   "icd10Title": "Nonorganic sleep disorder, unspecified",
+   "icd10cm": [
+    {
+     "code": "F51.9",
+     "name": "Sleep disorder not due to a substance or known physiological condition, unspecified"
+    }
+   ]
+  },
+  {
+   "cid11": "7A2Z",
+   "icd10": "F51.9",
+   "icd10Title": "Nonorganic sleep disorder, unspecified",
+   "icd10cm": [
+    {
+     "code": "F51.9",
+     "name": "Sleep disorder not due to a substance or known physiological condition, unspecified"
+    }
+   ]
+  },
+  {
+   "cid11": "7A40",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A40.0",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A40.1",
+   "icd10": "P28.3",
+   "icd10Title": "Primary sleep apnoea of newborn",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A40.2",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A40.3",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A40.4",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A40.5",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A40.6",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A40.7",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A40.Y",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A40.Z",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A41",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A42",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A42.0",
+   "icd10": "E66.2",
+   "icd10Title": "Extreme obesity with alveolar hypoventilation",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A42.1",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A42.2",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A42.3",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A42.4",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A42.5",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A42.6",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A42.Y",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A42.Z",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A4Y",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A4Z",
+   "icd10": "G47.3",
+   "icd10Title": "Sleep apnoea",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A60",
+   "icd10": "G47.2",
+   "icd10Title": "Disorders of the sleep-wake schedule",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A61",
+   "icd10": "G47.2",
+   "icd10Title": "Disorders of the sleep-wake schedule",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A62",
+   "icd10": "G47.2",
+   "icd10Title": "Disorders of the sleep-wake schedule",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A63",
+   "icd10": "G47.2",
+   "icd10Title": "Disorders of the sleep-wake schedule",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A64",
+   "icd10": "G47.2",
+   "icd10Title": "Disorders of the sleep-wake schedule",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A65",
+   "icd10": "G47.2",
+   "icd10Title": "Disorders of the sleep-wake schedule",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A6Z",
+   "icd10": "G47.2",
+   "icd10Title": "Disorders of the sleep-wake schedule",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A80",
+   "icd10": "G25.8",
+   "icd10Title": "Other specified extrapyramidal and movement disorders",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A81",
+   "icd10": "G25.8",
+   "icd10Title": "Other specified extrapyramidal and movement disorders",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A82",
+   "icd10": "R25.2",
+   "icd10Title": "Cramp and spasm",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A83",
+   "icd10": "F45.8",
+   "icd10Title": "Other somatoform disorders",
+   "icd10cm": [
+    {
+     "code": "F45.8",
+     "name": "Other somatoform disorders"
+    }
+   ]
+  },
+  {
+   "cid11": "7A84",
+   "icd10": "G25.8",
+   "icd10Title": "Other specified extrapyramidal and movement disorders",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A85",
+   "icd10": "F51.9",
+   "icd10Title": "Nonorganic sleep disorder, unspecified",
+   "icd10cm": [
+    {
+     "code": "F51.9",
+     "name": "Sleep disorder not due to a substance or known physiological condition, unspecified"
+    }
+   ]
+  },
+  {
+   "cid11": "7A86",
+   "icd10": "F51.9",
+   "icd10Title": "Nonorganic sleep disorder, unspecified",
+   "icd10cm": [
+    {
+     "code": "F51.9",
+     "name": "Sleep disorder not due to a substance or known physiological condition, unspecified"
+    }
+   ]
+  },
+  {
+   "cid11": "7A87",
+   "icd10": "G25.8",
+   "icd10Title": "Other specified extrapyramidal and movement disorders",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7A88",
+   "icd10": "F51.9",
+   "icd10Title": "Nonorganic sleep disorder, unspecified",
+   "icd10cm": [
+    {
+     "code": "F51.9",
+     "name": "Sleep disorder not due to a substance or known physiological condition, unspecified"
+    }
+   ]
+  },
+  {
+   "cid11": "7A8Y",
+   "icd10": "F51.9",
+   "icd10Title": "Nonorganic sleep disorder, unspecified",
+   "icd10cm": [
+    {
+     "code": "F51.9",
+     "name": "Sleep disorder not due to a substance or known physiological condition, unspecified"
+    }
+   ]
+  },
+  {
+   "cid11": "7A8Z",
+   "icd10": "F51.9",
+   "icd10Title": "Nonorganic sleep disorder, unspecified",
+   "icd10cm": [
+    {
+     "code": "F51.9",
+     "name": "Sleep disorder not due to a substance or known physiological condition, unspecified"
+    }
+   ]
+  },
+  {
+   "cid11": "7B00",
+   "icd10": "G47.8",
+   "icd10Title": "Other sleep disorders",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7B00.0",
+   "icd10": "G47.8",
+   "icd10Title": "Other sleep disorders",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7B00.1",
+   "icd10": "F51.3",
+   "icd10Title": "Sleepwalking [somnambulism]",
+   "icd10cm": [
+    {
+     "code": "F51.3",
+     "name": "Sleepwalking [somnambulism]"
+    }
+   ]
+  },
+  {
+   "cid11": "7B00.2",
+   "icd10": "F51.4",
+   "icd10Title": "Sleep terrors [night terrors]",
+   "icd10cm": [
+    {
+     "code": "F51.4",
+     "name": "Sleep terrors [night terrors]"
+    }
+   ]
+  },
+  {
+   "cid11": "7B00.3",
+   "icd10": "G47.8",
+   "icd10Title": "Other sleep disorders",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7B00.Y",
+   "icd10": "G47.8",
+   "icd10Title": "Other sleep disorders",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7B00.Z",
+   "icd10": "G47.8",
+   "icd10Title": "Other sleep disorders",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7B01",
+   "icd10": "F51.9",
+   "icd10Title": "Nonorganic sleep disorder, unspecified",
+   "icd10cm": [
+    {
+     "code": "F51.9",
+     "name": "Sleep disorder not due to a substance or known physiological condition, unspecified"
+    }
+   ]
+  },
+  {
+   "cid11": "7B01.0",
+   "icd10": "G47.8",
+   "icd10Title": "Other sleep disorders",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7B01.1",
+   "icd10": "G47.8",
+   "icd10Title": "Other sleep disorders",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7B01.2",
+   "icd10": "F51.5",
+   "icd10Title": "Nightmares",
+   "icd10cm": [
+    {
+     "code": "F51.5",
+     "name": "Nightmare disorder"
+    }
+   ]
+  },
+  {
+   "cid11": "7B01.Y",
+   "icd10": "F51.9",
+   "icd10Title": "Nonorganic sleep disorder, unspecified",
+   "icd10cm": [
+    {
+     "code": "F51.9",
+     "name": "Sleep disorder not due to a substance or known physiological condition, unspecified"
+    }
+   ]
+  },
+  {
+   "cid11": "7B01.Z",
+   "icd10": "F51.9",
+   "icd10Title": "Nonorganic sleep disorder, unspecified",
+   "icd10cm": [
+    {
+     "code": "F51.9",
+     "name": "Sleep disorder not due to a substance or known physiological condition, unspecified"
+    }
+   ]
+  },
+  {
+   "cid11": "7B02",
+   "icd10": "F51.9",
+   "icd10Title": "Nonorganic sleep disorder, unspecified",
+   "icd10cm": [
+    {
+     "code": "F51.9",
+     "name": "Sleep disorder not due to a substance or known physiological condition, unspecified"
+    }
+   ]
+  },
+  {
+   "cid11": "7B02.0",
+   "icd10": "G47.8",
+   "icd10Title": "Other sleep disorders",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7B02.1",
+   "icd10": "G47.8",
+   "icd10Title": "Other sleep disorders",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7B02.2",
+   "icd10": "F51.9",
+   "icd10Title": "Nonorganic sleep disorder, unspecified",
+   "icd10cm": [
+    {
+     "code": "F51.9",
+     "name": "Sleep disorder not due to a substance or known physiological condition, unspecified"
+    }
+   ]
+  },
+  {
+   "cid11": "7B02.3",
+   "icd10": "G47.8",
+   "icd10Title": "Other sleep disorders",
+   "icd10cm": []
+  },
+  {
+   "cid11": "7B0Y",
+   "icd10": "F51.9",
+   "icd10Title": "Nonorganic sleep disorder, unspecified",
+   "icd10cm": [
+    {
+     "code": "F51.9",
+     "name": "Sleep disorder not due to a substance or known physiological condition, unspecified"
+    }
+   ]
+  },
+  {
+   "cid11": "7B0Z",
+   "icd10": "F51.9",
+   "icd10Title": "Nonorganic sleep disorder, unspecified",
+   "icd10cm": [
+    {
+     "code": "F51.9",
+     "name": "Sleep disorder not due to a substance or known physiological condition, unspecified"
+    }
+   ]
+  },
+  {
+   "cid11": "7B2Y",
+   "icd10": "F51.9",
+   "icd10Title": "Nonorganic sleep disorder, unspecified",
+   "icd10cm": [
+    {
+     "code": "F51.9",
+     "name": "Sleep disorder not due to a substance or known physiological condition, unspecified"
+    }
+   ]
+  },
+  {
+   "cid11": "7B2Z",
+   "icd10": "F51.9",
+   "icd10Title": "Nonorganic sleep disorder, unspecified",
+   "icd10cm": [
+    {
+     "code": "F51.9",
+     "name": "Sleep disorder not due to a substance or known physiological condition, unspecified"
+    }
+   ]
   }
  ],
  "observacao": "O mapa da OMS e de uma categoria so e as vezes devolve categoria, nao codigo folha."

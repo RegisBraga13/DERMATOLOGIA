@@ -28,7 +28,7 @@ python3 scripts/check_codes.py         # confere o catalogo local
 
 | Tabela | Fonte | Licenca |
 | --- | --- | --- |
-| `src/data/codes/icd11Cap6.json` | OMS, CID-11 MMS cap. 6, tabulacao simples (pt) | CC BY-ND 3.0 IGO |
+| `src/data/codes/icd11Psi.json` | OMS, CID-11 MMS cap. 6 e 7, tabulacao simples (pt) | CC BY-ND 3.0 IGO |
 | `src/data/codes/icd10cmF.json` | CDC/NCHS, ICD-10-CM cap. F | Dominio publico |
 | `src/data/codes/crosswalk.json` | OMS, mapa 11->10, cruzado com a ICD-10-CM | CC BY-ND + dominio publico |
 
@@ -54,6 +54,10 @@ O codigo nao e gerado, e resolvido:
 Isso existe porque instrucao de prompt nao resolveu. Mesmo mandado nao usar os
 codigos numericos do DSM-IV, o modelo devolve `300.02` para TAG em chamada real
 — e continua devolvendo. Derivar tira a decisao dele.
+
+O capitulo 7 (sono-vigilia) entra junto com o 6 porque psiquiatra codifica
+insonia. Numa chamada real a IA propos "Transtorno de Insonia - 7A00", codigo
+legitimo que era descartado so por estar no capitulo vizinho.
 
 O mapa da OMS as vezes para na categoria: `6A71 -> F33`, e a ICD-10-CM
 subdivide em `F33.0..F33.9` conforme gravidade e sintoma psicotico. Nesse caso

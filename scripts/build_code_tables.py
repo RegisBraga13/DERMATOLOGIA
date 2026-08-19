@@ -35,7 +35,11 @@ ICD10CM_ZIP = "https://ftp.cdc.gov/pub/health_statistics/nchs/publications/ICD10
 MMS_ZIP = "https://icdcdn.who.int/static/releasefiles/{release}/SimpleTabulation-ICD-11-MMS-{idioma}.zip"
 MAPA_ZIP = "https://icdcdn.who.int/static/releasefiles/{release}/mapping.zip"
 
-CAPITULO_MENTAL = "06"
+# Capitulo 6 (mental e comportamental) e 7 (sono-vigilia). O 7 entra porque
+# psiquiatra codifica insonia: numa chamada real a IA propos "Transtorno de
+# Insonia - 7A00", que e codigo legitimo e caia fora da tabela so por estar no
+# capitulo vizinho.
+CAPITULOS = {"06", "07"}
 
 
 def baixar_zip(url, timeout=300):
@@ -78,7 +82,7 @@ def montar_icd11(release, idioma):
                      f"SimpleTabulation-ICD-11-MMS-{idioma}.txt")
     entradas = []
     for linha in linhas:
-        if (linha.get("ChapterNo") or "").strip() != CAPITULO_MENTAL:
+        if (linha.get("ChapterNo") or "").strip() not in CAPITULOS:
             continue
         classe = (linha.get("ClassKind") or "").strip()
         # Bloco fica de fora: o identificador dele e "BlockL2-6A7", que nao e
@@ -97,7 +101,7 @@ def montar_icd11(release, idioma):
             "kind": classe,
         })
     if not entradas:
-        raise SystemExit("nenhuma entrada do capitulo 6 na tabulacao da MMS")
+        raise SystemExit("nenhuma entrada dos capitulos 6 e 7 na tabulacao da MMS")
     return entradas
 
 
@@ -167,8 +171,8 @@ def main():
            {"observacao": "Conjunto de codigos usado pelo DSM-5-TR. Descricoes no original em ingles."})
 
     icd11 = montar_icd11(args.release, args.idioma)
-    gravar("icd11Cap6.json", icd11,
-           f"OMS CID-11 MMS release {args.release}, capitulo 6, tabulacao simples ({args.idioma})",
+    gravar("icd11Psi.json", icd11,
+           f"OMS CID-11 MMS release {args.release}, capitulos 6 e 7, tabulacao simples ({args.idioma})",
            "CC BY-ND 3.0 IGO - titulos reproduzidos literalmente, traducao da propria OMS")
 
     gravar("crosswalk.json", montar_crosswalk(args.release, icd11, icd10cm),
