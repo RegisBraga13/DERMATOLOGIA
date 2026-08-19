@@ -74,26 +74,26 @@ export const RETURN_BOILERPLATE_PHRASES = Object.freeze([
 
 export const consultationPages = [
   ["anamnese", "Anamnese"],
-  ["psiquico", "Exame psiquico"],
-  ["neurologico", "Exame fisico"],
+  ["psiquico", "Exame psíquico"],
+  ["neurologico", "Exame físico"],
   ["refinamento", "Refinamento"],
   ["resumo", "Resumo"],
-  ["diagnostico", "Diagnostico"],
+  ["diagnostico", "Diagnóstico"],
   ["tratamento", "Tratamento"],
-  ["evolucao", "Historia clinica"],
+  ["evolucao", "História clínica"],
   ["medicamentos", "Medicamentos"]
 ];
 
 export const returnPages = [
-  ["evolucao-retorno", "Evolucao"],
+  ["evolucao-retorno", "Evolução"],
   ["texto-retorno", "Texto final"]
 ];
 
 export const doctorDiagnosisOptions = [
-  "Ausencia de psicopatologia de relevancia clinica - a mente esta funcionando dentro do esperado para os desafios atuais.",
-  "Sintomas reativos/adaptativos - sofrimento como reacao a um problema especifico, como luto, termino ou estresse profissional.",
-  "Z03.2 (CID-10) - Observacao por suspeita de transtornos mentais e de comportamento, quando a suspeita foi descartada.",
-  "Z00.4 (CID-10) - Exame psiquiatrico geral, incluindo exames admissionais sem psicopatologia identificada.",
+  "Ausência de psicopatologia de relevância clínica - a mente está funcionando dentro do esperado para os desafios atuais.",
+  "Sintomas reativos/adaptativos - sofrimento como reação a um problema específico, como luto, término ou estresse profissional.",
+  "Z03.2 (CID-10) - Observação por suspeita de transtornos mentais e de comportamento, quando a suspeita foi descartada.",
+  "Z00.4 (CID-10) - Exame psiquiátrico geral, incluindo exames admissionais sem psicopatologia identificada.",
   "Outro"
 ];
 

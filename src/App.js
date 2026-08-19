@@ -1,4 +1,4 @@
-import { buildDiagnosticSuggestion, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharmacologicalOption, normalizeDiagnosticOptions, parseTreatmentResponse, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
+import { buildDiagnosticSuggestion, doctorSelectedOptions, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharmacologicalOption, normalizeDiagnosticOptions, parseTreatmentResponse, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
 import { anamnesisText, buildEvolutionNarrative, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, outdatedEvolutionText, patientIdentificationText, professionalSelectedTreatmentItems, removeReturnBoilerplate, requestedExamsText, returnEvolutionContainsIdentity, returnStoryText, shouldRefreshEvolutionNarrative, treatmentDiagnosisText } from "./clinical/narrative.js";
 import { arrayValue, calculateAge, capitalizeFirst, cleanClinicalLine, clinicalPhrase, compactText, formatClinicalList, formatPlainList, joinValues, lowerFirst, mentalExamKeys, normalizedSingleChoiceValue, normalizeText, optionDisplayLabel, professionalClinicalTerms, professionalList, professionalListWithOther, stripFinalPeriod } from "./clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, anamnesisQuestionGroups, consultationPages, doctorDiagnosisOptions, EVOLUTION_REFRESH_PATTERNS, laboratoryExamRequestItems, MENTAL_EXAM_AI_FIELDS, pagesForScope, RETURN_BOILERPLATE_PHRASES, returnPages } from "./clinical/vocabulary.js";
@@ -163,7 +163,7 @@ function workspace() {
         ${navButton("patient", "Paciente", "patient")}
         ${navButton("consultation", "Consulta", "consult")}
         ${navButton("return", "Retorno", "return")}
-        ${navButton("record", "Prontuario", "record")}
+        ${navButton("record", "Prontuários", "record")}
         ${navButton("exit", "Sair", "exit")}
         <div class="side-foot"><span>RB</span><div><strong>Dr. Regis Braga</strong><small>Psiquiatria</small></div></div>
       </aside>
@@ -429,7 +429,7 @@ function medicationBody(form) {
 
 function medicalRecord() {
   const patient = getPatient();
-  if (!patient) return emptyPatientMessage("Prontuario");
+  if (!patient) return emptyPatientMessage("Prontuário");
   const query = (draft.recordQuery || "").toLowerCase();
   const patientEntries = entriesForPatient(patient.id);
   const all = query
@@ -437,7 +437,7 @@ function medicalRecord() {
     : patientEntries;
   return `
     <div class="panel-title">
-      <div><h2>Prontuario Longitudinal</h2></div>
+      <div><h2>Prontuário Longitudinal</h2></div>
       ${patientSelector()}
     </div>
     <div class="record-grid">
@@ -972,7 +972,7 @@ async function generateDiagnosisFromClinicalData(element) {
     const nosologicalOptions = uniqueGroup(result.nosological_options, 3, "Nosológico");
     const syndromicOptions = uniqueGroup(result.syndromic_options, 3, "Sindrômico");
     const etiologicalOptions = uniqueGroup(result.etiological_options, 2, "Etiológico");
-    const selectedDoctorOptions = selectedDiagnosisValues(target || {}).filter(option => doctorDiagnosisOptions.includes(option));
+    const selectedDoctorOptions = doctorSelectedOptions(target || {});
     suggestion = {
       diagnosticoAiSindromico: syndromicOptions.join("\n"),
       diagnosticoAiNosologico: nosologicalOptions.join("\n"),

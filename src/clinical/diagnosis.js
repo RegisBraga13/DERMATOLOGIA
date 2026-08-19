@@ -63,6 +63,17 @@ export function formatDiagnosticOption(item = {}) {
   ].filter(Boolean).join(" - ");
 }
 
+// Canoniza a hipotese do medico sem acento: os quatro rotulos foram
+// acentuados, e um prontuario salvo antes disso guarda "Ausencia de
+// psicopatologia...". Com comparacao literal, a hipotese dele desaparecia ao
+// gerar o diagnostico de novo — o registro perdia a escolha do medico.
+export function doctorSelectedOptions(form = {}) {
+  const canonico = new Map(doctorDiagnosisOptions.map(option => [normalizeText(option), option]));
+  return selectedDiagnosisValues(form)
+    .map(value => canonico.get(normalizeText(value)))
+    .filter(Boolean);
+}
+
 export function buildDiagnosticSuggestion(form) {
   const qphdaText = anamnesisText(form);
   const sourceText = [
@@ -89,7 +100,7 @@ export function buildDiagnosticSuggestion(form) {
   const namesOf = rules => rules.map(formatDiagnosticOption).join("\n");
   const syndromic = namesOf(byCategory("sindromico", 3));
   const nosological = namesOf(byCategory("nosologico", 3));
-  const selectedDoctorOptions = selectedDiagnosisValues(form).filter(option => doctorDiagnosisOptions.includes(option));
+  const selectedDoctorOptions = doctorSelectedOptions(form);
   return {
     diagnosticoAiSindromico: syndromic,
     diagnosticoAiNosologico: nosological,
