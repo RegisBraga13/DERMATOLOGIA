@@ -13,7 +13,7 @@
 export const referenceCatalog = [
   { chave: "dalgalarrondo", autor: "Dalgalarrondo, P.", titulo: "Psicopatologia e semiologia dos transtornos mentais", curto: "Dalgalarrondo" },
   { chave: "cheniaux", autor: "Cheniaux, E.", titulo: "Manual de psicopatologia", edicao: "6ª ed., 2021", curto: "Cheniaux" },
-  { chave: "entrevista psiquiatrica", autor: "Castellana, G. B.", titulo: "Psicopatologia clínica: entrevista psiquiátrica", curto: "Castellana" },
+  { chave: "entrevista psiquiatrica", autor: "USP — Manole", titulo: "Psicopatologia clínica: entrevista psiquiátrica", curto: "USP — Manole" },
   { chave: "tratado psiquiatria", autor: "Associação Brasileira de Psiquiatria", titulo: "Tratado de psiquiatria", edicao: "2022", curto: "Tratado ABP" },
   { chave: "manual_do_residente", autor: "Sallet, P. C. e cols.", titulo: "Manual do residente de psiquiatria", edicao: "2023", curto: "Manual do Residente" },
   { chave: "sthal_psicofarmacologia", autor: "Stahl, S. M.", titulo: "Psicofarmacologia clínica: bases neurocientíficas e aplicações", curto: "Stahl — Psicofarmacologia" },
