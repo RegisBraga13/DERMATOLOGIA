@@ -2,7 +2,7 @@ import { formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharm
 import { anamnesisText, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, patientIdentificationText, professionalSelectedTreatmentItems, requestedExamsText, returnStoryText, treatmentDiagnosisText } from "../clinical/narrative.js";
 import { arrayValue, cleanClinicalLine, compactText, formatClinicalList, joinValues, normalizeText, stripFinalPeriod } from "../clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, MENTAL_EXAM_AI_FIELDS } from "../clinical/vocabulary.js";
-import { optionGroups } from "../data/examOptions.js?v=tratamento-2";
+import { optionGroups } from "../data/examOptions.js?v=tratamento-3";
 import { parseMedicationResponse } from "./medicationService.js";
 
 export function canonicalAiSelections(values, allowed = []) {
