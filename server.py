@@ -459,6 +459,10 @@ RAG_SCOPE_BY_KIND = {
     "anamnesis": ("semiologia", "ambos"),
     "refinement": ("semiologia", "ambos"),
     "refinement_scope": ("semiologia", "ambos"),
+    # Criterio diagnostico nao sai de bula. Por decisao do Dr. Regis, os livros
+    # de psicofarmacologia ficam fora daqui: o Diagnostico buscava sem filtro
+    # nos oito, e so nao trazia farmacologia por sorte do embedding.
+    "diagnosis": ("semiologia", "ambos"),
     "treatment": ("farmacologia", "ambos"),
     "medication": ("farmacologia", "ambos"),
 }
