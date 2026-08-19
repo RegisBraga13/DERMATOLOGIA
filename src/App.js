@@ -1,5 +1,6 @@
 import { buildDiagnosticSuggestion, doctorSelectedOptions, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharmacologicalOption, normalizeDiagnosticOptions, parseTreatmentResponse, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
 import { anamnesisText, buildEvolutionNarrative, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, outdatedEvolutionText, patientIdentificationText, professionalSelectedTreatmentItems, removeReturnBoilerplate, requestedExamsText, returnEvolutionContainsIdentity, returnStoryText, shouldRefreshEvolutionNarrative, treatmentDiagnosisText } from "./clinical/narrative.js";
+import { loadProtocol, protocolLoaded } from "./clinical/protocol.js";
 import { arrayValue, calculateAge, capitalizeFirst, cleanClinicalLine, clinicalPhrase, compactText, formatClinicalList, formatPlainList, joinValues, lowerFirst, mentalExamKeys, normalizedSingleChoiceValue, normalizeText, optionDisplayLabel, professionalClinicalTerms, professionalList, professionalListWithOther, stripFinalPeriod } from "./clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, anamnesisQuestionGroups, consultationPages, doctorDiagnosisOptions, EVOLUTION_REFRESH_PATTERNS, laboratoryExamRequestItems, MENTAL_EXAM_AI_FIELDS, pagesForScope, RETURN_BOILERPLATE_PHRASES, returnPages } from "./clinical/vocabulary.js";
 import { optionGroups } from "./data/examOptions.js?v=tratamento-3";
@@ -1202,10 +1203,31 @@ async function processAnamnesisTranscriptSilently(transcript = "", options = {})
 async function prepareRefinementFromClinicalData() {
   const context = clinicalAiContext("consultation");
   let result;
+  // O catalogo precisa estar carregado ANTES de montar o prompt: e ele que vai
+  // no prompt e e contra ele que a resposta e conferida. Se falhar, o
+  // refinamento ainda roda — cai no motor antigo, que inventa as perguntas.
   try {
+    await loadProtocol();
+  } catch (error) {
+    console.warn("Protocolo de entrevista indisponivel; refinamento sem lista fechada.", error);
+  }
+  try {
+    // Duas etapas, por causa do teto de tokens por minuto da conta: primeiro a
+    // IA escolhe os blocos pertinentes, depois recebe so as perguntas deles.
+    // Quem escolhe segue sendo ela, de lista fechada — mudou a ordem, nao o
+    // criterio. Sem protocolo carregado, escopo nulo e o motor antigo assume.
+    let scope = null;
+    if (protocolLoaded()) {
+      const escopo = await requestClinicalAi(
+        "refinement_scope",
+        buildClinicalAiPrompt("refinement_scope", context.target, context.patient),
+        "current"
+      );
+      scope = escopo.result?.blocks || null;
+    }
     ({ result } = await requestClinicalAi(
       "refinement",
-      buildClinicalAiPrompt("refinement", context.target, context.patient),
+      buildClinicalAiPrompt("refinement", context.target, context.patient, null, false, scope),
       "rag",
       buildRagQuery("refinement", context.target)
     ));

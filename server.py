@@ -20,10 +20,15 @@ AUDIO_TRANSCRIPTIONS_API_URL = "https://api.openai.com/v1/audio/transcriptions"
 VECTOR_STORE_API_URL = "https://api.openai.com/v1/vector_stores/{vector_store_id}/search"
 DEFAULT_MODEL = "gpt-4.1"
 DEFAULT_TRANSCRIPTION_MODEL = "gpt-4o-transcribe-diarize"
-MAX_PROMPT_CHARS = 100000
+# O refinamento leva o catalogo do protocolo inteiro — 436 perguntas, 110
+# obrigatorios e 176 sinais — porque a IA escolhe dele em vez de inventar.
+# Sozinho ja passa de 100 mil caracteres. O teto aqui e guarda contra prompt
+# descontrolado, nao limite do modelo: gpt-4.1 tem 1M de contexto, e 31 mil
+# tokens cabem sem aperto.
+MAX_PROMPT_CHARS = 160000
 MAX_OUTPUT_TOKENS = 2200
 MAX_AUDIO_BYTES = 30 * 1024 * 1024
-ALLOWED_KINDS = {"anamnesis", "mental_exam", "refinement", "diagnosis", "treatment", "evolution", "medication"}
+ALLOWED_KINDS = {"anamnesis", "mental_exam", "refinement_scope", "refinement", "diagnosis", "treatment", "evolution", "medication"}
 RXNAV_DISPLAY_TERMS_URL = "https://rxnav.nlm.nih.gov/REST/displaynames.json"
 RXNAV_DISPLAY_TERMS = None
 RXNAV_LOCK = threading.Lock()
@@ -212,6 +217,17 @@ SCHEMAS = {
         },
         "required": list(MENTAL_EXAM_KEYS),
     },
+    # Etapa 1 do refinamento: escolher os blocos do protocolo antes de receber
+    # as perguntas. O catalogo inteiro pede 33 mil tokens e a conta tem teto de
+    # 30 mil por minuto — a requisicao nao passava.
+    "refinement_scope": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "blocks": {"type": "array", "minItems": 1, "maxItems": 12, "items": {"type": "string"}},
+        },
+        "required": ["blocks"],
+    },
     "refinement": {
         "type": "object",
         "additionalProperties": False,
@@ -224,12 +240,16 @@ SCHEMAS = {
                     "type": "object",
                     "additionalProperties": False,
                     "properties": {
+                        # O id amarra a pergunta ao protocolo. Sem ele nao da
+                        # para saber de que livro ela saiu, e a lista deixa de
+                        # ser fechada: o cliente descarta id que nao existe.
+                        "id": {"type": "string"},
                         "topic": {"type": "string"},
                         "prompt": {"type": "string"},
                         "options": {"type": "array", "minItems": 2, "maxItems": 6, "items": {"type": "string"}},
                         "selection_mode": {"type": "string", "enum": ["single", "multiple"]},
                     },
-                    "required": ["topic", "prompt", "options", "selection_mode"],
+                    "required": ["id", "topic", "prompt", "options", "selection_mode"],
                 },
             },
             "red_flags": {
@@ -242,6 +262,11 @@ SCHEMAS = {
                     "required": ["topic", "reason"],
                 },
             },
+            # Listas de id, e so. O texto do item ja esta no protocolo do
+            # cliente: pedir que o modelo o reescreva abriria a porta para ele
+            # alterar o que o livro diz.
+            "mandatory_gaps": {"type": "array", "maxItems": 12, "items": {"type": "string"}},
+            "alerts": {"type": "array", "maxItems": 8, "items": {"type": "string"}},
             "observations": {
                 "type": "array",
                 "maxItems": 6,
@@ -263,7 +288,9 @@ SCHEMAS = {
                 },
             },
         },
-        "required": ["questions", "red_flags", "observations", "important_points"],
+        # A saida estruturada da OpenAI exige TODA propriedade em `required` —
+        # nao existe campo opcional. Lista vazia e a forma de dizer "nenhum".
+        "required": ["questions", "red_flags", "observations", "important_points", "mandatory_gaps", "alerts"],
     },
     # minItems 0 de proposito. Com minimo 3 e schema estrito o modelo nao tinha
     # como dizer "nao ha dado suficiente": era obrigado a entregar 8 linhas e
@@ -492,6 +519,10 @@ def validate_result(kind, result):
     elif kind == "mental_exam":
         if not all(isinstance(value, list) and all(isinstance(item, str) for item in value) for value in result.values()):
             raise ValueError("Exame psiquico estruturado invalido.")
+    elif kind == "refinement_scope":
+        blocks = result.get("blocks")
+        if not isinstance(blocks, list) or not blocks or not all(isinstance(b, str) and b.strip() for b in blocks):
+            raise ValueError("O escopo do refinamento deve trazer ao menos um bloco.")
     elif kind == "refinement":
         questions = result.get("questions")
         if not isinstance(questions, list) or not 3 <= len(questions) <= 8:
@@ -499,6 +530,12 @@ def validate_result(kind, result):
         for question in questions:
             if not isinstance(question.get("prompt"), str) or not isinstance(question.get("options"), list) or len(question["options"]) < 2:
                 raise ValueError("Pergunta de refinamento invalida.")
+            if not isinstance(question.get("id"), str) or not question["id"].strip():
+                raise ValueError("Pergunta de refinamento sem id do protocolo.")
+        for key in ("mandatory_gaps", "alerts"):
+            valor = result.get(key)
+            if valor is not None and (not isinstance(valor, list) or not all(isinstance(i, str) for i in valor)):
+                raise ValueError(f"O bloco {key} deve ser uma lista de ids.")
         for key in ("red_flags", "observations", "important_points"):
             if not isinstance(result.get(key), list):
                 raise ValueError("Bloco de refinamento invalido.")

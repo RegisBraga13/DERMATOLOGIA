@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Carregar caso fictício</title>
+<style>
+ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#1e2831;color:#e6ecf1;
+      display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;padding:24px}
+ .card{max-width:520px;background:#26323d;border:1px solid #35434f;border-radius:12px;padding:28px}
+ h1{font-family:Georgia,serif;font-weight:500;font-size:26px;margin:0 0 12px}
+ p{line-height:1.6;color:#a9b8c4;margin:0 0 14px}
+ button{font:inherit;font-weight:600;background:#9dc0dc;color:#16202b;border:0;border-radius:8px;
+        padding:12px 20px;cursor:pointer}
+ button:hover{background:#b0cee5}
+ a{color:#9dc0dc}
+ #saida{margin-top:16px;font-size:15px;color:#8fd0a8}
+</style></head><body><div class="card">
+<h1>Caso fictício — Helena Doriane Machado</h1>
+<p>Acrescenta a paciente e a consulta ao seu prontuário local. <strong>Não apaga nada</strong>:
+o que já existe é preservado, e rodar duas vezes não duplica.</p>
+<p>Depois de carregar, volte ao app e a paciente estará na lista.</p>
+<button id="btn">Carregar o caso</button>
+<p id="saida"></p>
+<p><a href="/index.html">← voltar ao app</a></p>
+</div>
+<script>
+document.getElementById('btn').addEventListener('click', () => {
+
+  const CHAVE = 'regis_psiquiatr_ia_v1';
+  const atual = JSON.parse(localStorage.getItem(CHAVE) || '{}');
+  const paciente = {
+  "id": "p-ficticio-2",
+  "nome": "Helena Doriane Machado (fictícia)",
+  "nascimento": "1991-11-03",
+  "sexo": "Feminino",
+  "estadoCivil": "Solteiro(a)",
+  "ocupacao": "Fonoaudióloga",
+  "escolaridade": "Superior completo",
+  "religiao": "Católica não praticante",
+  "telefone": "(31) 90000-0000",
+  "cidade": "Belo Horizonte",
+  "estado": "MG"
+};
+  const consulta = {
+  "id": "c-ficticio-2",
+  "patientId": "p-ficticio-2",
+  "data": "2026-08-19",
+  "label": "Consulta — caso fictício",
+  "type": "consultation",
+  "consultationMode": "IN_PERSON",
+  "anamnesisInputMode": "manual",
+  "queixa": "Estou cansada de viver triste e sozinha.",
+  "hdaManual": "Refere humor deprimido persistente desde a adolescencia, sem periodo de remissao completa, com piora nos ultimos dois anos. Ja usou tres antidepressivos em dose plena e tempo adequado, com potencializacao por litio, sem resposta sustentada. Refere beneficio parcial e o unico consistente com psicoterapia cognitivo-comportamental e com terapia comportamental dialetica. Eletroconvulsoterapia foi indicada por dois psiquiatras anteriores e recusada por ela. Duas internacoes psiquiatricas por ideacao suicida e por cortes profundos em antebraco que exigiram sutura. Nota que os episodios de autolesao se concentram nos dias seguintes a visitas a familia ou a visitas dos pais sem aviso previo. Mantem desempenho profissional elevado, e referencia no servico onde atende criancas com deficiencia auditiva. Refere dificuldade importante de intimidade: medo e nojo intensos diante de qualquer aproximacao sexual, seguidos de vergonha e sensacao de ser 'suja'. Sono nao reparador na maioria das noites, com pesadelos recorrentes de perseguicao por um homem que ela nao consegue identificar. Refere sobressalto exagerado a ruidos, conferencia repetida das portas antes de dormir e habito de contar ou cantar mentalmente para nao deixar os pensamentos virem. Quando ansiosa, muda os moveis de lugar e diz que isso a faz sentir-se mais segura.",
+  "medicos": "Sem comorbidade clinica conhecida. Hemograma, TSH, B12 e funcao hepatica normais ha tres meses. Nao usa medicacao nao psiquiatrica.",
+  "depressaoSintomas": [
+    "Desinteresse ou falta de prazer",
+    "Desanimo ou desesperanca",
+    "Cansaco ou falta de energia",
+    "Dificuldade de concentracao",
+    "Baixa autoestima",
+    "Sentimento de ruina"
+  ],
+  "maniaHipomaniaSintomas": [
+    "Nega sintomas relacionados"
+  ],
+  "ansiedadeSintomas": [
+    "Tensao corporal",
+    "Dificuldade de focar",
+    "Sintomas fisicos"
+  ],
+  "psicoseSintomas": [
+    "Nega sintomas relacionados"
+  ],
+  "sonoCaracteristicas": [
+    "Sono nao reparador",
+    "Dificuldade para adormecer",
+    "Despertares noturnos"
+  ],
+  "apetiteCaracteristicas": [
+    "Reducao do apetite"
+  ],
+  "usoSubstanciasComportamentos": [],
+  "impactoSintomas": [
+    "Moderado"
+  ],
+  "riscoSuicidioIndicadores": [
+    "Desesperanca",
+    "Desejo de morrer ou de nao acordar",
+    "Ideacao suicida",
+    "Autoagressao sem intencao suicida"
+  ],
+  "riscoSuicidioRazoesViver": "Nega plano e nega intencao atual. Diz que os pensamentos de morte estao 'sempre por perto', sem urgencia no momento.",
+  "riscoSuicidioRazoesParaViver": "As criancas que atende e duas amizades de longa data. Refere que nao faria isso com a irma mais nova.",
+  "psiPrevios": [
+    "Depressao"
+  ],
+  "tratamentos": [
+    "Psicoterapia",
+    "Antidepressivos",
+    "Estabilizador de humor",
+    "Internacao psiquiatrica"
+  ],
+  "familiares": [
+    "Depressao",
+    "Outro"
+  ],
+  "familiaresOutro": "Padrasto com dependencia de alcool, abstinente ha catorze anos.",
+  "fatores": [
+    "Conflito familiar"
+  ],
+  "fatoresMelhora": [
+    "Psicoterapia",
+    "Rotina estruturada",
+    "Afastamento de estressor"
+  ],
+  "impacto": [
+    "Moderado",
+    "Prejuizo social",
+    "Prejuizo familiar"
+  ],
+  "historia": "Criada pela mae e pelo padrasto a partir dos cinco anos. Refere relacao 'boa' com ambos. Descreve o padrasto como 'controlador' com a mae e com dificuldade de lidar com a propria raiva, abstinente de alcool ha catorze anos. O irmao mais velho relatou, quando ela tinha onze anos, 'toques estranhos' por parte do padrasto. Nao houve investigacao. Houve pedido de desculpas do padrasto as duas criancas dentro de uma intervencao da igreja e de internacao para tratamento de alcoolismo. A paciente nega ter sofrido qualquer abuso e nega sentimentos a respeito: diz que 'ele resolveu aquilo, nao tenho por que ter raiva'. Refere poucas lembrancas do periodo entre os seis e os doze anos. Os irmaos brincam que ela nao lembra de aniversarios, festas de escola nem viagens. Explica a falha de memoria dizendo que 'nao lembro porque nao aconteceu nada'. Retraida ate o ensino medio, quando passou a ter bom rendimento e a participar de grupos. Nega uso de alcool ou de outras substancias, e refere que o cheiro de alcool lhe da nausea.",
+  "aparencia": [
+    "Adequada"
+  ],
+  "atencao": [
+    "Distraibilidade",
+    "Hipervigil"
+  ],
+  "orientacao": [
+    "Orientado"
+  ],
+  "memoria": [
+    "Amnesia lacunar"
+  ],
+  "sensopercepcao": [
+    "Sem alteracao"
+  ],
+  "pensamentoCursoForma": [
+    "Adequado"
+  ],
+  "pensamentoConteudo": [
+    "Ideacao suicida"
+  ],
+  "linguagem": [
+    "Adequada"
+  ],
+  "humor": [
+    "Depressao/hipotimia"
+  ],
+  "afeto": [
+    "Afeto restrito/aplanado",
+    "Embotamento"
+  ],
+  "psicomotricidade": [
+    "Sem alteracao"
+  ],
+  "vontade": [
+    "Hipobulia"
+  ],
+  "juizoCritico": [
+    "Preservado"
+  ],
+  "memoriaOutro": "Lacuna referida entre os seis e os doze anos, sem amnesia continua no dia a dia.",
+  "afetoOutro": "Descreve-se como 'anestesiada'. Respostas coerentes e objetivas, frequentemente sem conteudo emocional.",
+  "fisico": "Cicatrizes lineares antigas em face anterior de ambos os antebracos. Sem outros achados relevantes.",
+  "aiMode": "rag",
+  "pharmaAiMode": "rag",
+  "diagnosticoAiSindromico": "Síndrome depressiva persistente grave, com sintomas ansiosos, ideação suicida crônica e episódios de autoagressão\nSíndrome de estresse pós-traumático crônico, com sintomas dissociativos, hipervigilância, pesadelos e evitação",
+  "diagnosticoAiNosologico": "Transtorno depressivo persistente (distimia), episódio grave, resistente ao tratamento - CID-11: 6A72 - DSM-5-TR: F34.1\nTranstorno de estresse pós-traumático (TEPT) - CID-11: 6B40 - DSM-5-TR: F43.10\nTranstorno de personalidade borderline - CID-11: 6D10 - DSM-5-TR: F60.3",
+  "diagnosticoAiEtiologico": "Histórico de trauma psicológico na infância/adolescência",
+  "ragSources": [
+    {
+      "file_id": "file-Te7pAHiy5FRS5AqQYP6TPf",
+      "filename": "Tratado psiquiatria 2022 ABP 2.pdf",
+      "score": 0.5685,
+      "attributes": {}
+    }
+  ],
+  "aiStatus": "Caso fictício carregado com o resultado real da RAG.",
+  "tratamentoAiMedicamentos": "Imipramina | Dose inicial: 100 mg/dia | Progressao: Aumentar gradualmente conforme tolerância e resposta clínica, geralmente em incrementos semanais de 25-50 mg | Dose final: 150-200 mg/dia\nMirtazapina | Dose inicial: 15 mg/dia à noite | Progressao: Aumentar para 30 mg/dia após 1-2 semanas, conforme resposta e tolerância | Dose final: 30-45 mg/dia\nQuetiapina (off-label para potencialização) | Dose inicial: 25 mg/noite | Progressao: Aumentar gradualmente em incrementos de 25-50 mg a cada poucos dias, conforme tolerância e resposta | Dose final: 150-300 mg/dia",
+  "tratamentoAiAbordagens": "Psicoterapia cognitivo-comportamental e terapia comportamental dialética | Manter e intensificar acompanhamento psicoterápico estruturado, com foco em manejo de sintomas depressivos, estratégias de enfrentamento e prevenção de recaídas.\nIntervenção em trauma e TEPT | Avaliar indicação de abordagens específicas para trauma, como EMDR ou terapia focada em trauma, conforme disponibilidade e aceitação da paciente.\nPlano de segurança e monitoramento de risco | Elaborar plano de segurança para manejo de ideação suicida e autoagressão, com monitoramento regular do risco e envolvimento de rede de apoio confiável.",
+  "treatmentStatus": "Caso fictício: 3 opções medicamentosas e 3 abordagens propostas para você assinalar.",
+  "diagnosticoSelecionado": [],
+  "tratamentoMedicamentosSelecionados": [],
+  "abordagensSelecionadas": []
+};
+  const semDuplicata = (lista, id) => (Array.isArray(lista) ? lista : []).filter(x => x.id !== id);
+  const novo = {
+    ...atual,
+    patients: [paciente, ...semDuplicata(atual.patients, paciente.id)],
+    consultations: [consulta, ...semDuplicata(atual.consultations, consulta.id)],
+    returns: Array.isArray(atual.returns) ? atual.returns : []
+  };
+  localStorage.setItem(CHAVE, JSON.stringify(novo));
+  console.log('Caso fictício carregado. Pacientes agora:', novo.patients.length);
+  document.getElementById('saida').textContent = 'Pronto. Voltando ao app...';
+  setTimeout(() => { location.href = '/index.html'; }, 900);
+});
+</script></body></html>

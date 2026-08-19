@@ -3,6 +3,7 @@ import { anamnesisText, conciseAntecedentsText, conciseComplaintText, conciseDia
 import { arrayValue, cleanClinicalLine, compactText, formatClinicalList, joinValues, normalizeText, stripFinalPeriod } from "../clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, MENTAL_EXAM_AI_FIELDS } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js?v=tratamento-3";
+import { protocolBlocksText, protocolCatalogText, protocolItemById, protocolLoaded } from "../clinical/protocol.js";
 import { parseMedicationResponse } from "./medicationService.js";
 
 export function canonicalAiSelections(values, allowed = []) {
@@ -110,11 +111,15 @@ function validateClinicalAiPayload(kind, result, text = "") {
   if (kind === "mental_exam") {
     if (!Object.values(result).every(value => Array.isArray(value))) throw new Error("Exame psiquico fora do formato esperado.");
   }
+  if (kind === "refinement_scope") {
+    if (!Array.isArray(result.blocks) || !result.blocks.length) throw new Error("Escopo do refinamento ausente.");
+  }
   if (kind === "refinement") {
     if (!Array.isArray(result.questions) || result.questions.length < 3) throw new Error("Perguntas de refinamento ausentes.");
     ["red_flags", "observations", "important_points"].forEach(key => {
       if (!Array.isArray(result[key])) throw new Error("Bloco de refinamento fora do formato esperado.");
     });
+    if (protocolLoaded()) result = resolveRefinementAgainstProtocol(result);
   }
   if (kind === "diagnosis") {
     // Teto, nao piso. Ver o comentario no schema do server.py: exigir um numero
@@ -143,6 +148,58 @@ function validateClinicalAiPayload(kind, result, text = "") {
     });
   }
   return result;
+}
+
+/**
+ * Onde a lista fica fechada de verdade.
+ *
+ * O prompt manda escolher do catalogo, mas prompt e pedido, nao garantia: o
+ * modelo pode devolver id inexistente, ou o id certo com o texto da pergunta
+ * reescrito. Aqui o texto vem SEMPRE do protocolo, nunca da resposta — a IA
+ * contribui com as opcoes de resposta e com a escolha, e com mais nada.
+ *
+ * Pergunta com id desconhecido e descartada. Se sobrar menos de uma, o
+ * chamador cai no plano local, que e o comportamento que ja existia quando a
+ * IA falhava.
+ */
+function resolveRefinementAgainstProtocol(result) {
+  const descartadas = [];
+  const questions = (result.questions || []).map(question => {
+    const item = protocolItemById(question.id);
+    if (!item) {
+      descartadas.push(question.id || "(sem id)");
+      return null;
+    }
+    return {
+      ...question,
+      topic: item.campo || question.topic,
+      prompt: item.pergunta,
+      quando: item.quando || "",
+      trechoId: item.trecho_id || ""
+    };
+  }).filter(Boolean);
+
+  const resolveIds = (ids, campo) => arrayValue(ids)
+    .map(id => protocolItemById(id))
+    .filter(Boolean)
+    .map(item => ({ topic: item[campo] || item.campo, reason: item.por_que || item.conduta || "", trechoId: item.trecho_id || "" }));
+
+  return {
+    ...result,
+    questions,
+    // Os sinais do protocolo entram como red flags: e a mesma secao da tela,
+    // agora com origem no livro em vez de inventada.
+    //
+    // O `red_flags` livre do modelo NAO e mesclado aqui. Ele continua no
+    // schema e o modelo continua preenchendo — no primeiro teste devolveu
+    // "afetividade", "risco" e "sexualidade", que sao nomes de bloco, nao
+    // sinais. Misturados aos sinais citados, entrariam na tela com a mesma
+    // aparencia dos que vem do livro. Com protocolo carregado, vale o livro.
+    red_flags: resolveIds(result.alerts, "sinal").slice(0, 8),
+    // Por decisao do Dr. Regis, so as imprescindiveis que faltam, como aviso.
+    important_points: resolveIds(result.mandatory_gaps, "item").slice(0, 12),
+    discardedIds: descartadas
+  };
 }
 
 function parseFallbackClinicalText(kind, text = "") {
@@ -201,7 +258,7 @@ function clinicalAiTextFromResult(kind, result) {
   return "";
 }
 
-export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = null, isReturn = false) {
+export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = null, isReturn = false, scope = null) {
   const taskByKind = {
     anamnesis: [
       "Use a literatura de semiologia psiquiatrica recuperada pelo RAG como guia de cobertura, mas extraia somente informacoes explicitamente presentes na transcricao da conversa.",
@@ -221,11 +278,22 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "O medico revisara e alterara todas as selecoes antes de prosseguir.",
       `Use exclusivamente estes rotulos canonicos: ${JSON.stringify(Object.fromEntries(Object.entries(MENTAL_EXAM_AI_FIELDS).map(([key, formKey]) => [key, (optionGroups[formKey] || [])])))}`
     ],
+    refinement_scope: [
+      "Escolha quais blocos do protocolo de entrevista sao pertinentes a este caso.",
+      "Devolva apenas os nomes dos blocos, exatamente como aparecem na lista. Ate 12.",
+      "Inclua o bloco quando o caso levanta o assunto que ele cobre, mesmo que so para descartar. Deixe de fora o que o caso nao toca."
+    ],
     refinement: [
       "Analise a anamnese revisada, o exame psiquico revisado e o exame fisico registrado.",
-      "Crie de 3 a 8 perguntas objetivas de refinamento com opcoes de resposta, priorizando lacunas e discriminacao diagnostica.",
-      "Liste red flags apenas quando sustentadas ou ainda nao esclarecidas; nao invente risco.",
-      "Inclua observacoes e pontos importantes que merecem confirmacao antes do resumo.",
+      // O motor antigo mandava a IA CRIAR as perguntas. Elas saiam boas, mas
+      // sem procedencia: nao dava para conferir de onde vinham nem saber o que
+      // tinham deixado de perguntar. Agora a lista e fechada.
+      "Escolha de 3 a 8 perguntas EXCLUSIVAMENTE do catalogo do protocolo, devolvendo o id de cada uma. Nao escreva pergunta que nao esteja no catalogo, e nao altere o texto da pergunta escolhida.",
+      "Escolha pelo campo 'quando' de cada pergunta: ela so cabe se a situacao descrita ali estiver presente neste caso.",
+      "Nao repita pergunta que o registro ja responde. O medico nao deve reconfirmar o que ja documentou.",
+      "Para cada pergunta escolhida, proponha de 3 a 5 opcoes de resposta objetivas. As opcoes sao suas; o texto da pergunta e do protocolo.",
+      "Em 'mandatory_gaps', liste os ids dos itens imprescindiveis que o registro AINDA NAO cobre. Item ja documentado fica de fora.",
+      "Em 'alerts', liste os ids dos sinais de alerta do protocolo sustentados por este caso. Nao invente risco e nao inclua sinal sem apoio no registro.",
       "Nao gere diagnostico nem tratamento."
     ],
     diagnosis: [
@@ -270,6 +338,12 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
     "Responda em portugues do Brasil, com linguagem tecnica, clara, objetiva e utilizavel em prontuario.",
     "Nao invente dados. Quando algo nao estiver informado, sinalize como dado ausente ou necessidade de confirmacao.",
     "",
+    // O catalogo e o mesmo em toda consulta e vem antes dos dados do paciente
+    // de proposito: prefixo estavel e o que o cache do modelo consegue
+    // reaproveitar. Invertido, cada refinamento pagaria os 27 mil tokens
+    // inteiros de novo.
+    kind === "refinement_scope" && protocolLoaded() ? `BLOCOS DO PROTOCOLO DE ENTREVISTA:\n${protocolBlocksText()}\n` : "",
+    kind === "refinement" && protocolLoaded() ? `CATALOGO DO PROTOCOLO DE ENTREVISTA:\n${protocolCatalogText(scope)}\n` : "",
     "TAREFA:",
     ...task.map(item => `- ${item}`),
     "",
@@ -350,7 +424,8 @@ function choiceSummary(form, keys = []) {
 function promptResponseFormat(kind) {
   if (kind === "anamnesis") return "Objeto estruturado de anamnese conforme o schema, sem texto adicional.";
   if (kind === "mental_exam") return "Objeto estruturado do exame psiquico conforme o schema, sem texto adicional.";
-  if (kind === "refinement") return "Objeto estruturado com perguntas, red flags, observacoes e pontos importantes, sem texto adicional.";
+  if (kind === "refinement_scope") return "Objeto com a chave blocks: lista de nomes de bloco, sem texto adicional.";
+  if (kind === "refinement") return "Objeto estruturado com questions (cada uma com id do protocolo e opcoes de resposta), mandatory_gaps e alerts (apenas ids do protocolo), sem texto adicional.";
   if (kind === "diagnosis") {
     return [
       "DIAGNOSTICO SINDROMICO: ate 3 hipoteses, uma por linha.",
