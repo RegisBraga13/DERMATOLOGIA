@@ -54,8 +54,8 @@ export function clinicalSummaryGroups(form = {}, patient = {}) {
     summaryGroupedOptionRow("Impacto funcional", "Áreas afetadas", "impacto", optionGroups.impacto || [], form, "impactoOutro")
   ];
   const mentalLabels = {
-    aparencia: "Aparência, atitude e contato", consciencia: "Consciência", atencao: "Atenção",
-    orientacao: "Orientação", memoria: "Memória", sensopercepcao: "Sensopercepção",
+    aparencia: "Aparência, atitude e contato", consciencia: "Consciência/Orientação", atencao: "Atenção",
+    memoria: "Memória", sensopercepcao: "Sensopercepção",
     pensamentoCursoForma: "Pensamento - curso e forma", pensamentoConteudo: "Pensamento - conteúdo",
     linguagem: "Linguagem", humor: "Humor", afeto: "Afeto",
     psicomotricidade: "Psicomotricidade", vontade: "Vontade", juizoCritico: "Juízo crítico"

@@ -4,7 +4,6 @@ export const MENTAL_EXAM_KEYS = Object.freeze([
   "aparencia",
   "consciencia",
   "atencao",
-  "orientacao",
   "memoria",
   "sensopercepcao",
   "pensamentoCursoForma",
@@ -300,9 +299,8 @@ export const ANAMNESIS_AI_FIELDS = {
 // opcoes um dia, o padrao viraria um achado patologico sem ninguem notar.
 export const MENTAL_EXAM_NORMAL = {
   aparencia: "Adequada",
-  consciencia: "Consciente",
+  consciencia: "Consciente/orientado",
   atencao: "Vigil",
-  orientacao: "Orientado",
   memoria: "Preservada",
   sensopercepcao: "Sem alteração",
   pensamentoCursoForma: "Adequado",
@@ -319,7 +317,7 @@ export const MENTAL_EXAM_NORMAL = {
 // preenchia a partir do audio, onde nao ha o que observar. Ficam do medico.
 // Consciencia ja estava de fora pelo mesmo motivo.
 export const MENTAL_EXAM_AI_FIELDS = {
-  attention: "atencao", orientation: "orientacao", memory: "memoria",
+  attention: "atencao", orientation: "consciencia", memory: "memoria",
   perception: "sensopercepcao", thought_course: "pensamentoCursoForma", thought_content: "pensamentoConteudo",
   language: "linguagem", mood: "humor", affect: "afeto",
   volition: "vontade", judgment: "juizoCritico"

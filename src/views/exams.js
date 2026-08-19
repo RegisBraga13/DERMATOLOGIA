@@ -42,8 +42,8 @@ export function mentalExamBody(form) {
     ["aparencia", "Aparencia, Atitude e Contato"],
     // consciencia estava fora desta lista: era lida no resumo, na evolucao e no
     // diagnostico, mas nao tinha controle na tela e chegava sempre vazia.
-    ["consciencia", "Consciencia"],
-    ["atencao", "Atencao/Vigilancia"], ["orientacao", "Orientacao"],
+    ["consciencia", "Consciencia/Orientacao"],
+    ["atencao", "Atencao/Vigilancia"],
     ["memoria", "Memoria"], ["sensopercepcao", "Sensopercepcao"],
     ["pensamentoCursoForma", "Pensamento (Curso e Forma)"], ["pensamentoConteudo", "Pensamento (Conteudo)"],
     ["linguagem", "Linguagem"], ["humor", "Humor (Estado Basal)"], ["afeto", "Afeto (Resposta)"],
