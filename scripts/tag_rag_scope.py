@@ -37,6 +37,10 @@ MAPA = (
     ("psicofarmacos", "farmacologia"),
     ("guia de prescri", "farmacologia"),
     ("psicofarmacologia", "farmacologia"),
+    # Tratados gerais: cobrem semiologia E tratamento, entao servem as duas
+    # pontas. Marcar um deles como so uma coisa perderia metade do livro.
+    ("tratado psiquiatria", "ambos"),
+    ("manual_do_residente", "ambos"),
 )
 
 
@@ -80,24 +84,39 @@ def main():
     store_id = catalogo["vector_store_id"]
     client = OpenAI()
 
-    for fonte in catalogo["sources"]:
-        atual = client.vector_stores.files.retrieve(vector_store_id=store_id, file_id=fonte["file_id"])
-        agora = (getattr(atual, "attributes", None) or {}).get("escopo", "(sem)")
-        alvo = escopo_de(fonte["filename"])
+    # A VERDADE E A VECTOR STORE, nao o catalogo local.
+    #
+    # O catalogo so registra o que passou por ingest_rag.py nesta maquina. A
+    # store tinha sete arquivos e o catalogo listava quatro: dois tratados
+    # indexados por outro caminho ficaram sem escopo e sumiram calados de todas
+    # as buscas filtradas. Percorrer o catalogo repetiria o mesmo furo a cada
+    # livro adicionado por fora.
+    arquivos = list(client.vector_stores.files.list(vector_store_id=store_id, limit=100))
+    catalogadas = {item["file_id"]: item for item in catalogo.get("sources", [])}
+    fontes = []
+    for arquivo in arquivos:
+        nome = catalogadas.get(arquivo.id, {}).get("filename") or client.files.retrieve(arquivo.id).filename
+        agora = (getattr(arquivo, "attributes", None) or {}).get("escopo", "(sem)")
+        fontes.append((arquivo.id, nome, agora))
+
+    novas = []
+    for file_id, nome, agora in fontes:
+        alvo = escopo_de(nome)
+        fora = " [fora do catalogo]" if file_id not in catalogadas else ""
         if args.listar:
-            print(f"  {agora:12} {fonte['filename']}")
-            continue
-        if agora == alvo:
-            print(f"  ja marcado  {alvo:12} {fonte['filename']}")
+            print(f"  {agora:12} {nome[:58]}{fora}")
+        elif agora == alvo:
+            print(f"  ja marcado  {alvo:12} {nome[:58]}{fora}")
         else:
             client.vector_stores.files.update(
-                vector_store_id=store_id, file_id=fonte["file_id"], attributes={"escopo": alvo})
-            print(f"  {agora} -> {alvo:12} {fonte['filename']}")
-        fonte["escopo"] = alvo
+                vector_store_id=store_id, file_id=file_id, attributes={"escopo": alvo})
+            print(f"  {agora} -> {alvo:12} {nome[:58]}{fora}")
+        novas.append({"filename": nome, "file_id": file_id, "status": "completed", "escopo": alvo})
 
     if not args.listar:
+        catalogo["sources"] = novas
         CATALOGO.write_text(json.dumps(catalogo, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"\nCatalogo atualizado: {CATALOGO}")
+        print(f"\nCatalogo sincronizado com a store: {len(novas)} fontes em {CATALOGO}")
 
 
 if __name__ == "__main__":
