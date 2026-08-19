@@ -760,6 +760,40 @@ details[open] summary:after { content: "-"; }
   border-left: 2px solid color-mix(in srgb, var(--primary-2) 65%, var(--line));
 }
 
+/* Codificacao: passo separado, depois da decisao. */
+.diagnosis-codes {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+.diagnosis-code {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-2);
+}
+.diagnosis-code strong {
+  font-size: 17px;
+}
+.diagnosis-code-value {
+  color: var(--muted);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.diagnosis-code p {
+  margin: 6px 0 0;
+  font-size: 15px;
+  color: var(--muted);
+}
+/* Linha sem codigo pede decisao do medico: fica marcada, nao escondida. */
+.diagnosis-code-open {
+  border-left: 2px solid color-mix(in srgb, var(--primary-2) 65%, var(--line));
+}
+
 .diagnosis-option {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: start;

@@ -1,7 +1,7 @@
 {
  "fonte": "CDC/NCHS ICD-10-CM FY2026, capitulo 5 (F01-F99)",
  "licenca": "Dominio publico (obra do governo dos EUA)",
- "gerado_em": "2026-08-18",
+ "gerado_em": "2026-08-19",
  "gerado_por": "scripts/build_code_tables.py",
  "total": 871,
  "codigos": [

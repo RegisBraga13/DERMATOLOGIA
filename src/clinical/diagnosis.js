@@ -54,6 +54,37 @@ export function formatDiagnosticOption(item = {}) {
   ].filter(Boolean).join(" - ");
 }
 
+// A hipotese aparece so com o nome, mas guarda por dentro o codigo da CID-11
+// em que foi ancorada. Sem isso, na hora de codificar o diagnostico aprovado
+// so restaria o texto livre para casar com a tabela — e "Depressao Maior" nao
+// casa com "Transtorno depressivo recorrente" por nenhuma comparacao textual.
+function parseStoredJson(value) {
+  if (value && typeof value === "object") return value;
+  try {
+    const parsed = JSON.parse(String(value || ""));
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export function diagnosticCodeAnchors(form = {}) {
+  return parseStoredJson(form.diagnosticoAncoras);
+}
+
+export function diagnosticCodes(form = {}) {
+  const stored = parseStoredJson(form.diagnosticoCodigos);
+  return Array.isArray(stored.itens) ? stored : { itens: [], geradoEm: "" };
+}
+
+export function formatDiagnosticCodeLine(item = {}) {
+  return [
+    item.name,
+    item.cid11 ? `CID-11: ${item.cid11}` : "",
+    item.dsm5tr ? `DSM-5-TR: ${item.dsm5tr}` : ""
+  ].filter(Boolean).join(" - ");
+}
+
 export function buildDiagnosticSuggestion(form) {
   const qphdaText = anamnesisText(form);
   const sourceText = [
@@ -76,16 +107,26 @@ export function buildDiagnosticSuggestion(form) {
     .map(rule => ({ ...rule, score: rule.terms.reduce((sum, term) => sum + (text.includes(term) ? 1 : 0), 0) }))
     .filter(rule => rule.score > 0)
     .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .map(formatDiagnosticOption)
-    .join("\n");
-  const syndromic = byCategory("sindromico", 3);
-  const nosological = byCategory("nosologico", 3);
+    .slice(0, limit);
+  // Mesmo criterio da IA: a hipotese aparece so com o nome, e a ancora fica
+  // guardada. Se o catalogo continuasse colando codigo na linha, a via de
+  // contingencia entregaria codigo sem passar pela aprovacao do medico —
+  // justamente o que o fluxo novo tira do caminho.
+  const anchors = { ...diagnosticCodeAnchors(form) };
+  const namesOf = rules => rules.map(rule => {
+    const code = (rule.cid11 || "").trim().split(" ")[0];
+    if (code) anchors[rule.name] = code;
+    return rule.name;
+  }).join("\n");
+  const syndromic = namesOf(byCategory("sindromico", 3));
+  const nosological = namesOf(byCategory("nosologico", 3));
   const selectedDoctorOptions = selectedDiagnosisValues(form).filter(option => doctorDiagnosisOptions.includes(option));
   return {
     diagnosticoAiSindromico: syndromic,
     diagnosticoAiNosologico: nosological,
-    diagnosticoAiEtiologico: byCategory("etiologico", 2),
+    diagnosticoAiEtiologico: namesOf(byCategory("etiologico", 2)),
+    diagnosticoAncoras: JSON.stringify(anchors),
+    diagnosticoCodigos: "",
     // Campos antigos, mantidos para os prontuarios ja salvos.
     diagnosticoAiOpcoes: syndromic,
     diagnosticoAiOutrasOpcoes: nosological,

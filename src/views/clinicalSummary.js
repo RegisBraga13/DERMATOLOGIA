@@ -1,3 +1,4 @@
+import { diagnosticCodes } from "../clinical/diagnosis.js";
 import { anamnesisText } from "../clinical/narrative.js";
 import { calculateAge, joinValues, mentalExamKeys, normalizeText } from "../clinical/textFormat.js";
 import { anamnesisQuestionGroups } from "../clinical/vocabulary.js";
@@ -67,6 +68,16 @@ export function clinicalSummaryGroups(form = {}, patient = {}) {
     summaryTextRow("Exame físico", "Achados relevantes", form.fisico)
   ].filter(row => row.value);
   const refinementRows = refinementSummaryRows(form);
+  // Codigo so entra no prontuario depois que o medico aprovou o diagnostico e
+  // pediu a codificacao. Linha sem codigo nao aparece: hipotese nao aprovada
+  // nao vira registro.
+  const codingRows = diagnosticCodes(form).itens
+    .filter(item => item.cid11 || item.dsm5tr)
+    .map(item => summaryTextRow(
+      "Codificação",
+      item.name,
+      [item.cid11 ? `CID-11 ${item.cid11}` : "", item.dsm5tr ? `DSM-5-TR ${item.dsm5tr}` : ""].filter(Boolean).join(" · ")
+    ));
   return [
     { title: "Identificação do paciente", rows: identityRows, layout: "item-record" },
     { title: "Dados narrativos", rows: narrativeRows, layout: "item-record" },
@@ -77,7 +88,8 @@ export function clinicalSummaryGroups(form = {}, patient = {}) {
     { title: "Anamnese estruturada", rows: [...anamnesisRows, ...complementaryRows], layout: "full" },
     { title: "Exame psíquico", rows: mentalRows.map(row => ({ ...row, section: row.item })), layout: "area-record" },
     { title: "Exame físico", rows: physicalRows },
-    { title: "Refinamento clínico", rows: refinementRows, layout: "area-record" }
+    { title: "Refinamento clínico", rows: refinementRows, layout: "area-record" },
+    { title: "Codificação diagnóstica", rows: codingRows, layout: "item-record" }
     // Exame fisico e Refinamento so tem linhas depois de preenchidos; sem o
     // filtro, o resumo mostraria a tabela vazia (so o cabecalho).
   ].filter(group => group.rows.length);

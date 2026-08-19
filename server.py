@@ -655,6 +655,64 @@ def verify_diagnostic_codes(result):
     return warnings
 
 
+def lookup_diagnostic_codes(names):
+    """Codifica os diagnosticos que o medico aprovou.
+
+    Codificar e ato que segue a decisao clinica, nao a hipotese: por isso a
+    consulta acontece aqui, sob pedido, e nao no momento em que a IA propoe.
+
+    Tres caminhos, nessa ordem: codigo escrito dentro do proprio texto (as
+    hipoteses antigas salvas trazem "- CID-11: 6B00 -"), titulo oficial exato,
+    e por fim correspondencia parcial — que nao decide nada, so devolve os
+    candidatos para o medico escolher.
+    """
+    tables = load_code_tables()
+    known11 = tables.get("cid11") or {}
+    crosswalk = tables.get("crosswalk") or {}
+    known10cm = tables.get("dsm5tr") or {}
+    by_name = {normalize_name(title): code for code, title in known11.items()}
+
+    resultados = []
+    for raw in names:
+        nome = str(raw or "").strip()
+        if not nome:
+            continue
+        # "Nome - CID-11: 6B00 - DSM-5-TR: F41.1" -> so o nome, para a busca.
+        limpo = re.split(r"\s+-\s+(?:CID-11|DSM-5-TR):", nome)[0].strip()
+        code = next((c for c in CID11_PATTERN.findall(nome) if c in known11), "")
+        if not code:
+            code = by_name.get(normalize_name(limpo), "")
+        item = {"name": nome, "cid11": "", "cid11Title": "", "dsm5tr": "", "dsm5trTitle": "", "candidatos": [], "sugestoes": []}
+        if not code:
+            # Por radical, nao por substring: o medico escreve "Depressao
+            # Maior" e a entidade chama "Transtorno depressivo, episodio
+            # unico" — nenhuma das duas contem a outra, mas "depress" e comum.
+            # Palavra generica nao pontua, senao "transtorno" casa com metade
+            # do capitulo.
+            generic = {"transtorno", "transtornos", "sindrome", "sindromes", "outro", "outros",
+                       "outra", "outras", "devido", "devidos", "nao", "especificado", "especificados"}
+            stems = [t[:4] for t in normalize_name(limpo).split() if len(t) >= 5 and t not in generic]
+            if stems:
+                marcados = []
+                for c, t in known11.items():
+                    tokens = normalize_name(t).split()
+                    score = sum(1 for stem in stems if any(tok.startswith(stem) for tok in tokens))
+                    if score:
+                        marcados.append((score, -len(tokens), c, t))
+                marcados.sort(reverse=True)
+                item["sugestoes"] = [{"cid11": c, "title": t} for _, _, c, t in marcados[:8]]
+            resultados.append(item)
+            continue
+        item["cid11"] = code
+        item["cid11Title"] = known11[code]
+        dsm, candidatos = resolve_dsm_code(code, crosswalk)
+        item["dsm5tr"] = dsm
+        item["dsm5trTitle"] = known10cm.get(dsm, "")
+        item["candidatos"] = [{"code": c["code"], "name": c["name"]} for c in candidatos]
+        resultados.append(item)
+    return resultados
+
+
 def plain_text_from_result(kind, result):
     if kind == "anamnesis":
         return f"QP: {result['chief_complaint']}\nHDA: {result['hda']}"
@@ -795,8 +853,26 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             self.send_json(403, {"error": "Origem nao autorizada."})
             return
 
-        if self.path not in {"/api/clinical-ai", "/api/transcribe-consultation"}:
+        if self.path not in {"/api/clinical-ai", "/api/transcribe-consultation", "/api/diagnostic-codes"}:
             self.send_json(404, {"error": "Endpoint nao encontrado."})
+            return
+
+        # Consulta a tabela local: nao passa pela OpenAI e nao exige chave.
+        # Codificar continua funcionando com o app offline.
+        if self.path == "/api/diagnostic-codes":
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                payload = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
+                names = payload.get("names")
+                if not isinstance(names, list) or len(names) > 40:
+                    self.send_json(400, {"error": "Envie ate 40 nomes de diagnostico."})
+                    return
+                self.send_json(200, {"ok": True, "codes": lookup_diagnostic_codes(names)})
+            except (ValueError, json.JSONDecodeError):
+                self.send_json(400, {"error": "Corpo invalido."})
+            except Exception:
+                logger.exception("Falha em /api/diagnostic-codes")
+                self.send_json(500, {"error": "Erro interno ao consultar as tabelas de codigo."})
             return
 
         api_key = os.environ.get("OPENAI_API_KEY")

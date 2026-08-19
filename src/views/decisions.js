@@ -1,4 +1,4 @@
-import { diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "../clinical/diagnosis.js";
+import { diagnosticCodes, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "../clinical/diagnosis.js";
 import { buildEvolutionNarrative, normalizeEvolutionNarrative, outdatedEvolutionText, requestedExamsText, returnEvolutionContainsIdentity, shouldRefreshEvolutionNarrative } from "../clinical/narrative.js";
 import { arrayValue, normalizeText } from "../clinical/textFormat.js";
 import { doctorDiagnosisOptions } from "../clinical/vocabulary.js";
@@ -26,6 +26,8 @@ export function diagnosisModule(form) {
     <textarea hidden name="diagnosticoAiSindromico">${escapeHtml(syndromicOptions.join("\n"))}</textarea>
     <textarea hidden name="diagnosticoAiNosologico">${escapeHtml(nosologicalOptions.join("\n"))}</textarea>
     <textarea hidden name="diagnosticoAiEtiologico">${escapeHtml(etiologicalOptions.join("\n"))}</textarea>
+    <textarea hidden name="diagnosticoAncoras">${escapeHtml(form.diagnosticoAncoras || "")}</textarea>
+    <textarea hidden name="diagnosticoCodigos">${escapeHtml(form.diagnosticoCodigos || "")}</textarea>
     ${diagnosisCategory("Sindrômico", syndromicOptions, selectedValues)}
     ${diagnosisCategory("Nosológico", nosologicalOptions, selectedValues)}
     ${diagnosisCategory("Etiológico", etiologicalOptions, selectedValues)}
@@ -33,7 +35,50 @@ export function diagnosisModule(form) {
       <h4>Hipóteses do médico</h4>
       <div class="diagnosis-options">${diagnosisOptionCheckboxes(doctorDiagnosisOptions, selectedValues)}</div>
     </div>
+    ${diagnosisCodingPanel(form, selectedValues)}
   `;
+}
+
+// Codificacao e passo separado, sob pedido, depois da decisao. A hipotese na
+// tela nao carrega codigo: o codigo pertence ao diagnostico que o medico
+// aprovou, e so entao gravidade e recorrencia estao decididas.
+function diagnosisCodingPanel(form, selectedValues) {
+  const codes = diagnosticCodes(form);
+  return `<div class="diagnosis-group diagnosis-coding">
+    <h4>Codificação</h4>
+    ${selectedValues.length
+      ? `<div class="actions">
+           <button class="primary" type="button" data-action="code-diagnosis">Fornecer CID-11 e DSM-5-TR</button>
+         </div>`
+      : `<p class="diagnosis-empty">Assinale um diagnóstico para poder codificá-lo.</p>`}
+    ${form.codingStatus ? `<p class="online-status">${escapeHtml(form.codingStatus)}</p>` : ""}
+    ${codes.itens.length ? `<ul class="diagnosis-codes">${codes.itens.map(codeRow).join("")}</ul>` : ""}
+  </div>`;
+}
+
+function codeRow(item = {}) {
+  const nome = escapeHtml(item.name || "");
+  if (!item.cid11) {
+    const sugestoes = Array.isArray(item.sugestoes) ? item.sugestoes : [];
+    return `<li class="diagnosis-code diagnosis-code-open">
+      <strong>${nome}</strong>
+      ${sugestoes.length
+        ? `<p>Sem correspondência direta. Escolha a entidade da CID-11:</p>
+           <div class="diagnosis-options">${sugestoes.map(s => `
+             <label class="diagnosis-option"><input type="radio" name="codigoEscolha__${escapeAttr(item.name || "")}" value="${escapeAttr(s.cid11)}" data-action="pick-diagnosis-code" data-alvo="${escapeAttr(item.name || "")}" /><span>${escapeHtml(s.cid11)} — ${escapeHtml(s.title)}</span></label>`).join("")}</div>`
+        : `<p>Sem correspondência na CID-11 capítulo 6. Síndrome descritiva não tem código próprio.</p>`}
+    </li>`;
+  }
+  const candidatos = Array.isArray(item.candidatos) ? item.candidatos : [];
+  return `<li class="diagnosis-code">
+    <strong>${nome}</strong>
+    <span class="diagnosis-code-value">CID-11 ${escapeHtml(item.cid11)}${item.cid11Title ? ` — ${escapeHtml(item.cid11Title)}` : ""}</span>
+    <span class="diagnosis-code-value">DSM-5-TR ${escapeHtml(item.dsm5tr || "sem correspondência no mapa oficial")}${item.dsm5trTitle ? ` — ${escapeHtml(item.dsm5trTitle)}` : ""}</span>
+    ${candidatos.length ? `
+      <p>Código de categoria: especifique a gravidade para completá-lo.</p>
+      <div class="diagnosis-options">${candidatos.map(c => `
+        <label class="diagnosis-option"><input type="radio" name="codigoDsm__${escapeAttr(item.name || "")}" value="${escapeAttr(c.code)}" ${item.dsm5trEscolhido === c.code ? "checked" : ""} data-action="pick-dsm-code" data-alvo="${escapeAttr(item.name || "")}" /><span>${escapeHtml(c.code)} — ${escapeHtml(c.name)}</span></label>`).join("")}</div>` : ""}
+  </li>`;
 }
 
 // O titulo conta o que esta na tela, nao o teto do grupo. Antes dizia sempre

@@ -54,6 +54,24 @@ export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery
   };
 }
 
+// Consulta a tabela local de codigos. Nao passa pela OpenAI e nao usa chave:
+// codificar o diagnostico aprovado continua funcionando com o app offline.
+export async function requestDiagnosticCodes(names = []) {
+  const response = await fetch("/api/diagnostic-codes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ names })
+  });
+  let data = {};
+  try {
+    data = await response.json();
+  } catch {
+    data = {};
+  }
+  if (!response.ok) throw new Error(data.error || "Falha ao consultar as tabelas de codigo.");
+  return Array.isArray(data.codes) ? data.codes : [];
+}
+
 export function buildRagQuery(kind, form = {}) {
   const diagnosis = treatmentDiagnosisText(form) || form.diagnosticoManual || "";
   // A busca vetorial recebe o dado ja estruturado, nao a transcricao bruta.

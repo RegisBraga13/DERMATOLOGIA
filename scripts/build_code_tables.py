@@ -81,10 +81,13 @@ def montar_icd11(release, idioma):
         if (linha.get("ChapterNo") or "").strip() != CAPITULO_MENTAL:
             continue
         classe = (linha.get("ClassKind") or "").strip()
-        # Bloco nao tem Code proprio, tem BlockId; guardamos os dois para que
-        # "6A40-6A4Z" seja tao consultavel quanto "6A40".
-        codigo = (linha.get("Code") or "").strip() or (linha.get("BlockId") or "").strip()
+        # Bloco fica de fora: o identificador dele e "BlockL2-6A7", que nao e
+        # codigo atribuivel a diagnostico nenhum. Faixa do tipo "6A40-6A4Z"
+        # continua conferivel, porque as duas pontas sao codigos de verdade.
+        codigo = (linha.get("Code") or "").strip()
         titulo = limpar_titulo(linha.get("Title"))
+        if classe == "block":
+            continue
         if not codigo or not titulo:
             continue
         entradas.append({

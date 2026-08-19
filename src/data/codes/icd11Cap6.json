@@ -1,16 +1,10 @@
 {
  "fonte": "OMS CID-11 MMS release 2025-01, capitulo 6, tabulacao simples (pt)",
  "licenca": "CC BY-ND 3.0 IGO - titulos reproduzidos literalmente, traducao da propria OMS",
- "gerado_em": "2026-08-18",
+ "gerado_em": "2026-08-19",
  "gerado_por": "scripts/build_code_tables.py",
- "total": 883,
+ "total": 858,
  "codigos": [
-  {
-   "code": "BlockL1-6A0",
-   "name": "Transtornos do neurodesenvolvimento",
-   "nameEN": "Neurodevelopmental disorders",
-   "kind": "block"
-  },
   {
    "code": "6A00",
    "name": "Transtornos do desenvolvimento intelectual",
@@ -274,12 +268,6 @@
    "name": "Transtornos do neurodesenvolvimento não especificados",
    "nameEN": "Neurodevelopmental disorders, unspecified",
    "kind": "category"
-  },
-  {
-   "code": "BlockL1-6A2",
-   "name": "Esquizofrenia ou outros transtornos psicóticos primários",
-   "nameEN": "Schizophrenia or other primary psychotic disorders",
-   "kind": "block"
   },
   {
    "code": "6A20",
@@ -666,12 +654,6 @@
    "kind": "category"
   },
   {
-   "code": "BlockL1-6A4",
-   "name": "Catatonia",
-   "nameEN": "Catatonia",
-   "kind": "block"
-  },
-  {
    "code": "6A40",
    "name": "Catatonia associada a outro transtorno mental",
    "nameEN": "Catatonia associated with another mental disorder",
@@ -688,18 +670,6 @@
    "name": "Catatonia não especificada",
    "nameEN": "Catatonia, unspecified",
    "kind": "category"
-  },
-  {
-   "code": "BlockL1-6A6",
-   "name": "Transtornos do humor",
-   "nameEN": "Mood disorders",
-   "kind": "block"
-  },
-  {
-   "code": "BlockL2-6A6",
-   "name": "Transtorno bipolar ou transtornos relacionados",
-   "nameEN": "Bipolar or related disorders",
-   "kind": "block"
   },
   {
    "code": "6A60",
@@ -918,12 +888,6 @@
    "kind": "category"
   },
   {
-   "code": "BlockL2-6A7",
-   "name": "Transtornos depressivos",
-   "nameEN": "Depressive disorders",
-   "kind": "block"
-  },
-  {
    "code": "6A70",
    "name": "Transtorno depressivo, episódio único",
    "nameEN": "Single episode depressive disorder",
@@ -1134,12 +1098,6 @@
    "kind": "category"
   },
   {
-   "code": "BlockL1-6B0",
-   "name": "Transtornos de ansiedade ou relacionados ao medo",
-   "nameEN": "Anxiety or fear-related disorders",
-   "kind": "block"
-  },
-  {
    "code": "6B00",
    "name": "Transtorno de ansiedade generalizada",
    "nameEN": "Generalised anxiety disorder",
@@ -1192,12 +1150,6 @@
    "name": "Transtornos de ansiedade ou relacionados ao medo não especificados",
    "nameEN": "Anxiety or fear-related disorders, unspecified",
    "kind": "category"
-  },
-  {
-   "code": "BlockL1-6B2",
-   "name": "Transtornos obsessivo-compulsivos ou relacionados",
-   "nameEN": "Obsessive-compulsive or related disorders",
-   "kind": "block"
   },
   {
    "code": "6B20",
@@ -1362,12 +1314,6 @@
    "kind": "category"
   },
   {
-   "code": "BlockL1-6B4",
-   "name": "Transtornos associados especificamente ao estresse",
-   "nameEN": "Disorders specifically associated with stress",
-   "kind": "block"
-  },
-  {
    "code": "6B40",
    "name": "Transtorno de estresse pós-traumático",
    "nameEN": "Post traumatic stress disorder",
@@ -1414,12 +1360,6 @@
    "name": "Transtornos relacionados especificamente ao estresse, não especificados",
    "nameEN": "Disorders specifically associated with stress, unspecified",
    "kind": "category"
-  },
-  {
-   "code": "BlockL1-6B6",
-   "name": "Transtornos dissociativos",
-   "nameEN": "Dissociative disorders",
-   "kind": "block"
   },
   {
    "code": "6B60",
@@ -1614,12 +1554,6 @@
    "kind": "category"
   },
   {
-   "code": "BlockL1-6B8",
-   "name": "Transtornos alimentares ou da alimentação",
-   "nameEN": "Feeding or eating disorders",
-   "kind": "block"
-  },
-  {
    "code": "6B80",
    "name": "Anorexia nervosa",
    "nameEN": "Anorexia Nervosa",
@@ -1734,12 +1668,6 @@
    "kind": "category"
   },
   {
-   "code": "BlockL1-6C0",
-   "name": "Transtornos da eliminação",
-   "nameEN": "Elimination disorders",
-   "kind": "block"
-  },
-  {
    "code": "6C00",
    "name": "Enurese",
    "nameEN": "Enuresis",
@@ -1800,12 +1728,6 @@
    "kind": "category"
   },
   {
-   "code": "BlockL1-6C2",
-   "name": "Transtornos de sofrimento corporal ou experiência corporal",
-   "nameEN": "Disorders of bodily distress or bodily experience",
-   "kind": "block"
-  },
-  {
    "code": "6C20",
    "name": "Transtorno de sofrimento corporal",
    "nameEN": "Bodily distress disorder",
@@ -1852,18 +1774,6 @@
    "name": "Transtornos de sofrimento corporal e experiência corporal não especificados",
    "nameEN": "Disorders of bodily distress or bodily experience, unspecified",
    "kind": "category"
-  },
-  {
-   "code": "BlockL1-6C4",
-   "name": "Transtornos decorrentes do uso de substâncias ou comportamentos aditivos",
-   "nameEN": "Disorders due to substance use or addictive behaviours",
-   "kind": "block"
-  },
-  {
-   "code": "BlockL2-6C4",
-   "name": "Transtornos decorrentes do uso de substâncias",
-   "nameEN": "Disorders due to substance use",
-   "kind": "block"
   },
   {
    "code": "6C40",
@@ -4326,12 +4236,6 @@
    "kind": "category"
   },
   {
-   "code": "BlockL2-6C5",
-   "name": "Transtornos devidos a comportamentos aditivos",
-   "nameEN": "Disorders due to addictive behaviours",
-   "kind": "block"
-  },
-  {
    "code": "6C50",
    "name": "Transtorno de jogo",
    "nameEN": "Gambling disorder",
@@ -4392,12 +4296,6 @@
    "kind": "category"
   },
   {
-   "code": "BlockL1-6C7",
-   "name": "Transtornos do controle de impulsos",
-   "nameEN": "Impulse control disorders",
-   "kind": "block"
-  },
-  {
    "code": "6C70",
    "name": "Piromania",
    "nameEN": "Pyromania",
@@ -4432,12 +4330,6 @@
    "name": "Transtornos não especificados do controle de impulsos",
    "nameEN": "Impulse control disorders, unspecified",
    "kind": "category"
-  },
-  {
-   "code": "BlockL1-6C9",
-   "name": "Transtornos de comportamento disruptivo ou dissocial",
-   "nameEN": "Disruptive behaviour or dissocial disorders",
-   "kind": "block"
   },
   {
    "code": "6C90",
@@ -4572,12 +4464,6 @@
    "kind": "category"
   },
   {
-   "code": "BlockL1-6D1",
-   "name": "Transtornos de personalidade e traços relacionados",
-   "nameEN": "Personality disorders and related traits",
-   "kind": "block"
-  },
-  {
    "code": "6D10",
    "name": "Transtorno de personalidade",
    "nameEN": "Personality disorder",
@@ -4650,12 +4536,6 @@
    "kind": "category"
   },
   {
-   "code": "BlockL1-6D3",
-   "name": "Transtornos parafílicos",
-   "nameEN": "Paraphilic disorders",
-   "kind": "block"
-  },
-  {
    "code": "6D30",
    "name": "Transtorno exibicionista",
    "nameEN": "Exhibitionistic disorder",
@@ -4704,12 +4584,6 @@
    "kind": "category"
   },
   {
-   "code": "BlockL1-6D5",
-   "name": "Transtornos factícios",
-   "nameEN": "Factitious disorders",
-   "kind": "block"
-  },
-  {
    "code": "6D50",
    "name": "Transtorno factício autoimposto",
    "nameEN": "Factitious disorder imposed on self",
@@ -4726,12 +4600,6 @@
    "name": "Transtornos factícios não especificados",
    "nameEN": "Factitious disorders, unspecified",
    "kind": "category"
-  },
-  {
-   "code": "BlockL1-6D7",
-   "name": "Transtornos neurocognitivos",
-   "nameEN": "Neurocognitive disorders",
-   "kind": "block"
   },
   {
    "code": "6D70",
@@ -4828,12 +4696,6 @@
    "name": "Transtorno amnéstico, causa desconhecida ou não especificada",
    "nameEN": "Amnestic disorder, unknown or unspecified cause",
    "kind": "category"
-  },
-  {
-   "code": "BlockL2-6D8",
-   "name": "Demência",
-   "nameEN": "Dementia",
-   "kind": "block"
   },
   {
    "code": "6D80",
@@ -5076,12 +4938,6 @@
    "kind": "category"
   },
   {
-   "code": "BlockL1-6E2",
-   "name": "Transtornos mentais ou comportamentais associados a gravidez, parto ou puerpério",
-   "nameEN": "Mental or behavioural disorders associated with pregnancy, childbirth or the puerperium",
-   "kind": "block"
-  },
-  {
    "code": "6E20",
    "name": "Transtornos mentais ou comportamentais associados a gravidez, o parto ou o puerpério, sem sintomas psicóticos",
    "nameEN": "Mental or behavioural disorders associated with pregnancy, childbirth or the puerperium, without psychotic symptoms",
@@ -5146,12 +5002,6 @@
    "name": "Fatores psicológicos ou comportamentais que afetam transtornos ou doenças classificados em outra parte, não especificados.",
    "nameEN": "Psychological or behavioural factors affecting disorders or diseases classified elsewhere, unspecified",
    "kind": "category"
-  },
-  {
-   "code": "BlockL1-6E6",
-   "name": "Síndromes mentais ou comportamentais secundárias associadas a transtornos ou doenças classificados em outra parte",
-   "nameEN": "Secondary mental or behavioural syndromes associated with disorders or diseases classified elsewhere",
-   "kind": "block"
   },
   {
    "code": "6E60",
