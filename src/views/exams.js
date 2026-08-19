@@ -1,4 +1,4 @@
-import { optionGroups } from "../data/examOptions.js?v=tratamento-4";
+import { optionGroups } from "../data/examOptions.js?v=tratamento-5";
 import { chips, singleChoiceWithNotes, textarea } from "../ui/controls.js";
 import { escapeHtml } from "../ui/html.js";
 

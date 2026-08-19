@@ -3,7 +3,7 @@ import { anamnesisText, buildEvolutionNarrative, normalizeEvolutionNarrative, ou
 import { loadProtocol, protocolLoaded } from "./clinical/protocol.js";
 import { arrayValue, joinValues, lowerFirst, normalizeText, stripFinalPeriod } from "./clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, anamnesisQuestionGroups, pagesForScope } from "./clinical/vocabulary.js";
-import { optionGroups } from "./data/examOptions.js?v=tratamento-4";
+import { optionGroups } from "./data/examOptions.js?v=tratamento-5";
 import { fetchCep } from "./services/cepService.js";
 import { buildClinicalAiPrompt, buildRagQuery, canonicalAiSelections, localRefinementPlan, requestClinicalAi } from "./services/clinicalAiService.js";
 import { buildMedicationAutofill, localMedicationSuggestions } from "./services/medicationService.js";

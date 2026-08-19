@@ -226,7 +226,6 @@ button:hover { border-color: var(--primary-2); }
   gap: 12px;
 }
 
-.grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
 .patient-grid {
   grid-template-columns: minmax(220px, 1.8fr) repeat(3, minmax(130px, 1fr));
@@ -264,17 +263,8 @@ textarea[name="medicos"] {
   min-height: 54px;
 }
 
-.mental-question {
-  margin: 10px 0 18px;
-}
 
-.mental-question textarea {
-  min-height: 78px;
-}
 
-.mental-question textarea[readonly] {
-  cursor: default;
-}
 
 input:focus, select:focus, textarea:focus {
   border-color: var(--primary-2);
@@ -495,14 +485,7 @@ details[open] summary:after { content: "-"; }
   padding: 0;
 }
 
-.multi-choice-other {
-  max-width: 360px;
-  color: var(--muted);
-}
 
-.multi-choice-other input {
-  min-height: 38px;
-}
 
 .risk-text textarea {
   min-height: 74px;
@@ -548,23 +531,8 @@ details[open] summary:after { content: "-"; }
   min-height: 176px;
 }
 
-.other-card {
-  width: min(360px, 100%);
-  margin: -4px 0 14px;
-  padding: 10px;
-  border: 1px solid color-mix(in srgb, var(--sage) 42%, var(--line));
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--sage) 9%, var(--surface));
-}
 
-.other-card input {
-  min-height: 40px;
-}
 
-.other-card.narrow {
-  width: min(260px, 100%);
-  margin-top: 8px;
-}
 
 .address-card {
   margin-top: 16px;
@@ -643,16 +611,7 @@ details[open] summary:after { content: "-"; }
   flex: 0 0 auto;
 }
 
-.info-box {
-  border: 1px solid color-mix(in srgb, var(--sage) 45%, var(--line));
-  background: color-mix(in srgb, var(--sage) 10%, var(--surface));
-  border-radius: var(--radius);
-  padding: 12px;
-  margin-top: 12px;
-}
 
-.info-box h4 { margin: 0 0 8px; }
-.info-box p, .info-box li { color: var(--muted); line-height: 1.45; }
 
 .diagnosis-ai-panel {
   border: 1px solid color-mix(in srgb, var(--primary-2) 32%, var(--line));
@@ -662,15 +621,6 @@ details[open] summary:after { content: "-"; }
   margin-bottom: 14px;
 }
 
-.summary-intro {
-  margin-bottom: 14px;
-  padding: 14px;
-  border: 1px solid color-mix(in srgb, var(--sage) 42%, var(--line));
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--sage) 9%, var(--surface));
-}
-.summary-intro p { margin: 0; color: var(--muted); line-height: 1.5; }
-.summary-actions { margin-top: 12px; }
 .summary-section { margin-top: 14px; }
 .summary-section h4 { margin: 0 0 9px; font-size: 21px; }
 .summary-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
@@ -787,32 +737,10 @@ details[open] summary:after { content: "-"; }
   overflow-wrap: anywhere;
 }
 
-.diagnosis-manual-extra {
-  margin-top: 14px;
-}
 
-.ai-toolbar {
-  display: grid;
-  grid-template-columns: minmax(220px, .9fr) minmax(220px, 1.1fr);
-  gap: 8px;
-  align-items: end;
-}
 
-.ai-toolbar label {
-  min-width: 0;
-}
 
-.ai-toolbar select {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
 
-.ai-toolbar button {
-  width: 100%;
-  min-height: 46px;
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-}
 
 .treatment-card-grid {
   display: grid;
@@ -820,11 +748,6 @@ details[open] summary:after { content: "-"; }
   gap: 12px;
 }
 
-.medication-card-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
 
 .treatment-card {
   min-width: 0;
@@ -1066,30 +989,8 @@ details[open] summary:after { content: "-"; }
   font-size: 17px;
 }
 
-.internet-links {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
 
-.internet-links a {
-  min-height: 38px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 11px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface-2);
-  color: var(--sage);
-  text-decoration: none;
-  font-size: 16px;
-}
 
-.internet-links a:hover {
-  border-color: var(--primary-2);
-}
 
 .online-status {
   margin: 10px 0 0;
@@ -1098,30 +999,9 @@ details[open] summary:after { content: "-"; }
   line-height: 1.4;
 }
 
-.doctor-note {
-  margin-top: 16px;
-}
 
-.patient-list {
-  display: grid;
-  gap: 8px;
-  max-height: 360px;
-  overflow: auto;
-  padding-right: 4px;
-}
 
-.list-row {
-  display: grid;
-  gap: 4px;
-  padding: 11px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface-2);
-  text-align: left;
-}
 
-.list-row.active { border-color: var(--primary-2); }
-.list-row small { color: var(--muted); }
 
 .record-grid {
   display: grid;
@@ -1149,14 +1029,6 @@ details[open] summary:after { content: "-"; }
   white-space: pre-wrap;
 }
 
-.footer-note {
-  padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
-  color: var(--muted);
-  font-size: 16px;
-  border-top: 1px solid var(--line);
-  text-align: center;
-  overflow-wrap: anywhere;
-}
 
 .modal-backdrop {
   position: fixed;
@@ -1181,7 +1053,7 @@ details[open] summary:after { content: "-"; }
 
 @media print {
   body { background: white; color: #111; }
-  .topbar, .side, .footer-note, .actions, .dashboard { display: none !important; }
+  .topbar, .side, .actions, .dashboard { display: none !important; }
   .container, .panel { padding: 0; box-shadow: none; border: 0; }
 }
 
@@ -1311,7 +1183,6 @@ label { gap: 8px; font-size: 13px; letter-spacing: .03em; }
 .page-tabs { gap: 2px; border-bottom: 1px solid var(--line); }
 .page-tabs button { border: 0; border-radius: 0; background: transparent; }
 .page-tabs button.active { background: transparent; border-bottom: 2px solid var(--primary-2); color: var(--text); }
-.footer-note { border: 0; opacity: .7; font-size: 12px; }
 
 @media (max-width: 980px) {
   .dashboard-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1408,7 +1279,6 @@ body {
 .dash-icon,
 .icon-button,
 .secondary,
-.internet-links a,
 summary::after {
   color: var(--primary-2);
 }
@@ -1462,7 +1332,6 @@ summary::after {
 .address-card,
 .treatment-card,
 .diagnosis-ai-panel,
-.info-box,
 .modal {
   box-shadow: none;
 }
@@ -1528,10 +1397,6 @@ textarea:focus {
 .address-card,
 .treatment-card,
 .diagnosis-ai-panel,
-.info-box {
-  background: color-mix(in srgb, var(--surface) 82%, var(--surface-2));
-  border-color: var(--line);
-}
 .clinical-card,
 .address-card {
   border-left: 2px solid color-mix(in srgb, var(--primary-2) 55%, var(--line));
@@ -1539,7 +1404,6 @@ textarea:focus {
 .chip,
 .segmented-options label,
 .multi-choice-options label,
-.list-row,
 .timeline-item {
   background: var(--surface-2);
 }
@@ -1555,7 +1419,6 @@ textarea:focus {
 }
 
 .modal-backdrop { background: rgba(25, 25, 25, .68); }
-.footer-note { color: var(--muted); }
 
 @media (max-width: 980px) {
   .side {
@@ -1797,10 +1660,6 @@ button,
 .medication-source-status,
 .diagnosis-empty,
 .warning,
-.info-box {
-  font-size: var(--type-support);
-  line-height: 1.55;
-}
 
 .medication-priority-fact span,
 .eyebrow,
@@ -1826,9 +1685,6 @@ button,
 }
 
 .side-foot small,
-.footer-note {
-  font-size: 14px;
-}
 
 @media (max-width: 640px) {
   :root {

@@ -2,7 +2,6 @@ export const optionGroups = {
   sexo: ["Masculino", "Feminino", "Intersexo"],
   genero: ["Cis", "Trans", "Binário"],
   estadoCivil: ["Solteiro(a)", "Casado(a)", "Divorciado(a)", "Viuvo(a)"],
-  moradia: ["Mora sozinho(a)", "Mora com conjuge", "Mora com pais", "Mora com filhos", "Mora com familiares", "Institucionalizado(a)", "Outro"],
   escolaridade: ["Analfabeto", "Fundamental", "Medio", "Superior"],
   religiao: ["Catolica", "Evangelica", "Espirita", "Judaica", "Islamica", "Matriz africana", "Agnostico(a)", "Ateu/ateia", "Sem religiao", "Outra"],
   inicio: ["Agudo", "Subagudo", "Insidioso", "Recorrente", "Desde a infancia/adolescencia", "Outro"],

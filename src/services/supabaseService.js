@@ -22,8 +22,6 @@ export async function signIn(email, password) {
   return result;
 }
 
-export function signOut() { sessionStorage.removeItem(SESSION_KEY); }
-
 // O access_token do Supabase dura cerca de uma hora. Sem renovacao, uma
 // consulta iniciada de manha e salva depois do almoco ia para o localStorage e
 // nunca subia: cada tentativa voltava 401 e o erro morria numa variavel que so
