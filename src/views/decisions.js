@@ -36,6 +36,32 @@ export function diagnosisModule(form) {
   `;
 }
 
+// O titulo conta o que esta na tela, nao o teto do grupo. Antes dizia sempre
+// "3 hipoteses", inclusive logo acima de "Nenhuma hipotese gerada".
+function diagnosisCategory(label, options, selectedValues) {
+  const total = options.length
+    ? `${options.length} ${options.length === 1 ? "hipótese" : "hipóteses"}`
+    : "sem hipóteses";
+  return `<div class="diagnosis-group"><h4>${label} — ${total}</h4>
+      <div class="diagnosis-options">
+        ${options.length ? diagnosisOptionCheckboxes(options, selectedValues) : `<p class="diagnosis-empty">O registro atual não sustenta hipótese nesta categoria.</p>`}
+      </div>
+    </div>`;
+}
+
+function diagnosisOptionCheckboxes(options, selectedValues) {
+  // Comparacao sem acento: os nomes do catalogo foram acentuados, e um
+  // prontuario salvo antes disso guarda "Sindrome Ansiosa". Comparando literal,
+  // a marcacao do medico sumia da tela sem sumir do registro.
+  const marcados = new Set(selectedValues.map(normalizeText));
+  return options.map(option => `
+    <label class="diagnosis-option">
+      <input type="checkbox" name="diagnosticoSelecionado" value="${escapeAttr(option)}" ${marcados.has(normalizeText(option)) ? "checked" : ""} />
+      <span>${escapeHtml(option)}</span>
+    </label>
+  `).join("");
+}
+
 function diagnosisAiStatusText(message = "") {
   if (!message) return "";
   if (/OPENAI_API_KEY|IA indisponivel/i.test(message)) return "6 hipoteses locais aplicadas.";
