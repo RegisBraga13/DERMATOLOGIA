@@ -125,16 +125,12 @@ function validateClinicalAiPayload(kind, result, text = "") {
   if (kind === "treatment") {
     if (!Array.isArray(result.medication_options) || result.medication_options.length > 3) throw new Error("O tratamento aceita no máximo 3 opções medicamentosas.");
     if (!Array.isArray(result.non_pharmacological_options) || result.non_pharmacological_options.length > 3) throw new Error("O tratamento aceita no máximo 3 abordagens não farmacológicas.");
-    result.medication_options.forEach(option => {
-      ["medication", "initial_dose", "progression", "target_dose"].forEach(key => {
-        if (typeof option?.[key] !== "string" || !option[key].trim()) throw new Error("Opção medicamentosa incompleta.");
-      });
-    });
-    result.non_pharmacological_options.forEach(option => {
-      ["approach", "details"].forEach(key => {
-        if (typeof option?.[key] !== "string" || !option[key].trim()) throw new Error("Abordagem não farmacológica incompleta.");
-      });
-    });
+    // Descarta a opcao incompleta em vez de derrubar a resposta: sem indicacao
+    // farmacologica, zero medicamento e a resposta certa, e as orientacoes
+    // precisam sobreviver a linha oca que a IA as vezes poe no lugar.
+    const completa = (option, chaves) => chaves.every(key => typeof option?.[key] === "string" && option[key].trim());
+    result.medication_options = result.medication_options.filter(option => completa(option, ["medication", "initial_dose", "progression", "target_dose"]));
+    result.non_pharmacological_options = result.non_pharmacological_options.filter(option => completa(option, ["approach", "details"]));
   }
   if (kind === "evolution" && typeof result.markdown !== "string") throw new Error("Evolucao fora do formato esperado.");
   if (kind === "medication") {
@@ -236,9 +232,10 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "Cada opcao deve conter nome, codigo da CID-11 e codigo do DSM-5-TR. Deixe o campo em branco quando nao houver codigo proprio — sindrome descritiva costuma nao ter — nunca escreva 'N/A'.",
     ],
     treatment: [
-      "Gere exatamente 3 opcoes de abordagem medicamentosa: primeira opcao, segunda opcao e uma opcao off-label, exclusivamente com dados do Assistant da IA atual ou do RAG com literatura.",
-      "Para cada opcao informe medicamento, dose inicial, progressao/titulacao e dose final ou dose-alvo.",
-      "Gere exatamente 3 abordagens nao farmacologicas ou alternativas, com uma orientacao objetiva para cada uma.",
+      "Gere ate 3 opcoes de abordagem medicamentosa: primeira opcao, segunda opcao e uma opcao off-label, exclusivamente com dados do Assistant da IA atual ou do RAG com literatura. E teto, nao piso.",
+      "Quando o quadro nao sustentar farmacoterapia — ausencia de psicopatologia de relevancia clinica, sintoma reativo ou adaptativo, queixa em remissao — devolva a lista de medicamentos VAZIA. Nao preencha a vaga com 'nao indicado', 'nenhum' ou linha sem dose: lista vazia e a resposta correta, e as orientacoes carregam a conduta.",
+      "Para cada opcao medicamentosa informe medicamento, dose inicial, progressao/titulacao e dose final ou dose-alvo. Opcao sem esses quatro dados e descartada.",
+      "Gere ate 3 abordagens nao farmacologicas ou orientacoes gerais, com uma orientacao objetiva para cada uma. Estas valem mesmo sem medicamento, e sao a conduta principal quando nao ha indicacao farmacologica.",
       "Considere as hipoteses escolhidas e os dados clinicos informados, incluindo riscos, comorbidades, substancias e exame psiquico. Nao invente dados.",
       "Sinalize necessidade de verificacao medica de contraindicações, interacoes, gestacao, funcao renal/hepatica e monitorizacao quando pertinente."
     ],

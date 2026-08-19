@@ -529,14 +529,23 @@ def validate_result(kind, result):
             raise ValueError("O tratamento aceita no maximo 3 opcoes medicamentosas.")
         if not isinstance(approaches, list) or len(approaches) > 3:
             raise ValueError("O tratamento aceita no maximo 3 abordagens nao farmacologicas.")
-        for option in medications:
-            for key in ("medication", "initial_dose", "progression", "target_dose"):
-                if not isinstance(option.get(key), str) or not option[key].strip():
-                    raise ValueError("Opcao medicamentosa incompleta.")
-        for option in approaches:
-            for key in ("approach", "details"):
-                if not isinstance(option.get(key), str) or not option[key].strip():
-                    raise ValueError("Abordagem nao farmacologica incompleta.")
+        # Opcao incompleta e descartada, nao fatal. Quando o registro nao
+        # sustenta farmacoterapia — "ausencia de psicopatologia", sintoma
+        # reativo — a IA devolvia uma linha oca no lugar do medicamento, e a
+        # resposta inteira era rejeitada: morriam junto as orientacoes, que
+        # eram a resposta certa para o caso. Nenhum medicamento e um resultado
+        # legitimo aqui.
+        def completa(option, chaves):
+            return isinstance(option, dict) and all(
+                isinstance(option.get(k), str) and option[k].strip() for k in chaves)
+        inteiras = [o for o in medications if completa(o, ("medication", "initial_dose", "progression", "target_dose"))]
+        if len(inteiras) != len(medications):
+            logger.warning("tratamento: %d opcao(oes) medicamentosa(s) incompleta(s) descartada(s)", len(medications) - len(inteiras))
+        result["medication_options"] = inteiras
+        uteis = [o for o in approaches if completa(o, ("approach", "details"))]
+        if len(uteis) != len(approaches):
+            logger.warning("tratamento: %d abordagem(ns) incompleta(s) descartada(s)", len(approaches) - len(uteis))
+        result["non_pharmacological_options"] = uteis
     elif kind == "evolution":
         markdown = result.get("markdown")
         if not isinstance(markdown, str) or not markdown.strip():
