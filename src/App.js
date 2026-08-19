@@ -3,7 +3,7 @@ import { anamnesisText, buildEvolutionNarrative, conciseAntecedentsText, concise
 import { loadProtocol, protocolLoaded } from "./clinical/protocol.js";
 import { arrayValue, calculateAge, capitalizeFirst, cleanClinicalLine, clinicalPhrase, compactText, formatClinicalList, formatPlainList, joinValues, lowerFirst, mentalExamKeys, normalizedSingleChoiceValue, normalizeText, optionDisplayLabel, professionalClinicalTerms, professionalList, professionalListWithOther, stripFinalPeriod } from "./clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, anamnesisQuestionGroups, consultationPages, doctorDiagnosisOptions, EVOLUTION_REFRESH_PATTERNS, laboratoryExamRequestItems, MENTAL_EXAM_AI_FIELDS, pagesForScope, RETURN_BOILERPLATE_PHRASES, returnPages } from "./clinical/vocabulary.js";
-import { optionGroups } from "./data/examOptions.js?v=tratamento-3";
+import { optionGroups } from "./data/examOptions.js?v=tratamento-4";
 import { medications } from "./data/medications.js?v=medicamentos-1";
 import { fetchCep } from "./services/cepService.js";
 import { buildClinicalAiPrompt, buildRagQuery, canonicalAiSelections, localRefinementPlan, requestClinicalAi } from "./services/clinicalAiService.js";

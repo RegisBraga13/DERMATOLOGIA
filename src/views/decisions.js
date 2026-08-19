@@ -2,7 +2,7 @@ import { diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, dia
 import { buildEvolutionNarrative, normalizeEvolutionNarrative, outdatedEvolutionText, requestedExamsText, returnEvolutionContainsIdentity, shouldRefreshEvolutionNarrative } from "../clinical/narrative.js";
 import { arrayValue, normalizeText } from "../clinical/textFormat.js";
 import { doctorDiagnosisOptions } from "../clinical/vocabulary.js";
-import { optionGroups } from "../data/examOptions.js?v=tratamento-3";
+import { optionGroups } from "../data/examOptions.js?v=tratamento-4";
 import { chips, textarea } from "../ui/controls.js";
 import { escapeAttr, escapeHtml } from "../ui/html.js";
 
@@ -98,6 +98,12 @@ export function treatmentModule(form) {
       ${ragSourcesView(form.ragSources)}
     </div>
     <div class="treatment-card-grid">
+      <div class="treatment-card">
+        <h4>Sintomas marginais e residuais</h4>
+        <p class="field-hint">O que persiste depois de controlado o quadro agudo. Tratam-se por si, independentemente do transtorno de base.</p>
+        ${chips("sintomasResiduais", "", optionGroups.sintomasResiduais, form.sintomasResiduais)}
+        ${textarea("sintomasResiduaisOutro", "Ao marcar \"Outro\": descreva", form.sintomasResiduaisOutro, "", 2)}
+      </div>
       <div class="treatment-card">
         <h4>Abordagem medicamentosa</h4>
         <textarea hidden name="tratamentoAiMedicamentos">${escapeHtml(medicationOptions.join("\n"))}</textarea>

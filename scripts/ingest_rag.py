@@ -43,6 +43,12 @@ def parse_args():
     parser.add_argument("--store-id", help="Vector store existente; se omitido, cria um novo")
     parser.add_argument("--store-name", default="Biblioteca Psiquiatria - Regis Braga")
     parser.add_argument("--catalog", type=Path, default=Path("rag_sources.local.json"))
+    # A biblioteca e uma so, mas as etapas nao pedem a mesma coisa. Sem escopo,
+    # o tratado de psicofarmacologia responde tambem na Anamnese e no
+    # Refinamento, onde a pergunta e de semiologia. O atributo permite a busca
+    # filtrar por etapa.
+    parser.add_argument("--escopo", choices=("semiologia", "farmacologia", "ambos"), default="ambos",
+                        help="Em que etapas esta fonte pode ser recuperada")
     return parser.parse_args()
 
 
@@ -80,10 +86,12 @@ def main():
         print(f"Enviando {path.name}...", flush=True)
         with path.open("rb") as stream:
             uploaded = client.files.create(file=stream, purpose="assistants")
-        attached = client.vector_stores.files.create(vector_store_id=store.id, file_id=uploaded.id)
+        client.vector_stores.files.create(
+            vector_store_id=store.id, file_id=uploaded.id, attributes={"escopo": args.escopo})
         wait_until_ready(client, store.id, uploaded.id)
         catalog["sources"] = [item for item in catalog["sources"] if item.get("filename") != path.name]
-        catalog["sources"].append({"filename": path.name, "file_id": uploaded.id, "status": "completed"})
+        catalog["sources"].append({"filename": path.name, "file_id": uploaded.id,
+                                   "status": "completed", "escopo": args.escopo})
         print(f"Indexado: {path.name}", flush=True)
 
     args.catalog.write_text(json.dumps(catalog, ensure_ascii=False, indent=2), encoding="utf-8")

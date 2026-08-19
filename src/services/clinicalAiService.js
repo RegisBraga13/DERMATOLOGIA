@@ -2,7 +2,7 @@ import { formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharm
 import { anamnesisText, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, patientIdentificationText, professionalSelectedTreatmentItems, refinementAnswersText, requestedExamsText, returnStoryText, treatmentDiagnosisText } from "../clinical/narrative.js";
 import { arrayValue, cleanClinicalLine, compactText, formatClinicalList, joinValues, normalizeText, stripFinalPeriod } from "../clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, MENTAL_EXAM_AI_FIELDS } from "../clinical/vocabulary.js";
-import { optionGroups } from "../data/examOptions.js?v=tratamento-3";
+import { optionGroups } from "../data/examOptions.js?v=tratamento-4";
 import { protocolBlocksText, protocolCatalogText, protocolItemById, protocolLoaded } from "../clinical/protocol.js";
 import { parseMedicationResponse } from "./medicationService.js";
 
@@ -305,7 +305,14 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
     ],
     treatment: [
       "Gere ate 3 opcoes de abordagem medicamentosa: primeira opcao, segunda opcao e uma opcao off-label, exclusivamente com dados do Assistant da IA atual ou do RAG com literatura. E teto, nao piso.",
-      "Quando o quadro nao sustentar farmacoterapia — ausencia de psicopatologia de relevancia clinica, sintoma reativo ou adaptativo, queixa em remissao — devolva a lista de medicamentos VAZIA. Nao preencha a vaga com 'nao indicado', 'nenhum' ou linha sem dose: lista vazia e a resposta correta, e as orientacoes carregam a conduta.",
+      "Quando o quadro nao sustentar farmacoterapia — ausencia de psicopatologia de relevancia clinica, sintoma reativo ou adaptativo — devolva a lista de medicamentos VAZIA. Nao preencha a vaga com 'nao indicado', 'nenhum' ou linha sem dose: lista vazia e a resposta correta, e as orientacoes carregam a conduta.",
+      // "Queixa em remissao" saiu da lista acima. Remissao do quadro agudo nao
+      // e alta terapeutica: e onde os sintomas residuais aparecem, e onde
+      // suspender manutencao provoca recaida. A regra antiga zerava o
+      // tratamento exatamente no momento em que ele precisa continuar.
+      "Remissao dos sintomas agudos NAO significa ausencia de indicacao. Avalie separadamente os sintomas marginais e residuais — alteracoes emocionais, cognitivas ou comportamentais que persistem apos o controle do quadro agudo.",
+      "Sintoma residual e menos intenso, nao menos importante: prejudica a funcionalidade e e preditor de recaida. Quando houver, proponha a conduta de manutencao e de reabilitacao, farmacologica ou nao, em vez de encerrar o tratamento.",
+      "Diga explicitamente quando a conduta proposta e de manutencao ou de reabilitacao, e nao de tratamento do quadro agudo.",
       "Para cada opcao medicamentosa informe medicamento, dose inicial, progressao/titulacao e dose final ou dose-alvo. Opcao sem esses quatro dados e descartada.",
       "Gere ate 3 abordagens nao farmacologicas ou orientacoes gerais, com uma orientacao objetiva para cada uma. Estas valem mesmo sem medicamento, e sao a conduta principal quando nao ha indicacao farmacologica.",
       "Considere as hipoteses escolhidas e os dados clinicos informados, incluindo riscos, comorbidades, substancias e exame psiquico. Nao invente dados.",
@@ -401,6 +408,10 @@ function clinicalPromptData(form = {}, patient = {}, previous = null, isReturn =
     // O exame fisico nunca chegou aqui. No caso de teste, as cicatrizes de
     // autolesao em antebraco estavam registradas e o diagnostico nao as via.
     `Exame fisico: ${stripFinalPeriod(form.fisico || "") || "nao informado"}.`,
+    // Registrado pelo medico na tela de Tratamento. Sem esta linha o campo
+    // ficava so no prontuario e a IA seguia propondo conduta para o quadro
+    // agudo — o mesmo circuito fechado do refinamento.
+    `Sintomas marginais e residuais: ${joinWithOutro(form.sintomasResiduais, form.sintomasResiduaisOutro) || "nao informado"}.`,
     // Fecha o laco do refinamento: o que o medico respondeu volta ao raciocinio.
     refinementAnswersText(form) ? `Refinamento clinico respondido pelo medico:\n${refinementAnswersText(form)}` : "",
     `Hipoteses diagnosticas selecionadas/acrescentadas: ${stripFinalPeriod(treatmentDiagnosisText(form)) || stripFinalPeriod(form.diagnosticoManual || "") || "nao informado"}.`,

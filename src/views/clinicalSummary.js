@@ -1,7 +1,7 @@
 import { anamnesisText } from "../clinical/narrative.js";
 import { calculateAge, joinValues, mentalExamKeys, normalizeText } from "../clinical/textFormat.js";
 import { anamnesisQuestionGroups, MENTAL_EXAM_NORMAL } from "../clinical/vocabulary.js";
-import { optionGroups } from "../data/examOptions.js?v=tratamento-3";
+import { optionGroups } from "../data/examOptions.js?v=tratamento-4";
 import { formatSummaryDate, section, summaryGroupedOptionRow, summaryTable, summaryTextRow } from "../ui/controls.js";
 
 export function clinicalSummaryPage(form = {}, patient = {}) {
@@ -73,6 +73,10 @@ export function clinicalSummaryGroups(form = {}, patient = {}) {
     summaryTextRow("Exame físico", "Achados relevantes",
       String(form.fisico || "").trim() || "Exame físico sem alterações significativas")
   ];
+  const residualRows = [
+    summaryGroupedOptionRow("Sintomas residuais", "Marginais e residuais", "sintomasResiduais",
+      optionGroups.sintomasResiduais || [], form, "sintomasResiduaisOutro")
+  ].filter(row => row.value);
   const refinementRows = refinementSummaryRows(form);
   return [
     { title: "Identificação do paciente", rows: identityRows, layout: "item-record" },
@@ -84,6 +88,7 @@ export function clinicalSummaryGroups(form = {}, patient = {}) {
     { title: "Anamnese estruturada", rows: [...anamnesisRows, ...complementaryRows], layout: "full" },
     { title: "Exame psíquico", rows: mentalRows.map(row => ({ ...row, section: row.item })), layout: "area-record" },
     { title: "Exame físico", rows: physicalRows },
+    { title: "Sintomas marginais e residuais", rows: residualRows },
     { title: "Refinamento clínico", rows: refinementRows, layout: "area-record" }
     // Exame fisico e Refinamento so tem linhas depois de preenchidos; sem o
     // filtro, o resumo mostraria a tabela vazia (so o cabecalho).

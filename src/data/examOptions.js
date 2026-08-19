@@ -15,6 +15,20 @@ export const optionGroups = {
   familiares: ["Depressao", "Transtorno bipolar", "Esquizofrenia", "Ansiedade", "TOC", "Tentativa ou Suicidio", "Demencia", "Outro"],
   substancias: ["Tabaco", "Alcool", "Cannabis", "Cocaina", "Crack", "Anfetaminas", "Benzodiazepinicos sem prescricao", "Opioides", "Alucinogenos", "Cafeina excessiva", "Jogos/apostas", "Pornografia", "Compras compulsivas", "Internet/redes sociais", "Outro"],
   examesPsiquiatria: ["Exames laboratoriais", "Beta-HCG", "ECG", "Litemia", "Valproato serico", "Prolactina", "Triagem toxicologica", "EEG", "TC", "RNM", "Outro"],
+  // Sintomas marginais e residuais: o que persiste depois de controlado o
+  // quadro agudo. Tratam-se por si, independentemente do transtorno de base —
+  // sao menos intensos, nao menos importantes, e sao preditores de recaida.
+  // Remissao do agudo nao e alta.
+  sintomasResiduais: [
+    "Fadiga", "Falta de concentracao", "Nevoa cerebral", "Lentificacao do processamento",
+    "Memoria operacional prejudicada", "Anedonia residual", "Hipersonia", "Insonia",
+    "Sono nao reparador", "Cefaleia", "Dor cronica", "Sintomas gastrointestinais",
+    "Ansiedade antecipatoria", "Hipervigilancia", "Esquiva", "Verificacoes automaticas",
+    "Bruxismo", "Tensao muscular", "Disforia", "Impulsividade residual",
+    "Instabilidade de ritmo circadiano", "Isolamento social", "Avolicao",
+    "Embotamento afetivo", "Alucinacoes marginais com critica preservada",
+    "Desconfianca residual", "Outro"
+  ],
   aparencia: ["Adequada", "Bizarrice", "Excentricidade", "Hostilidade", "Puerilismo", "Seducao", "Arrogancia", "Simulacao", "Oposicao", "Contato visual esquivo ou fixo"],
   consciencia: ["Consciente", "Obnubilado", "Letargico", "Orientado", "Desrealizacao", "Dissociacao"],
   atencao: ["Vigil", "Hipovigil", "Hipervigil", "Distraibilidade", "Tenaz", "Hipertenaz"],

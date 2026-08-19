@@ -450,7 +450,21 @@ def extract_response_text(data):
     return "\n\n".join(parts).strip()
 
 
-def search_rag_sources(query, api_key):
+# Que escopo de fonte cada etapa pode recuperar. A biblioteca e uma so, mas as
+# perguntas nao sao: o tratado de psicofarmacologia nao ajuda a conduzir uma
+# anamnese, e a psicopatologia nao dita dose. Fonte marcada "ambos" entra nas
+# duas listas — e por isso que o filtro cita o escopo proprio E "ambos".
+# Etapa fora deste mapa busca sem filtro, que e o comportamento antigo.
+RAG_SCOPE_BY_KIND = {
+    "anamnesis": ("semiologia", "ambos"),
+    "refinement": ("semiologia", "ambos"),
+    "refinement_scope": ("semiologia", "ambos"),
+    "treatment": ("farmacologia", "ambos"),
+    "medication": ("farmacologia", "ambos"),
+}
+
+
+def search_rag_sources(query, api_key, kind=""):
     vector_store_id = os.environ.get("OPENAI_RAG_VECTOR_STORE_ID", "").strip()
     if not vector_store_id:
         raise ValueError("OPENAI_RAG_VECTOR_STORE_ID nao configurado.")
@@ -459,6 +473,12 @@ def search_rag_sources(query, api_key):
         "max_num_results": int(os.environ.get("OPENAI_RAG_MAX_RESULTS", str(RAG_MAX_RESULTS))),
         "rewrite_query": True,
     }
+    escopos = RAG_SCOPE_BY_KIND.get(kind)
+    if escopos:
+        request_body["filters"] = {
+            "type": "or",
+            "filters": [{"type": "eq", "key": "escopo", "value": e} for e in escopos],
+        }
     request = urllib.request.Request(
         VECTOR_STORE_API_URL.format(vector_store_id=urllib.parse.quote(vector_store_id, safe="")),
         data=json.dumps(request_body, ensure_ascii=False).encode("utf-8"),
@@ -951,7 +971,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 self.send_json(400, {"error": "Modo de IA invalido."})
                 return
             if mode == "rag":
-                sources = search_rag_sources(rag_query, api_key)
+                sources = search_rag_sources(rag_query, api_key, kind)
                 if not sources:
                     self.send_json(422, {
                         "error": "A base RAG nao encontrou evidencia suficientemente relevante para responder com seguranca.",
