@@ -63,9 +63,14 @@ export function clinicalSummaryGroups(form = {}, patient = {}) {
   const mentalRows = mentalExamKeys().map(key =>
     summaryGroupedOptionRow("Exame psíquico", mentalLabels[key] || key, key, optionGroups[key] || [], form, `${key}Outro`)
   );
+  // Sem achado registrado, a secao sumia inteira do resumo: um prontuario sem
+  // exame fisico e um com exame fisico normal ficavam identicos. Por decisao do
+  // Dr. Regis, ausencia de registro aqui significa exame sem alteracao — e o
+  // prontuario passa a dizer isso, em vez de nao dizer nada.
   const physicalRows = [
-    summaryTextRow("Exame físico", "Achados relevantes", form.fisico)
-  ].filter(row => row.value);
+    summaryTextRow("Exame físico", "Achados relevantes",
+      String(form.fisico || "").trim() || "Exame físico sem alterações significativas")
+  ];
   const refinementRows = refinementSummaryRows(form);
   return [
     { title: "Identificação do paciente", rows: identityRows, layout: "item-record" },
