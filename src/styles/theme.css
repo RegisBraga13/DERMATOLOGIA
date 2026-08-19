@@ -719,7 +719,10 @@ details[open] summary:after { content: "-"; }
 .ai-mode-selector span { color: var(--text); font-weight: 700; }
 .ai-mode-selector small { color: var(--muted); line-height: 1.35; }
 
-.rag-sources { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+/* Fica logo abaixo do botao Gerar, discreta: e procedencia, nao resultado. */
+.rag-consulted { margin: 10px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.rag-consulted strong { color: var(--text); font-weight: 600; }
+.rag-sources { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
 .rag-sources summary { cursor: pointer; color: var(--text); font-weight: 700; }
 .rag-sources ol { margin: 10px 0 0; padding-left: 20px; }
 .rag-sources li + li { margin-top: 8px; }

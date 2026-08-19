@@ -4,6 +4,7 @@ import { arrayValue, normalizeText } from "../clinical/textFormat.js";
 import { doctorDiagnosisOptions } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js?v=tratamento-4";
 import { chips, textarea } from "../ui/controls.js";
+import { referenceFor } from "../data/references.js";
 import { escapeAttr, escapeHtml } from "../ui/html.js";
 
 export function diagnosisModule(form) {
@@ -20,7 +21,7 @@ export function diagnosisModule(form) {
         <button class="primary" type="button" data-action="generate-diagnosis">Gerar</button>
       </div>
       ${aiStatus ? `<p class="online-status">${escapeHtml(aiStatus)}</p>` : ""}
-      ${ragSourcesView(form.ragSources)}
+      ${ragSourcesView(form.ragSourcesDiagnostico)}
     </div>
     <textarea hidden name="diagnosticoManual">${escapeHtml(selectedText)}</textarea>
     <textarea hidden name="diagnosticoAiSindromico">${escapeHtml(syndromicOptions.join("\n"))}</textarea>
@@ -77,10 +78,18 @@ export function aiModeSelector(value = "current", name = "aiMode") {
   </fieldset>`;
 }
 
+// "Fontes consultadas nesta geracao", nunca "de onde veio a resposta". O RAG
+// restringe a busca; nao garante que cada frase saiu dali — o modelo ainda
+// generaliza. Prometer mais do que o mecanismo entrega e pior do que nao
+// mostrar nada.
 export function ragSourcesView(sources = []) {
   if (!Array.isArray(sources) || !sources.length) return "";
-  return `<details class="rag-sources"><summary>${sources.length} fonte(s) recuperada(s)</summary><ol>${sources.map(source => `
-    <li><strong>${escapeHtml(source.filename || "Fonte")}</strong><span>Relevancia: ${Math.round(Number(source.score || 0) * 100)}%</span></li>`).join("")}</ol></details>`;
+  const refs = sources.map(source => ({ ...source, ref: referenceFor(source.filename) }));
+  const nomes = [...new Set(refs.map(item => item.ref.curto))];
+  return `
+    <p class="rag-consulted">Consultado: ${nomes.map(nome => `<strong>${escapeHtml(nome)}</strong>`).join(" · ")}</p>
+    <details class="rag-sources"><summary>${sources.length} ${sources.length === 1 ? "trecho recuperado" : "trechos recuperados"}</summary><ol>${refs.map(item => `
+      <li><strong>${escapeHtml(item.ref.completo)}</strong><span>Relevancia: ${Math.round(Number(item.score || 0) * 100)}%</span></li>`).join("")}</ol></details>`;
 }
 
 export function treatmentModule(form) {
@@ -95,7 +104,7 @@ export function treatmentModule(form) {
         <button class="primary" type="button" data-action="generate-treatment">Gerar</button>
       </div>
       ${form.treatmentStatus ? `<p class="online-status">${escapeHtml(form.treatmentStatus)}</p>` : ""}
-      ${ragSourcesView(form.ragSources)}
+      ${ragSourcesView(form.ragSourcesTratamento)}
     </div>
     <div class="treatment-card-grid">
       <div class="treatment-card">

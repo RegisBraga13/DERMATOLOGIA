@@ -417,7 +417,7 @@ function medicationBody(form) {
       ${aiModeSelector(form.pharmaAiMode || "rag", "pharmaAiMode")}
       <div class="actions"><button class="primary" type="button" data-action="generate-medication-ai">Gerar</button></div>
       ${form.medicationOnlineStatus ? `<p class="medication-source-status">${escapeHtml(form.medicationOnlineStatus)}</p>` : ""}
-      ${ragSourcesView(form.ragSources)}
+      ${ragSourcesView(form.ragSourcesMedicamento)}
       ${hasInformation ? medicationReferenceCard(form) : `
         <div class="medication-empty-state">
           <span>Rx</span>
@@ -984,7 +984,7 @@ async function generateDiagnosisFromClinicalData(element) {
       diagnosticoSelecionado: selectedDoctorOptions,
       diagnosticoManual: selectedDoctorOptions.join("\n"),
       diferenciais: "",
-      ragSources: sources,
+      ragSourcesDiagnostico: sources,
       aiMode: mode,
       aiStatus: [
         `Propostas para você assinalar: ${countLabel(syndromicOptions.length, "sindrômica")}, ${countLabel(nosologicalOptions.length, "nosológica")} e ${countLabel(etiologicalOptions.length, "etiológica")}. As hipóteses do médico foram mantidas.`,
@@ -1006,7 +1006,7 @@ async function generateDiagnosisFromClinicalData(element) {
     const encontrou = local.diagnosticoAiSindromico || local.diagnosticoAiNosologico || local.diagnosticoAiEtiologico;
     suggestion = {
       ...local,
-      ragSources: [],
+      ragSourcesDiagnostico: [],
       treatmentStatus: `${fonte} indisponivel: ${error.message}`,
       aiStatus: encontrou
         ? `${fonte} indisponível (${error.message}). As hipóteses abaixo vêm do catálogo local, por correspondência de termos do registro — contingência, não substituto da literatura indexada.`
@@ -1047,15 +1047,15 @@ async function generateTreatmentFromClinicalData(element) {
       abordagensTerapeuticas: "",
       examesLaboratoriais: requestedExamsText(target || {}),
       condutaMedica: target?.condutaMedica || "",
-      ragSources: sources,
+      ragSourcesTratamento: sources,
       pharmaAiMode: mode,
       treatmentStatus: `${countLabel(medicationOptions.length, "opção medicamentosa", "opções medicamentosas")} e ${countLabel(approachOptions.length, "outra abordagem", "outras abordagens")} propostas para você assinalar. Suas escolhas anteriores foram mantidas.`,
       aiStatus: "Sugestões de tratamento geradas pela IA para revisão médica."
     };
   } catch (error) {
     suggestion = (target?.pharmaAiMode || "rag") === "rag"
-      ? { ragSources: [], treatmentStatus: `RAG indisponivel: ${error.message}`, aiStatus: `RAG indisponivel: ${error.message}` }
-      : { ragSources: [], treatmentStatus: `IA indisponivel: ${error.message}`, aiStatus: `IA indisponivel: ${error.message}` };
+      ? { ragSourcesTratamento: [], treatmentStatus: `RAG indisponivel: ${error.message}`, aiStatus: `RAG indisponivel: ${error.message}` }
+      : { ragSourcesTratamento: [], treatmentStatus: `IA indisponivel: ${error.message}`, aiStatus: `IA indisponivel: ${error.message}` };
   }
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
   else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
@@ -1112,13 +1112,13 @@ async function generateMedicationFromClinicalData(element) {
       medicationStatus: "Medicamento preenchido nos campos essenciais. Revise com bula vigente.",
       medicationOnlineStatus: "Resposta de medicamento gerada pela IA real. Revise com bula brasileira e dados do paciente.",
       aiStatus: "Resposta gerada pela IA real. Revise antes de salvar.",
-      ragSources: sources,
+      ragSourcesMedicamento: sources,
       pharmaAiMode: mode
     };
   } catch (error) {
     const wasRag = (target?.pharmaAiMode || "rag") === "rag";
     suggestion = {
-      ragSources: [],
+      ragSourcesMedicamento: [],
       medicationOnlineStatus: wasRag ? `RAG indisponivel: ${error.message}. Use pesquisa online ou prompt manual.` : `IA indisponível: ${error.message}. Use pesquisa online ou prompt manual.`,
       aiStatus: wasRag ? `RAG indisponivel: ${error.message}.` : `IA indisponível: ${error.message}.`
     };
