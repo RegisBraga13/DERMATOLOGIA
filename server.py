@@ -162,6 +162,12 @@ def diarized_transcription(audio_bytes, filename, content_type, api_key):
     }
 
 
+MENTAL_EXAM_KEYS = (
+    "attention", "orientation", "memory", "perception",
+    "thought_course", "thought_content", "language", "mood", "affect",
+    "volition", "judgment",
+)
+
 SCHEMAS = {
     "anamnesis": {
         "type": "object",
@@ -199,17 +205,12 @@ SCHEMAS = {
         "additionalProperties": False,
         "properties": {
             key: {"type": "array", "items": {"type": "string"}}
-            for key in (
-                "appearance", "attention", "orientation", "memory", "perception",
-                "thought_course", "thought_content", "language", "mood", "affect",
-                "psychomotor", "volition", "judgment"
-            )
+            # Aparencia e psicomotricidade sairam: sao observacao visual, e a
+            # IA as preenchia a partir do audio, onde nao ha o que observar.
+            # Ficam do medico. Consciencia ja estava fora pelo mesmo motivo.
+            for key in MENTAL_EXAM_KEYS
         },
-        "required": [
-            "appearance", "attention", "orientation", "memory", "perception",
-            "thought_course", "thought_content", "language", "mood", "affect",
-            "psychomotor", "volition", "judgment"
-        ],
+        "required": list(MENTAL_EXAM_KEYS),
     },
     "refinement": {
         "type": "object",

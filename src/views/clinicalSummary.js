@@ -1,6 +1,6 @@
 import { anamnesisText } from "../clinical/narrative.js";
 import { calculateAge, joinValues, mentalExamKeys, normalizeText } from "../clinical/textFormat.js";
-import { anamnesisQuestionGroups } from "../clinical/vocabulary.js";
+import { anamnesisQuestionGroups, MENTAL_EXAM_NORMAL } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js?v=tratamento-1";
 import { formatSummaryDate, section, summaryGroupedOptionRow, summaryTable, summaryTextRow } from "../ui/controls.js";
 
@@ -60,9 +60,11 @@ export function clinicalSummaryGroups(form = {}, patient = {}) {
     linguagem: "Linguagem", humor: "Humor", afeto: "Afeto",
     psicomotricidade: "Psicomotricidade", vontade: "Vontade", juizoCritico: "Juízo crítico"
   };
-  const mentalRows = mentalExamKeys().map(key =>
-    summaryGroupedOptionRow("Exame psíquico", mentalLabels[key] || key, key, optionGroups[key] || [], form, `${key}Outro`)
-  );
+  // Dominio nao marcado consta como normal, mesma decisao do exame fisico.
+  const mentalRows = mentalExamKeys().map(key => {
+    const row = summaryGroupedOptionRow("Exame psíquico", mentalLabels[key] || key, key, optionGroups[key] || [], form, `${key}Outro`);
+    return row.value ? row : { ...row, value: MENTAL_EXAM_NORMAL[key] || "Sem alteração" };
+  });
   // Sem achado registrado, a secao sumia inteira do resumo: um prontuario sem
   // exame fisico e um com exame fisico normal ficavam identicos. Por decisao do
   // Dr. Regis, ausencia de registro aqui significa exame sem alteracao — e o

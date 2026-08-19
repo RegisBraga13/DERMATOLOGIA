@@ -293,10 +293,35 @@ export const ANAMNESIS_AI_FIELDS = {
   functional_impact: ["impacto", optionGroups.impacto]
 };
 
+// O que o resumo registra quando o medico nao marcou nada no dominio. Mesma
+// decisao do exame fisico: ausencia de marcacao significa exame sem alteracao,
+// e o prontuario passa a dizer isso em vez de deixar a celula muda.
+// Escrito a mao, e nao "a primeira opcao do grupo": se alguem reordenar as
+// opcoes um dia, o padrao viraria um achado patologico sem ninguem notar.
+export const MENTAL_EXAM_NORMAL = {
+  aparencia: "Adequada",
+  consciencia: "Consciente",
+  atencao: "Vigil",
+  orientacao: "Orientado",
+  memoria: "Preservada",
+  sensopercepcao: "Sem alteração",
+  pensamentoCursoForma: "Adequado",
+  pensamentoConteudo: "Adequado",
+  linguagem: "Adequada",
+  humor: "Eutimia (normal)",
+  afeto: "Preservado",
+  psicomotricidade: "Sem alteração",
+  vontade: "Normal",
+  juizoCritico: "Preservado"
+};
+
+// Aparencia e psicomotricidade sairam daqui: sao observacao visual, e a IA as
+// preenchia a partir do audio, onde nao ha o que observar. Ficam do medico.
+// Consciencia ja estava de fora pelo mesmo motivo.
 export const MENTAL_EXAM_AI_FIELDS = {
-  appearance: "aparencia", attention: "atencao", orientation: "orientacao", memory: "memoria",
+  attention: "atencao", orientation: "orientacao", memory: "memoria",
   perception: "sensopercepcao", thought_course: "pensamentoCursoForma", thought_content: "pensamentoConteudo",
-  language: "linguagem", mood: "humor", affect: "afeto", psychomotor: "psicomotricidade",
+  language: "linguagem", mood: "humor", affect: "afeto",
   volition: "vontade", judgment: "juizoCritico"
 };
 
