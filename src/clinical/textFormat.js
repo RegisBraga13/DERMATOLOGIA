@@ -26,11 +26,16 @@ export function professionalListWithOther(value, otherValue = "") {
   ].filter(Boolean).map(item => lowerFirst(professionalClinicalTerms(item))));
 }
 
+// "a" · "a e b" · "a, b e c". A juncao era identica em formatPlainList e
+// formatClinicalList; o que difere entre as duas e so o preparo de cada item.
+function joinWithAnd(items = []) {
+  if (items.length <= 1) return items[0] || "";
+  if (items.length === 2) return `${items[0]} e ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")} e ${items.at(-1)}`;
+}
+
 export function formatPlainList(items = []) {
-  const cleanItems = uniqueValues(items.map(item => String(item || "").trim()).filter(Boolean));
-  if (cleanItems.length <= 1) return cleanItems[0] || "";
-  if (cleanItems.length === 2) return `${cleanItems[0]} e ${cleanItems[1]}`;
-  return `${cleanItems.slice(0, -1).join(", ")} e ${cleanItems.at(-1)}`;
+  return joinWithAnd(uniqueValues(items.map(item => String(item || "").trim()).filter(Boolean)));
 }
 
 export function professionalClinicalTerms(value = "") {
@@ -75,10 +80,7 @@ export function clinicalPhrase(value = "") {
 }
 
 export function formatClinicalList(items = []) {
-  const cleanItems = uniqueValues(items.map(clinicalPhrase).filter(Boolean));
-  if (cleanItems.length <= 1) return cleanItems[0] || "";
-  if (cleanItems.length === 2) return `${cleanItems[0]} e ${cleanItems[1]}`;
-  return `${cleanItems.slice(0, -1).join(", ")} e ${cleanItems.at(-1)}`;
+  return joinWithAnd(uniqueValues(items.map(clinicalPhrase).filter(Boolean)));
 }
 
 export function lowerFirst(value = "") {

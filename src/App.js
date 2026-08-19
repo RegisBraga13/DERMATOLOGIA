@@ -1,10 +1,9 @@
-import { buildDiagnosticSuggestion, doctorSelectedOptions, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharmacologicalOption, normalizeDiagnosticOptions, parseTreatmentResponse, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
-import { anamnesisText, buildEvolutionNarrative, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, outdatedEvolutionText, patientIdentificationText, professionalSelectedTreatmentItems, removeReturnBoilerplate, requestedExamsText, returnEvolutionContainsIdentity, returnStoryText, shouldRefreshEvolutionNarrative, treatmentDiagnosisText } from "./clinical/narrative.js";
+import { buildDiagnosticSuggestion, doctorSelectedOptions, formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharmacologicalOption } from "./clinical/diagnosis.js";
+import { anamnesisText, buildEvolutionNarrative, normalizeEvolutionNarrative, outdatedEvolutionText, removeReturnBoilerplate, requestedExamsText, returnEvolutionContainsIdentity, shouldRefreshEvolutionNarrative, treatmentDiagnosisText } from "./clinical/narrative.js";
 import { loadProtocol, protocolLoaded } from "./clinical/protocol.js";
-import { arrayValue, calculateAge, capitalizeFirst, cleanClinicalLine, clinicalPhrase, compactText, formatClinicalList, formatPlainList, joinValues, lowerFirst, mentalExamKeys, normalizedSingleChoiceValue, normalizeText, optionDisplayLabel, professionalClinicalTerms, professionalList, professionalListWithOther, stripFinalPeriod } from "./clinical/textFormat.js";
-import { ANAMNESIS_AI_FIELDS, anamnesisQuestionGroups, consultationPages, doctorDiagnosisOptions, EVOLUTION_REFRESH_PATTERNS, laboratoryExamRequestItems, MENTAL_EXAM_AI_FIELDS, pagesForScope, RETURN_BOILERPLATE_PHRASES, returnPages } from "./clinical/vocabulary.js";
+import { arrayValue, joinValues, lowerFirst, normalizeText, stripFinalPeriod } from "./clinical/textFormat.js";
+import { ANAMNESIS_AI_FIELDS, anamnesisQuestionGroups, pagesForScope } from "./clinical/vocabulary.js";
 import { optionGroups } from "./data/examOptions.js?v=tratamento-4";
-import { medications } from "./data/medications.js?v=medicamentos-1";
 import { fetchCep } from "./services/cepService.js";
 import { buildClinicalAiPrompt, buildRagQuery, canonicalAiSelections, localRefinementPlan, requestClinicalAi } from "./services/clinicalAiService.js";
 import { buildMedicationAutofill, localMedicationSuggestions } from "./services/medicationService.js";
@@ -14,7 +13,7 @@ import { currentSession, pullState, pushState, signIn } from "./services/supabas
 import { formatDiarizedTranscript, preferredRecordingMimeType, requestConsultationTranscription, showMicrophonePermissionHelp } from "./services/voiceService.js";
 import { anamnesisStructuredFields, chips, field, selectField, summaryColumns, textarea, voiceTextarea } from "./ui/controls.js";
 import { escapeAttr, escapeHtml } from "./ui/html.js";
-import { clipboardIcon, folderIcon, homeIcon, lockIcon, microphoneIcon, personIcon, repeatIcon, themeIcon } from "./ui/icons.js";
+import { clipboardIcon, folderIcon, homeIcon, lockIcon, personIcon, repeatIcon, themeIcon } from "./ui/icons.js";
 import { clinicalSummaryGroups, clinicalSummaryPage } from "./views/clinicalSummary.js";
 import { aiModeSelector, diagnosisModule, evolutionBody, ragSourcesView, treatmentModule } from "./views/decisions.js";
 import { consultationAccessPanel, mentalExamBody, neurologicExamBody, recordReturnAction, returnAssessmentBody } from "./views/exams.js";
@@ -930,11 +929,18 @@ function countLabel(total, singular, plural = `${singular}s`) {
   return `${total} ${total === 1 ? singular : plural}`;
 }
 
-async function generateDiagnosisFromClinicalData(element) {
+// Preambulo identico nos cinco geradores: grava o que esta na tela antes de
+// gerar — sem isso a IA raciocina sobre o registro anterior — e descobre se o
+// alvo e a consulta ou o retorno.
+function syncedTarget(element) {
   const formElement = element.closest("form");
   if (formElement) updateDraftFromForm(formElement);
   const scope = view === "return" ? "return" : "consultation";
-  const target = scope === "return" ? draft.return : draft.consultation;
+  return { scope, target: scope === "return" ? draft.return : draft.consultation };
+}
+
+async function generateDiagnosisFromClinicalData(element) {
+  const { scope, target } = syncedTarget(element);
   setClinicalAiStatus(scope, "Consultando IA real para diagnostico...");
   render();
   let suggestion;
@@ -1019,10 +1025,7 @@ async function generateDiagnosisFromClinicalData(element) {
 }
 
 async function generateTreatmentFromClinicalData(element) {
-  const formElement = element.closest("form");
-  if (formElement) updateDraftFromForm(formElement);
-  const scope = view === "return" ? "return" : "consultation";
-  const target = scope === "return" ? draft.return : draft.consultation;
+  const { scope, target } = syncedTarget(element);
   const diagnosisText = treatmentDiagnosisText(target || {});
   if (!diagnosisText) return alert("Selecione ao menos uma hipotese diagnostica antes de gerar o tratamento.");
   setClinicalAiStatus(scope, "Consultando IA real para tratamento...");
@@ -1063,10 +1066,7 @@ async function generateTreatmentFromClinicalData(element) {
 }
 
 async function generateEvolutionFromClinicalData(element) {
-  const formElement = element.closest("form");
-  if (formElement) updateDraftFromForm(formElement);
-  const scope = view === "return" ? "return" : "consultation";
-  const target = scope === "return" ? draft.return : draft.consultation;
+  const { scope, target } = syncedTarget(element);
   setClinicalAiStatus(scope, "Consultando IA real para evolução clínica...");
   render();
   let suggestion;
@@ -1091,10 +1091,7 @@ async function generateEvolutionFromClinicalData(element) {
 }
 
 async function generateMedicationFromClinicalData(element) {
-  const formElement = element.closest("form");
-  if (formElement) updateDraftFromForm(formElement);
-  const scope = view === "return" ? "return" : "consultation";
-  const target = scope === "return" ? draft.return : draft.consultation;
+  const { scope, target } = syncedTarget(element);
   if (!target?.medicationGeneric?.trim()) return alert("Digite o nome do medicamento antes de consultar a IA.");
   setClinicalAiStatus(scope, "Consultando IA real para medicamento...");
   if (scope === "return") draft.return = { ...(draft.return || {}), medicationStatus: "Consultando IA real para medicamento..." };
@@ -1238,10 +1235,7 @@ async function prepareRefinementFromClinicalData() {
 }
 
 async function fillMedicationInfo(element) {
-  const formElement = element.closest("form");
-  if (formElement) updateDraftFromForm(formElement);
-  const scope = view === "return" ? "return" : "consultation";
-  const target = scope === "return" ? draft.return : draft.consultation;
+  const { scope, target } = syncedTarget(element);
   const medicationName = target?.medicationGeneric || "";
   if (!medicationName.trim()) return alert("Digite o nome do medicamento para pesquisar online.");
   const loading = {
@@ -1284,17 +1278,14 @@ function updateSelectedTreatmentFromForm(form) {
 
 function updateDraftFromForm(form) {
   if (form.id === "patient-form") draft.patient = { ...(draft.patient || {}), ...formToObject(form) };
-  if (form.id === "consult-form") {
+  // Consulta e retorno liam o formulario do mesmo jeito; so mudava o ramo do
+  // draft que recebia o resultado.
+  const chave = { "consult-form": "consultation", "return-form": "return" }[form.id];
+  if (chave) {
     const data = formToObject(form);
     data.examesLaboratoriais = requestedExamsText(data);
     if ("evolution" in data) data.evolutionAutoGenerated = false;
-    draft.consultation = { ...(draft.consultation || {}), ...data };
-  }
-  if (form.id === "return-form") {
-    const data = formToObject(form);
-    data.examesLaboratoriais = requestedExamsText(data);
-    if ("evolution" in data) data.evolutionAutoGenerated = false;
-    draft.return = { ...(draft.return || {}), ...data };
+    draft[chave] = { ...(draft[chave] || {}), ...data };
   }
 }
 
@@ -1329,13 +1320,22 @@ function defaultConsultation() {
   return { patientId: selectedPatientId, label: `Consulta ${count}`, type: "consultation", consultationMode: "IN_PERSON", anamnesisInputMode: "manual" };
 }
 
-function defaultReturn() {
+// Consulta ainda sem retorno registrado. A regra e "cada consulta tem no
+// maximo um retorno", e ela estava escrita duas vezes, identica.
+function returnCandidates() {
   const consultations = consultationsForPatient(selectedPatientId);
-  const pendingConsultation = consultations.find(consultation =>
-    !state.returns.some(entry =>
-      entry.patientId === selectedPatientId && entry.previousEntryId === consultation.id
+  return {
+    consultations,
+    pendingConsultation: consultations.find(consultation =>
+      !state.returns.some(entry =>
+        entry.patientId === selectedPatientId && entry.previousEntryId === consultation.id
+      )
     )
-  );
+  };
+}
+
+function defaultReturn() {
+  const { consultations, pendingConsultation } = returnCandidates();
   if (!pendingConsultation) {
     const latestSavedReturn = returnsForPatient(selectedPatientId)[0];
     if (latestSavedReturn) return structuredClone(latestSavedReturn);
@@ -1345,12 +1345,7 @@ function defaultReturn() {
 }
 
 function startNewReturn() {
-  const consultations = consultationsForPatient(selectedPatientId);
-  const pendingConsultation = consultations.find(consultation =>
-    !state.returns.some(entry =>
-      entry.patientId === selectedPatientId && entry.previousEntryId === consultation.id
-    )
-  );
+  const { pendingConsultation } = returnCandidates();
   if (!pendingConsultation) {
     alert("Cada consulta pode ter apenas um retorno. Todas as consultas deste paciente ja possuem retorno.");
     return;

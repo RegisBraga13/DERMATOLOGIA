@@ -26,10 +26,6 @@ export function protocolLoaded() {
   return Boolean(protocolo);
 }
 
-export function protocolTotals() {
-  return protocolo?.total || null;
-}
-
 function flatten(lista) {
   return (protocolo?.blocos || []).flatMap(bloco =>
     (bloco[lista] || []).map(item => ({ ...item, campo: bloco.campo })));
