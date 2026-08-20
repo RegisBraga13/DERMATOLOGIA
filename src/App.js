@@ -1,4 +1,5 @@
-import { buildDiagnosticSuggestion, doctorSelectedOptions, formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharmacologicalOption } from "./clinical/diagnosis.js";
+import { countLabel, diagnosisSuggestionFromAi, diagnosisSuggestionFromLocalCatalogue } from "./clinical/aiDiagnosisResult.js";
+import { formatMedicationTreatmentOption, formatNonPharmacologicalOption } from "./clinical/diagnosis.js";
 import { anamnesisText, buildEvolutionNarrative, normalizeEvolutionNarrative, outdatedEvolutionText, removeReturnBoilerplate, requestedExamsText, returnEvolutionContainsIdentity, shouldRefreshEvolutionNarrative, treatmentDiagnosisText } from "./clinical/narrative.js";
 import { loadProtocol, protocolLoaded } from "./clinical/protocol.js";
 import { arrayValue, joinValues, lowerFirst, normalizeText, stripFinalPeriod } from "./clinical/textFormat.js";
@@ -10,9 +11,9 @@ import { buildMedicationAutofill, localMedicationSuggestions } from "./services/
 import { exportTextAsPdf } from "./services/pdfService.js?v=pdf-download-2";
 import { loadState, mergeStates, saveState, uid } from "./services/storageService.js";
 import { currentSession, pullState, pushState, signIn } from "./services/supabaseService.js";
-import { formatDiarizedTranscript, preferredRecordingMimeType, requestConsultationTranscription, showMicrophonePermissionHelp } from "./services/voiceService.js";
 import { anamnesisStructuredFields, chips, field, selectField, summaryColumns, textarea, voiceTextarea } from "./ui/controls.js";
 import { escapeAttr, escapeHtml } from "./ui/html.js";
+import { createVoiceRecording } from "./ui/voiceRecording.js";
 import { clipboardIcon, folderIcon, homeIcon, lockIcon, personIcon, repeatIcon, themeIcon } from "./ui/icons.js";
 import { clinicalSummaryGroups, clinicalSummaryPage } from "./views/clinicalSummary.js";
 import { aiModeSelector, diagnosisModule, evolutionBody, ragSourcesView, treatmentModule } from "./views/decisions.js";
@@ -29,13 +30,6 @@ let consultationPage = "anamnese";
 let returnPage = "evolucao-retorno";
 let modal = null;
 let pendingViewAfterPatient = "";
-let activeVoiceRecorder = null;
-let activeVoiceStream = null;
-let activeVoiceChunks = [];
-let activeVoiceStartedAt = 0;
-let activeVoiceDurationTimer = null;
-let activeVoiceButton = null;
-let voiceTranscribing = false;
 let anamnesisProcessingSequence = 0;
 let clinicalDraftRevision = 0;
 let refinementGenerating = false;
@@ -44,6 +38,17 @@ let authError = "";
 // Falha de sincronizacao com o Supabase. Separada de authError, que so a tela
 // de login renderiza: aqui precisa aparecer com a sessao aberta.
 let syncError = "";
+let storageError = "";
+// A gravacao da consulta mora em ui/voiceRecording.js. Ela recebe daqui o que
+// nao pode importar — o rascunho vivo e o formulario na tela — e devolve so
+// duas coisas: como comecar/encerrar, e se ha algo em andamento.
+const voiceRecording = createVoiceRecording({
+  app,
+  getDraft: () => draft,
+  updateDraftFromForm,
+  defaultConsultation,
+  processAnamnesisTranscriptSilently
+});
 const RECORD_SEARCH_TEXT_CACHE = new WeakMap();
 const ENTRY_TIMESTAMP_CACHE = new WeakMap();
 
@@ -64,7 +69,7 @@ currentSession().then(async session => {
         // Une, nao substitui: o que foi escrito enquanto a sincronizacao
         // estava fora precisa sobreviver ao proximo carregamento.
         state = mergeStates(state, remoteState);
-        saveState(state);
+        storageError = saveState(state);
         selectedPatientId = state.patients?.[0]?.id || "";
         pushState(state).catch(error => { syncError = error.message; });
       }
@@ -114,9 +119,11 @@ function topbar() {
         <div><h1>Regis Braga</h1></div>
       </div>
       <div class="top-actions">
-        ${syncError
-          ? `<span class="sync-status sync-failed" role="status">Não sincronizado: ${escapeHtml(syncError)} O registro está salvo neste aparelho.</span>`
-          : `<span class="secure-status"><i></i> Ambiente clínico seguro</span>`}
+        ${storageError
+          ? `<span class="sync-status storage-failed" role="alert">${escapeHtml(storageError)}</span>`
+          : syncError
+            ? `<span class="sync-status sync-failed" role="status">Não sincronizado: ${escapeHtml(syncError)} O registro está salvo neste aparelho.</span>`
+            : `<span class="secure-status"><i></i> Ambiente clínico seguro</span>`}
         ${view === "dashboard" ? "" : `<button class="secondary compact-action" data-action="dashboard">${homeIcon()}<span>Início</span></button>`}
         <button class="icon-button" data-action="toggle-theme" aria-label="Alternar tema" title="Alternar tema">${themeIcon()}</button>
       </div>
@@ -816,7 +823,7 @@ function bindActions() {
       if (action === "set-anamnesis-mode") setAnamnesisInputMode(element.dataset.mode);
       if (action === "clear-patient") { draft.patient = {}; render(); }
       if (action === "delete-patient") deletePatient();
-      if (action === "voice") startVoice(element.dataset.target, element);
+      if (action === "voice") voiceRecording.startVoice(element.dataset.target, element);
       if (action === "edit-current-patient") { view = "patient"; draft.patient = structuredClone(getPatient()); render(); }
       if (action === "edit-entry") editEntry(element.dataset.id, element.dataset.type);
       if (action === "new-consultation") { draft.consultation = defaultConsultation(); consultationPage = "anamnese"; render(); }
@@ -841,7 +848,7 @@ function switchFormPage(element) {
 }
 
 function setAnamnesisInputMode(mode) {
-  if (activeVoiceRecorder?.state === "recording" || voiceTranscribing) {
+  if (voiceRecording.isBusy()) {
     alert("Encerre a gravação e aguarde a transcrição antes de trocar a forma de registro.");
     return;
   }
@@ -862,7 +869,7 @@ async function startRefinement(element) {
 }
 
 async function saveCurrentPageAndAdvance(element) {
-  if (activeVoiceRecorder?.state === "recording" || voiceTranscribing) {
+  if (voiceRecording.isBusy()) {
     alert("Encerre a gravação e aguarde a transcrição antes de salvar e avançar.");
     return;
   }
@@ -925,10 +932,6 @@ function saveClinicalRecord(scope) {
 
 // Recebe as duas formas em vez de anexar "s": "opcao medicamentosa" no plural
 // e "opcoes medicamentosas", nao "opcao medicamentosas".
-function countLabel(total, singular, plural = `${singular}s`) {
-  return `${total} ${total === 1 ? singular : plural}`;
-}
-
 // Preambulo identico nos cinco geradores: grava o que esta na tela antes de
 // gerar — sem isso a IA raciocina sobre o registro anterior — e descobre se o
 // alvo e a consulta ou o retorno.
@@ -947,109 +950,9 @@ async function generateDiagnosisFromClinicalData(element) {
   try {
     const context = clinicalAiContext(scope);
     const { result, sources, mode, codeWarnings } = await requestClinicalAi("diagnosis", buildClinicalAiPrompt("diagnosis", context.target, context.patient, context.previous, context.isReturn), context.target?.aiMode, buildRagQuery("diagnosis", context.target));
-    // Sem completar as vagas que sobram: se a IA propos duas sindromicas,
-    // mostra duas. Antes o catalogo local enchia o resto das tres categorias
-    // com o mesmo punhado de entidades nosologicas, o que fazia uma nosologia
-    // aparecer rotulada como sindrome — e as vezes duas vezes, em categorias
-    // diferentes, porque a deduplicacao era so dentro de cada grupo.
-    // Cada hipotese sai com os dois codigos, nas tres categorias, e o medico
-    // escolhe. CID-11 e DSM-5-TR sao classificacoes independentes: a mesma
-    // entidade tem codigo proprio em cada uma, e o servidor confere cada um
-    // contra a sua tabela oficial antes de chegar aqui.
-    const formatGroup = (items, count) => (items || []).map(formatDiagnosticOption)
-      .filter(Boolean)
-      .filter((option, index, list) => list.indexOf(option) === index).slice(0, count);
-    // A deduplicacao era so dentro de cada grupo, entao a mesma entidade saia
-    // duas vezes em categorias diferentes: numa chamada real de um caso de TAG,
-    // "Transtorno de ansiedade generalizada" apareceu como sindromica E como
-    // nosologica. Qual das duas esta certa e juizo clinico, entao o programa
-    // nao escolhe em silencio: mantem uma e diz que aconteceu.
-    const jaVistos = new Map();
-    const duplicadas = [];
-    const uniqueGroup = (items, count, categoria) => formatGroup(items, count).filter(nome => {
-      const chave = normalizeText(nome);
-      if (jaVistos.has(chave)) { duplicadas.push(`${nome} (mantida em ${jaVistos.get(chave)})`); return false; }
-      jaVistos.set(chave, categoria);
-      return true;
-    });
-    // Nosologico primeiro: quando a mesma entidade sai nas duas categorias, a
-    // IA nao esta distinguindo sindrome de transtorno, e a leitura nosologica
-    // e a afirmacao mais especifica. Ficar com a sindromica esvaziava a
-    // categoria util.
-    const nosologicalOptions = uniqueGroup(result.nosological_options, 3, "Nosológico");
-    const syndromicOptions = uniqueGroup(result.syndromic_options, 3, "Sindrômico");
-    const etiologicalOptions = uniqueGroup(result.etiological_options, 2, "Etiológico");
-    // Comorbidade passa pelo uniqueGroup, ao contrario do especificador: ela e
-    // entidade, e a mesma entidade nao pode ser ao mesmo tempo a hipotese
-    // principal e a doenca que coexiste com ela. Vem depois das tres camadas,
-    // entao em choque quem fica e a hipotese.
-    const comorbidityOptions = uniqueGroup(result.comorbidity_options, 3, "Comorbidade");
-    // Especificador nao passa por uniqueGroup: ele nao concorre com hipotese
-    // nenhuma — qualifica uma. "Com sintomas psicoticos" ao lado de "Depressao
-    // maior" e a mesma informacao dita uma vez, nao duplicata.
-    const specifierOptions = (result.specifier_options || [])
-      .map(item => [String(item?.name || "").trim(), String(item?.applies_to || "").trim()]
-        .filter(Boolean).join(" — "))
-      .filter(Boolean)
-      .filter((option, index, list) => list.indexOf(option) === index)
-      .slice(0, 4);
-    // Agravante nao e entidade nem qualificacao de entidade: e circunstancia do
-    // caso. Fora do uniqueGroup pelo mesmo motivo do especificador.
-    const aggravatingOptions = (result.aggravating_options || [])
-      .map(item => [String(item?.name || "").trim(), String(item?.effect || "").trim()]
-        .filter(Boolean).join(" — "))
-      .filter(Boolean)
-      .filter((option, index, list) => list.indexOf(option) === index)
-      .slice(0, 4);
-    const selectedDoctorOptions = doctorSelectedOptions(target || {});
-    suggestion = {
-      diagnosticoAiSindromico: syndromicOptions.join("\n"),
-      diagnosticoAiNosologico: nosologicalOptions.join("\n"),
-      diagnosticoAiEtiologico: etiologicalOptions.join("\n"),
-      diagnosticoAiEspecificadores: specifierOptions.join("\n"),
-      diagnosticoAiComorbidades: comorbidityOptions.join("\n"),
-      diagnosticoAiAgravantes: aggravatingOptions.join("\n"),
-      // Mesma razao das hipoteses: a IA propoe, quem assinala e o medico.
-      especificadorSelecionado: [],
-      comorbidadeSelecionada: [],
-      agravanteSelecionado: [],
-      // A IA propoe, nao assinala: so as hipoteses do proprio medico seguem
-      // marcadas. Assinalar por ele inverteria o onus — passaria a ser preciso
-      // descartar o que nao se quer, em vez de escolher o que se quer.
-      diagnosticoSelecionado: selectedDoctorOptions,
-      diagnosticoManual: selectedDoctorOptions.join("\n"),
-      diferenciais: "",
-      ragSourcesDiagnostico: sources,
-      aiMode: mode,
-      aiStatus: [
-        `Propostas para você assinalar: ${countLabel(nosologicalOptions.length, "nosológica")}, ${countLabel(syndromicOptions.length, "sindrômica")} e ${countLabel(etiologicalOptions.length, "etiológica")}. As hipóteses do médico foram mantidas.`,
-        specifierOptions.length ? `${countLabel(specifierOptions.length, "especificador", "especificadores")} proposto(s).` : "",
-        comorbidityOptions.length ? `${countLabel(comorbidityOptions.length, "comorbidade")} proposta(s).` : "",
-        aggravatingOptions.length ? `${countLabel(aggravatingOptions.length, "fator agravante", "fatores agravantes")} proposto(s).` : "",
-        // Renomear muda o que ele le na tela, entao e dito. Os avisos de codigo
-        // ficam no log: o codigo nao aparece nesta etapa, so na codificacao.
-        ...(codeWarnings || []).filter(item => item.kind === "rename").map(item => item.text),
-        duplicadas.length
-          ? `${countLabel(duplicadas.length, "hipótese saiu", "hipóteses saíram")} em mais de uma categoria: ${duplicadas.join("; ")}.`
-          : ""
-      ].filter(Boolean).join(" "),
-    };
+    suggestion = diagnosisSuggestionFromAi({ result, target, sources, mode, codeWarnings });
   } catch (error) {
-    // O catalogo local so entra aqui, quando nao ha resposta nenhuma, e dito
-    // com todas as letras que veio dele. Antes ele se misturava as hipoteses
-    // da IA sem que a tela distinguisse uma coisa da outra.
-    // Este fluxo le aiMode; pharmaAiMode e o seletor do medicamento.
-    const local = buildDiagnosticSuggestion(target || {});
-    const fonte = (target?.aiMode || "current") === "rag" ? "RAG" : "IA";
-    const encontrou = local.diagnosticoAiSindromico || local.diagnosticoAiNosologico || local.diagnosticoAiEtiologico;
-    suggestion = {
-      ...local,
-      ragSourcesDiagnostico: [],
-      treatmentStatus: `${fonte} indisponivel: ${error.message}`,
-      aiStatus: encontrou
-        ? `${fonte} indisponível (${error.message}). As hipóteses abaixo vêm do catálogo local, por correspondência de termos do registro — contingência, não substituto da literatura indexada.`
-        : `${fonte} indisponível (${error.message}). O catálogo local não achou correspondência no que está registrado; nenhuma hipótese foi proposta.`
-    };
+    suggestion = diagnosisSuggestionFromLocalCatalogue(target, error);
   }
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
   else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
@@ -1449,7 +1352,11 @@ function upsert(collection, data) {
 }
 
 function persist() {
-  saveState(state);
+  // Gravacao local antes de tudo: se ela falhou, o aviso e mais grave que o de
+  // sincronizacao — ali o registro existe no aparelho e so nao subiu; aqui ele
+  // nao existe em lugar nenhum.
+  const erroLocal = saveState(state);
+  if (erroLocal !== storageError) { storageError = erroLocal; render(); }
   if (!authSession) return;
   // O localStorage ja gravou; o que falta e avisar quando a copia remota nao
   // acompanhou. Antes o erro ia para authError, que so aparece na tela de
@@ -1575,163 +1482,3 @@ function showExitModal() {
   render();
 }
 
-async function startVoice(targetName, button) {
-  if (activeVoiceRecorder?.state === "recording") {
-    setVoiceStatus(activeVoiceButton, "Encerrando a gravação e enviando para transcrição…", "requesting");
-    activeVoiceRecorder.stop();
-    return;
-  }
-
-  const fieldElement = app.querySelector(`[name='${targetName}']`);
-  if (!fieldElement) return;
-
-  if (!window.isSecureContext) {
-    setVoiceStatus(button, "O microfone exige uma conexão segura", "error");
-    return alert("Abra o sistema por http://127.0.0.1:8000 ou por HTTPS para permitir o uso do microfone.");
-  }
-
-  if (!window.MediaRecorder) {
-    setVoiceStatus(button, "Gravação de áudio indisponível neste navegador", "error");
-    return alert("Este navegador não oferece gravação integral de áudio. Use Chrome, Edge ou Safari atualizado.");
-  }
-
-  try {
-    const stream = await requestMicrophonePermission(button);
-    if (!stream) return;
-    const mimeType = preferredRecordingMimeType();
-    const recorderOptions = { audioBitsPerSecond: 32000 };
-    if (mimeType) recorderOptions.mimeType = mimeType;
-    const recorder = new MediaRecorder(stream, recorderOptions);
-    activeVoiceRecorder = recorder;
-    activeVoiceStream = stream;
-    activeVoiceChunks = [];
-    activeVoiceStartedAt = Date.now();
-    activeVoiceButton = null;
-    activeVoiceButton = button;
-
-    recorder.addEventListener("dataavailable", event => {
-      if (event.data?.size) activeVoiceChunks.push(event.data);
-    });
-    recorder.addEventListener("start", () => {
-      button.classList.remove("is-requesting");
-      button.classList.add("is-listening");
-      button.setAttribute("aria-label", "Encerrar gravação da conversa");
-      button.title = "Encerrar gravação";
-      updateVoiceRecordingDuration(button);
-      activeVoiceDurationTimer = setInterval(() => updateVoiceRecordingDuration(button), 1000);
-    });
-    recorder.addEventListener("error", event => {
-      cleanupVoiceRecording();
-      setVoiceStatus(button, event.error?.message || "Falha durante a gravação", "error");
-    });
-    recorder.addEventListener("stop", async () => {
-      clearInterval(activeVoiceDurationTimer);
-      activeVoiceDurationTimer = null;
-      activeVoiceStream?.getTracks().forEach(track => track.stop());
-      const chunks = activeVoiceChunks;
-      const recordedType = recorder.mimeType || mimeType || "audio/webm";
-      activeVoiceRecorder = null;
-      activeVoiceStream = null;
-      activeVoiceChunks = [];
-      activeVoiceStartedAt = 0;
-      button.classList.remove("is-listening", "is-requesting");
-      button.setAttribute("aria-label", "Iniciar gravação da conversa");
-      button.title = "Iniciar gravação";
-
-      const audio = new Blob(chunks, { type: recordedType });
-      if (!audio.size) {
-        activeVoiceButton = null;
-        setVoiceStatus(button, "A gravação ficou vazia", "error");
-        return;
-      }
-      voiceTranscribing = true;
-      setVoiceStatus(button, "Transcrevendo toda a conversa e identificando os falantes…", "requesting");
-      try {
-        const transcription = await requestConsultationTranscription(audio);
-        const transcript = formatDiarizedTranscript(transcription.segments);
-        fieldElement.value = transcript;
-        const form = fieldElement.closest("form");
-        updateDraftFromForm(form);
-        const target = draft.consultation || defaultConsultation();
-        target.qphda = transcript;
-        target.anamnesisInputMode = "microphone";
-        target.transcriptionSegments = transcription.segments;
-        target.transcriptionDuration = transcription.duration;
-        target.transcribedAt = new Date().toISOString();
-        target.anamnesisDoctorTextOverrides = { ...(target.anamnesisDoctorTextOverrides || {}), qphda: false };
-        draft.consultation = target;
-        setVoiceStatus(button, "Transcrição concluída. Analisando a anamnese com a literatura…", "requesting");
-        if (targetName === "qphda") await processAnamnesisTranscriptSilently(transcript, { preserveFocus: false });
-        setVoiceStatus(app.querySelector(`[data-action='voice'][data-target='${targetName}']`), "Conversa transcrita e campos atualizados. Revise antes de salvar.", "done");
-      } catch (error) {
-        setVoiceStatus(button, error.message || "Não foi possível transcrever a conversa", "error");
-        alert(error.message || "Não foi possível transcrever a conversa.");
-      } finally {
-        voiceTranscribing = false;
-        activeVoiceButton = null;
-      }
-    });
-    recorder.start(5000);
-  } catch (error) {
-    cleanupVoiceRecording();
-    setVoiceStatus(button, error?.message || "Não foi possível iniciar a gravação", "error");
-  }
-}
-
-async function requestMicrophonePermission(button) {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    setVoiceStatus(button, "Acesso ao microfone indisponível", "error");
-    alert("Este navegador não permite acesso ao microfone. Use Chrome, Edge ou Safari atualizado.");
-    return null;
-  }
-
-  setVoiceStatus(button, "Solicitando acesso ao microfone…", "requesting");
-  button.classList.add("is-requesting");
-
-  try {
-    // A verificacao de permissao deve usar a constraint mais compativel.
-    // Safari pode rejeitar propriedades avancadas com "Invalid constraint".
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 } });
-    button.classList.remove("is-requesting");
-    setVoiceStatus(button, "Microfone autorizado. Iniciando a gravação…", "done");
-    return stream;
-  } catch (error) {
-    button.classList.remove("is-requesting");
-    if (error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError") {
-      setVoiceStatus(button, "Microfone bloqueado — clique no cadeado da barra de endereço", "error");
-      showMicrophonePermissionHelp();
-    } else if (error?.name === "NotFoundError" || error?.name === "DevicesNotFoundError") {
-      setVoiceStatus(button, "Nenhum microfone foi encontrado", "error");
-      alert("Conecte ou ative um microfone e tente novamente.");
-    } else {
-      setVoiceStatus(button, "Não foi possível acessar o microfone", "error");
-      alert(`Falha ao acessar o microfone${error?.message ? `: ${error.message}` : "."}`);
-    }
-    return null;
-  }
-}
-
-function updateVoiceRecordingDuration(button) {
-  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - activeVoiceStartedAt) / 1000));
-  const minutes = String(Math.floor(elapsedSeconds / 60)).padStart(2, "0");
-  const seconds = String(elapsedSeconds % 60).padStart(2, "0");
-  setVoiceStatus(button, `Gravando toda a conversa · ${minutes}:${seconds} · clique novamente para encerrar`, "listening");
-}
-
-function cleanupVoiceRecording() {
-  clearInterval(activeVoiceDurationTimer);
-  activeVoiceDurationTimer = null;
-  activeVoiceStream?.getTracks().forEach(track => track.stop());
-  activeVoiceRecorder = null;
-  activeVoiceStream = null;
-  activeVoiceChunks = [];
-  activeVoiceStartedAt = 0;
-  activeVoiceButton = null;
-}
-
-function setVoiceStatus(button, message, state = "") {
-  const status = button?.closest(".voice-controls")?.querySelector(".voice-status");
-  if (!status) return;
-  status.textContent = message;
-  status.dataset.state = state;
-}

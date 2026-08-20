@@ -17,8 +17,29 @@ export function loadState() {
   }
 }
 
+// O localStorage tem teto — algo em torno de 5 MB — e quando ele enche o
+// navegador recusa a gravacao lancando QuotaExceededError. Antes a chamada era
+// nua: a excecao subia por uma pilha que ninguem tratava, o registro nao era
+// gravado e a tela continuava igual. O medico terminava a consulta convencido
+// de que tinha salvado.
+//
+// Aqui a falha vira valor de retorno: string vazia quando gravou, mensagem
+// quando nao gravou. Quem chama decide o que fazer com ela — e persist() poe na
+// barra de status, junto do aviso de sincronizacao.
 export function saveState(state) {
-  localStorage.setItem(KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state));
+    return "";
+  } catch (error) {
+    // Todo navegador usa um nome diferente para o mesmo estouro. O codigo 22 e
+    // o do padrao antigo, ainda emitido pelo Safari.
+    const cheio = error?.name === "QuotaExceededError"
+      || error?.name === "NS_ERROR_DOM_QUOTA_REACHED"
+      || error?.code === 22;
+    return cheio
+      ? "O armazenamento deste navegador está cheio. A consulta NÃO foi salva neste aparelho. Exporte ou apague consultas antigas antes de continuar."
+      : `Não foi possível salvar neste aparelho: ${error?.message || "erro desconhecido"}.`;
+  }
 }
 
 export function uid(prefix = "id") {

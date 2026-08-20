@@ -2389,7 +2389,8 @@ textarea:focus-visible {
 
 /* Sincronizacao pendente: ocupa o lugar do selo "Ambiente clinico seguro",
    porque nesse momento a afirmacao que importa e outra. */
-.sync-status.sync-failed {
+.sync-status.sync-failed,
+.sync-status.storage-failed {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -2402,6 +2403,17 @@ textarea:focus-visible {
   border: 1px solid #f0b184;
 }
 
+/* Falha de gravacao local e mais grave que falha de sincronizacao: ali o
+   registro existe no aparelho, aqui ele nao existe em lugar nenhum. Por isso
+   vermelho, e nao o laranja do aviso de sincronizacao. */
+.sync-status.storage-failed {
+  color: #7f1d1d;
+  background: #fee2e2;
+  border: 1px solid #ef8f8f;
+  font-weight: 600;
+}
+
 @media (prefers-color-scheme: dark) {
   .sync-status.sync-failed { color: #ffd9bf; background: #4a2412; border-color: #8a4a22; }
+  .sync-status.storage-failed { color: #ffd4d4; background: #4a1212; border-color: #8a2222; }
 }
