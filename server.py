@@ -1000,7 +1000,12 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             prompt = str(payload.get("prompt") or "").strip()
             kind = str(payload.get("kind") or "").strip()
             mode = str(payload.get("mode") or "current").strip().lower()
-            rag_query = str(payload.get("ragQuery") or prompt).strip()
+            # A busca vetorial recusa consulta acima de 4096 caracteres com um
+            # 400 seco. O cliente ja corta em 4000 em buildRagQuery, mas o
+            # fallback aqui e o prompt inteiro — que passa de 6 mil no
+            # diagnostico. Sem o corte, quem chamar a API sem ragQuery perde a
+            # busca por um motivo que nao tem nada de clinico.
+            rag_query = str(payload.get("ragQuery") or prompt).strip()[:4000]
             if kind not in ALLOWED_KINDS:
                 self.send_json(400, {"error": "Tipo de tarefa clinica invalido."})
                 return
