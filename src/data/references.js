@@ -8,8 +8,7 @@
 // nao casar aparece com o proprio nome do arquivo, sem inventar autor: melhor
 // feio do que atribuido a quem nao escreveu.
 //
-// PENDENTE DE CONFERENCIA DO MEDICO: autores, titulos e edicoes abaixo foram
-// lidos dos nomes de arquivo, nao das folhas de rosto.
+// Autores, titulos e edicoes conferidos pelo medico em 19/08/2026.
 export const referenceCatalog = [
   { chave: "dalgalarrondo", autor: "Dalgalarrondo, P.", titulo: "Psicopatologia e semiologia dos transtornos mentais", curto: "Dalgalarrondo" },
   { chave: "cheniaux", autor: "Cheniaux, E.", titulo: "Manual de psicopatologia", edicao: "6ª ed., 2021", curto: "Cheniaux" },
