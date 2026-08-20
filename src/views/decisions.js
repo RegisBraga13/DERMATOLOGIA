@@ -1,4 +1,4 @@
-import { diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSpecifierOptionLines, diagnosticSyndromicOptionLines, selectedDiagnosisText, selectedDiagnosisValues, selectedSpecifierValues, treatmentOptionLines } from "../clinical/diagnosis.js";
+import { diagnosticAggravatingOptionLines, diagnosticComorbidityOptionLines, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSpecifierOptionLines, diagnosticSyndromicOptionLines, selectedAggravatingValues, selectedComorbidityValues, selectedDiagnosisText, selectedDiagnosisValues, selectedSpecifierValues, treatmentOptionLines } from "../clinical/diagnosis.js";
 import { buildEvolutionNarrative, normalizeEvolutionNarrative, outdatedEvolutionText, requestedExamsText, returnEvolutionContainsIdentity, shouldRefreshEvolutionNarrative } from "../clinical/narrative.js";
 import { arrayValue, normalizeText } from "../clinical/textFormat.js";
 import { doctorDiagnosisOptions } from "../clinical/vocabulary.js";
@@ -13,6 +13,10 @@ export function diagnosisModule(form) {
   const etiologicalOptions = diagnosticEtiologicalOptionLines(form);
   const specifierOptions = diagnosticSpecifierOptionLines(form);
   const selectedSpecifiers = selectedSpecifierValues(form);
+  const comorbidityOptions = diagnosticComorbidityOptionLines(form);
+  const selectedComorbidities = selectedComorbidityValues(form);
+  const aggravatingOptions = diagnosticAggravatingOptionLines(form);
+  const selectedAggravating = selectedAggravatingValues(form);
   const selectedValues = selectedDiagnosisValues(form);
   const selectedText = selectedDiagnosisText(form);
   const aiStatus = diagnosisAiStatusText(form.aiStatus);
@@ -30,9 +34,27 @@ export function diagnosisModule(form) {
     <textarea hidden name="diagnosticoAiNosologico">${escapeHtml(nosologicalOptions.join("\n"))}</textarea>
     <textarea hidden name="diagnosticoAiEtiologico">${escapeHtml(etiologicalOptions.join("\n"))}</textarea>
     <textarea hidden name="diagnosticoAiEspecificadores">${escapeHtml(specifierOptions.join("\n"))}</textarea>
+    <textarea hidden name="diagnosticoAiComorbidades">${escapeHtml(comorbidityOptions.join("\n"))}</textarea>
+    <textarea hidden name="diagnosticoAiAgravantes">${escapeHtml(aggravatingOptions.join("\n"))}</textarea>
     ${diagnosisCategory("Nosológico", nosologicalOptions, selectedValues, "Base do tratamento principal e do seguimento. Linguagem universal entre profissionais — CID-11 e DSM-5-TR —, sustenta atestados, laudos e direitos previdenciários, e é quem recebe os especificadores.")}
     ${diagnosisCategory("Sindrômico", syndromicOptions, selectedValues, "Sinais e sintomas inespecíficos, presentes em vários transtornos. Norteia a conduta imediata — alívio do sofrimento, controle de risco — mesmo antes de saber a causa ou o nome definitivo do quadro.")}
-    ${specifierCategory(specifierOptions, selectedSpecifiers)}
+    ${checklistGroup({
+      label: "Especificadores", campo: "especificadorSelecionado",
+      options: specifierOptions, selecionados: selectedSpecifiers,
+      vazio: "Nenhum especificador proposto. O catálogo local não propõe especificador — gravidade, remissão e curso não se leem por correspondência de termo."
+    })}
+    ${checklistGroup({
+      label: "Comorbidades", campo: "comorbidadeSelecionada",
+      options: comorbidityOptions, selecionados: selectedComorbidities,
+      papel: "Entidade que coexiste com a hipótese principal, e não alternativa a ela. Leva código pelo mesmo motivo da camada nosológica: é entidade dos manuais.",
+      vazio: "Nenhuma comorbidade proposta. Afirmar que duas entidades coexistem não se lê por correspondência de termo — vem da IA."
+    })}
+    ${checklistGroup({
+      label: "Fatores agravantes", campo: "agravanteSelecionado",
+      options: aggravatingOptions, selecionados: selectedAggravating,
+      papel: "Não são diagnóstico: são o que piora o curso, a resposta ao tratamento e o prognóstico — insônia crônica, uso nocivo de álcool, baixa adesão, conflito conjugal, doença clínica descompensada.",
+      vazio: "Nenhum fator agravante proposto."
+    })}
     ${diagnosisCategory("Etiológico", etiologicalOptions, selectedValues, "A raiz do mal. Permite o tratamento causal e definitivo — tratar a tireoide em vez de medicar o sintoma —, evita erro grosseiro de manejo e previne recidiva. Pede acompanhamento multiprofissional e longitudinal.")}
     <div class="diagnosis-group diagnosis-doctor-group">
       <h4>Hipóteses do médico</h4>
@@ -65,17 +87,24 @@ function diagnosisCategory(label, options, selectedValues, papel = "") {
 // atributo da hipotese — marcar um nao e escolher um diagnostico a mais. Por
 // isso vai em caixa separada, com nome de campo proprio, e nao entra na conta
 // de hipoteses assinaladas.
-function specifierCategory(options, selectedSpecifiers) {
-  const marcados = new Set(selectedSpecifiers.map(normalizeText));
+// Comorbidade e fator agravante seguem o mesmo desenho, tambem em blocos
+// separados a pedido dele: comorbidade e uma segunda entidade que COEXISTE com
+// a hipotese principal — nao concorre com ela, como concorrem as do diagnostico
+// diferencial; agravante nao e diagnostico nenhum, e o que piora curso,
+// resposta ao tratamento e prognostico. Sao tres coisas diferentes, e por isso
+// tres caixas, cada uma com o seu campo.
+function checklistGroup({ label, campo, options, selecionados, vazio, papel = "" }) {
+  const marcados = new Set(selecionados.map(normalizeText));
   return `<div class="diagnosis-group">
-    <h4>Especificadores — ${options.length ? `${options.length}` : "nenhum"}</h4>
+    <h4>${label} — ${options.length ? `${options.length}` : "nenhum"}</h4>
+    ${papel ? `<p class="diagnosis-role">${escapeHtml(papel)}</p>` : ""}
     <div class="diagnosis-options">
       ${options.length ? options.map(option => `
         <label class="diagnosis-option">
-          <input type="checkbox" name="especificadorSelecionado" value="${escapeAttr(option)}" ${marcados.has(normalizeText(option)) ? "checked" : ""} />
+          <input type="checkbox" name="${campo}" value="${escapeAttr(option)}" ${marcados.has(normalizeText(option)) ? "checked" : ""} />
           <span>${escapeHtml(option)}</span>
         </label>
-      `).join("") : `<p class="diagnosis-empty">Nenhum especificador proposto. O catálogo local não propõe especificador — gravidade, remissão e curso não se leem por correspondência de termo.</p>`}
+      `).join("") : `<p class="diagnosis-empty">${escapeHtml(vazio)}</p>`}
     </div>
   </div>`;
 }

@@ -1,5 +1,5 @@
 import { medications } from "../data/medications.js?v=medicamentos-1";
-import { selectedDiagnosisText, selectedSpecifierValues, treatmentOptionLines } from "./diagnosis.js";
+import { selectedAggravatingValues, selectedComorbidityValues, selectedDiagnosisText, selectedSpecifierValues, treatmentOptionLines } from "./diagnosis.js";
 import { arrayValue, calculateAge, capitalizeFirst, cleanClinicalLine, clinicalPhrase, formatClinicalList, formatPlainList, joinValues, lowerFirst, mentalExamKeys, normalizedSingleChoiceValue, normalizeText, professionalClinicalTerms, professionalList, professionalListWithOther, stripFinalPeriod } from "./textFormat.js";
 import { EVOLUTION_REFRESH_PATTERNS, laboratoryExamRequestItems, RETURN_BOILERPLATE_PHRASES } from "./vocabulary.js";
 
@@ -11,11 +11,27 @@ export function selectedSpecifiersText(form = {}) {
   return selectedSpecifierValues(form).map(cleanClinicalLine).filter(Boolean).join("\n");
 }
 
+// Comorbidade e agravante seguem pelo mesmo caminho, e pela mesma razao: os
+// dois mudam a conduta. Comorbidade muda a escolha do farmaco — depressao com
+// transtorno por uso de alcool nao se trata como depressao isolada — e
+// agravante decide o que precisa ser manejado junto para o tratamento pegar.
+export function selectedComorbiditiesText(form = {}) {
+  return selectedComorbidityValues(form).map(cleanClinicalLine).filter(Boolean).join("\n");
+}
+
+export function selectedAggravatingText(form = {}) {
+  return selectedAggravatingValues(form).map(cleanClinicalLine).filter(Boolean).join("\n");
+}
+
 export function treatmentDiagnosisText(form = {}) {
   const especificadores = selectedSpecifiersText(form);
+  const comorbidades = selectedComorbiditiesText(form);
+  const agravantes = selectedAggravatingText(form);
   return [
     selectedDiagnosisText(form),
     especificadores ? `Especificadores: ${especificadores.split("\n").join("; ")}` : "",
+    comorbidades ? `Comorbidades: ${comorbidades.split("\n").join("; ")}` : "",
+    agravantes ? `Fatores agravantes: ${agravantes.split("\n").join("; ")}` : "",
     stripFinalPeriod(form.diagnosticoObservacaoMedica || "")
   ].filter(Boolean).join("\n");
 }
@@ -247,7 +263,11 @@ export function conciseDiagnosticText(form = {}) {
   const selected = selectedDiagnosisText(form) || form.diagnosticoSelecionadoResumo || form.diagnosticoManual || "";
   const especificadores = selectedSpecifiersText(form);
   const base = cleanClinicalLine(selected || "Hipóteses diagnósticas não selecionadas");
-  return especificadores ? `${base} (${especificadores.split("\n").join("; ")})` : base;
+  const comorbidades = selectedComorbiditiesText(form);
+  // Comorbidade entra na evolucao porque e diagnostico; agravante nao entra
+  // aqui — ele pesa na conduta, e a conduta tem o seu proprio paragrafo.
+  const linha = especificadores ? `${base} (${especificadores.split("\n").join("; ")})` : base;
+  return comorbidades ? `${linha}; em comorbidade com ${comorbidades.split("\n").join("; ")}` : linha;
 }
 
 export function patientIdentificationText(patient = {}, withPrefix = true) {

@@ -979,11 +979,24 @@ async function generateDiagnosisFromClinicalData(element) {
     const nosologicalOptions = uniqueGroup(result.nosological_options, 3, "Nosológico");
     const syndromicOptions = uniqueGroup(result.syndromic_options, 3, "Sindrômico");
     const etiologicalOptions = uniqueGroup(result.etiological_options, 2, "Etiológico");
+    // Comorbidade passa pelo uniqueGroup, ao contrario do especificador: ela e
+    // entidade, e a mesma entidade nao pode ser ao mesmo tempo a hipotese
+    // principal e a doenca que coexiste com ela. Vem depois das tres camadas,
+    // entao em choque quem fica e a hipotese.
+    const comorbidityOptions = uniqueGroup(result.comorbidity_options, 3, "Comorbidade");
     // Especificador nao passa por uniqueGroup: ele nao concorre com hipotese
     // nenhuma — qualifica uma. "Com sintomas psicoticos" ao lado de "Depressao
     // maior" e a mesma informacao dita uma vez, nao duplicata.
     const specifierOptions = (result.specifier_options || [])
       .map(item => [String(item?.name || "").trim(), String(item?.applies_to || "").trim()]
+        .filter(Boolean).join(" — "))
+      .filter(Boolean)
+      .filter((option, index, list) => list.indexOf(option) === index)
+      .slice(0, 4);
+    // Agravante nao e entidade nem qualificacao de entidade: e circunstancia do
+    // caso. Fora do uniqueGroup pelo mesmo motivo do especificador.
+    const aggravatingOptions = (result.aggravating_options || [])
+      .map(item => [String(item?.name || "").trim(), String(item?.effect || "").trim()]
         .filter(Boolean).join(" — "))
       .filter(Boolean)
       .filter((option, index, list) => list.indexOf(option) === index)
@@ -994,8 +1007,12 @@ async function generateDiagnosisFromClinicalData(element) {
       diagnosticoAiNosologico: nosologicalOptions.join("\n"),
       diagnosticoAiEtiologico: etiologicalOptions.join("\n"),
       diagnosticoAiEspecificadores: specifierOptions.join("\n"),
+      diagnosticoAiComorbidades: comorbidityOptions.join("\n"),
+      diagnosticoAiAgravantes: aggravatingOptions.join("\n"),
       // Mesma razao das hipoteses: a IA propoe, quem assinala e o medico.
       especificadorSelecionado: [],
+      comorbidadeSelecionada: [],
+      agravanteSelecionado: [],
       // A IA propoe, nao assinala: so as hipoteses do proprio medico seguem
       // marcadas. Assinalar por ele inverteria o onus — passaria a ser preciso
       // descartar o que nao se quer, em vez de escolher o que se quer.
@@ -1007,6 +1024,8 @@ async function generateDiagnosisFromClinicalData(element) {
       aiStatus: [
         `Propostas para você assinalar: ${countLabel(nosologicalOptions.length, "nosológica")}, ${countLabel(syndromicOptions.length, "sindrômica")} e ${countLabel(etiologicalOptions.length, "etiológica")}. As hipóteses do médico foram mantidas.`,
         specifierOptions.length ? `${countLabel(specifierOptions.length, "especificador", "especificadores")} proposto(s).` : "",
+        comorbidityOptions.length ? `${countLabel(comorbidityOptions.length, "comorbidade")} proposta(s).` : "",
+        aggravatingOptions.length ? `${countLabel(aggravatingOptions.length, "fator agravante", "fatores agravantes")} proposto(s).` : "",
         // Renomear muda o que ele le na tela, entao e dito. Os avisos de codigo
         // ficam no log: o codigo nao aparece nesta etapa, so na codificacao.
         ...(codeWarnings || []).filter(item => item.kind === "rename").map(item => item.text),

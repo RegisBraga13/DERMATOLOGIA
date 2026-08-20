@@ -314,6 +314,13 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "Proponha ate 4 especificadores em 'specifier_options'. Especificador NAO e hipotese nova: e atributo de uma hipotese NOSOLOGICA que voce mesmo levantou — com sintomas psicoticos, com angustia ansiosa, com ciclagem rapida, com padrao sazonal, em remissao parcial ou total, leve/moderado/grave, inicio no periparto, com catatonia.",
       "Em cada especificador, 'applies_to' deve repetir o nome exato da hipotese NOSOLOGICA que ele qualifica. Especificador que nao se aplique a nenhuma hipotese nosologica levantada nao entra.",
       "Especificador sem apoio no registro nao entra. Gravidade so quando houver dado de intensidade, funcionalidade ou risco; remissao so quando o registro disser que o quadro cedeu. Lista vazia e resposta legitima.",
+      // Comorbidade e agravante sao blocos proprios, a pedido dele. Um e
+      // diagnostico que soma; o outro nao e diagnostico nenhum. Confundir os
+      // dois — ou empurrar qualquer um deles para as hipoteses nosologicas,
+      // que concorrem entre si — desfaz a separacao que ele pediu.
+      "Proponha ate 3 comorbidades em 'comorbidity_options'. Comorbidade NAO concorre com as hipoteses nosologicas: elas sao alternativas do diagnostico diferencial, a comorbidade COEXISTE com a que voce considera mais provavel. Por ser entidade dos manuais, cada comorbidade sai com CID-11 e DSM-5-TR, como a camada nosologica. Nao repita aqui uma entidade que ja esteja em 'nosological_options'.",
+      "Proponha ate 4 fatores agravantes em 'aggravating_options'. Agravante NAO e diagnostico: e o que piora curso, resposta ao tratamento ou prognostico — insonia cronica, uso nocivo de alcool, baixa adesao, isolamento social, conflito conjugal, doenca clinica descompensada, acesso dificil ao servico. Em 'effect', diga em uma frase curta o que aquele fator piora no caso.",
+      "Comorbidade e agravante sem apoio no registro nao entram. Lista vazia e resposta legitima nos dois grupos.",
     ],
     treatment: [
       "Gere ate 3 opcoes de abordagem medicamentosa: primeira opcao, segunda opcao e uma opcao off-label, exclusivamente com dados do Assistant da IA atual ou do RAG com literatura. E teto, nao piso.",
@@ -453,6 +460,8 @@ function promptResponseFormat(kind) {
     return [
       "DIAGNOSTICO NOSOLOGICO: ate 3 hipoteses, uma por linha.",
       "ESPECIFICADORES: ate 4, uma por linha, no formato Nome - hipotese nosologica que ele qualifica.",
+      "COMORBIDADES: ate 3, uma por linha, com os dois codigos.",
+      "FATORES AGRAVANTES: ate 4, uma por linha, no formato Nome - o que ele piora.",
       "DIAGNOSTICO SINDROMICO: ate 3 hipoteses, uma por linha.",
       "DIAGNOSTICO ETIOLOGICO: ate 2 hipoteses, uma por linha.",
       "Formato de cada linha das hipoteses: Nome - CID-11: ... - DSM-5-TR: ...",

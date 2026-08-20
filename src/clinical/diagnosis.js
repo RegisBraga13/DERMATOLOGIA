@@ -18,6 +18,27 @@ export function diagnosticEtiologicalOptionLines(form = {}) { return normalizeDi
 // nao responde, este grupo fica vazio — e a tela diz isso.
 export function diagnosticSpecifierOptionLines(form = {}) { return normalizeDiagnosticOptions(form.diagnosticoAiEspecificadores || "", 4); }
 
+// Mesmo caso do especificador: o catalogo local nao propoe comorbidade nem
+// fator agravante. Comorbidade exige afirmar que duas entidades coexistem, e
+// agravante e circunstancia do caso — nenhum dos dois se le por correspondencia
+// de termo. Vem so da IA; sem ela, os blocos ficam vazios e a tela diz isso.
+export function diagnosticComorbidityOptionLines(form = {}) { return normalizeDiagnosticOptions(form.diagnosticoAiComorbidades || "", 3); }
+
+export function diagnosticAggravatingOptionLines(form = {}) { return normalizeDiagnosticOptions(form.diagnosticoAiAgravantes || "", 4); }
+
+export function selectedComorbidityValues(form = {}) {
+  return listValues(form.comorbidadeSelecionada);
+}
+
+export function selectedAggravatingValues(form = {}) {
+  return listValues(form.agravanteSelecionado);
+}
+
+function listValues(value) {
+  const values = Array.isArray(value) ? value : value ? [value] : [];
+  return values.filter(Boolean);
+}
+
 export function selectedSpecifierValues(form = {}) {
   const values = Array.isArray(form.especificadorSelecionado)
     ? form.especificadorSelecionado
@@ -167,6 +188,8 @@ export function buildDiagnosticSuggestion(form) {
     // IA tenha proposto antes, para nao sobrar especificador de uma geracao
     // ao lado de hipoteses de outra.
     diagnosticoAiEspecificadores: "",
+    diagnosticoAiComorbidades: "",
+    diagnosticoAiAgravantes: "",
     // Campos antigos, mantidos para os prontuarios ja salvos.
     diagnosticoAiOpcoes: syndromic,
     diagnosticoAiOutrasOpcoes: nosological,
@@ -232,7 +255,7 @@ function diagnosticRules() {
       cid11: "6B00 - Transtorno de ansiedade generalizada",
       dsm5tr: "F41.1 - Generalized anxiety disorder",
       nomeia: ["ansiedade generalizada", "tag"],
-      terms: ["humor ansioso", "ansios", "ansiedade", "preocupacoes excessivas", "inquietude", "tensao", "panico"],
+      terms: ["humor ansioso", "ansios", "ansiedade", "preocupacao", "preocupacoes excessivas", "inquietude", "panico"],
       differential: "transtorno do panico, ansiedade social, TOC, hipertireoidismo e uso de estimulantes."
     },
     {

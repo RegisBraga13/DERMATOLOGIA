@@ -368,8 +368,47 @@ SCHEMAS = {
                     "required": ["name", "applies_to"],
                 },
             },
+            # Comorbidade e uma SEGUNDA entidade nosologica que coexiste, nao uma
+            # alternativa da mesma hipotese: as nosological_options concorrem
+            # entre si no diagnostico diferencial, a comorbidade soma. Por ser
+            # entidade dos manuais, leva codigo pela mesma regra da camada
+            # nosologica — e por isso entra em verify_diagnostic_codes.
+            "comorbidity_options": {
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 3,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "name": {"type": "string"},
+                        "cid11": {"type": "string"},
+                        "dsm5tr": {"type": "string"},
+                    },
+                    "required": ["name", "cid11", "dsm5tr"],
+                },
+            },
+            # Fator agravante nao e diagnostico nenhum: e o que piora curso,
+            # resposta ao tratamento ou prognostico — insonia cronica, uso de
+            # alcool, baixa adesao, conflito conjugal, doenca clinica
+            # descompensada. Sem codigo, e fora de verify_diagnostic_codes.
+            "aggravating_options": {
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 4,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "name": {"type": "string"},
+                        "effect": {"type": "string"},
+                    },
+                    "required": ["name", "effect"],
+                },
+            },
         },
-        "required": ["syndromic_options", "nosological_options", "etiological_options", "specifier_options"],
+        "required": ["syndromic_options", "nosological_options", "etiological_options", "specifier_options",
+                     "comorbidity_options", "aggravating_options"],
     },
     "treatment": {
         "type": "object",
@@ -587,7 +626,8 @@ def validate_result(kind, result):
         # Teto, nao piso: menos hipoteses e uma resposta legitima quando o
         # registro nao sustenta mais. So o nome e obrigatorio — sindrome
         # descritiva nao tem codigo, e exigir um so produzia "N/A".
-        for group, limit in (("syndromic_options", 3), ("nosological_options", 3), ("etiological_options", 2)):
+        for group, limit in (("syndromic_options", 3), ("nosological_options", 3), ("etiological_options", 2),
+                             ("comorbidity_options", 3)):
             options = result.get(group)
             if not isinstance(options, list) or len(options) > limit:
                 raise ValueError(f"O grupo {group} aceita no maximo {limit} opcoes.")
@@ -604,6 +644,18 @@ def validate_result(kind, result):
                 for key in ("cid11", "dsm5tr"):
                     if not isinstance(option.get(key), str):
                         raise ValueError("Codigo diagnostico invalido.")
+            # Sindrome nao e entidade catalogada: e o conjunto de sinais e
+            # sintomas que ocorrem juntos, e ocorre em transtornos diferentes.
+            # O prompt ja pede os campos em branco, mas pedir nao basta — a IA
+            # devolveu "Episodio depressivo maior - CID-11: 6A70.0" nesta
+            # camada. Aqui o codigo cai fora por construcao. As demais camadas
+            # ficam como estao: a nosologica leva codigo por definicao, e as
+            # duas etiologicas de paciente sem diagnostico confirmado sao
+            # excecao decidida por ele.
+            if group == "syndromic_options":
+                for option in options:
+                    option["cid11"] = ""
+                    option["dsm5tr"] = ""
         # Mesmo criterio dos grupos acima: teto, nao piso; entrada sem nome e
         # descartada em vez de derrubar a resposta. "applies_to" vazio nao
         # descarta — o especificador ainda serve ao medico, que sabe a qual
@@ -620,6 +672,21 @@ def validate_result(kind, result):
             if not isinstance(option.get("applies_to"), str):
                 option["applies_to"] = ""
         result["specifier_options"] = validos
+        # Fator agravante segue o mesmo criterio do especificador: teto, entrada
+        # sem nome descartada, e "effect" vazio nao descarta — o medico sabe por
+        # que aquele fator pesa no caso dele.
+        agravantes = result.get("aggravating_options")
+        if not isinstance(agravantes, list) or len(agravantes) > 4:
+            raise ValueError("O grupo aggravating_options aceita no maximo 4 opcoes.")
+        agravantes_validos = [o for o in agravantes
+                              if isinstance(o, dict) and isinstance(o.get("name"), str) and o["name"].strip()]
+        if len(agravantes_validos) != len(agravantes):
+            logger.warning("aggravating_options: %d opcao(oes) sem nome descartada(s)",
+                           len(agravantes) - len(agravantes_validos))
+        for option in agravantes_validos:
+            if not isinstance(option.get("effect"), str):
+                option["effect"] = ""
+        result["aggravating_options"] = agravantes_validos
     elif kind == "treatment":
         medications = result.get("medication_options")
         approaches = result.get("non_pharmacological_options")
@@ -764,7 +831,7 @@ def verify_diagnostic_codes(result):
         return []
     by_name = {normalize_name(name): code for code, name in known11.items()}
     warnings = []
-    for group in ("syndromic_options", "nosological_options", "etiological_options"):
+    for group in ("syndromic_options", "nosological_options", "etiological_options", "comorbidity_options"):
         for option in result.get(group) or []:
             nome = option.get("name") or "hipotese sem nome"
 
@@ -840,8 +907,15 @@ def plain_text_from_result(kind, result):
         # Nosologico primeiro: e a base do tratamento, o que sustenta laudo e
         # atestado, e quem recebe os especificadores. A ordem das tres camadas
         # e clinica e vale em todo o app — tela, prompt e texto do resultado.
-        return "DIAGNOSTICO NOSOLOGICO:\n{}\n\nESPECIFICADORES:\n{}\n\nDIAGNOSTICO SINDROMICO:\n{}\n\nDIAGNOSTICO ETIOLOGICO:\n{}".format(
+        def format_aggravating(options):
+            return "\n".join(
+                " - ".join(part for part in [item.get("name") or "", (item.get("effect") or "").strip()] if part)
+                for item in options)
+        return ("DIAGNOSTICO NOSOLOGICO:\n{}\n\nESPECIFICADORES:\n{}\n\nCOMORBIDADES:\n{}\n\n"
+                "FATORES AGRAVANTES:\n{}\n\nDIAGNOSTICO SINDROMICO:\n{}\n\nDIAGNOSTICO ETIOLOGICO:\n{}").format(
             format_options(result["nosological_options"]), format_specifiers(result.get("specifier_options") or []),
+            format_options(result.get("comorbidity_options") or []),
+            format_aggravating(result.get("aggravating_options") or []),
             format_options(result["syndromic_options"]), format_options(result["etiological_options"]))
     if kind == "treatment":
         medications = "\n".join(
