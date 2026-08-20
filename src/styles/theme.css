@@ -700,6 +700,15 @@ details[open] summary:after { content: "-"; }
 .diagnosis-group .diagnosis-options {
   margin: 14px 0 0;
 }
+/* O papel de cada camada, abaixo do titulo do grupo: discreto, porque e
+   apoio a decisao e nao o conteudo da decisao. */
+.diagnosis-role {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+  max-width: 68ch;
+}
 .diagnosis-empty {
   margin: 0;
   padding: 14px;

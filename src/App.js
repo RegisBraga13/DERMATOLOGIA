@@ -1005,7 +1005,7 @@ async function generateDiagnosisFromClinicalData(element) {
       ragSourcesDiagnostico: sources,
       aiMode: mode,
       aiStatus: [
-        `Propostas para você assinalar: ${countLabel(syndromicOptions.length, "sindrômica")}, ${countLabel(nosologicalOptions.length, "nosológica")} e ${countLabel(etiologicalOptions.length, "etiológica")}. As hipóteses do médico foram mantidas.`,
+        `Propostas para você assinalar: ${countLabel(nosologicalOptions.length, "nosológica")}, ${countLabel(syndromicOptions.length, "sindrômica")} e ${countLabel(etiologicalOptions.length, "etiológica")}. As hipóteses do médico foram mantidas.`,
         specifierOptions.length ? `${countLabel(specifierOptions.length, "especificador", "especificadores")} proposto(s).` : "",
         // Renomear muda o que ele le na tela, entao e dito. Os avisos de codigo
         // ficam no log: o codigo nao aparece nesta etapa, so na codificacao.

@@ -1,5 +1,5 @@
 import { anamnesisText } from "./narrative.js";
-import { joinValues, normalizeText } from "./textFormat.js";
+import { arrayValue, joinValues, normalizeText } from "./textFormat.js";
 import { doctorDiagnosisOptions } from "./vocabulary.js";
 
 export function treatmentOptionLines(value = "") {
@@ -88,6 +88,25 @@ export function doctorSelectedOptions(form = {}) {
     .filter(Boolean);
 }
 
+// A marca do transtorno, lida dos campos estruturados em vez de adivinhada no
+// texto: prejuizo funcional registrado ("Sem impacto" nao conta, e a negacao
+// dele) ou curso definido — episodico, persistente, recorrente. Sao os dois
+// dados que separam "tem estes achados hoje" de "tem uma perturbacao que
+// afeta a vida diaria".
+function hasDisorderMarker(form = {}) {
+  const impacto = arrayValue(form.impacto).filter(value => normalizeText(value) !== "sem impacto");
+  const curso = arrayValue(form.curso).filter(Boolean);
+  const inicio = arrayValue(form.inicio).filter(value => ["recorrente", "insidioso", "desde a infancia/adolescencia"].includes(normalizeText(value)));
+  return Boolean(impacto.length || curso.length || inicio.length);
+}
+
+// O medico nomeou a entidade no proprio registro — "TDAH", "esquizofrenia",
+// "bipolar". Nomeada, ela dispensa a marca: quem esta afirmando o transtorno
+// e ele, nao a regra.
+function namesEntity(rule = {}, text = "") {
+  return (rule.nomeia || []).some(term => text.includes(term));
+}
+
 export function buildDiagnosticSuggestion(form) {
   const qphdaText = anamnesisText(form);
   const sourceText = [
@@ -105,10 +124,22 @@ export function buildDiagnosticSuggestion(form) {
   // seguintes "nosologicas" —, o que rotulava entidade nosologica como
   // sindrome. E sem correspondencia nao propoe nada, mesmo criterio do
   // servidor, que devolve 422 em vez de responder sem fonte.
+  const marcaDeTranstorno = hasDisorderMarker(form);
   const byCategory = (categoria, limit) => diagnosticRules()
     .filter(rule => rule.categoria === categoria)
     .map(rule => ({ ...rule, score: rule.terms.reduce((sum, term) => sum + (text.includes(term) ? 1 : 0), 0) }))
     .filter(rule => rule.score > 0)
+    // Sindrome e conjunto de achados; transtorno e a perturbacao que afeta a
+    // vida diaria, social ou de trabalho. Sao camadas diferentes, e o catalogo
+    // tratava as duas como lista de sintomas: a Sindrome Depressiva e a
+    // Depressao Maior chegaram a compartilhar dez termos, entao "paciente
+    // deprimida" propunha o transtorno. Sindrome depressiva ocorre tambem no
+    // esquizofrenico e no borderline — o sintoma sozinho nao nomeia entidade.
+    // Aqui a camada nosologica passa a exigir, alem do sintoma, ou a marca do
+    // transtorno (prejuizo funcional, curso definido) ou o proprio nome da
+    // entidade no registro. A sindromica segue disparando com um achado, que
+    // e exatamente o trabalho dela.
+    .filter(rule => categoria !== "nosologico" || marcaDeTranstorno || namesEntity(rule, text))
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
   const namesOf = rules => rules.map(formatDiagnosticOption).join("\n");
@@ -177,7 +208,8 @@ function diagnosticRules() {
       // porque nao pergunta episodios previos, entao carrega os dois codigos.
       cid11: "6A70/6A71 - Episodio depressivo unico ou transtorno depressivo recorrente",
       dsm5tr: "F32.9/F33.9 - Episodio unico ou recorrente, nao especificado",
-      terms: ["hipotimia", "anedonia", "depressivo", "lentificacao", "hipobulia", "despertar precoce", "ideacao suicida", "insonia", "fadiga", "cansaco", "desanimo", "culpa", "desesperanca"],
+      nomeia: ["depressao maior", "episodio depressivo", "transtorno depressivo", "distimia", "depressao recorrente"],
+      terms: ["hipotimia", "anedonia", "depressivo", "deprimido", "deprimida", "lentificacao", "hipobulia", "despertar precoce", "ideacao suicida", "insonia", "fadiga", "cansaco", "desanimo", "culpa", "desesperanca"],
       differential: "luto, transtorno bipolar, uso de substancias, hipotireoidismo e transtorno de ajustamento."
     },
     {
@@ -185,6 +217,7 @@ function diagnosticRules() {
       categoria: "nosologico",
       cid11: "6B00 - Transtorno de ansiedade generalizada",
       dsm5tr: "F41.1 - Generalized anxiety disorder",
+      nomeia: ["ansiedade generalizada", "tag"],
       terms: ["humor ansioso", "ansios", "ansiedade", "preocupacoes excessivas", "inquietude", "tensao", "panico"],
       differential: "transtorno do panico, ansiedade social, TOC, hipertireoidismo e uso de estimulantes."
     },
@@ -193,6 +226,7 @@ function diagnosticRules() {
       categoria: "nosologico",
       cid11: "6A60/6A61 - Transtorno bipolar tipo I/tipo II",
       dsm5tr: "F31.9 - Bipolar disorder, unspecified",
+      nomeia: ["transtorno bipolar", "bipolaridade", "bipolar"],
       terms: ["hipertimia", "euforia", "reducao da necessidade de sono", "fuga de ideias", "logorreia", "aceleracao", "hiperbulia"],
       differential: "TDAH, uso de substancias, transtorno de personalidade borderline e episodio depressivo unipolar."
     },
@@ -204,6 +238,7 @@ function diagnosticRules() {
       // "toc" sozinho e substring de "protocolo" e "tocar". Com os pontos, so
       // casa quando o medico escreve a sigla: normalizeText tira acento e
       // minusculiza, entao "T.O.C." vira "t.o.c.".
+      nomeia: ["transtorno obsessivo", "t.o.c"],
       terms: ["obsessoes", "compulsividade", "compulsoes", "t.o.c", "rituais", "intrusivos"],
       differential: "ansiedade generalizada, transtornos relacionados a trauma, tiques e transtorno de personalidade obsessivo-compulsiva."
     },
@@ -212,10 +247,11 @@ function diagnosticRules() {
       categoria: "nosologico",
       cid11: "6A20-6A2Z - Espectro da esquizofrenia e outros transtornos psicoticos primarios",
       dsm5tr: "F20.9/F29 - Esquizofrenia ou psicose nao especificada",
-      // "delirio" nao casa com "delirium" de proposito: delirium e sindrome
-      // confusional, tem regra propria e nao entra aqui.
+      // "delirio" nao casa com "delirium": delirium saiu do app inteiro por
+      // decisao medica — e quadro de internacao, nao de consultorio.
+      nomeia: ["esquizofrenia", "transtorno psicotico", "esquizoafetivo", "psicose"],
       terms: ["alucinacao", "delirio", "juizo prejudicado", "critica prejudicada", "desconfianca", "afrouxamento", "descarrilamento", "alogia", "embotamento", "isolamento", "autorreferencia"],
-      differential: "transtorno bipolar com sintomas psicoticos, depressao psicotica, delirium, epilepsia e substancias."
+      differential: "transtorno bipolar com sintomas psicoticos, depressao psicotica, epilepsia e substancias."
     },
     {
       name: "Transtorno Relacionado a Trauma ou Estresse",
@@ -223,6 +259,7 @@ function diagnosticRules() {
       cid11: "6B40/6B43 - TEPT ou transtorno de ajustamento",
       dsm5tr: "F43.10/F43.20 - TEPT ou transtorno de adaptacao",
       // "flashback" sem o s casa com singular e plural.
+      nomeia: ["tept", "transtorno de estresse", "transtorno de ajustamento"],
       terms: ["tept", "trauma", "luto", "separacao", "ajustamento", "flashback", "evitacao", "alerta alto"],
       differential: "depressao maior, ansiedade generalizada, luto prolongado e transtorno de personalidade."
     },
@@ -231,6 +268,7 @@ function diagnosticRules() {
       categoria: "nosologico",
       cid11: "6C40-6C4Z - Transtornos por uso de substancias",
       dsm5tr: "F10.20/F19.20 - Dependencia de alcool ou de outra substancia",
+      nomeia: ["transtorno por uso", "dependencia quimica", "alcoolismo", "dependencia de"],
       terms: ["alcool", "cannabis", "cocaina", "crack", "opioides", "benzodiazepinicos", "substancias"],
       differential: "transtornos primarios do humor, ansiedade, psicose induzida por substancias e abstinencia/intoxicacao."
     },
@@ -239,6 +277,7 @@ function diagnosticRules() {
       categoria: "nosologico",
       cid11: "6B01 - Transtorno do panico",
       dsm5tr: "F41.0 - Panic disorder",
+      nomeia: ["transtorno de panico", "sindrome do panico"],
       terms: ["panico", "palpitacoes", "falta de ar", "sudorese", "morte iminente"],
       differential: "ansiedade generalizada, ansiedade social, arritmias, hipertireoidismo e uso de estimulantes."
     },
@@ -247,6 +286,7 @@ function diagnosticRules() {
       categoria: "nosologico",
       cid11: "6A05 - Transtorno de deficit de atencao e hiperatividade",
       dsm5tr: "F90.9 - ADHD, unspecified type",
+      nomeia: ["tdah", "deficit de atencao"],
       terms: ["desatencao", "dificuldade de concentracao", "impulsividade", "hiperatividade", "procrastinacao", "desorganizacao", "esquecimento", "hiperfoco", "inquietude"],
       differential: "transtornos do humor, ansiedade, privacao de sono, uso de substancias e dificuldades de aprendizagem."
     },
@@ -255,6 +295,7 @@ function diagnosticRules() {
       categoria: "nosologico",
       cid11: "6B80-6B8Z - Transtornos alimentares ou da alimentacao",
       dsm5tr: "F50.9 - Eating disorder, unspecified",
+      nomeia: ["anorexia", "bulimia", "transtorno alimentar", "compulsao alimentar periodica"],
       terms: ["compulsao", "restricao"],
       differential: "depressao, ansiedade, condicoes endocrinas, efeitos medicamentosos e transtorno dismorfico corporal."
     },
@@ -262,7 +303,7 @@ function diagnosticRules() {
       name: "Síndrome Depressiva",
       categoria: "sindromico",
       cid11: "",
-      terms: ["hipotimia", "anedonia", "deprim", "hipobulia", "lentificacao", "desanimo", "choro facil", "desesperanca", "ideacao suicida", "culpa", "desvalia"],
+      terms: ["hipotimia", "anedonia", "deprimido", "deprimida", "hipobulia", "lentificacao", "desanimo", "choro facil", "desesperanca", "ideacao suicida", "culpa", "desvalia"],
       differential: "episodio depressivo maior, depressao bipolar, luto, transtorno de ajustamento, hipotireoidismo e depressao secundaria a substancias."
     },
     {
@@ -284,7 +325,7 @@ function diagnosticRules() {
       categoria: "sindromico",
       cid11: "",
       terms: ["alucinacao", "delirio", "descarrilamento", "afrouxamento", "critica prejudicada", "juizo prejudicado", "desconfianca", "autorreferencia", "desorganizacao"],
-      differential: "esquizofrenia e transtornos psicoticos primarios, psicose afetiva, delirium, psicose induzida por substancias e causa organica."
+      differential: "esquizofrenia e transtornos psicoticos primarios, psicose afetiva, psicose induzida por substancias e causa organica."
     },
     {
       name: "Síndrome Obsessivo-Compulsiva",
@@ -304,41 +345,50 @@ function diagnosticRules() {
       terms: ["catatonia", "estupor", "negativismo", "flexibilidade cerea", "mutismo", "ecolalia", "ecopraxia", "estereotipias", "posturas bizarras"],
       differential: "catatonia associada a transtorno do humor ou psicotico, catatonia secundaria a condicao medica e sindrome neuroleptica maligna."
     },
-    {
-      name: "Síndrome Confusional Aguda (Delirium)",
-      categoria: "sindromico",
-      cid11: "6D70 - Delirium",
-      dsm5tr: "F05 - Delirium due to known physiological condition",
-      terms: ["rebaixamento do nivel de consciencia", "obnubilacao", "confusao mental", "inicio agudo", "flutuacao", "torpor", "letargia", "inversao do ciclo sono-vigilia"],
-      differential: "demencia, estado pos-ictal, intoxicacao ou abstinencia, infeccao, disturbio metabolico e causa medicamentosa."
-    },
+    // A Sindrome Confusional Aguda (Delirium) saiu do catalogo por decisao
+    // medica: e diagnostico de paciente internado, sobretudo em UTI, e este
+    // app e de consultorio. Fora do escopo, nao entra em contexto nenhum —
+    // nem como hipotese, nem como diagnostico diferencial.
     {
       name: "Síndrome Demencial",
       categoria: "sindromico",
-      cid11: "6D80-6D8Z - Demencia",
-      dsm5tr: "F03.90 - Unspecified dementia",
-      terms: ["declinio cognitivo", "perda de memoria", "amnesia", "esquecimento progressivo", "apraxia", "afasia", "agnosia", "prejuizo funcional progressivo"],
-      differential: "delirium, transtorno neurocognitivo leve, depressao com prejuizo cognitivo e causas reversiveis (B12, tireoide, hidrocefalia)."
+      // Sindrome nao leva codigo: quem carrega CID-11 e DSM-5-TR e a camada
+      // nosologica, que nomeia a entidade. "Sindrome demencial" e o conjunto
+      // de achados; o transtorno neurocognitivo e que tem codigo.
+      cid11: "",
+      // "amnesia" solto esta dentro de "amnesia dissociativa": um quadro
+      // dissociativo disparava sindrome demencial junto. A demencia continua
+      // coberta por declinio cognitivo, perda de memoria e esquecimento
+      // progressivo, que sao o que o registro traz de fato.
+      terms: ["declinio cognitivo", "perda de memoria", "amnesia anterograda", "esquecimento progressivo", "apraxia", "afasia", "agnosia", "prejuizo funcional progressivo"],
+      differential: "transtorno neurocognitivo leve, depressao com prejuizo cognitivo e causas reversiveis (B12, tireoide, hidrocefalia)."
     },
     {
       name: "Síndrome de Agitação Psicomotora",
       categoria: "sindromico",
       cid11: "",
       terms: ["agitacao psicomotora", "hiperatividade motora", "inquietude psicomotora", "heteroagressividade", "hostilidade", "contencao"],
-      differential: "mania, psicose em atividade, delirium, intoxicacao ou abstinencia, acatisia e dor nao reconhecida."
+      differential: "mania, psicose em atividade, intoxicacao ou abstinencia, acatisia e dor nao reconhecida."
     },
     {
       name: "Síndrome Dissociativa ou Conversiva",
       categoria: "sindromico",
       cid11: "",
-      terms: ["dissociacao", "despersonalizacao", "desrealizacao", "conversao", "amnesia dissociativa", "crise nao epileptica"],
+      terms: ["dissociacao", "despersonalizacao", "desrealizacao", "conversao", "amnesia dissociativa", "amnesia autobiografica", "crise nao epileptica"],
       differential: "epilepsia, transtornos relacionados a trauma, simulacao e condicao neurologica."
     },
     {
       name: "Síndrome de Abstinência",
       categoria: "sindromico",
       cid11: "",
-      terms: ["abstinencia", "fissura", "craving", "tremores", "sudorese", "interrupcao abrupta", "retirada"],
+      // "retirada" solto casava com "retirada gradual da medicacao" — desmame
+      // planejado, o oposto de abstinencia. Com o complemento, so casa quando
+      // a sindrome e nomeada.
+      terms: ["abstinencia", "fissura", "craving", "tremores", "sudorese", "interrupcao abrupta", "sindrome de retirada"],
+      // Delirium tremens volta por decisao medica: e entidade psiquiatrica, a
+      // complicacao grave da abstinencia alcoolica, e nao o delirium de
+      // internacao que saiu do app. No consultorio vale como sinal de
+      // encaminhamento imediato.
       differential: "abstinencia de alcool, benzodiazepinicos ou opioides, delirium tremens, ansiedade primaria e causa clinica."
     },
     {
@@ -346,7 +396,7 @@ function diagnosticRules() {
       categoria: "sindromico",
       cid11: "",
       terms: ["intoxicacao", "embriaguez", "uso recente", "hiperemia conjuntival", "midriase", "miose", "disartria"],
-      differential: "intoxicacao por substancia especifica, delirium, causa metabolica e efeito medicamentoso."
+      differential: "intoxicacao por substancia especifica, causa metabolica e efeito medicamentoso."
     },
     {
       name: "Induzido por Substância",
@@ -383,7 +433,7 @@ function diagnosticRules() {
       categoria: "etiologico",
       cid11: "",
       terms: ["parkinson", "alzheimer", "lesao cerebral", "tumor cerebral", "hidrocefalia", "esclerose multipla", "huntington", "neurocirurgia"],
-      differential: "demencia de outra etiologia, delirium, sequela vascular e causa metabolica."
+      differential: "demencia de outra etiologia, sequela vascular e causa metabolica."
     },
     {
       name: "Carga Familiar ou Genética",

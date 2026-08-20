@@ -30,10 +30,10 @@ export function diagnosisModule(form) {
     <textarea hidden name="diagnosticoAiNosologico">${escapeHtml(nosologicalOptions.join("\n"))}</textarea>
     <textarea hidden name="diagnosticoAiEtiologico">${escapeHtml(etiologicalOptions.join("\n"))}</textarea>
     <textarea hidden name="diagnosticoAiEspecificadores">${escapeHtml(specifierOptions.join("\n"))}</textarea>
-    ${diagnosisCategory("Sindrômico", syndromicOptions, selectedValues)}
-    ${diagnosisCategory("Nosológico", nosologicalOptions, selectedValues)}
-    ${diagnosisCategory("Etiológico", etiologicalOptions, selectedValues)}
+    ${diagnosisCategory("Nosológico", nosologicalOptions, selectedValues, "Base do tratamento principal e do seguimento. Linguagem universal entre profissionais — CID-11 e DSM-5-TR —, sustenta atestados, laudos e direitos previdenciários, e é quem recebe os especificadores.")}
+    ${diagnosisCategory("Sindrômico", syndromicOptions, selectedValues, "Sinais e sintomas inespecíficos, presentes em vários transtornos. Norteia a conduta imediata — alívio do sofrimento, controle de risco — mesmo antes de saber a causa ou o nome definitivo do quadro.")}
     ${specifierCategory(specifierOptions, selectedSpecifiers)}
+    ${diagnosisCategory("Etiológico", etiologicalOptions, selectedValues, "A raiz do mal. Permite o tratamento causal e definitivo — tratar a tireoide em vez de medicar o sintoma —, evita erro grosseiro de manejo e previne recidiva. Pede acompanhamento multiprofissional e longitudinal.")}
     <div class="diagnosis-group diagnosis-doctor-group">
       <h4>Hipóteses do médico</h4>
       <div class="diagnosis-options">${diagnosisOptionCheckboxes(doctorDiagnosisOptions, selectedValues)}</div>
@@ -44,11 +44,17 @@ export function diagnosisModule(form) {
 
 // O titulo conta o que esta na tela, nao o teto do grupo. Antes dizia sempre
 // "3 hipoteses", inclusive logo acima de "Nenhuma hipotese gerada".
-function diagnosisCategory(label, options, selectedValues) {
+// A ordem das tres camadas na tela e clinica, nao alfabetica nem historica:
+// nosologico primeiro porque e a base do tratamento e o que sustenta laudo e
+// atestado; sindromico depois, porque orienta a conduta imediata mesmo sem o
+// nome definitivo; etiologico por ultimo, a raiz, que pede acompanhamento
+// longitudinal. E o core do programa — nao reordenar sem decisao medica.
+function diagnosisCategory(label, options, selectedValues, papel = "") {
   const total = options.length
     ? `${options.length} ${options.length === 1 ? "hipótese" : "hipóteses"}`
     : "sem hipóteses";
   return `<div class="diagnosis-group"><h4>${label} — ${total}</h4>
+      ${papel ? `<p class="diagnosis-role">${escapeHtml(papel)}</p>` : ""}
       <div class="diagnosis-options">
         ${options.length ? diagnosisOptionCheckboxes(options, selectedValues) : `<p class="diagnosis-empty">O registro atual não sustenta hipótese nesta categoria. Veja <strong>Hipóteses do médico</strong>.</p>`}
       </div>

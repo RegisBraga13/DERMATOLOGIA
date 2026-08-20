@@ -298,13 +298,21 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
     ],
     diagnosis: [
       "Analise de forma integrada e nao superficial toda a anamnese, os antecedentes, o impacto funcional, os riscos e cada dominio preenchido do exame psiquico.",
-      "Gere ate 3 hipoteses sindromicas, ate 3 nosologicas e ate 2 etiologicas: e teto, nao piso. Grupo vazio e resposta legitima quando o registro nao sustenta.",
-      "As hipoteses sindromicas devem descrever a sindrome clinica; as nosologicas devem propor transtornos/diagnosticos; as etiologicas devem propor causas medicas, substancias ou contextos causais quando sustentados pelos dados.",
+      "Gere ate 3 hipoteses nosologicas, ate 3 sindromicas e ate 2 etiologicas: e teto, nao piso. Grupo vazio e resposta legitima quando o registro nao sustenta.",
+      // As tres camadas nao sao rotulos alternativos do mesmo achado: sao
+      // perguntas clinicas diferentes. Escrever isso no prompt e o que impede
+      // a IA de devolver a mesma entidade tres vezes com nomes trocados.
+      "A camada NOSOLOGICA identifica a entidade nos manuais oficiais. E a base do tratamento principal, do seguimento continuo, do atestado e do laudo, e e ela que recebe os especificadores.",
+      "A camada SINDROMICA descreve os sinais e sintomas que ocorrem juntos. Sao inespecificos e aparecem em varios transtornos — sindrome depressiva ocorre tambem no esquizofrenico e no borderline. Ela orienta a conduta imediata: alivio do sofrimento e controle de risco, antes mesmo de saber o nome definitivo do quadro. NAO repita aqui a entidade que voce nomeou na camada nosologica.",
+      "A camada ETIOLOGICA aponta a causa primaria: vulnerabilidade genetica ou temperamental, estressores psicossociais, substancias, condicao medica geral. E o que permite tratamento causal — tratar a tireoide em vez de medicar o sintoma — e prevenir recidiva.",
       "As hipoteses sao mero auxilio ao psiquiatra e nao substituem avaliacao, confirmacao de criterios, exame clinico ou decisao medica.",
-      "Cada opcao deve conter nome, codigo da CID-11 e codigo do DSM-5-TR. Deixe o campo em branco quando nao houver codigo proprio — sindrome descritiva costuma nao ter — nunca escreva 'N/A'.",
+      "NAO proponha delirium (sindrome confusional aguda) em contexto nenhum: nem como hipotese, nem como especificador, nem como diagnostico diferencial. E quadro de paciente internado, sobretudo em UTI, e este prontuario e de consultorio. Se o registro sugerir rebaixamento de consciencia agudo, diga que o caso pede avaliacao clinica presencial em vez de nomear a sindrome.",
+      "O delirium tremens e a excecao: e entidade psiquiatrica propria, complicacao grave da abstinencia alcoolica, e pode ser proposto quando o registro o sustentar.",
+      "SO a camada nosologica leva codigo. Ela identifica a entidade nos manuais oficiais, entao cada hipotese nosologica sai com CID-11 e DSM-5-TR — sao classificacoes independentes e as duas aparecem sempre.",
+      "As hipoteses sindromicas e etiologicas vao com os dois campos de codigo EM BRANCO. Sindrome e o conjunto de sinais e sintomas que ocorrem juntos, nao entidade catalogada; etiologia e a causa — vulnerabilidade genetica, estressor psicossocial, condicao medica —, tambem nao e entidade. Nunca escreva 'N/A' nesses campos.",
       "O nome da hipotese leva SO a entidade diagnostica. Toda qualificacao — gravidade, curso, remissao, sintomas associados, especificadores da CID ou do DSM — sai do nome e vai para 'specifier_options'. Escreva 'Transtorno depressivo persistente', nunca 'Transtorno depressivo persistente, episodio atual grave, com sintomas ansiosos': gravidade e sintomas ansiosos sao especificadores, e repeti-los no nome duplica a mesma informacao na tela do medico.",
-      "Proponha ate 4 especificadores em 'specifier_options'. Especificador NAO e hipotese nova: e atributo de uma hipotese que voce mesmo levantou — com sintomas psicoticos, com angustia ansiosa, com ciclagem rapida, com padrao sazonal, em remissao parcial ou total, leve/moderado/grave, inicio no periparto, com catatonia.",
-      "Em cada especificador, 'applies_to' deve repetir o nome exato da hipotese que ele qualifica. Especificador que nao se aplique a nenhuma hipotese levantada nao entra.",
+      "Proponha ate 4 especificadores em 'specifier_options'. Especificador NAO e hipotese nova: e atributo de uma hipotese NOSOLOGICA que voce mesmo levantou — com sintomas psicoticos, com angustia ansiosa, com ciclagem rapida, com padrao sazonal, em remissao parcial ou total, leve/moderado/grave, inicio no periparto, com catatonia.",
+      "Em cada especificador, 'applies_to' deve repetir o nome exato da hipotese NOSOLOGICA que ele qualifica. Especificador que nao se aplique a nenhuma hipotese nosologica levantada nao entra.",
       "Especificador sem apoio no registro nao entra. Gravidade so quando houver dado de intensidade, funcionalidade ou risco; remissao so quando o registro disser que o quadro cedeu. Lista vazia e resposta legitima.",
     ],
     treatment: [
@@ -443,10 +451,10 @@ function promptResponseFormat(kind) {
   if (kind === "refinement") return "Objeto estruturado com questions (cada uma com id do protocolo e opcoes de resposta), mandatory_gaps e alerts (apenas ids do protocolo), sem texto adicional.";
   if (kind === "diagnosis") {
     return [
-      "DIAGNOSTICO SINDROMICO: ate 3 hipoteses, uma por linha.",
       "DIAGNOSTICO NOSOLOGICO: ate 3 hipoteses, uma por linha.",
+      "ESPECIFICADORES: ate 4, uma por linha, no formato Nome - hipotese nosologica que ele qualifica.",
+      "DIAGNOSTICO SINDROMICO: ate 3 hipoteses, uma por linha.",
       "DIAGNOSTICO ETIOLOGICO: ate 2 hipoteses, uma por linha.",
-      "ESPECIFICADORES: ate 4, uma por linha, no formato Nome - hipotese que ele qualifica.",
       "Formato de cada linha das hipoteses: Nome - CID-11: ... - DSM-5-TR: ...",
       "",
       "Toda hipotese leva os dois codigos: CID-11 e DSM-5-TR. Sao classificacoes",

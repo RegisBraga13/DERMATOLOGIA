@@ -837,9 +837,12 @@ def plain_text_from_result(kind, result):
             return "\n".join(
                 " - ".join(part for part in [item.get("name") or "", (item.get("applies_to") or "").strip()] if part)
                 for item in options)
-        return "DIAGNOSTICO SINDROMICO:\n{}\n\nDIAGNOSTICO NOSOLOGICO:\n{}\n\nDIAGNOSTICO ETIOLOGICO:\n{}\n\nESPECIFICADORES:\n{}".format(
-            format_options(result["syndromic_options"]), format_options(result["nosological_options"]),
-            format_options(result["etiological_options"]), format_specifiers(result.get("specifier_options") or []))
+        # Nosologico primeiro: e a base do tratamento, o que sustenta laudo e
+        # atestado, e quem recebe os especificadores. A ordem das tres camadas
+        # e clinica e vale em todo o app — tela, prompt e texto do resultado.
+        return "DIAGNOSTICO NOSOLOGICO:\n{}\n\nESPECIFICADORES:\n{}\n\nDIAGNOSTICO SINDROMICO:\n{}\n\nDIAGNOSTICO ETIOLOGICO:\n{}".format(
+            format_options(result["nosological_options"]), format_specifiers(result.get("specifier_options") or []),
+            format_options(result["syndromic_options"]), format_options(result["etiological_options"]))
     if kind == "treatment":
         medications = "\n".join(
             f"{item['medication']} | Dose inicial: {item['initial_dose']} | Progressao: {item['progression']} | Dose final: {item['target_dose']}"
