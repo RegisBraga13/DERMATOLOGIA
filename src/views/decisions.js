@@ -1,4 +1,4 @@
-import { diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "../clinical/diagnosis.js";
+import { diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSpecifierOptionLines, diagnosticSyndromicOptionLines, selectedDiagnosisText, selectedDiagnosisValues, selectedSpecifierValues, treatmentOptionLines } from "../clinical/diagnosis.js";
 import { buildEvolutionNarrative, normalizeEvolutionNarrative, outdatedEvolutionText, requestedExamsText, returnEvolutionContainsIdentity, shouldRefreshEvolutionNarrative } from "../clinical/narrative.js";
 import { arrayValue, normalizeText } from "../clinical/textFormat.js";
 import { doctorDiagnosisOptions } from "../clinical/vocabulary.js";
@@ -11,6 +11,8 @@ export function diagnosisModule(form) {
   const syndromicOptions = diagnosticSyndromicOptionLines(form);
   const nosologicalOptions = diagnosticNosologicalOptionLines(form);
   const etiologicalOptions = diagnosticEtiologicalOptionLines(form);
+  const specifierOptions = diagnosticSpecifierOptionLines(form);
+  const selectedSpecifiers = selectedSpecifierValues(form);
   const selectedValues = selectedDiagnosisValues(form);
   const selectedText = selectedDiagnosisText(form);
   const aiStatus = diagnosisAiStatusText(form.aiStatus);
@@ -27,9 +29,11 @@ export function diagnosisModule(form) {
     <textarea hidden name="diagnosticoAiSindromico">${escapeHtml(syndromicOptions.join("\n"))}</textarea>
     <textarea hidden name="diagnosticoAiNosologico">${escapeHtml(nosologicalOptions.join("\n"))}</textarea>
     <textarea hidden name="diagnosticoAiEtiologico">${escapeHtml(etiologicalOptions.join("\n"))}</textarea>
+    <textarea hidden name="diagnosticoAiEspecificadores">${escapeHtml(specifierOptions.join("\n"))}</textarea>
     ${diagnosisCategory("Sindrômico", syndromicOptions, selectedValues)}
     ${diagnosisCategory("Nosológico", nosologicalOptions, selectedValues)}
     ${diagnosisCategory("Etiológico", etiologicalOptions, selectedValues)}
+    ${specifierCategory(specifierOptions, selectedSpecifiers)}
     <div class="diagnosis-group diagnosis-doctor-group">
       <h4>Hipóteses do médico</h4>
       <div class="diagnosis-options">${diagnosisOptionCheckboxes(doctorDiagnosisOptions, selectedValues)}</div>
@@ -49,6 +53,25 @@ function diagnosisCategory(label, options, selectedValues) {
         ${options.length ? diagnosisOptionCheckboxes(options, selectedValues) : `<p class="diagnosis-empty">O registro atual não sustenta hipótese nesta categoria. Veja <strong>Hipóteses do médico</strong>.</p>`}
       </div>
     </div>`;
+}
+
+// Grupo proprio, e nao mais uma "categoria": especificador nao e hipotese, e
+// atributo da hipotese — marcar um nao e escolher um diagnostico a mais. Por
+// isso vai em caixa separada, com nome de campo proprio, e nao entra na conta
+// de hipoteses assinaladas.
+function specifierCategory(options, selectedSpecifiers) {
+  const marcados = new Set(selectedSpecifiers.map(normalizeText));
+  return `<div class="diagnosis-group">
+    <h4>Especificadores — ${options.length ? `${options.length}` : "nenhum"}</h4>
+    <div class="diagnosis-options">
+      ${options.length ? options.map(option => `
+        <label class="diagnosis-option">
+          <input type="checkbox" name="especificadorSelecionado" value="${escapeAttr(option)}" ${marcados.has(normalizeText(option)) ? "checked" : ""} />
+          <span>${escapeHtml(option)}</span>
+        </label>
+      `).join("") : `<p class="diagnosis-empty">Nenhum especificador proposto. O catálogo local não propõe especificador — gravidade, remissão e curso não se leem por correspondência de termo.</p>`}
+    </div>
+  </div>`;
 }
 
 function diagnosisOptionCheckboxes(options, selectedValues) {

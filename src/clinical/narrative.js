@@ -1,11 +1,21 @@
 import { medications } from "../data/medications.js?v=medicamentos-1";
-import { selectedDiagnosisText, treatmentOptionLines } from "./diagnosis.js";
+import { selectedDiagnosisText, selectedSpecifierValues, treatmentOptionLines } from "./diagnosis.js";
 import { arrayValue, calculateAge, capitalizeFirst, cleanClinicalLine, clinicalPhrase, formatClinicalList, formatPlainList, joinValues, lowerFirst, mentalExamKeys, normalizedSingleChoiceValue, normalizeText, professionalClinicalTerms, professionalList, professionalListWithOther, stripFinalPeriod } from "./textFormat.js";
 import { EVOLUTION_REFRESH_PATTERNS, laboratoryExamRequestItems, RETURN_BOILERPLATE_PHRASES } from "./vocabulary.js";
 
+// Especificador assinalado viaja colado a hipotese, porque e ele que muda a
+// conduta: depressao com sintomas psicoticos e depressao leve tem o mesmo
+// codigo nosologico e tratamentos diferentes. Sem isto o Tratamento leria so o
+// nome do transtorno e a gravidade se perderia entre a tela e o prompt.
+export function selectedSpecifiersText(form = {}) {
+  return selectedSpecifierValues(form).map(cleanClinicalLine).filter(Boolean).join("\n");
+}
+
 export function treatmentDiagnosisText(form = {}) {
+  const especificadores = selectedSpecifiersText(form);
   return [
     selectedDiagnosisText(form),
+    especificadores ? `Especificadores: ${especificadores.split("\n").join("; ")}` : "",
     stripFinalPeriod(form.diagnosticoObservacaoMedica || "")
   ].filter(Boolean).join("\n");
 }
@@ -235,7 +245,9 @@ export function conciseMentalExamText(form = {}) {
 
 export function conciseDiagnosticText(form = {}) {
   const selected = selectedDiagnosisText(form) || form.diagnosticoSelecionadoResumo || form.diagnosticoManual || "";
-  return cleanClinicalLine(selected || "Hipóteses diagnósticas não selecionadas");
+  const especificadores = selectedSpecifiersText(form);
+  const base = cleanClinicalLine(selected || "Hipóteses diagnósticas não selecionadas");
+  return especificadores ? `${base} (${especificadores.split("\n").join("; ")})` : base;
 }
 
 export function patientIdentificationText(patient = {}, withPrefix = true) {

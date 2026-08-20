@@ -979,11 +979,23 @@ async function generateDiagnosisFromClinicalData(element) {
     const nosologicalOptions = uniqueGroup(result.nosological_options, 3, "Nosológico");
     const syndromicOptions = uniqueGroup(result.syndromic_options, 3, "Sindrômico");
     const etiologicalOptions = uniqueGroup(result.etiological_options, 2, "Etiológico");
+    // Especificador nao passa por uniqueGroup: ele nao concorre com hipotese
+    // nenhuma — qualifica uma. "Com sintomas psicoticos" ao lado de "Depressao
+    // maior" e a mesma informacao dita uma vez, nao duplicata.
+    const specifierOptions = (result.specifier_options || [])
+      .map(item => [String(item?.name || "").trim(), String(item?.applies_to || "").trim()]
+        .filter(Boolean).join(" — "))
+      .filter(Boolean)
+      .filter((option, index, list) => list.indexOf(option) === index)
+      .slice(0, 4);
     const selectedDoctorOptions = doctorSelectedOptions(target || {});
     suggestion = {
       diagnosticoAiSindromico: syndromicOptions.join("\n"),
       diagnosticoAiNosologico: nosologicalOptions.join("\n"),
       diagnosticoAiEtiologico: etiologicalOptions.join("\n"),
+      diagnosticoAiEspecificadores: specifierOptions.join("\n"),
+      // Mesma razao das hipoteses: a IA propoe, quem assinala e o medico.
+      especificadorSelecionado: [],
       // A IA propoe, nao assinala: so as hipoteses do proprio medico seguem
       // marcadas. Assinalar por ele inverteria o onus — passaria a ser preciso
       // descartar o que nao se quer, em vez de escolher o que se quer.
@@ -994,6 +1006,7 @@ async function generateDiagnosisFromClinicalData(element) {
       aiMode: mode,
       aiStatus: [
         `Propostas para você assinalar: ${countLabel(syndromicOptions.length, "sindrômica")}, ${countLabel(nosologicalOptions.length, "nosológica")} e ${countLabel(etiologicalOptions.length, "etiológica")}. As hipóteses do médico foram mantidas.`,
+        specifierOptions.length ? `${countLabel(specifierOptions.length, "especificador", "especificadores")} proposto(s).` : "",
         // Renomear muda o que ele le na tela, entao e dito. Os avisos de codigo
         // ficam no log: o codigo nao aparece nesta etapa, so na codificacao.
         ...(codeWarnings || []).filter(item => item.kind === "rename").map(item => item.text),

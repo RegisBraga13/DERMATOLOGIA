@@ -13,6 +13,20 @@ export function diagnosticNosologicalOptionLines(form = {}) { return normalizeDi
 
 export function diagnosticEtiologicalOptionLines(form = {}) { return normalizeDiagnosticOptions(form.diagnosticoAiEtiologico || "", 2); }
 
+// O catalogo local nao propoe especificador: ele casa termo, e gravidade,
+// remissao e curso nao se leem de uma palavra solta no prontuario. Quando a IA
+// nao responde, este grupo fica vazio — e a tela diz isso.
+export function diagnosticSpecifierOptionLines(form = {}) { return normalizeDiagnosticOptions(form.diagnosticoAiEspecificadores || "", 4); }
+
+export function selectedSpecifierValues(form = {}) {
+  const values = Array.isArray(form.especificadorSelecionado)
+    ? form.especificadorSelecionado
+    : form.especificadorSelecionado
+      ? [form.especificadorSelecionado]
+      : [];
+  return values.filter(Boolean);
+}
+
 export function selectedDiagnosisValues(form = {}) {
   const values = Array.isArray(form.diagnosticoSelecionado)
     ? form.diagnosticoSelecionado
@@ -105,6 +119,10 @@ export function buildDiagnosticSuggestion(form) {
     diagnosticoAiSindromico: syndromic,
     diagnosticoAiNosologico: nosological,
     diagnosticoAiEtiologico: namesOf(byCategory("etiologico", 2)),
+    // Vazio de proposito: ver diagnosticSpecifierOptionLines. E limpa o que a
+    // IA tenha proposto antes, para nao sobrar especificador de uma geracao
+    // ao lado de hipoteses de outra.
+    diagnosticoAiEspecificadores: "",
     // Campos antigos, mantidos para os prontuarios ja salvos.
     diagnosticoAiOpcoes: syndromic,
     diagnosticoAiOutrasOpcoes: nosological,
@@ -159,7 +177,7 @@ function diagnosticRules() {
       // porque nao pergunta episodios previos, entao carrega os dois codigos.
       cid11: "6A70/6A71 - Episodio depressivo unico ou transtorno depressivo recorrente",
       dsm5tr: "F32.9/F33.9 - Episodio unico ou recorrente, nao especificado",
-      terms: ["hipotimia", "anedonia", "deprim", "lentificacao", "hipobulia", "despertar precoce", "ideacao suicida"],
+      terms: ["hipotimia", "anedonia", "depressivo", "lentificacao", "hipobulia", "despertar precoce", "ideacao suicida", "insonia", "fadiga", "cansaco", "desanimo", "culpa", "desesperanca"],
       differential: "luto, transtorno bipolar, uso de substancias, hipotireoidismo e transtorno de ajustamento."
     },
     {
@@ -167,11 +185,11 @@ function diagnosticRules() {
       categoria: "nosologico",
       cid11: "6B00 - Transtorno de ansiedade generalizada",
       dsm5tr: "F41.1 - Generalized anxiety disorder",
-      terms: ["humor ansioso", "ansios", "preocupacoes excessivas", "inquietude", "tensao", "panico"],
+      terms: ["humor ansioso", "ansios", "ansiedade", "preocupacoes excessivas", "inquietude", "tensao", "panico"],
       differential: "transtorno do panico, ansiedade social, TOC, hipertireoidismo e uso de estimulantes."
     },
     {
-      name: "Depressão Bipolar",
+      name: "Transtorno Bipolar",
       categoria: "nosologico",
       cid11: "6A60/6A61 - Transtorno bipolar tipo I/tipo II",
       dsm5tr: "F31.9 - Bipolar disorder, unspecified",
@@ -183,7 +201,10 @@ function diagnosticRules() {
       categoria: "nosologico",
       cid11: "6B20 - Transtorno obsessivo-compulsivo",
       dsm5tr: "F42.2 - Mixed obsessional thoughts and acts",
-      terms: ["obsessoes", "compulsividade", "toc", "rituais", "intrusivos"],
+      // "toc" sozinho e substring de "protocolo" e "tocar". Com os pontos, so
+      // casa quando o medico escreve a sigla: normalizeText tira acento e
+      // minusculiza, entao "T.O.C." vira "t.o.c.".
+      terms: ["obsessoes", "compulsividade", "compulsoes", "t.o.c", "rituais", "intrusivos"],
       differential: "ansiedade generalizada, transtornos relacionados a trauma, tiques e transtorno de personalidade obsessivo-compulsiva."
     },
     {
@@ -191,7 +212,9 @@ function diagnosticRules() {
       categoria: "nosologico",
       cid11: "6A20-6A2Z - Espectro da esquizofrenia e outros transtornos psicoticos primarios",
       dsm5tr: "F20.9/F29 - Esquizofrenia ou psicose nao especificada",
-      terms: ["alucinacao", "delirio", "juizo prejudicado", "critica prejudicada", "desconfianca", "afrouxamento", "descarrilamento"],
+      // "delirio" nao casa com "delirium" de proposito: delirium e sindrome
+      // confusional, tem regra propria e nao entra aqui.
+      terms: ["alucinacao", "delirio", "juizo prejudicado", "critica prejudicada", "desconfianca", "afrouxamento", "descarrilamento", "alogia", "embotamento", "isolamento", "autorreferencia"],
       differential: "transtorno bipolar com sintomas psicoticos, depressao psicotica, delirium, epilepsia e substancias."
     },
     {
@@ -199,7 +222,8 @@ function diagnosticRules() {
       categoria: "nosologico",
       cid11: "6B40/6B43 - TEPT ou transtorno de ajustamento",
       dsm5tr: "F43.10/F43.20 - TEPT ou transtorno de adaptacao",
-      terms: ["tept", "trauma", "luto", "separacao", "estresse", "conflito", "ajustamento"],
+      // "flashback" sem o s casa com singular e plural.
+      terms: ["tept", "trauma", "luto", "separacao", "ajustamento", "flashback", "evitacao", "alerta alto"],
       differential: "depressao maior, ansiedade generalizada, luto prolongado e transtorno de personalidade."
     },
     {
@@ -215,7 +239,7 @@ function diagnosticRules() {
       categoria: "nosologico",
       cid11: "6B01 - Transtorno do panico",
       dsm5tr: "F41.0 - Panic disorder",
-      terms: ["panico", "palpitacoes", "falta de ar", "sudorese", "morte iminente", "crises"],
+      terms: ["panico", "palpitacoes", "falta de ar", "sudorese", "morte iminente"],
       differential: "ansiedade generalizada, ansiedade social, arritmias, hipertireoidismo e uso de estimulantes."
     },
     {
@@ -223,7 +247,7 @@ function diagnosticRules() {
       categoria: "nosologico",
       cid11: "6A05 - Transtorno de deficit de atencao e hiperatividade",
       dsm5tr: "F90.9 - ADHD, unspecified type",
-      terms: ["desatencao", "dificuldade de concentracao", "impulsividade", "hiperatividade", "procrastinacao"],
+      terms: ["desatencao", "dificuldade de concentracao", "impulsividade", "hiperatividade", "procrastinacao", "desorganizacao", "esquecimento", "hiperfoco", "inquietude"],
       differential: "transtornos do humor, ansiedade, privacao de sono, uso de substancias e dificuldades de aprendizagem."
     },
     {
@@ -231,7 +255,7 @@ function diagnosticRules() {
       categoria: "nosologico",
       cid11: "6B80-6B8Z - Transtornos alimentares ou da alimentacao",
       dsm5tr: "F50.9 - Eating disorder, unspecified",
-      terms: ["compulsao alimentar", "restricao alimentar", "perda de peso", "ganho de peso", "imagem corporal"],
+      terms: ["compulsao", "restricao"],
       differential: "depressao, ansiedade, condicoes endocrinas, efeitos medicamentosos e transtorno dismorfico corporal."
     },
     {

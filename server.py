@@ -348,8 +348,28 @@ SCHEMAS = {
                     "required": ["name", "cid11", "dsm5tr"],
                 },
             },
+            # Especificador nao e hipotese nova: e atributo da hipotese ja
+            # levantada — com sintomas psicoticos, ciclagem rapida, remissao
+            # parcial, leve/moderado/grave. Por isso nao tem name/cid11/dsm5tr
+            # como os outros grupos: tem o proprio nome e a hipotese que ele
+            # qualifica. Fica fora de verify_diagnostic_codes de proposito —
+            # especificador nao tem codigo proprio na CID-11.
+            "specifier_options": {
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 4,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "name": {"type": "string"},
+                        "applies_to": {"type": "string"},
+                    },
+                    "required": ["name", "applies_to"],
+                },
+            },
         },
-        "required": ["syndromic_options", "nosological_options", "etiological_options"],
+        "required": ["syndromic_options", "nosological_options", "etiological_options", "specifier_options"],
     },
     "treatment": {
         "type": "object",
@@ -584,6 +604,22 @@ def validate_result(kind, result):
                 for key in ("cid11", "dsm5tr"):
                     if not isinstance(option.get(key), str):
                         raise ValueError("Codigo diagnostico invalido.")
+        # Mesmo criterio dos grupos acima: teto, nao piso; entrada sem nome e
+        # descartada em vez de derrubar a resposta. "applies_to" vazio nao
+        # descarta — o especificador ainda serve ao medico, que sabe a qual
+        # hipotese ele se aplica.
+        especificadores = result.get("specifier_options")
+        if not isinstance(especificadores, list) or len(especificadores) > 4:
+            raise ValueError("O grupo specifier_options aceita no maximo 4 opcoes.")
+        validos = [o for o in especificadores
+                   if isinstance(o, dict) and isinstance(o.get("name"), str) and o["name"].strip()]
+        if len(validos) != len(especificadores):
+            logger.warning("specifier_options: %d opcao(oes) sem nome descartada(s)",
+                           len(especificadores) - len(validos))
+        for option in validos:
+            if not isinstance(option.get("applies_to"), str):
+                option["applies_to"] = ""
+        result["specifier_options"] = validos
     elif kind == "treatment":
         medications = result.get("medication_options")
         approaches = result.get("non_pharmacological_options")
@@ -797,8 +833,13 @@ def plain_text_from_result(kind, result):
                     parts.append(f"DSM-5-TR: {item['dsm5tr']}")
                 return " - ".join(part for part in parts if part)
             return "\n".join(one(item) for item in options)
-        return "DIAGNOSTICO SINDROMICO:\n{}\n\nDIAGNOSTICO NOSOLOGICO:\n{}\n\nDIAGNOSTICO ETIOLOGICO:\n{}".format(
-            format_options(result["syndromic_options"]), format_options(result["nosological_options"]), format_options(result["etiological_options"]))
+        def format_specifiers(options):
+            return "\n".join(
+                " - ".join(part for part in [item.get("name") or "", (item.get("applies_to") or "").strip()] if part)
+                for item in options)
+        return "DIAGNOSTICO SINDROMICO:\n{}\n\nDIAGNOSTICO NOSOLOGICO:\n{}\n\nDIAGNOSTICO ETIOLOGICO:\n{}\n\nESPECIFICADORES:\n{}".format(
+            format_options(result["syndromic_options"]), format_options(result["nosological_options"]),
+            format_options(result["etiological_options"]), format_specifiers(result.get("specifier_options") or []))
     if kind == "treatment":
         medications = "\n".join(
             f"{item['medication']} | Dose inicial: {item['initial_dose']} | Progressao: {item['progression']} | Dose final: {item['target_dose']}"
