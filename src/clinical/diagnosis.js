@@ -210,8 +210,9 @@ export function formatNonPharmacologicalOption(option = {}) {
 // Catalogo local. Contingencia para quando a IA/RAG nao responde — nao
 // substitui a literatura indexada. As sindromes descritivas nao levam codigo:
 // "sindrome ansiosa" e descricao psicopatologica, nao entidade da CID-11.
-// PENDENTE DE REVISAO MEDICA: os termos de busca e os codigos abaixo foram
-// escritos por mim e nao passaram pelo crivo do Dr. Regis.
+// Termos e codigos revisados pelo Dr. Regis em 20/08/2026, nos tres blocos —
+// nosologico, sindromico e etiologico. Alteracao de termo aqui muda hipotese
+// na tela: e decisao clinica, nao ajuste de texto.
 function diagnosticRules() {
   return [
     {
