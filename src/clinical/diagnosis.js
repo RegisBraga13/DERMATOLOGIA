@@ -100,6 +100,19 @@ function hasDisorderMarker(form = {}) {
   return Boolean(impacto.length || curso.length || inicio.length);
 }
 
+// O motor casa substring e nao le negacao — e a negacao e a redacao padrao da
+// anamnese psiquiatrica. "Nega uso de substancias" fazia a hipotese Induzido
+// por Substancia disparar justamente no paciente que nao usa nada. Aqui o
+// trecho negado sai do texto antes de qualquer comparacao: a expressao de
+// negacao e o que vem depois dela, ate a pontuacao ou no maximo seis palavras
+// — o bastante para a formula usual, curto o bastante para nao engolir a
+// oracao seguinte de um periodo corrido.
+const NEGACAO = /\b(?:nega(?:ou|m|va|vam)?|nao (?:refere|relata|apresenta|faz uso|ha|houve)|nunca (?:usou|fez uso)|sem (?:uso|historia|historico|antecedente|antecedentes|relato|sinais|indicios)(?: de)?|ausencia de)\b(?:\s+[^\s.,;:|!?()]+){0,6}/g;
+
+function stripNegated(text = "") {
+  return text.replace(NEGACAO, " ");
+}
+
 // O medico nomeou a entidade no proprio registro — "TDAH", "esquizofrenia",
 // "bipolar". Nomeada, ela dispensa a marca: quem esta afirmando o transtorno
 // e ele, nao a regra.
@@ -118,7 +131,7 @@ export function buildDiagnosticSuggestion(form) {
     joinValues(form.humor), joinValues(form.afeto), joinValues(form.psicomotricidade), joinValues(form.vontade), joinValues(form.juizoCritico),
     form.observacoesRetorno
   ].filter(Boolean).join(" | ");
-  const text = normalizeText(sourceText);
+  const text = stripNegated(normalizeText(sourceText));
   // Cada categoria concorre so com as regras dela. Antes a lista era uma so e
   // era fatiada por posicao — as tres primeiras viravam "sindromicas", as tres
   // seguintes "nosologicas" —, o que rotulava entidade nosologica como
@@ -398,6 +411,9 @@ function diagnosticRules() {
       terms: ["intoxicacao", "embriaguez", "uso recente", "hiperemia conjuntival", "midriase", "miose", "disartria"],
       differential: "intoxicacao por substancia especifica, causa metabolica e efeito medicamentoso."
     },
+    // Excecao declarada por ele a regra de que so a camada nosologica leva
+    // codigo: estas duas sao para o paciente ainda sem diagnostico confirmado,
+    // e o codigo aqui e o proprio destino provisorio do caso. Nao retirar.
     {
       name: "Induzido por Substância",
       categoria: "etiologico",
@@ -425,7 +441,9 @@ function diagnosticRules() {
       name: "Relacionado a Estressor Psicossocial",
       categoria: "etiologico",
       cid11: "",
-      terms: ["luto por morte", "falecimento", "separacao", "divorcio", "desemprego", "demissao", "violencia", "abuso", "estressor", "perda recente"],
+      // "abuso" solto casava com "abuso de alcool" e "abuso de substancias", que
+      // sao a regra vizinha. Aqui o que importa e o abuso sofrido.
+      terms: ["luto por morte", "falecimento", "separacao", "divorcio", "desemprego", "demissao", "violencia", "violencia domestica", "abuso sexual", "abuso fisico", "estressor", "perda recente"],
       differential: "transtorno de ajustamento, TEPT, luto prolongado, episodio depressivo desencadeado e reacao normal ao estressor."
     },
     {
