@@ -3,6 +3,7 @@ import { buildEvolutionNarrative, normalizeEvolutionNarrative, outdatedEvolution
 import { arrayValue, normalizeText } from "../clinical/textFormat.js";
 import { doctorDiagnosisOptions } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js?v=tratamento-5";
+import { targetSymptomOptions } from "../data/targetSymptoms.js";
 import { chips, textarea } from "../ui/controls.js";
 import { referenceFor } from "../data/references.js";
 import { escapeAttr, escapeHtml } from "../ui/html.js";
@@ -166,11 +167,11 @@ export function treatmentModule(form) {
     </div>
     <div class="treatment-card-grid">
       <div class="treatment-card">
-        <h4>Sintomas marginais e residuais</h4>
-        <p class="field-hint">O que persiste depois de controlado o quadro agudo. Tratam-se por si, independentemente do transtorno de base.</p>
-        ${chips("sintomasResiduais", "", optionGroups.sintomasResiduais, form.sintomasResiduais)}
-        ${textarea("sintomasResiduaisOutro", "Ao marcar \"Outro\": descreva", form.sintomasResiduaisOutro, "", 2)}
+        <h4>Sintoma-Alvo</h4>
+        <p class="field-hint">A queixa mais urgente, incômoda ou incapacitante, que orienta a conduta terapêutica imediata — independentemente de já haver diagnóstico nosológico estabelecido. Assinale antes de gerar: a IA só propõe conduta para o que você marcar.</p>
+        ${chips("sintomasResiduais", "", targetSymptomOptions, form.sintomasResiduais, form)}
       </div>
+      ${targetSymptomConductCard(form)}
       <div class="treatment-card">
         <h4>Abordagem medicamentosa</h4>
         <textarea hidden name="tratamentoAiMedicamentos">${escapeHtml(medicationOptions.join("\n"))}</textarea>
@@ -189,7 +190,7 @@ export function treatmentModule(form) {
       </div>
       <div class="treatment-card">
         <h4>Exames solicitados</h4>
-        ${chips("examesSolicitados", "", optionGroups.examesPsiquiatria, form.examesSolicitados)}
+        ${chips("examesSolicitados", "", optionGroups.examesPsiquiatria, form.examesSolicitados, form)}
         <textarea hidden name="examesLaboratoriais">${escapeHtml(examesText)}</textarea>
       </div>
       <div class="treatment-card physician-adjustments">
@@ -198,6 +199,25 @@ export function treatmentModule(form) {
       </div>
     </div>
   `;
+}
+
+// Bloco proprio, e so aparece quando ha conduta proposta — que so existe se ele
+// assinalou sintoma-alvo antes de gerar. Marcar aqui e opcional por decisao
+// dele: as vezes o tratamento da hipotese nosologica ja contempla o alvo, e
+// entao a conduta separada seria repeticao no prontuario.
+function targetSymptomConductCard(form) {
+  const options = treatmentOptionLines(form.tratamentoAiSintomasAlvo);
+  if (!options.length) return "";
+  const selected = arrayValue(form.sintomasAlvoSelecionados);
+  return `
+      <div class="treatment-card">
+        <h4>Conduta para os Sintomas-Alvo</h4>
+        <p class="field-hint">Assinale o que entra no prontuário. Deixe em branco se o tratamento da hipótese nosológica já contempla o alvo.</p>
+        <textarea hidden name="tratamentoAiSintomasAlvo">${escapeHtml(options.join("\n"))}</textarea>
+        <div class="diagnosis-options">
+          ${treatmentOptionCheckboxes("sintomasAlvoSelecionados", options, selected)}
+        </div>
+      </div>`;
 }
 
 function treatmentOptionCheckboxes(name, options, selectedValues) {

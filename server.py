@@ -444,8 +444,26 @@ SCHEMAS = {
                     "required": ["approach", "details"],
                 },
             },
+            # Conduta para o Sintoma-Alvo: a queixa mais urgente, incomoda ou
+            # incapacitante, que orienta o tratamento imediato mesmo sem
+            # diagnostico nosologico fechado. Uma entrada por sintoma que o
+            # medico assinalou — nunca por sintoma que ele nao marcou.
+            "target_symptom_options": {
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 5,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "symptom": {"type": "string"},
+                        "conduct": {"type": "string"},
+                    },
+                    "required": ["symptom", "conduct"],
+                },
+            },
         },
-        "required": ["medication_options", "non_pharmacological_options"],
+        "required": ["medication_options", "non_pharmacological_options", "target_symptom_options"],
     },
     "evolution": {
         "type": "object",
@@ -711,6 +729,13 @@ def validate_result(kind, result):
         if len(uteis) != len(approaches):
             logger.warning("tratamento: %d abordagem(ns) incompleta(s) descartada(s)", len(approaches) - len(uteis))
         result["non_pharmacological_options"] = uteis
+        alvos = result.get("target_symptom_options")
+        if not isinstance(alvos, list) or len(alvos) > 5:
+            raise ValueError("O tratamento aceita no maximo 5 condutas de sintoma-alvo.")
+        alvos_uteis = [o for o in alvos if completa(o, ("symptom", "conduct"))]
+        if len(alvos_uteis) != len(alvos):
+            logger.warning("tratamento: %d conduta(s) de sintoma-alvo incompleta(s) descartada(s)", len(alvos) - len(alvos_uteis))
+        result["target_symptom_options"] = alvos_uteis
     elif kind == "evolution":
         markdown = result.get("markdown")
         if not isinstance(markdown, str) or not markdown.strip():
@@ -926,7 +951,13 @@ def plain_text_from_result(kind, result):
             f"{item['approach']} | {item['details']}"
             for item in result["non_pharmacological_options"]
         )
-        return f"TRATAMENTO MEDICAMENTOSO:\n{medications}\n\nOUTRAS ABORDAGENS NAO FARMACOLOGICAS:\n{approaches}"
+        alvos = "\n".join(
+            f"{item['symptom']} | {item['conduct']}"
+            for item in (result.get("target_symptom_options") or [])
+        )
+        return (f"TRATAMENTO MEDICAMENTOSO:\n{medications}\n\n"
+                f"OUTRAS ABORDAGENS NAO FARMACOLOGICAS:\n{approaches}\n\n"
+                f"CONDUTA PARA OS SINTOMAS-ALVO:\n{alvos}")
     if kind == "evolution":
         return result["markdown"]
     if kind == "medication":

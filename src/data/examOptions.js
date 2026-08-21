@@ -18,6 +18,10 @@ export const optionGroups = {
   // quadro agudo. Tratam-se por si, independentemente do transtorno de base —
   // sao menos intensos, nao menos importantes, e sao preditores de recaida.
   // Remissao do agudo nao e alta.
+  // Lista antiga, dos sintomas marginais e residuais. A tela do Tratamento
+  // agora usa os Sintomas-Alvo de data/targetSymptoms.js — sao coisas opostas:
+  // aquilo era o que sobra depois de controlado o agudo, isto e o que nao pode
+  // esperar. Fica aqui so para ler prontuario salvo antes de 21/08/2026.
   sintomasResiduais: [
     "Fadiga", "Falta de concentracao", "Nevoa cerebral", "Lentificacao do processamento",
     "Memoria operacional prejudicada", "Anedonia residual", "Hipersonia", "Insonia",

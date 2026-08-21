@@ -342,6 +342,12 @@ details[open] summary:after { content: "-"; }
   color: var(--muted);
 }
 
+/* Pagina ainda nao alcancada: so se chega nela por "Salvar e avancar". */
+.page-tabs button.locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .page-tabs button.active {
   background: var(--primary);
   border-color: var(--primary-2);
@@ -2389,6 +2395,27 @@ textarea:focus-visible {
 
 /* Sincronizacao pendente: ocupa o lugar do selo "Ambiente clinico seguro",
    porque nesse momento a afirmacao que importa e outra. */
+/* O chip "Outro" e a anotacao dele andam juntos. A anotacao so aparece com o
+   chip marcado; onde :has() nao existir, aparece sempre — pior caso aceitavel,
+   porque o campo continua funcionando. */
+.chip-other {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chip-other .chip-note {
+  min-width: 180px;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+}
+
+@supports selector(:has(*)) {
+  .chip-other:not(:has(input[type="checkbox"]:checked)) .chip-note { display: none; }
+}
+
 .sync-status.sync-failed,
 .sync-status.storage-failed {
   display: inline-flex;

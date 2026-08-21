@@ -118,15 +118,10 @@ export const anamnesisQuestionGroups = [
   {
     title: "",
     items: [
-      ["Impacto", [
-        {
-          key: "impactoSintomas",
-          response: "multiple",
-          question: "De que forma isso que voce esta sentindo atrapalha o seu trabalho, seus estudos ou suas relacoes?",
-          options: ["Nenhuma", "Leve", "Moderado", "Grave", "Outro"],
-          otherKey: "impactoSintomasOutro"
-        }
-      ]],
+      // O grupo "Impacto" saiu daqui por decisao dele: a pagina da anamnese
+      // perguntava impacto duas vezes — o grau, neste guia, e as areas
+      // afetadas, em "Impacto funcional", no fim da pagina. Fica a segunda,
+      // que e a que o diagnostico le para saber se ha marca de transtorno.
       ["Mania/hipomania", [
         {
           key: "maniaHipomaniaSintomas",
@@ -280,7 +275,8 @@ export const ANAMNESIS_AI_FIELDS = {
   anxiety_symptoms: ["ansiedadeSintomas", ["Falta de controle", "Preocupacao excessiva", "Tensao corporal", "Dificuldade de focar", "Agitacao", "Irritabilidade", "Sintomas fisicos"]],
   sleep: ["sonoCaracteristicas", ["Sono reparador", "Sono nao reparador", "Dificuldade para adormecer", "Despertares noturnos", "Despertar precoce", "Dormir em excesso"]],
   appetite: ["apetiteCaracteristicas", ["Reducao do apetite", "Aumento do apetite", "Compulsao alimentar", "Perda de peso recente", "Ganho de peso recente"]],
-  symptom_impact: ["impactoSintomas", ["Nenhuma", "Leve", "Moderado", "Grave", "Outro"]],
+  // symptom_impact continua no schema do servidor, mas nao tem mais campo na
+  // tela: o grau de impacto saiu da anamnese. O que fica e functional_impact.
   substances_behaviors: ["usoSubstanciasComportamentos", ["Nicotina", "Alcool", "Cafeina", "Calmantes", "Estimulantes", "Cocaina", "Opioides", "Canabinoides", "Jogos de Azar", "Redes Sociais", "Compras Compulsivas", "Transtornos Alimentares"]],
   psychosis: ["psicoseSintomas", ["Nega sintomas relacionados", "Ideias de perseguicao", "Sensacao de estar sendo observado ou comentado", "Ideias de referencia", "Desconfianca excessiva", "Vozes ou ruidos sem fonte externa", "Visoes sem fonte externa", "Sensacoes tateis ou odores sem fonte externa", "Pensamento desorganizado", "Comportamento desorganizado", "Sensacao de controle ou interferencia no pensamento", "Outro"]],
   suicide_risk: ["riscoSuicidioIndicadores", ["Nega ideacao, plano ou intencao suicida", "Desesperanca", "Desejo de morrer ou de nao acordar", "Ideacao suicida", "Plano suicida definido", "Intencao suicida", "Acesso a meios potencialmente letais", "Comportamento preparatorio", "Tentativa de suicidio previa", "Autoagressao sem intencao suicida"]],

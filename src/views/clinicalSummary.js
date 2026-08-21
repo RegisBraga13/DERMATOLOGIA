@@ -2,6 +2,7 @@ import { anamnesisText } from "../clinical/narrative.js";
 import { calculateAge, joinValues, mentalExamKeys, normalizeText } from "../clinical/textFormat.js";
 import { anamnesisQuestionGroups, MENTAL_EXAM_NORMAL } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js?v=tratamento-5";
+import { targetSymptomOptions } from "../data/targetSymptoms.js";
 import { formatSummaryDate, section, summaryGroupedOptionRow, summaryTable, summaryTextRow } from "../ui/controls.js";
 
 export function clinicalSummaryPage(form = {}, patient = {}) {
@@ -74,8 +75,8 @@ export function clinicalSummaryGroups(form = {}, patient = {}) {
       String(form.fisico || "").trim() || "Exame físico sem alterações significativas")
   ];
   const residualRows = [
-    summaryGroupedOptionRow("Sintomas residuais", "Marginais e residuais", "sintomasResiduais",
-      optionGroups.sintomasResiduais || [], form, "sintomasResiduaisOutro")
+    summaryGroupedOptionRow("Sintoma-Alvo", "Assinalados", "sintomasResiduais",
+      targetSymptomOptions, form, "sintomasResiduaisOutro")
   ].filter(row => row.value);
   const refinementRows = refinementSummaryRows(form);
   return [

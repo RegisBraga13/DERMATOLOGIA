@@ -31,9 +31,9 @@ export function returnAssessmentBody(form) {
     ${singleChoiceWithNotes("sonoRetorno", "Sono", ["Adequado e reparador", "Insônia", "Hipersonia", "Redução da necessidade de sono"], form.sonoRetorno)}
     ${singleChoiceWithNotes("humorAnsiedadeRetorno", "Humor e ansiedade", ["Eutímico", "Deprimido", "Ansioso", "Irritável", "Elevado ou oscilante", "Crise de pânico"], form.humorAnsiedadeRetorno)}
     ${singleChoiceWithNotes("adesao", "Adesao ao tratamento", ["Adequada", "Parcial ou irregular", "Não iniciou ou interrompeu"], form.adesao)}
-    ${chips("efeitos", "Efeitos colaterais", ["Nenhum", "Sedacao ou sonolencia", "Sintomas gastrointestinais", "Alteracao de peso ou metabolica", "Efeitos motores", "Disfuncao sexual", "Outro"], form.efeitos)}
-    ${chips("funcionalidadeEventosRetorno", "Funcionalidade e eventos relevantes", ["Nenhum", "Prejuizo funcional", "Conflito, estressor ou luto", "Urgencia ou internacao", "Risco ou autoagressao", "Outro"], form.funcionalidadeEventosRetorno)}
-    ${chips("condutaMedicamentoRetorno", "Medicamento", ["Manter dose", "Aumentar dose", "Diminuir dose", "Retirar", "Trocar medicamento", "Acrescentar medicamento", "Outro"], form.condutaMedicamentoRetorno)}
+    ${chips("efeitos", "Efeitos colaterais", ["Nenhum", "Sedacao ou sonolencia", "Sintomas gastrointestinais", "Alteracao de peso ou metabolica", "Efeitos motores", "Disfuncao sexual", "Outro"], form.efeitos, form)}
+    ${chips("funcionalidadeEventosRetorno", "Funcionalidade e eventos relevantes", ["Nenhum", "Prejuizo funcional", "Conflito, estressor ou luto", "Urgencia ou internacao", "Risco ou autoagressao", "Outro"], form.funcionalidadeEventosRetorno, form)}
+    ${chips("condutaMedicamentoRetorno", "Medicamento", ["Manter dose", "Aumentar dose", "Diminuir dose", "Retirar", "Trocar medicamento", "Acrescentar medicamento", "Outro"], form.condutaMedicamentoRetorno, form)}
   `;
 }
 
@@ -50,7 +50,7 @@ export function mentalExamBody(form) {
     ["psicomotricidade", "Psicomotricidade"], ["vontade", "Vontade"], ["juizoCritico", "Juizo Critico (Insight)"]
   ];
   return groups.map(([key, label]) => `
-    ${chips(key, label, optionGroups[key], form[key])}
+    ${chips(key, label, optionGroups[key], form[key], form)}
   `).join("");
 }
 

@@ -45,12 +45,28 @@ export function buildEvolutionNarrative(form, patient = {}, previous = null, isR
   const diagnosis = selectedDiagnosisText(form) || form.diagnosticoSelecionadoResumo || form.diagnosticoManual || "";
   const treatment = professionalTreatmentText(form, isReturn);
 
+  // Abertura no modelo que ele escreveu: "Regis Braga, 42 anos, solteiro,
+  // agricultor, relata que ha 03 meses...". A identificacao e a historia sao
+  // uma frase so. Antes eram tres — identificacao, "Apresenta queixa de X" e
+  // "Paciente relata que..." —, e a do meio repetia em outras palavras o que a
+  // terceira ia contar em detalhe.
+  const { identification, workStatus } = evolutionPatientIdentification(patient);
+  // conciseHdaText devolve "Historia da doenca atual nao informada" quando nao
+  // ha o que contar. Emendado na identificacao isso viraria "Regis Braga, 42
+  // anos, relata que historia da doenca atual nao informada".
+  const semHistoria = /^hist[oó]ria (da doen[cç]a atual|do retorno) n[aã]o informada$/i.test(history || "");
+  const historicoProprio = history && !semHistoria && normalizeText(history) !== normalizeText(complaint) ? history : "";
   const opening = isReturn
     ? (history ? `${history}.` : "")
     : [
-      `${evolutionPatientIdentification(patient)}.`,
-      `Apresenta queixa de ${lowerFirst(professionalClinicalTerms(complaint))}.`,
-      history && normalizeText(history) !== normalizeText(complaint) ? professionalHistorySentence(history) : ""
+      historicoProprio
+        ? `${identification}, ${lowerFirst(historyClause(historicoProprio))}.`
+        // Sem historia registrada a queixa e o unico conteudo, entao ela ainda
+        // abre o texto — nao ha o que repetir.
+        : complaint
+          ? `${identification}, com queixa de ${lowerFirst(professionalClinicalTerms(complaint))}.`
+          : `${identification}.`,
+      workStatus ? `${workStatus}.` : ""
     ].filter(Boolean).join(" ");
 
   return normalizeEvolutionNarrative([
@@ -70,12 +86,16 @@ function professionalTreatmentText(form = {}, isReturn = false) {
     form.condutaMedicamentoRetorno,
     form.condutaMedicamentoRetornoOutro
   );
+  const targetSymptomConducts = professionalSelectedTreatmentItems(form.sintomasAlvoSelecionados, "");
   const physicianPlan = professionalClinicalTerms(stripFinalPeriod(form.condutaMedica || ""));
   const selectedExams = professionalClinicalTerms(requestedExamsText(form) || form.examesLaboratoriais || "");
   const sentences = [
     medications ? `O tratamento medicamentoso selecionado inclui ${lowerFirst(medications)}.` : "",
     approaches ? `Como medidas não farmacológicas, foram selecionadas ${lowerFirst(approaches)}.` : "",
     isReturn && returnMedicationActions ? `A conduta medicamentosa definida no retorno inclui ${lowerFirst(returnMedicationActions)}.` : "",
+    // O sintoma-alvo entra antes da conduta livre do medico: e a conduta que
+    // nao espera o diagnostico fechar.
+    targetSymptomConducts ? `Para os sintomas-alvo, foi definida a conduta de ${lowerFirst(targetSymptomConducts)}.` : "",
     physicianPlan ? `A conduta médica registrada consiste em ${lowerFirst(physicianPlan)}.` : "",
     selectedExams ? `Foram solicitados ${lowerFirst(selectedExams)}.` : ""
   ].filter(Boolean);
@@ -108,10 +128,9 @@ function evolutionPatientIdentification(patient = {}) {
   const workStatus = occupation
     ? (isAwayFromWork ? "No momento, afastado do trabalho" : "Em atividade")
     : "";
-  return [
-    identification,
-    workStatus
-  ].filter(Boolean).join(". ");
+  // Devolve as duas partes separadas: a identificacao emenda com a historia na
+  // mesma frase, e a situacao de trabalho vem depois, como frase propria.
+  return { identification, workStatus };
 }
 
 function professionalEducation(value = "") {
@@ -179,11 +198,21 @@ function professionalStructuredAnamnesisText(form = {}) {
   return parts.join(" ");
 }
 
-function professionalHistorySentence(value = "") {
+// A historia entra colada na identificacao, entao ela precisa comecar por um
+// verbo e nao por um sujeito novo: "Paciente relata que ha 03 meses..." vira
+// "relata que ha 03 meses...", que emenda depois da virgula. O sujeito ja foi
+// dito — e o nome do paciente.
+function historyClause(value = "") {
   let history = professionalClinicalTerms(stripFinalPeriod(value));
-  history = history.replace(/^Evolução insidiosa\b/i, "A evolução dos sintomas foi insidiosa");
-  history = history.replace(/^Evolução gradual\b/i, "A evolução dos sintomas foi gradual");
-  return `${capitalizeFirst(history)}.`;
+  history = history.replace(/^Evolução insidiosa\b/i, "apresenta evolução insidiosa dos sintomas");
+  history = history.replace(/^Evolução gradual\b/i, "apresenta evolução gradual dos sintomas");
+  history = history.replace(/^(?:o |a )?paciente\s+/i, "");
+  // Sem verbo de relato a frase fica "Fulano, 42 anos, ha tres meses vem
+  // apresentando..." — falta o elo. "Relata que" e o elo.
+  if (!/^(relata|refere|nega|queixa|apresenta|procura|busca|comparece)/i.test(history)) {
+    history = `relata que ${lowerFirst(history)}`;
+  }
+  return history;
 }
 
 function professionalMentalFinding(value = "") {

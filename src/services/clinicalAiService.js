@@ -3,6 +3,7 @@ import { anamnesisText, conciseAntecedentsText, conciseComplaintText, conciseDia
 import { arrayValue, cleanClinicalLine, compactText, formatClinicalList, joinValues, normalizeText, stripFinalPeriod } from "../clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, MENTAL_EXAM_AI_FIELDS } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js?v=tratamento-5";
+import { targetSymptomReference } from "../data/targetSymptoms.js";
 import { protocolBlocksText, protocolCatalogText, protocolItemById, protocolLoaded } from "../clinical/protocol.js";
 import { parseMedicationResponse } from "./medicationService.js";
 
@@ -140,6 +141,9 @@ function validateClinicalAiPayload(kind, result, text = "") {
     const completa = (option, chaves) => chaves.every(key => typeof option?.[key] === "string" && option[key].trim());
     result.medication_options = result.medication_options.filter(option => completa(option, ["medication", "initial_dose", "progression", "target_dose"]));
     result.non_pharmacological_options = result.non_pharmacological_options.filter(option => completa(option, ["approach", "details"]));
+    if (!Array.isArray(result.target_symptom_options)) result.target_symptom_options = [];
+    result.target_symptom_options = result.target_symptom_options
+      .filter(option => completa(option, ["symptom", "conduct"])).slice(0, 5);
   }
   if (kind === "evolution" && typeof result.markdown !== "string") throw new Error("Evolucao fora do formato esperado.");
   if (kind === "medication") {
@@ -325,13 +329,22 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
     treatment: [
       "Gere ate 3 opcoes de abordagem medicamentosa: primeira opcao, segunda opcao e uma opcao off-label, exclusivamente com dados do Assistant da IA atual ou do RAG com literatura. E teto, nao piso.",
       "Quando o quadro nao sustentar farmacoterapia — ausencia de psicopatologia de relevancia clinica, sintoma reativo ou adaptativo — devolva a lista de medicamentos VAZIA. Nao preencha a vaga com 'nao indicado', 'nenhum' ou linha sem dose: lista vazia e a resposta correta, e as orientacoes carregam a conduta.",
-      // "Queixa em remissao" saiu da lista acima. Remissao do quadro agudo nao
-      // e alta terapeutica: e onde os sintomas residuais aparecem, e onde
-      // suspender manutencao provoca recaida. A regra antiga zerava o
-      // tratamento exatamente no momento em que ele precisa continuar.
-      "Remissao dos sintomas agudos NAO significa ausencia de indicacao. Avalie separadamente os sintomas marginais e residuais — alteracoes emocionais, cognitivas ou comportamentais que persistem apos o controle do quadro agudo.",
-      "Sintoma residual e menos intenso, nao menos importante: prejudica a funcionalidade e e preditor de recaida. Quando houver, proponha a conduta de manutencao e de reabilitacao, farmacologica ou nao, em vez de encerrar o tratamento.",
-      "Diga explicitamente quando a conduta proposta e de manutencao ou de reabilitacao, e nao de tratamento do quadro agudo.",
+      // Remissao do quadro agudo nao e alta terapeutica: suspender manutencao
+      // ali provoca recaida.
+      "Remissao dos sintomas agudos NAO significa ausencia de indicacao. Proponha a conduta de manutencao e de reabilitacao, farmacologica ou nao, em vez de encerrar o tratamento, e diga explicitamente quando a conduta e de manutencao, e nao de tratamento do quadro agudo.",
+      // Sintoma-Alvo, definicao dele: a queixa mais urgente, incomoda ou
+      // incapacitante, que orienta a conduta imediata mesmo antes de haver
+      // diagnostico nosologico. O medico assinala na tela; sem marcacao dele, a
+      // IA nao inventa alvo nenhum.
+      "SINTOMA-ALVO e a queixa mais urgente, incomoda ou incapacitante do caso, e orienta a conduta terapeutica imediata mesmo sem diagnostico nosologico estabelecido. Os sintomas-alvo deste atendimento sao APENAS os que o medico assinalou e que aparecem no registro sob 'Sintomas-alvo assinalados'.",
+      "Para cada sintoma-alvo assinalado, devolva uma entrada em 'target_symptom_options' com 'symptom' repetindo o nome exato do sintoma e 'conduct' dizendo a conduta imediata para ele — farmacologica, nao farmacologica, ou as duas, em uma frase objetiva.",
+      "Se o registro nao trouxer sintoma-alvo assinalado, devolva 'target_symptom_options' VAZIA. Nunca proponha conduta para sintoma que o medico nao assinalou, e nunca crie um sintoma-alvo por conta propria.",
+      "Quando o registro trouxer 'Referencia de manejo do sintoma-alvo', use-a como ponto de partida e ajuste-a ao caso: medicamento ja em uso, interacao, comorbidade, agravante, gestacao, funcao renal ou hepatica. A referencia e orientacao, nao prescricao — se ela nao servir a este paciente, proponha outra conduta e diga por que.",
+      // Num teste com tres alvos assinalados, as tres opcoes medicamentosas
+      // viraram tres hipnoticos: o sintoma-alvo tomou o lugar do tratamento da
+      // doenca. Sao grupos com funcoes diferentes e nao podem trocar de lugar.
+      "'medication_options' trata a hipotese NOSOLOGICA — e o tratamento de fundo, o que sustenta o seguimento. NAO preencha esse grupo com medicamento dirigido a sintoma-alvo: esse vai em 'target_symptom_options'. O mesmo vale para 'non_pharmacological_options', que sao as abordagens do caso, nao o manejo pontual do alvo.",
+      "A conduta do sintoma-alvo pode coincidir com o tratamento da hipotese nosologica. Quando coincidir, diga isso na propria conduta em vez de repetir a prescricao — quem decide se marca ou nao e o medico.",
       "Para cada opcao medicamentosa informe medicamento, dose inicial, progressao/titulacao e dose final ou dose-alvo. Opcao sem esses quatro dados e descartada.",
       "Gere ate 3 abordagens nao farmacologicas ou orientacoes gerais, com uma orientacao objetiva para cada uma. Estas valem mesmo sem medicamento, e sao a conduta principal quando nao ha indicacao farmacologica.",
       "Considere as hipoteses escolhidas e os dados clinicos informados, incluindo riscos, comorbidades, substancias e exame psiquico. Nao invente dados.",
@@ -430,7 +443,12 @@ function clinicalPromptData(form = {}, patient = {}, previous = null, isReturn =
     // Registrado pelo medico na tela de Tratamento. Sem esta linha o campo
     // ficava so no prontuario e a IA seguia propondo conduta para o quadro
     // agudo — o mesmo circuito fechado do refinamento.
-    `Sintomas marginais e residuais: ${joinWithOutro(form.sintomasResiduais, form.sintomasResiduaisOutro) || "nao informado"}.`,
+    `Sintomas-alvo assinalados: ${joinWithOutro(form.sintomasResiduais, form.sintomasResiduaisOutro) || "nenhum assinalado"}.`,
+    // A tabela dele entra so na parte que ele marcou. Sem marcacao, nao entra
+    // linha nenhuma — nem gasta token, nem sugere alvo que ele nao escolheu.
+    targetSymptomReference(arrayValue(form.sintomasResiduais)).length
+      ? `Referencia de manejo do sintoma-alvo:\n${targetSymptomReference(arrayValue(form.sintomasResiduais)).join("\n")}`
+      : "",
     // Fecha o laco do refinamento: o que o medico respondeu volta ao raciocinio.
     refinementAnswersText(form) ? `Refinamento clinico respondido pelo medico:\n${refinementAnswersText(form)}` : "",
     `Hipoteses diagnosticas selecionadas/acrescentadas: ${stripFinalPeriod(treatmentDiagnosisText(form)) || stripFinalPeriod(form.diagnosticoManual || "") || "nao informado"}.`,
@@ -489,7 +507,11 @@ function promptResponseFormat(kind) {
       "",
       "OUTRAS ABORDAGENS NAO FARMACOLOGICAS:",
       "Abordagem | Orientacao objetiva",
-      "(ate 3 opcoes; menos, se o quadro nao sustentar mais)"
+      "(ate 3 opcoes; menos, se o quadro nao sustentar mais)",
+      "",
+      "CONDUTA PARA OS SINTOMAS-ALVO:",
+      "Sintoma-alvo assinalado pelo medico | Conduta imediata para ele",
+      "(uma por sintoma assinalado; vazio se ele nao assinalou nenhum)"
     ].join("\n");
   }
   if (kind === "medication") {

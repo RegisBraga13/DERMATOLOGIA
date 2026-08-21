@@ -92,18 +92,28 @@ export function anamnesisStructuredFields(questions, form) {
 function multipleChoiceField(item, form) {
   const values = Array.isArray(form[item.key]) ? form[item.key] : form[item.key] ? [form[item.key]] : [];
   const set = new Set(values);
-  const otherInput = "";
+  // Mesmo caso do chip: "Outro" aqui tambem nao tinha onde escrever. A variavel
+  // otherInput existia e era string vazia.
+  const otherKey = item.otherKey || `${item.key}Outro`;
+  const otherValue = String(form[otherKey] || "");
   return `<div class="risk-fields">
     ${item.question ? `<p class="structured-question">${escapeHtml(item.question)}</p>` : ""}
     <div class="multi-choice-options">
-      ${item.options.map(option => `
+      ${item.options.map(option => isOtherOption(option) ? `
+        <div class="chip-other">
+          <label>
+            <input type="checkbox" name="${item.key}" value="${escapeAttr(option)}" ${set.has(option) ? "checked" : ""} />
+            ${escapeHtml(optionDisplayLabel(option))}
+          </label>
+          <input class="chip-note" type="text" name="${otherKey}" value="${escapeAttr(otherValue)}" placeholder="Descreva" aria-label="Descreva o outro" />
+        </div>
+      ` : `
         <label>
           <input type="checkbox" name="${item.key}" value="${escapeAttr(option)}" ${set.has(option) ? "checked" : ""} />
           ${escapeHtml(optionDisplayLabel(option))}
         </label>
       `).join("")}
     </div>
-    ${otherInput}
   </div>`;
 }
 
@@ -130,10 +140,33 @@ function suicideRiskFields(questions, form) {
   </div>`;
 }
 
-export function chips(name, labelText, options, values = []) {
+// O chip "Outro" existia sem lugar para escrever o que era esse outro: o campo
+// ja estava no modelo de dados, e o resumo ja o lia, mas nenhuma tela o
+// oferecia. Agora ele abre uma anotacao ao lado, so quando marcado.
+//
+// A expansao e de CSS, nao de JavaScript: o campo esta sempre no DOM, entao o
+// que o medico escreve e capturado pelo formulario do mesmo jeito que os
+// demais, e marcar o chip nao precisa redesenhar a pagina — a marcacao se
+// perderia no meio da digitacao. Onde :has() nao existir, o campo aparece
+// sempre, que e o pior caso aceitavel.
+function chipOther(name, option, value = "", checked = false, otherKey = `${name}Outro`) {
+  return `<div class="chip-other">
+    <label class="chip"><input type="checkbox" name="${name}" value="${escapeAttr(option)}" ${checked ? "checked" : ""}>${escapeHtml(optionDisplayLabel(option))}</label>
+    <input class="chip-note" type="text" name="${otherKey}" value="${escapeAttr(value)}" placeholder="Descreva" aria-label="Descreva o outro" />
+  </div>`;
+}
+
+function isOtherOption(option) {
+  return normalizeText(option) === "outro";
+}
+
+export function chips(name, labelText, options, values = [], form = null, otherKey = `${name}Outro`) {
   const normalizedValues = Array.isArray(values) ? values : values ? [values] : [];
   const set = new Set(normalizedValues);
-  return `<div><label>${labelText}</label><div class="chips">${options.map(option => `<label class="chip"><input type="checkbox" name="${name}" value="${escapeAttr(option)}" ${set.has(option) ? "checked" : ""}>${escapeHtml(optionDisplayLabel(option))}</label>`).join("")}</div></div>`;
+  const otherValue = form ? String(form[otherKey] || "") : "";
+  return `<div><label>${labelText}</label><div class="chips">${options.map(option => isOtherOption(option)
+    ? chipOther(name, option, otherValue, set.has(option), otherKey)
+    : `<label class="chip"><input type="checkbox" name="${name}" value="${escapeAttr(option)}" ${set.has(option) ? "checked" : ""}>${escapeHtml(optionDisplayLabel(option))}</label>`).join("")}</div></div>`;
 }
 
 export function singleChoiceWithNotes(name, labelText, options, value = "") {

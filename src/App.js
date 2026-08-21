@@ -28,6 +28,9 @@ let selectedPatientId = state.patients[0]?.id || "";
 let draft = {};
 let consultationPage = "anamnese";
 let returnPage = "evolucao-retorno";
+// Quantas paginas do fluxo ja foram liberadas. Comeca em 1: so a primeira.
+let consultationUnlocked = 1;
+let returnUnlocked = 1;
 let modal = null;
 let pendingViewAfterPatient = "";
 let anamnesisProcessingSequence = 0;
@@ -311,9 +314,12 @@ function returnRecordAccessPanel(form, patientId) {
 function formPageTabs(scope) {
   const pages = pagesForScope(scope);
   const active = scope === "consultation" ? consultationPage : returnPage;
-  return `<nav class="page-tabs" aria-label="Paginas do formulario">${pages.map(([key, label]) => `
-    <button type="button" class="${active === key ? "active" : ""}" data-action="form-page" data-scope="${scope}" data-page="${key}">${label}</button>
-  `).join("")}</nav>`;
+  return `<nav class="page-tabs" aria-label="Paginas do formulario">${pages.map(([key, label]) => {
+    const liberada = pageIsReachable(scope, key);
+    return `
+    <button type="button" class="${active === key ? "active" : ""}${liberada ? "" : " locked"}" data-action="form-page" data-scope="${scope}" data-page="${key}"${liberada ? "" : ` disabled title="Use Salvar e avançar para chegar a esta página"`}>${label}</button>
+  `;
+  }).join("")}</nav>`;
 }
 
 function clinicalPage(title, body, scope = "", showActions = true) {
@@ -345,14 +351,14 @@ function consultationPageBody(form, patient) {
     ${anamnesisQuestionGuide()}
     <div class="clinical-card antecedents-card">
       <h4>Antecedentes pessoais e familiares</h4>
-      ${chips("psiPrevios", "Diagnosticos psiquiatricos previos", optionGroups.psiPrevios, form.psiPrevios)}
-      ${chips("tratamentos", "Tratamentos previos", optionGroups.tratamentos, form.tratamentos)}
+      ${chips("psiPrevios", "Diagnosticos psiquiatricos previos", optionGroups.psiPrevios, form.psiPrevios, form)}
+      ${chips("tratamentos", "Tratamentos previos", optionGroups.tratamentos, form.tratamentos, form)}
       ${textarea("medicos", "Antecedentes medicos", joinValues(form.medicos), "", 2)}
-      ${chips("familiares", "Antecedentes familiares", optionGroups.familiares, form.familiares)}
+      ${chips("familiares", "Antecedentes familiares", optionGroups.familiares, form.familiares, form)}
     </div>
-    ${chips("fatores", "Fatores desencadeantes e de piora", optionGroups.fatores, form.fatores)}
-    ${chips("fatoresMelhora", "Fatores de melhora", optionGroups.fatoresMelhora, form.fatoresMelhora)}
-    ${chips("impacto", "Impacto funcional", optionGroups.impacto, form.impacto)}
+    ${chips("fatores", "Fatores desencadeantes e de piora", optionGroups.fatores, form.fatores, form)}
+    ${chips("fatoresMelhora", "Fatores de melhora", optionGroups.fatoresMelhora, form.fatoresMelhora, form)}
+    ${chips("impacto", "Impacto funcional", optionGroups.impacto, form.impacto, form)}
   `, "consultation");
   if (consultationPage === "psiquico") return clinicalPage("Exame psiquico", mentalExamBody(form), "consultation");
   if (consultationPage === "neurologico") return clinicalPage("Exame fisico e neurologico", neurologicExamBody(form), "consultation");
@@ -518,6 +524,39 @@ function currentPageForScope(scope) {
   return scope === "consultation" ? consultationPage : returnPage;
 }
 
+// A pagina so se abre por "Salvar e avancar". Antes as abas eram atalhos
+// livres: dava para pular da anamnese para o tratamento sem passar por nada, e
+// o que estava na tela nao tinha sido gravado. Voltar a uma pagina ja
+// percorrida continua livre — o que se perdeu ali ja foi salvo.
+//
+// Medicamentos e a excecao, decidida por ele: e apendice de consulta, nao etapa
+// do atendimento, e precisa estar a mao a qualquer momento.
+const APPENDIX_PAGES = new Set(["medicamentos"]);
+
+function unlockedForScope(scope) {
+  return scope === "consultation" ? consultationUnlocked : returnUnlocked;
+}
+
+function unlockPage(scope, key) {
+  const index = pagesForScope(scope).findIndex(([pageKey]) => pageKey === key);
+  if (index < 0) return;
+  if (scope === "consultation") consultationUnlocked = Math.max(consultationUnlocked, index + 1);
+  else returnUnlocked = Math.max(returnUnlocked, index + 1);
+}
+
+// Registro ja salvo e reaberto pelo prontuario: tudo liberado, porque o
+// atendimento ja foi percorrido uma vez.
+function unlockAllPages(scope) {
+  if (scope === "consultation") consultationUnlocked = pagesForScope("consultation").length;
+  else returnUnlocked = pagesForScope("return").length;
+}
+
+function pageIsReachable(scope, key) {
+  if (APPENDIX_PAGES.has(key)) return true;
+  const index = pagesForScope(scope).findIndex(([pageKey]) => pageKey === key);
+  return index >= 0 && index < unlockedForScope(scope);
+}
+
 function nextPageForScope(scope) {
   const pages = pagesForScope(scope);
   const current = currentPageForScope(scope);
@@ -571,6 +610,8 @@ function bindGlobalEvents() {
     draft.return = selectedPatientId ? defaultReturn() : {};
     consultationPage = "anamnese";
     returnPage = "evolucao-retorno";
+    consultationUnlocked = 1;
+    returnUnlocked = 1;
     render();
   }));
   app.querySelectorAll("[data-action='edit-patient']").forEach(select => select.addEventListener("change", event => {
@@ -826,7 +867,7 @@ function bindActions() {
       if (action === "voice") voiceRecording.startVoice(element.dataset.target, element);
       if (action === "edit-current-patient") { view = "patient"; draft.patient = structuredClone(getPatient()); render(); }
       if (action === "edit-entry") editEntry(element.dataset.id, element.dataset.type);
-      if (action === "new-consultation") { draft.consultation = defaultConsultation(); consultationPage = "anamnese"; render(); }
+      if (action === "new-consultation") { draft.consultation = defaultConsultation(); consultationPage = "anamnese"; consultationUnlocked = 1; render(); }
       if (action === "new-return") startNewReturn();
       if (action === "back-to-record") { view = "record"; render(); }
       if (action === "pdf-entry") pdfEntry(element.dataset.id, element.dataset.type);
@@ -840,10 +881,15 @@ function bindActions() {
 }
 
 function switchFormPage(element) {
+  const scope = element.dataset.scope;
+  const page = element.dataset.page;
+  // O disabled do botao ja barra o clique; esta guarda barra o resto — teclado,
+  // clique programatico, qualquer caminho que nao passe pela aba.
+  if (!pageIsReachable(scope, page)) return;
   const form = element.closest("form");
   if (form) updateDraftFromForm(form);
-  if (element.dataset.scope === "consultation") consultationPage = element.dataset.page;
-  if (element.dataset.scope === "return") returnPage = element.dataset.page;
+  if (scope === "consultation") consultationPage = page;
+  if (scope === "return") returnPage = page;
   render();
 }
 
@@ -879,6 +925,7 @@ async function saveCurrentPageAndAdvance(element) {
   const completedPage = currentPageForScope(scope);
   saveClinicalRecord(scope);
   const nextPage = nextPageForScope(scope);
+  if (nextPage) unlockPage(scope, nextPage);
   if (scope === "consultation" && nextPage) consultationPage = nextPage;
   if (scope === "return" && nextPage) returnPage = nextPage;
   render();
@@ -973,9 +1020,22 @@ async function generateTreatmentFromClinicalData(element) {
     const { result, sources, mode } = await requestClinicalAi("treatment", buildClinicalAiPrompt("treatment", context.target, context.patient, context.previous, context.isReturn), context.target?.pharmaAiMode || "rag", buildRagQuery("treatment", context.target));
     const medicationOptions = result.medication_options.map(formatMedicationTreatmentOption);
     const approachOptions = result.non_pharmacological_options.map(formatNonPharmacologicalOption);
+    // Uma linha por sintoma-alvo que ele assinalou. Se ele nao assinalou
+    // nenhum, a IA devolve lista vazia por regra do prompt e o bloco nem
+    // aparece na tela.
+    const targetSymptomOptions = (result.target_symptom_options || [])
+      .map(item => [String(item?.symptom || "").trim(), String(item?.conduct || "").trim()]
+        .filter(Boolean).join(" — "))
+      .filter(Boolean)
+      .filter((option, index, list) => list.indexOf(option) === index)
+      .slice(0, 5);
     suggestion = {
       tratamentoAiMedicamentos: medicationOptions.join("\n"),
       tratamentoAiAbordagens: approachOptions.join("\n"),
+      tratamentoAiSintomasAlvo: targetSymptomOptions.join("\n"),
+      // A IA propoe, ele assinala — e pode nao assinalar nenhuma, quando julgar
+      // que o tratamento da hipotese nosologica ja contempla o alvo.
+      sintomasAlvoSelecionados: arrayValue(target?.sintomasAlvoSelecionados),
       // Mesmo criterio ja aplicado ao diagnostico: a IA propoe, quem assinala
       // e o medico. Marcar as tres opcoes de saida inverte o onus — passaria a
       // ser preciso descartar duas prescricoes em vez de escolher uma.
@@ -987,7 +1047,10 @@ async function generateTreatmentFromClinicalData(element) {
       condutaMedica: target?.condutaMedica || "",
       ragSourcesTratamento: sources,
       pharmaAiMode: mode,
-      treatmentStatus: `${countLabel(medicationOptions.length, "opção medicamentosa", "opções medicamentosas")} e ${countLabel(approachOptions.length, "outra abordagem", "outras abordagens")} propostas para você assinalar. Suas escolhas anteriores foram mantidas.`,
+      treatmentStatus: [
+        `${countLabel(medicationOptions.length, "opção medicamentosa", "opções medicamentosas")} e ${countLabel(approachOptions.length, "outra abordagem", "outras abordagens")} propostas para você assinalar. Suas escolhas anteriores foram mantidas.`,
+        targetSymptomOptions.length ? `${countLabel(targetSymptomOptions.length, "conduta")} para os sintomas-alvo assinalados.` : ""
+      ].filter(Boolean).join(" "),
       aiStatus: "Sugestões de tratamento geradas pela IA para revisão médica."
     };
   } catch (error) {
@@ -1292,6 +1355,7 @@ function startNewReturn() {
     previousEntryId: pendingConsultation.id
   };
   returnPage = "evolucao-retorno";
+  returnUnlocked = 1;
   render();
 }
 
@@ -1440,13 +1504,17 @@ function editEntry(id, type) {
   const entry = findEntry(id, type);
   if (!entry) return;
   selectedPatientId = entry.patientId;
+  // Registro salvo e reaberto: o atendimento ja foi percorrido inteiro, entao
+  // as abas voltam a ser livres. O travamento existe para o atendimento novo.
   if (type === "consultation") {
     draft.consultation = structuredClone(entry);
     consultationPage = "evolucao";
+    unlockAllPages("consultation");
     view = "consultation";
   } else {
     draft.return = structuredClone(entry);
     returnPage = "texto-retorno";
+    unlockAllPages("return");
     view = "return";
   }
   render();
