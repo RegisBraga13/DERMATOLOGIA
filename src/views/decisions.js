@@ -167,12 +167,6 @@ export function treatmentModule(form) {
     </div>
     <div class="treatment-card-grid">
       <div class="treatment-card">
-        <h4>Sintoma-Alvo</h4>
-        <p class="field-hint">A queixa mais urgente, incômoda ou incapacitante, que orienta a conduta terapêutica imediata — independentemente de já haver diagnóstico nosológico estabelecido. Assinale antes de gerar: a IA só propõe conduta para o que você marcar.</p>
-        ${chips("sintomasResiduais", "", targetSymptomOptions, form.sintomasResiduais, form)}
-      </div>
-      ${targetSymptomConductCard(form)}
-      <div class="treatment-card">
         <h4>Abordagem medicamentosa</h4>
         <textarea hidden name="tratamentoAiMedicamentos">${escapeHtml(medicationOptions.join("\n"))}</textarea>
         <textarea hidden name="tratamentoMedicamentoso">${escapeHtml(form.tratamentoMedicamentoso || "")}</textarea>
@@ -201,23 +195,43 @@ export function treatmentModule(form) {
   `;
 }
 
-// Bloco proprio, e so aparece quando ha conduta proposta — que so existe se ele
-// assinalou sintoma-alvo antes de gerar. Marcar aqui e opcional por decisao
-// dele: as vezes o tratamento da hipotese nosologica ja contempla o alvo, e
-// entao a conduta separada seria repeticao no prontuario.
-function targetSymptomConductCard(form) {
+
+// Pagina propria, decidida com ele: tratar o transtorno e aliviar o que nao
+// pode esperar sao dois atos clinicos diferentes, e no Tratamento o alvo
+// disputava espaco com a conduta da doenca. A biblioteca tambem e outra — o
+// escopo "sintomatico" do RAG —, entao a chamada e propria.
+export function targetSymptomModule(form) {
   const options = treatmentOptionLines(form.tratamentoAiSintomasAlvo);
-  if (!options.length) return "";
   const selected = arrayValue(form.sintomasAlvoSelecionados);
+  const assinalados = arrayValue(form.sintomasResiduais);
   return `
-      <div class="treatment-card">
-        <h4>Conduta para os Sintomas-Alvo</h4>
-        <p class="field-hint">Assinale o que entra no prontuário. Deixe em branco se o tratamento da hipótese nosológica já contempla o alvo.</p>
-        <textarea hidden name="tratamentoAiSintomasAlvo">${escapeHtml(options.join("\n"))}</textarea>
-        <div class="diagnosis-options">
-          ${treatmentOptionCheckboxes("sintomasAlvoSelecionados", options, selected)}
-        </div>
-      </div>`;
+    <div class="treatment-card">
+      <h4>Sintoma-Alvo</h4>
+      <p class="field-hint">A queixa mais urgente, incômoda ou incapacitante, que orienta a conduta terapêutica imediata no início do acompanhamento — independentemente de já haver diagnóstico nosológico estabelecido.</p>
+      ${chips("sintomasResiduais", "", targetSymptomOptions, form.sintomasResiduais, form)}
+    </div>
+    <div class="diagnosis-ai-panel">
+      ${aiModeSelector(form.symptomaticAiMode || "rag", "symptomaticAiMode")}
+      <div class="actions">
+        <button class="primary" type="button" data-action="generate-target-symptoms">Gerar</button>
+      </div>
+      <p class="online-status">${assinalados.length
+        ? `${assinalados.length} sintoma-alvo assinalado(s). A IA propõe conduta apenas para estes.`
+        : "Assinale ao menos um sintoma-alvo acima antes de gerar."}</p>
+      ${form.symptomaticStatus ? `<p class="online-status">${escapeHtml(form.symptomaticStatus)}</p>` : ""}
+      ${ragSourcesView(form.ragSourcesSintomatico)}
+    </div>
+    <div class="treatment-card">
+      <h4>Conduta para os Sintomas-Alvo</h4>
+      <p class="field-hint">Cada linha é independente: a conduta de manejo e, quando houver, a 1ª e a 2ª opção medicamentosa referenciadas na literatura. Assinale só o que entra no prontuário — deixe em branco se o tratamento da hipótese nosológica já contempla o alvo.</p>
+      <textarea hidden name="tratamentoAiSintomasAlvo">${escapeHtml(options.join("\n"))}</textarea>
+      <div class="diagnosis-options">
+        ${options.length
+          ? treatmentOptionCheckboxes("sintomasAlvoSelecionados", options, selected)
+          : `<p class="diagnosis-empty">As condutas aparecerão após a geração.</p>`}
+      </div>
+    </div>
+  `;
 }
 
 function treatmentOptionCheckboxes(name, options, selectedValues) {

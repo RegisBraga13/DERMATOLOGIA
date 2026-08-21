@@ -15,6 +15,34 @@ python3 scripts/ingest_rag.py \
 
 Copie o `OPENAI_RAG_VECTOR_STORE_ID` exibido para `.env` e reinicie `server.py`.
 
+## Escopo da fonte
+
+A biblioteca e uma so, mas as etapas nao pedem a mesma coisa: o tratado de
+psicofarmacologia nao ajuda a conduzir uma anamnese, e a psicopatologia nao
+dita dose. Cada fonte entra marcada com `--escopo`, e a busca filtra por etapa.
+
+| Escopo | Quem recupera |
+| --- | --- |
+| `semiologia` | Anamnese, Refinamento, Diagnostico |
+| `farmacologia` | Tratamento, Medicamento |
+| `sintomatico` | Sintoma-Alvo |
+| `farmacologia` | tambem responde no Sintoma-Alvo |
+| `ambos` | Todas as etapas |
+
+```bash
+python3 scripts/ingest_rag.py --escopo sintomatico "/caminho/manejo-sintomatico.pdf"
+```
+
+Hoje a fonte do Sintoma-Alvo e o Guia de Prescricao do Stahl, que ja estava
+indexado como `farmacologia` — por isso a etapa le tambem esse escopo, em vez
+de reindexar 24 MB do mesmo arquivo so para trocar a etiqueta. Na pratica a
+biblioteca e a mesma do Tratamento; o que muda e a pergunta, que busca manejo
+do sintoma e nao diretriz da doenca.
+
+`sintomatico` fica declarado e vazio. No dia que existir material que nao esteja
+nesses livros — protocolo de urgencia, manual de manejo —, indexe com
+`--escopo sintomatico` e ele entra sem mexer em codigo.
+
 ## Codigos diagnosticos (nao e RAG)
 
 Codigo nao se recupera por busca semantica. A recuperacao acerta o tema e erra o

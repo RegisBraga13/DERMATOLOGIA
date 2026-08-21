@@ -47,7 +47,10 @@ def parse_args():
     # o tratado de psicofarmacologia responde tambem na Anamnese e no
     # Refinamento, onde a pergunta e de semiologia. O atributo permite a busca
     # filtrar por etapa.
-    parser.add_argument("--escopo", choices=("semiologia", "farmacologia", "ambos"), default="ambos",
+    # "sintomatico" e a biblioteca da pagina Sintoma-Alvo: manejo e alivio
+    # dirigido ao sintoma, que nao e a mesma pergunta do tratamento do
+    # transtorno. Fonte marcada assim so responde ali.
+    parser.add_argument("--escopo", choices=("semiologia", "farmacologia", "sintomatico", "ambos"), default="ambos",
                         help="Em que etapas esta fonte pode ser recuperada")
     return parser.parse_args()
 

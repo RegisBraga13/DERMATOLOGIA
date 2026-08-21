@@ -28,7 +28,7 @@ DEFAULT_TRANSCRIPTION_MODEL = "gpt-4o-transcribe-diarize"
 MAX_PROMPT_CHARS = 160000
 MAX_OUTPUT_TOKENS = 2200
 MAX_AUDIO_BYTES = 30 * 1024 * 1024
-ALLOWED_KINDS = {"anamnesis", "mental_exam", "refinement_scope", "refinement", "diagnosis", "treatment", "evolution", "medication"}
+ALLOWED_KINDS = {"anamnesis", "mental_exam", "refinement_scope", "refinement", "diagnosis", "treatment", "symptomatic", "evolution", "medication"}
 RXNAV_DISPLAY_TERMS_URL = "https://rxnav.nlm.nih.gov/REST/displaynames.json"
 RXNAV_DISPLAY_TERMS = None
 RXNAV_LOCK = threading.Lock()
@@ -444,26 +444,59 @@ SCHEMAS = {
                     "required": ["approach", "details"],
                 },
             },
-            # Conduta para o Sintoma-Alvo: a queixa mais urgente, incomoda ou
-            # incapacitante, que orienta o tratamento imediato mesmo sem
-            # diagnostico nosologico fechado. Uma entrada por sintoma que o
-            # medico assinalou — nunca por sintoma que ele nao marcou.
+        },
+        "required": ["medication_options", "non_pharmacological_options"],
+    },
+    # Etapa propria, com pagina propria e biblioteca propria. O Sintoma-Alvo e a
+    # queixa mais urgente, incomoda ou incapacitante, que orienta a conduta
+    # imediata mesmo sem diagnostico nosologico fechado — outro ato clinico que
+    # o tratamento da doenca, e por isso outra chamada.
+    "symptomatic": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
             "target_symptom_options": {
                 "type": "array",
                 "minItems": 0,
-                "maxItems": 5,
+                "maxItems": 6,
                 "items": {
                     "type": "object",
                     "additionalProperties": False,
                     "properties": {
                         "symptom": {"type": "string"},
                         "conduct": {"type": "string"},
+                        # Decisao dele: sempre a opcao medicamentosa quando ela
+                        # existir, e a segunda quando houver segunda, referidas
+                        # ao Stahl. E como se usa na pratica — dose, progressao
+                        # e a interacao com o que o paciente ja toma, incluindo
+                        # o tratamento da hipotese nosologica. Sem esses quatro
+                        # dados a linha nao serve para prescrever.
+                        #
+                        # Lista vazia e resposta legitima: ha sintoma-alvo sem
+                        # tratamento farmacologico, e ali a conduta carrega o
+                        # manejo. Marcar ou nao e do medico.
+                        "medication_options": {
+                            "type": "array",
+                            "minItems": 0,
+                            "maxItems": 2,
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": False,
+                                "properties": {
+                                    "medication": {"type": "string"},
+                                    "initial_dose": {"type": "string"},
+                                    "progression": {"type": "string"},
+                                    "interaction": {"type": "string"},
+                                },
+                                "required": ["medication", "initial_dose", "progression", "interaction"],
+                            },
+                        },
                     },
-                    "required": ["symptom", "conduct"],
+                    "required": ["symptom", "conduct", "medication_options"],
                 },
             },
         },
-        "required": ["medication_options", "non_pharmacological_options", "target_symptom_options"],
+        "required": ["target_symptom_options"],
     },
     "evolution": {
         "type": "object",
@@ -542,6 +575,15 @@ RAG_SCOPE_BY_KIND = {
     "diagnosis": ("semiologia", "ambos"),
     "treatment": ("farmacologia", "ambos"),
     "medication": ("farmacologia", "ambos"),
+    # Aqui a lista tem UM escopo so, sem "ambos", e e de proposito: decisao dele
+    # e que o Guia de Prescricao do Stahl responda sozinho no Sintoma-Alvo, com
+    # a busca perguntando por manejo do sintoma. O mesmo livro segue indexado
+    # como "farmacologia" para o Tratamento, intocado — sao duas copias com
+    # etiquetas diferentes, cada uma respondendo a uma pergunta diferente.
+    #
+    # Se um dia entrar aqui uma fonte que nao seja de psicofarmacologia, e a
+    # busca do sintoma passar a competir com ela, revisar esta linha.
+    "symptomatic": ("sintomatico",),
 }
 
 
@@ -729,12 +771,27 @@ def validate_result(kind, result):
         if len(uteis) != len(approaches):
             logger.warning("tratamento: %d abordagem(ns) incompleta(s) descartada(s)", len(approaches) - len(uteis))
         result["non_pharmacological_options"] = uteis
+    elif kind == "symptomatic":
         alvos = result.get("target_symptom_options")
-        if not isinstance(alvos, list) or len(alvos) > 5:
-            raise ValueError("O tratamento aceita no maximo 5 condutas de sintoma-alvo.")
-        alvos_uteis = [o for o in alvos if completa(o, ("symptom", "conduct"))]
+        if not isinstance(alvos, list) or len(alvos) > 6:
+            raise ValueError("O manejo sintomatico aceita no maximo 6 condutas.")
+        alvos_uteis = [o for o in alvos
+                       if isinstance(o, dict)
+                       and all(isinstance(o.get(k), str) and o[k].strip() for k in ("symptom", "conduct"))]
+        # Opcao medicamentosa incompleta e descartada, nao fatal: sem dose ou
+        # sem progressao ela nao serve para prescrever, e o sintoma continua
+        # valendo pela conduta.
+        for o in alvos_uteis:
+            opcoes = o.get("medication_options")
+            o["medication_options"] = [m for m in (opcoes if isinstance(opcoes, list) else [])
+                                       if isinstance(m, dict)
+                                       and all(isinstance(m.get(k), str) and m[k].strip()
+                                               for k in ("medication", "initial_dose", "progression"))][:2]
+            for m in o["medication_options"]:
+                if not isinstance(m.get("interaction"), str):
+                    m["interaction"] = ""
         if len(alvos_uteis) != len(alvos):
-            logger.warning("tratamento: %d conduta(s) de sintoma-alvo incompleta(s) descartada(s)", len(alvos) - len(alvos_uteis))
+            logger.warning("sintomatico: %d conduta(s) incompleta(s) descartada(s)", len(alvos) - len(alvos_uteis))
         result["target_symptom_options"] = alvos_uteis
     elif kind == "evolution":
         markdown = result.get("markdown")
@@ -951,13 +1008,17 @@ def plain_text_from_result(kind, result):
             f"{item['approach']} | {item['details']}"
             for item in result["non_pharmacological_options"]
         )
-        alvos = "\n".join(
-            f"{item['symptom']} | {item['conduct']}"
-            for item in (result.get("target_symptom_options") or [])
-        )
-        return (f"TRATAMENTO MEDICAMENTOSO:\n{medications}\n\n"
-                f"OUTRAS ABORDAGENS NAO FARMACOLOGICAS:\n{approaches}\n\n"
-                f"CONDUTA PARA OS SINTOMAS-ALVO:\n{alvos}")
+        return f"TRATAMENTO MEDICAMENTOSO:\n{medications}\n\nOUTRAS ABORDAGENS NAO FARMACOLOGICAS:\n{approaches}"
+    if kind == "symptomatic":
+        def uma(item):
+            linhas = [f"{item['symptom']} | {item['conduct']}"]
+            for ordem, m in enumerate(item.get("medication_options") or [], start=1):
+                linhas.append(f"  {ordem}a opcao: {m['medication']} | Dose inicial: {m['initial_dose']}"
+                              f" | Progressao: {m['progression']}"
+                              + (f" | Interacao: {m['interaction']}" if (m.get("interaction") or "").strip() else ""))
+            return "\n".join(linhas)
+        return "CONDUTA PARA OS SINTOMAS-ALVO:\n" + "\n".join(
+            uma(item) for item in (result.get("target_symptom_options") or []))
     if kind == "evolution":
         return result["markdown"]
     if kind == "medication":

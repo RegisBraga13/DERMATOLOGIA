@@ -79,6 +79,10 @@ export const consultationPages = [
   ["resumo", "Resumo"],
   ["diagnostico", "Diagnóstico"],
   ["tratamento", "Tratamento"],
+  // Depois do Tratamento por decisao clinica: o manejo do sintoma-alvo precisa
+  // saber o que ja foi prescrito para a doenca, senao repete a prescricao em
+  // vez de dizer que ela ja contempla o alvo.
+  ["sintoma-alvo", "Sintoma-Alvo"],
   ["evolucao", "História clínica"],
   ["medicamentos", "Medicamentos"]
 ];

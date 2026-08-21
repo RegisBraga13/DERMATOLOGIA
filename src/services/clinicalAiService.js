@@ -3,7 +3,7 @@ import { anamnesisText, conciseAntecedentsText, conciseComplaintText, conciseDia
 import { arrayValue, cleanClinicalLine, compactText, formatClinicalList, joinValues, normalizeText, stripFinalPeriod } from "../clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, MENTAL_EXAM_AI_FIELDS } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js?v=tratamento-5";
-import { targetSymptomReference } from "../data/targetSymptoms.js";
+
 import { protocolBlocksText, protocolCatalogText, protocolItemById, protocolLoaded } from "../clinical/protocol.js";
 import { parseMedicationResponse } from "./medicationService.js";
 
@@ -95,7 +95,15 @@ export function buildRagQuery(kind, form = {}) {
   const narrative = compactText(anamnesisText(form), 1200) || structured;
   if (kind === "anamnesis") return `Semiologia psiquiatrica para entrevista diagnostica: cronologia, curso, polaridade do humor, sintomas depressivos e maniacos, ansiedade, sono, psicose, risco suicida, substancias, causas medicas, funcionamento e fatores de protecao. Dados da narrativa: ${narrative}`.slice(0, 4000);
   if (kind === "refinement") return `Semiologia psiquiatrica para refinamento clinico: lacunas da anamnese, discriminacao entre sindromes, red flags, risco, psicose, bipolaridade, substancias, causas medicas, funcionamento e fatores de protecao. Dados ja registrados: ${narrative}`.slice(0, 4000);
+  // O sintoma-alvo entra na busca, e nao so no prompt: e o RAG que orienta o
+  // manejo dele agora, entao a literatura recuperada precisa cobri-lo. Sem esta
+  // linha, a busca so falava do diagnostico e o alvo chegava a IA sem fonte.
+  const alvos = joinValues(arrayValue(form.sintomasResiduais));
   if (kind === "treatment") return `Diretrizes e tratamento de ${diagnosis}. Dados clinicos relevantes: ${symptoms}`.slice(0, 4000);
+  // A busca do sintoma-alvo pergunta por manejo, nao por diretriz de doenca, e
+  // vai contra a biblioteca marcada "sintomatico". O diagnostico entra so como
+  // contexto, no fim: quem manda aqui e o sintoma.
+  if (kind === "symptomatic") return `Manejo sintomatico e alivio imediato de: ${alvos || symptoms}. Conduta farmacologica e nao farmacologica dirigida ao sintoma. Contexto clinico: ${diagnosis}; ${symptoms}`.slice(0, 4000);
   if (kind === "diagnosis") return `Criterios diagnosticos e diagnostico diferencial para: ${symptoms}`.slice(0, 4000);
   if (kind === "medication") return `Psicofarmacologia de ${form.medicationGeneric || ""}: dose inicial, titulacao, dose alvo, efeitos colaterais, contraindicacoes e interacoes. Contexto clinico: ${diagnosis}; ${symptoms}`.slice(0, 4000);
   return `${diagnosis}; ${symptoms}`.slice(0, 4000);
@@ -141,9 +149,21 @@ function validateClinicalAiPayload(kind, result, text = "") {
     const completa = (option, chaves) => chaves.every(key => typeof option?.[key] === "string" && option[key].trim());
     result.medication_options = result.medication_options.filter(option => completa(option, ["medication", "initial_dose", "progression", "target_dose"]));
     result.non_pharmacological_options = result.non_pharmacological_options.filter(option => completa(option, ["approach", "details"]));
-    if (!Array.isArray(result.target_symptom_options)) result.target_symptom_options = [];
+  }
+  if (kind === "symptomatic") {
+    if (!Array.isArray(result.target_symptom_options)) throw new Error("Manejo sintomatico fora do formato esperado.");
+    const completa = (option, chaves) => chaves.every(key => typeof option?.[key] === "string" && option[key].trim());
     result.target_symptom_options = result.target_symptom_options
-      .filter(option => completa(option, ["symptom", "conduct"])).slice(0, 5);
+      .filter(option => completa(option, ["symptom", "conduct"]))
+      .map(option => ({
+        ...option,
+        // Sem dose e sem progressao a linha nao serve para prescrever, entao e
+        // descartada — o sintoma continua valendo pela conduta.
+        medication_options: (Array.isArray(option.medication_options) ? option.medication_options : [])
+          .filter(item => completa(item, ["medication", "initial_dose", "progression"]))
+          .slice(0, 2)
+      }))
+      .slice(0, 6);
   }
   if (kind === "evolution" && typeof result.markdown !== "string") throw new Error("Evolucao fora do formato esperado.");
   if (kind === "medication") {
@@ -336,19 +356,36 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       // incapacitante, que orienta a conduta imediata mesmo antes de haver
       // diagnostico nosologico. O medico assinala na tela; sem marcacao dele, a
       // IA nao inventa alvo nenhum.
-      "SINTOMA-ALVO e a queixa mais urgente, incomoda ou incapacitante do caso, e orienta a conduta terapeutica imediata mesmo sem diagnostico nosologico estabelecido. Os sintomas-alvo deste atendimento sao APENAS os que o medico assinalou e que aparecem no registro sob 'Sintomas-alvo assinalados'.",
-      "Para cada sintoma-alvo assinalado, devolva uma entrada em 'target_symptom_options' com 'symptom' repetindo o nome exato do sintoma e 'conduct' dizendo a conduta imediata para ele — farmacologica, nao farmacologica, ou as duas, em uma frase objetiva.",
-      "Se o registro nao trouxer sintoma-alvo assinalado, devolva 'target_symptom_options' VAZIA. Nunca proponha conduta para sintoma que o medico nao assinalou, e nunca crie um sintoma-alvo por conta propria.",
-      "Quando o registro trouxer 'Referencia de manejo do sintoma-alvo', use-a como ponto de partida e ajuste-a ao caso: medicamento ja em uso, interacao, comorbidade, agravante, gestacao, funcao renal ou hepatica. A referencia e orientacao, nao prescricao — se ela nao servir a este paciente, proponha outra conduta e diga por que.",
       // Num teste com tres alvos assinalados, as tres opcoes medicamentosas
       // viraram tres hipnoticos: o sintoma-alvo tomou o lugar do tratamento da
-      // doenca. Sao grupos com funcoes diferentes e nao podem trocar de lugar.
-      "'medication_options' trata a hipotese NOSOLOGICA — e o tratamento de fundo, o que sustenta o seguimento. NAO preencha esse grupo com medicamento dirigido a sintoma-alvo: esse vai em 'target_symptom_options'. O mesmo vale para 'non_pharmacological_options', que sao as abordagens do caso, nao o manejo pontual do alvo.",
-      "A conduta do sintoma-alvo pode coincidir com o tratamento da hipotese nosologica. Quando coincidir, diga isso na propria conduta em vez de repetir a prescricao — quem decide se marca ou nao e o medico.",
+      // doenca. Agora o alvo tem etapa propria, mas o aviso continua valendo.
+      "'medication_options' trata a hipotese NOSOLOGICA — e o tratamento de fundo, o que sustenta o seguimento. O manejo pontual do sintoma-alvo tem etapa propria no programa e nao entra aqui.",
       "Para cada opcao medicamentosa informe medicamento, dose inicial, progressao/titulacao e dose final ou dose-alvo. Opcao sem esses quatro dados e descartada.",
       "Gere ate 3 abordagens nao farmacologicas ou orientacoes gerais, com uma orientacao objetiva para cada uma. Estas valem mesmo sem medicamento, e sao a conduta principal quando nao ha indicacao farmacologica.",
       "Considere as hipoteses escolhidas e os dados clinicos informados, incluindo riscos, comorbidades, substancias e exame psiquico. Nao invente dados.",
       "Sinalize necessidade de verificacao medica de contraindicações, interacoes, gestacao, funcao renal/hepatica e monitorizacao quando pertinente."
+    ],
+    // Etapa propria, com biblioteca propria. O manejo do sintoma nao e o
+    // tratamento da doenca em versao curta: e a conduta que nao espera o
+    // diagnostico fechar.
+    symptomatic: [
+      "SINTOMA-ALVO e a queixa mais urgente, incomoda ou incapacitante do caso, e orienta a conduta terapeutica imediata mesmo sem diagnostico nosologico estabelecido.",
+      "Os sintomas-alvo deste atendimento sao APENAS os que o medico assinalou, listados no registro sob 'Sintomas-alvo assinalados'. Nunca proponha conduta para sintoma que ele nao assinalou, e nunca crie um sintoma-alvo por conta propria. Sem sintoma assinalado, devolva a lista VAZIA.",
+      "Para cada sintoma assinalado devolva uma entrada em 'target_symptom_options': 'symptom' repete o nome exato do sintoma e 'conduct' diz a conduta imediata para ele — manejo, orientacao, monitorizacao.",
+      // Num teste, a opcao medicamentosa voltou como "Ajuste de sertralina;
+      // intervencoes comportamentais para sono" — prosa repetindo a conduta,
+      // ocupando a caixa que devia trazer o remedio. Conduta e prescricao tem
+      // funcoes diferentes e nao podem dizer a mesma coisa.
+      "Em 'medication_options' vao ate 2 opcoes medicamentosas dirigidas AQUELE sintoma, como se usa na pratica: 'medication' com o farmaco, 'initial_dose' com a dose e a via de inicio, 'progression' com a titulacao — de quanto em quanto tempo se aumenta, ate que dose —, e 'interaction' com o cuidado diante do que o paciente ja toma.",
+      "'interaction' e obrigatoriamente sobre ESTE paciente: cruze o farmaco proposto com o tratamento ja definido para a hipotese nosologica e com os medicamentos de uso do paciente, psiquiatricos ou nao. Diga o risco concreto — sedacao somada, sindrome serotoninergica, prolongamento de QT, competicao hepatica, potencializacao com alcool — e o que fazer. Sem interacao relevante, escreva que nao ha e por que.",
+      "Nada de medida comportamental, encaminhamento, psicoterapia ou monitorizacao dentro de 'medication_options': isso e conduta e vai em 'conduct'. Nada de 'ajustar conforme resposta' no lugar da dose.",
+      "Lista de medicamentos VAZIA significa que nao existe farmaco para aquele sintoma — nao que voce nao tenha a dose exata a mao. Se a literatura recuperada sustentar um farmaco, ele nao pode ficar de fora: escreva a dose usual de inicio. Nunca preencha a vaga com 'nao ha', 'nenhum', 'avaliar necessidade' ou farmaco sem dose.",
+      "A opcao medicamentosa e proposta, nao prescricao: quem decide usar e o medico. Por isso ela nao substitui a conduta — as duas convivem na mesma entrada.",
+      "A conduta deve sair da literatura recuperada e ser ajustada a este paciente: medicamento ja em uso, interacao, comorbidade, fator agravante, gestacao, funcao renal ou hepatica, risco de abuso e risco de suicidio.",
+      "Quando propuser farmaco, informe dose e via de administracao. Quando a medida for nao farmacologica, diga o que fazer, com que frequencia e por quanto tempo — nao basta nomear a tecnica.",
+      "A conduta do sintoma-alvo pode coincidir com o tratamento ja definido para a hipotese nosologica. Quando coincidir, diga isso na propria conduta em vez de repetir a prescricao: quem decide se marca ou nao e o medico.",
+      "Nao repita o tratamento de fundo do transtorno. O que se pede aqui e o alivio do sintoma — o que fazer hoje, antes de a medicacao de manutencao fazer efeito.",
+      "Sinalize necessidade de verificacao medica de contraindicações, interacoes e monitorizacao quando pertinente."
     ],
     evolution: [
       "Redija uma evolucao medica narrativa-descritiva, formal, tecnica, cientifica, objetiva e concisa.",
@@ -443,18 +480,19 @@ function clinicalPromptData(form = {}, patient = {}, previous = null, isReturn =
     // Registrado pelo medico na tela de Tratamento. Sem esta linha o campo
     // ficava so no prontuario e a IA seguia propondo conduta para o quadro
     // agudo — o mesmo circuito fechado do refinamento.
+    // So os nomes que ele assinalou. O manejo de cada alvo nao vem daqui: vem
+    // do RAG, que e a fonte de tratamento do programa inteiro.
     `Sintomas-alvo assinalados: ${joinWithOutro(form.sintomasResiduais, form.sintomasResiduaisOutro) || "nenhum assinalado"}.`,
-    // A tabela dele entra so na parte que ele marcou. Sem marcacao, nao entra
-    // linha nenhuma — nem gasta token, nem sugere alvo que ele nao escolheu.
-    targetSymptomReference(arrayValue(form.sintomasResiduais)).length
-      ? `Referencia de manejo do sintoma-alvo:\n${targetSymptomReference(arrayValue(form.sintomasResiduais)).join("\n")}`
-      : "",
     // Fecha o laco do refinamento: o que o medico respondeu volta ao raciocinio.
     refinementAnswersText(form) ? `Refinamento clinico respondido pelo medico:\n${refinementAnswersText(form)}` : "",
     `Hipoteses diagnosticas selecionadas/acrescentadas: ${stripFinalPeriod(treatmentDiagnosisText(form)) || stripFinalPeriod(form.diagnosticoManual || "") || "nao informado"}.`,
     `Diagnostico registrado: ${stripFinalPeriod(form.diagnosticoManual || "") || "nao informado"}.`,
     `Diferenciais registrados: ${stripFinalPeriod(form.diferenciais || "") || "nao informado"}.`,
-    `Tratamento medicamentoso: ${stripFinalPeriod(form.tratamentoMedicamentoso || form.conduta || "") || "nao informado"}.`,
+    // As duas linhas abaixo sao o que a interacao medicamentosa do sintoma-alvo
+    // le: o que ja foi ASSINALADO para a hipotese nosologica, e nao so o texto
+    // livre. Sem isso, a IA cruzava o farmaco novo com "nao informado".
+    `Tratamento medicamentoso: ${professionalSelectedTreatmentItems(form.tratamentoMedicamentosSelecionados, form.tratamentoMedicamentoso) || stripFinalPeriod(form.tratamentoMedicamentoso || form.conduta || "") || "nao informado"}.`,
+    `Medicamentos em uso pelo paciente: ${joinWithOutro(form.medicos, form.medicosOutro) || stripFinalPeriod(joinValues(form.medicos) || "") || "nao informado"}.`,
     `Outras abordagens terapeuticas: ${stripFinalPeriod(form.abordagensTerapeuticas || "") || "nao informado"}.`,
     `Exames solicitados: ${stripFinalPeriod(requestedExamsText(form) || form.examesLaboratoriais || "") || "nao informado"}.`,
     `Conduta medica: ${stripFinalPeriod(form.condutaMedica || "") || "nao informado"}.`,
@@ -507,11 +545,16 @@ function promptResponseFormat(kind) {
       "",
       "OUTRAS ABORDAGENS NAO FARMACOLOGICAS:",
       "Abordagem | Orientacao objetiva",
-      "(ate 3 opcoes; menos, se o quadro nao sustentar mais)",
-      "",
+      "(ate 3 opcoes; menos, se o quadro nao sustentar mais)"
+    ].join("\n");
+  }
+  if (kind === "symptomatic") {
+    return [
       "CONDUTA PARA OS SINTOMAS-ALVO:",
       "Sintoma-alvo assinalado pelo medico | Conduta imediata para ele",
-      "(uma por sintoma assinalado; vazio se ele nao assinalou nenhum)"
+      "  1a opcao: Farmaco | Dose inicial: ... | Progressao: ... | Interacao: ...",
+      "  2a opcao: idem, quando a literatura sustentar alternativa",
+      "(uma entrada por sintoma assinalado; sem opcao medicamentosa quando o sintoma nao tiver tratamento farmacologico)"
     ].join("\n");
   }
   if (kind === "medication") {

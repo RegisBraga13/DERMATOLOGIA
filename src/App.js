@@ -16,7 +16,7 @@ import { escapeAttr, escapeHtml } from "./ui/html.js";
 import { createVoiceRecording } from "./ui/voiceRecording.js";
 import { clipboardIcon, folderIcon, homeIcon, lockIcon, personIcon, repeatIcon, themeIcon } from "./ui/icons.js";
 import { clinicalSummaryGroups, clinicalSummaryPage } from "./views/clinicalSummary.js";
-import { aiModeSelector, diagnosisModule, evolutionBody, ragSourcesView, treatmentModule } from "./views/decisions.js";
+import { aiModeSelector, diagnosisModule, evolutionBody, ragSourcesView, targetSymptomModule, treatmentModule } from "./views/decisions.js";
 import { consultationAccessPanel, mentalExamBody, neurologicExamBody, recordReturnAction, returnAssessmentBody } from "./views/exams.js";
 import { medicationReferenceCard } from "./views/medication.js";
 
@@ -366,6 +366,7 @@ function consultationPageBody(form, patient) {
   if (consultationPage === "resumo") return clinicalPage("Resumo", clinicalSummaryPage(form, patient), "consultation");
   if (consultationPage === "diagnostico") return clinicalPage("Diagnostico e diferenciais", diagnosisModule(form), "consultation");
   if (consultationPage === "tratamento") return clinicalPage("Tratamento e orientacoes", treatmentModule(form), "consultation");
+  if (consultationPage === "sintoma-alvo") return clinicalPage("Sintoma-Alvo", targetSymptomModule(form), "consultation");
   if (consultationPage === "evolucao") return clinicalPage("Historia clinica", evolutionBody(form, patient), "consultation");
   if (consultationPage === "medicamentos") return clinicalPage("Medicamentos", medicationBody(form), "consultation", false);
   return clinicalPage("Historia clinica", evolutionBody(form, patient), "consultation");
@@ -857,6 +858,7 @@ function bindActions() {
       if (action === "save-next-page") await saveCurrentPageAndAdvance(element);
       if (action === "generate-diagnosis") await generateDiagnosisFromClinicalData(element);
       if (action === "generate-treatment") await generateTreatmentFromClinicalData(element);
+      if (action === "generate-target-symptoms") await generateTargetSymptomsFromClinicalData(element);
       if (action === "generate-evolution") await generateEvolutionFromClinicalData(element);
       if (action === "generate-medication-ai") await generateMedicationFromClinicalData(element);
       if (action === "fill-medication-info") await fillMedicationInfo(element);
@@ -1020,22 +1022,9 @@ async function generateTreatmentFromClinicalData(element) {
     const { result, sources, mode } = await requestClinicalAi("treatment", buildClinicalAiPrompt("treatment", context.target, context.patient, context.previous, context.isReturn), context.target?.pharmaAiMode || "rag", buildRagQuery("treatment", context.target));
     const medicationOptions = result.medication_options.map(formatMedicationTreatmentOption);
     const approachOptions = result.non_pharmacological_options.map(formatNonPharmacologicalOption);
-    // Uma linha por sintoma-alvo que ele assinalou. Se ele nao assinalou
-    // nenhum, a IA devolve lista vazia por regra do prompt e o bloco nem
-    // aparece na tela.
-    const targetSymptomOptions = (result.target_symptom_options || [])
-      .map(item => [String(item?.symptom || "").trim(), String(item?.conduct || "").trim()]
-        .filter(Boolean).join(" — "))
-      .filter(Boolean)
-      .filter((option, index, list) => list.indexOf(option) === index)
-      .slice(0, 5);
     suggestion = {
       tratamentoAiMedicamentos: medicationOptions.join("\n"),
       tratamentoAiAbordagens: approachOptions.join("\n"),
-      tratamentoAiSintomasAlvo: targetSymptomOptions.join("\n"),
-      // A IA propoe, ele assinala — e pode nao assinalar nenhuma, quando julgar
-      // que o tratamento da hipotese nosologica ja contempla o alvo.
-      sintomasAlvoSelecionados: arrayValue(target?.sintomasAlvoSelecionados),
       // Mesmo criterio ja aplicado ao diagnostico: a IA propoe, quem assinala
       // e o medico. Marcar as tres opcoes de saida inverte o onus — passaria a
       // ser preciso descartar duas prescricoes em vez de escolher uma.
@@ -1047,16 +1036,72 @@ async function generateTreatmentFromClinicalData(element) {
       condutaMedica: target?.condutaMedica || "",
       ragSourcesTratamento: sources,
       pharmaAiMode: mode,
-      treatmentStatus: [
-        `${countLabel(medicationOptions.length, "opção medicamentosa", "opções medicamentosas")} e ${countLabel(approachOptions.length, "outra abordagem", "outras abordagens")} propostas para você assinalar. Suas escolhas anteriores foram mantidas.`,
-        targetSymptomOptions.length ? `${countLabel(targetSymptomOptions.length, "conduta")} para os sintomas-alvo assinalados.` : ""
-      ].filter(Boolean).join(" "),
+      treatmentStatus: `${countLabel(medicationOptions.length, "opção medicamentosa", "opções medicamentosas")} e ${countLabel(approachOptions.length, "outra abordagem", "outras abordagens")} propostas para você assinalar. Suas escolhas anteriores foram mantidas.`,
       aiStatus: "Sugestões de tratamento geradas pela IA para revisão médica."
     };
   } catch (error) {
     suggestion = (target?.pharmaAiMode || "rag") === "rag"
       ? { ragSourcesTratamento: [], treatmentStatus: `RAG indisponivel: ${error.message}`, aiStatus: `RAG indisponivel: ${error.message}` }
       : { ragSourcesTratamento: [], treatmentStatus: `IA indisponivel: ${error.message}`, aiStatus: `IA indisponivel: ${error.message}` };
+  }
+  if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
+  else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
+  render();
+}
+
+
+// Etapa propria, com biblioteca propria: o escopo "sintomatico" do RAG. Sem
+// sintoma assinalado nao ha o que perguntar — e a chamada nem sai, para nao
+// gastar uma consulta que so pode voltar vazia.
+async function generateTargetSymptomsFromClinicalData(element) {
+  const { scope, target } = syncedTarget(element);
+  if (!arrayValue(target?.sintomasResiduais).length) {
+    return alert("Assinale ao menos um sintoma-alvo antes de gerar.");
+  }
+  setClinicalAiStatus(scope, "Consultando a literatura de manejo sintomatico...");
+  if (scope === "return") draft.return = { ...(draft.return || {}), symptomaticStatus: "Consultando a literatura de manejo sintomatico..." };
+  else draft.consultation = { ...(draft.consultation || {}), symptomaticStatus: "Consultando a literatura de manejo sintomatico..." };
+  render();
+  let suggestion;
+  try {
+    const context = clinicalAiContext(scope);
+    const { result, sources, mode } = await requestClinicalAi("symptomatic", buildClinicalAiPrompt("symptomatic", context.target, context.patient, context.previous, context.isReturn), context.target?.symptomaticAiMode || "rag", buildRagQuery("symptomatic", context.target));
+    // Cada linha e uma caixa de selecao independente: a conduta de manejo, a
+    // primeira opcao medicamentosa e a segunda. Ele pode querer so a orientacao,
+    // so o remedio, ou os dois — decisao dele a cada sintoma. Sintoma sem
+    // tratamento farmacologico vem so com a linha de conduta.
+    const options = (result.target_symptom_options || []).flatMap(item => {
+      const sintoma = String(item?.symptom || "").trim();
+      const conduta = String(item?.conduct || "").trim();
+      if (!sintoma || !conduta) return [];
+      const linhas = [`${sintoma} — ${conduta}`];
+      (item?.medication_options || []).forEach((med, ordem) => {
+        const partes = [
+          String(med?.medication || "").trim(),
+          `Dose inicial: ${String(med?.initial_dose || "").trim()}`,
+          `Progressão: ${String(med?.progression || "").trim()}`,
+          String(med?.interaction || "").trim() ? `Interação: ${String(med.interaction).trim()}` : ""
+        ].filter(Boolean);
+        linhas.push(`${sintoma} · ${ordem + 1}ª opção: ${partes.join(" | ")}`);
+      });
+      return linhas;
+    }).filter((option, index, list) => list.indexOf(option) === index);
+    suggestion = {
+      tratamentoAiSintomasAlvo: options.join("\n"),
+      // A IA propoe, ele assinala — e pode nao assinalar nenhuma, quando julgar
+      // que o tratamento da hipotese nosologica ja contempla o alvo.
+      sintomasAlvoSelecionados: arrayValue(target?.sintomasAlvoSelecionados),
+      ragSourcesSintomatico: sources,
+      symptomaticAiMode: mode,
+      symptomaticStatus: options.length
+        ? `${countLabel(options.length, "linha")} para você assinalar: conduta e opções medicamentosas, quando houver.`
+        : "Nenhuma conduta proposta para os sintomas assinalados."
+    };
+  } catch (error) {
+    suggestion = {
+      ragSourcesSintomatico: [],
+      symptomaticStatus: `Literatura de manejo sintomatico indisponivel: ${error.message}`
+    };
   }
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
   else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
