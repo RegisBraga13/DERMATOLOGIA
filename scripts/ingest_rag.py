@@ -65,7 +65,8 @@ def parse_args():
     parser.add_argument(
         "--escopo",
         choices=("semiologia", "farmacologia", "sintomatico", "ambos",
-                 "diagnostico_base", "tratamento_base", "refino"),
+                 "diagnostico_base", "tratamento_base", "medicamento_base",
+                 "refino", "medicamento_refino"),
         default="ambos",
         help="Em que etapas esta fonte pode ser recuperada")
     return parser.parse_args()
@@ -108,7 +109,13 @@ def main():
         client.vector_stores.files.create(
             vector_store_id=store.id, file_id=uploaded.id, attributes={"escopo": args.escopo})
         wait_until_ready(client, store.id, uploaded.id)
-        catalog["sources"] = [item for item in catalog["sources"] if item.get("filename") != path.name]
+        # Chave (nome, escopo), e nao so o nome: o mesmo livro entra mais de uma
+        # vez com etiquetas diferentes — e o desenho da biblioteca, nao um
+        # acidente. Deduplicando so pelo nome, indexar o Guia de Prescricao como
+        # "medicamento_base" apagava do catalogo a linha do "sintomatico", que
+        # seguia viva no vector store. O catalogo passava a mentir.
+        catalog["sources"] = [item for item in catalog["sources"]
+                              if (item.get("filename"), item.get("escopo")) != (path.name, args.escopo)]
         catalog["sources"].append({"filename": path.name, "file_id": uploaded.id,
                                    "status": "completed", "escopo": args.escopo})
         print(f"Indexado: {path.name}", flush=True)

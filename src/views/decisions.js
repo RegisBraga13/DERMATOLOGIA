@@ -134,7 +134,7 @@ function diagnosisAiStatusText(message = "") {
 // automatica: quem decide se o caso pede a fonte especializada e o medico. Fica
 // desabilitado ate existir primeira passada — refino sem o que revisar seria
 // uma segunda geracao disfarcada, com outro livro.
-function refineButton(action, temPrimeiraPassada) {
+export function refineButton(action, temPrimeiraPassada) {
   return `<button class="secondary" type="button" data-action="${action}" ${temPrimeiraPassada ? "" : "disabled"}
     title="Revisa a resposta acima com a fonte especializada. Substitui o que esta na tela.">Refinar</button>`;
 }

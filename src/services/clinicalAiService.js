@@ -118,6 +118,14 @@ export function buildRagQuery(kind, form = {}) {
     return `Revisao critica da conduta proposta: ${propostas || diagnosis}. Adequacao da escolha, dose, titulacao, contraindicacao, interacao e alternativa de primeira linha para ${diagnosis}. Dados clinicos: ${symptoms}`.slice(0, 4000);
   }
   if (kind === "medication") return `Psicofarmacologia de ${form.medicationGeneric || ""}: dose inicial, titulacao, dose alvo, efeitos colaterais, contraindicacoes e interacoes. Contexto clinico: ${diagnosis}; ${symptoms}`.slice(0, 4000);
+  // A revisao da ficha pergunta pelo que a primeira passada AFIRMOU sobre o
+  // farmaco — a dose que ela escreveu, a titulacao, o efeito que ela citou —,
+  // e nao pelo farmaco em geral. E o que faz o segundo livro conferir a ficha
+  // em vez de redigi-la outra vez.
+  if (kind === "medication_review") {
+    const ficha = compactText([form.medicationPresentation, form.medicationSafety, form.medicationBestUse].filter(Boolean).join(" "), 1500);
+    return `Revisao critica da ficha de ${form.medicationGeneric || form.medicationNameText || ""}: dose inicial, titulacao, dose alvo, efeitos colaterais, contraindicacoes, interacoes e monitorizacao. Afirmacoes a conferir: ${ficha}. Contexto clinico: ${diagnosis}`.slice(0, 4000);
+  }
   return `${diagnosis}; ${symptoms}`.slice(0, 4000);
 }
 
@@ -152,9 +160,22 @@ function firstPassTreatmentLines(form = {}) {
   ];
 }
 
+// A ficha nao tem caixa de selecao: o medico nao assinala nada aqui, entao nao
+// ha o que marcar como aceito. O que a revisao recebe e a ficha inteira, do
+// jeito que esta na tela.
+function firstPassMedicationLines(form = {}) {
+  return [
+    ["MEDICAMENTO", form.medicationNameText || form.medicationGeneric],
+    ["DOSE INICIAL E PROGRESSAO", form.medicationPresentation],
+    ["PRINCIPAIS EFEITOS COLATERAIS", form.medicationSafety],
+    ["OBSERVACOES", form.medicationBestUse]
+  ].filter(([, valor]) => String(valor || "").trim()).map(([rotulo, valor]) => `${rotulo}: ${String(valor).trim()}`);
+}
+
 function firstPassText(kind, form = {}) {
   const linhas = kind === "diagnosis_review" ? firstPassDiagnosisLines(form)
-    : kind === "treatment_review" ? firstPassTreatmentLines(form) : [];
+    : kind === "treatment_review" ? firstPassTreatmentLines(form)
+    : kind === "medication_review" ? firstPassMedicationLines(form) : [];
   if (!linhas.length) return "";
   return `RESPOSTA DA PRIMEIRA PASSADA, A SER REVISADA:\n${linhas.join("\n")}\n`;
 }
@@ -162,7 +183,7 @@ function firstPassText(kind, form = {}) {
 // A revisao devolve a mesma estrutura da geracao — mesma validacao, mesmo
 // texto plano, mesmo formato de resposta. So a TAREFA muda: a primeira propoe,
 // a segunda audita o que a primeira propos.
-const REVIEW_OF_KIND = { diagnosis_review: "diagnosis", treatment_review: "treatment" };
+const REVIEW_OF_KIND = { diagnosis_review: "diagnosis", treatment_review: "treatment", medication_review: "medication" };
 
 function validateClinicalAiPayload(kind, result, text = "") {
   kind = REVIEW_OF_KIND[kind] || kind;
@@ -475,12 +496,18 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
   const reviewTask = [
     "Voce e o REVISOR. Uma primeira passada, feita com outra fonte, ja propos a resposta que vai reproduzida abaixo, e o medico assinalou o que aceitou. Seu papel e auditar aquilo com a literatura especializada aqui recuperada — nao comeca do zero e nao a reescreve por estilo.",
     "Avalie tambem o caso inteiro, e nao so a lista: o que a primeira passada deixou passar e o registro sustenta, entra.",
-    "Devolva a resposta COMPLETA, com todos os grupos preenchidos como na primeira passada. Ela sera substituida inteira pela sua — item que voce omitir desaparece da tela do medico.",
+    "Devolva a resposta COMPLETA, com todos os campos preenchidos como na primeira passada. Ela sera substituida inteira pela sua — item que voce omitir desaparece da tela do medico.",
     "O que estiver correto, repita sem alterar. Nao troque nome, codigo ou dose so para variar a redacao: mudanca sem motivo clinico apaga a decisao ja tomada pelo medico.",
     "Corrija o que a fonte especializada nao sustentar: nome impreciso, codigo errado, camada trocada, gravidade sem apoio, dose ou titulacao fora da literatura. Retire o que nao se sustentar e acrescente o que faltar.",
-    "Item marcado [assinalado pelo medico] foi aceito por ele: so o altere ou retire com apoio explicito na literatura recuperada. Preferencia de redacao nao e motivo.",
+    // A ficha do medicamento nao tem caixa de selecao — nada para assinalar —,
+    // entao a linha da marca so entra onde ela existe. Instrucao sobre um
+    // rotulo que nao aparece no texto ensina o modelo a inventar o rotulo.
+    kind === "medication_review" ? "" : "Item marcado [assinalado pelo medico] foi aceito por ele: so o altere ou retire com apoio explicito na literatura recuperada. Preferencia de redacao nao e motivo.",
+    kind === "medication_review"
+      ? "Esta ficha vai sustentar prescricao: confira dose inicial, titulacao, dose maxima, efeito colateral, contraindicacao, interacao e monitorizacao contra a fonte especializada. Numero que a fonte nao sustentar sai da ficha."
+      : "",
     "Nao invente dado clinico novo. Voce revisa o raciocinio, nao o registro."
-  ];
+  ].filter(Boolean);
   const task = REVIEW_OF_KIND[kind]
     ? [...reviewTask, ...taskByKind[REVIEW_OF_KIND[kind]]]
     : (taskByKind[kind] || taskByKind.evolution);

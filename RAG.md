@@ -1,7 +1,7 @@
 # Biblioteca RAG de psiquiatria
 
 O aplicativo preserva o modo `IA atual` e oferece uma biblioteca RAG de psiquiatria. A de semiologia e compartilhada
-pela Anamnese e pelo Refinamento; o Diagnostico e o Tratamento tem livro proprio em cada uma das suas duas passadas.
+pela Anamnese e pelo Refinamento; Diagnostico, Tratamento e Medicamento tem livro proprio em cada uma das suas duas passadas.
 Os PDFs nao devem ser adicionados ao Git. Somente materiais licenciados ou autorizados devem ser indexados.
 
 ## Preparacao
@@ -25,31 +25,38 @@ dita dose. Cada fonte entra marcada com `--escopo`, e a busca filtra por etapa.
 | Escopo | Quem recupera |
 | --- | --- |
 | `semiologia` | Anamnese, Refinamento |
-| `farmacologia` | Medicamento |
+| `ambos` | Anamnese, Refinamento |
 | `sintomatico` | Sintoma-Alvo |
-| `farmacologia` | tambem responde no Sintoma-Alvo |
-| `ambos` | Anamnese, Refinamento, Medicamento |
 | `diagnostico_base` | Diagnostico, primeira passada |
 | `tratamento_base` | Tratamento, primeira passada |
-| `refino` | as duas revisoes |
+| `medicamento_base` | Medicamento, primeira passada |
+| `refino` | revisao do Diagnostico e do Tratamento |
+| `medicamento_refino` | revisao do Medicamento |
+| `farmacologia` | **ninguem** — ver abaixo |
+
+`farmacologia` ficou orfao quando Tratamento e Medicamento passaram a ler um
+livro so cada: eram os seus dois unicos leitores. Os tres livros marcados assim
+seguem indexados e nao respondem em etapa nenhuma. Nao foram removidos: no dia
+que uma etapa precisar deles, basta apontar o escopo, sem reindexar.
 
 ```bash
 python3 scripts/ingest_rag.py --escopo sintomatico "/caminho/manejo-sintomatico.pdf"
 ```
 
-Hoje a fonte do Sintoma-Alvo e o Guia de Prescricao do Stahl, que ja estava
-indexado como `farmacologia` — por isso a etapa le tambem esse escopo, em vez
-de reindexar 24 MB do mesmo arquivo so para trocar a etiqueta. Na pratica a
-biblioteca e a mesma do Tratamento; o que muda e a pergunta, que busca manejo
-do sintoma e nao diretriz da doenca.
+A fonte do Sintoma-Alvo e a Psicofarmacologia: Da Teoria a Clinica (2025), que
+substituiu ali o Guia de Prescricao do Stahl por decisao dele. O Stahl foi
+desassociado do vector store, e nao apagado da conta: reassociar nao pede novo
+upload.
 
-`sintomatico` fica declarado e vazio. No dia que existir material que nao esteja
-nesses livros — protocolo de urgencia, manual de manejo —, indexe com
-`--escopo sintomatico` e ele entra sem mexer em codigo.
+O mesmo livro entra mais de uma vez, com etiquetas diferentes — a de 2025 esta
+em `sintomatico` e em `medicamento_refino`. Isso e desenho, e nao acidente: cada
+copia responde a uma pergunta diferente. Por isso o catalogo local e chaveado
+por (nome, escopo); chaveado so pelo nome, indexar a segunda copia apagava a
+linha da primeira, que seguia viva no vector store.
 
-## Duas passadas no Diagnostico e no Tratamento
+## Duas passadas no Diagnostico, no Tratamento e no Medicamento
 
-Estas duas etapas nao leem a lista inteira do escopo: leem **um livro cada**.
+Estas tres etapas nao leem a lista inteira do escopo: leem **um livro cada**.
 Decisao dele, depois de cinco livros competirem no mesmo embedding — a resposta
 nao era rastreavel a uma fonte, e o livro especializado disputava com o geral na
 hora de propor, quando ele deveria entrar depois, para revisar.
@@ -60,6 +67,8 @@ hora de propor, quando ele deveria entrar depois, para revisar.
 | Diagnostico, revisa | Tratado de Psiquiatria da ABP | `refino` |
 | Tratamento, gera | Clinica Psiquiatrica FMUSP, vol. 3 | `tratamento_base` |
 | Tratamento, revisa | Tratado de Psiquiatria da ABP | `refino` |
+| Medicamento, gera | Stahl, Guia de Prescricao | `medicamento_base` |
+| Medicamento, revisa | Psicofarmacologia: Da Teoria a Clinica (2025) | `medicamento_refino` |
 
 A primeira passada e o botao **Gerar**: propoe, o medico assinala. A segunda e o
 botao **Refinar**, e e opcional — sem clique, o registro fica como a primeira
@@ -69,8 +78,19 @@ a MESMA estrutura, camada por camada. Nao e um comentario sobre a primeira
 passada: e a primeira passada refeita, e **substitui a tela inteira** — o que a
 revisao nao repetir sai do prontuario.
 
-Por isso os `kind` de revisao (`diagnosis_review`, `treatment_review`)
-reaproveitam schema, validacao e texto plano do `kind` que revisam. So mudam
+No Medicamento a revisao pesa mais do que nas outras duas: o que se confere e
+dose, titulacao, teto, contraindicacao e interacao, onde errar chega na receita.
+Num teste com ficha errada de proposito — 400 mg/dia de sertralina, incremento a
+cada 3 dias, "sem interacoes relevantes" —, a revisao devolveu teto de 200
+mg/dia, incremento semanal, e IMAO e pimozida como contraindicacoes.
+
+A ficha do Medicamento nao tem caixa de selecao, entao ali nao existe a marca
+`[assinalado pelo medico]`, e a instrucao que fala dela nao entra no prompt
+dessa etapa. Os campos que nao vem da IA — mecanismo, monitorizacao, populacoes
+especiais, preenchidos pela busca local e online — nao sao tocados pela revisao.
+
+Por isso os `kind` de revisao (`diagnosis_review`, `treatment_review`,
+`medication_review`) reaproveitam schema, validacao e texto plano do `kind` que revisam. So mudam
 tres coisas: a busca, que pergunta pelas hipoteses propostas em vez de pelo
 quadro; o escopo, que aponta para o outro livro; e a tarefa no prompt, que poe o
 modelo no papel de revisor.
@@ -80,8 +100,9 @@ que separa revisar diagnostico de revisar tratamento e a pergunta e o contexto
 do prompt, nao o corpus — subir o mesmo arquivo duas vezes para trocar o rotulo
 nao mudaria o que a busca encontra.
 
-As demais etapas nao foram tocadas: Anamnese, Refinamento, Sintoma-Alvo e
-Medicamento seguem com os escopos e os livros de antes.
+Anamnese e Refinamento nao foram tocados: seguem com `semiologia` + `ambos`,
+cinco livros, porque ali a pergunta e de cobertura semiologica e nao de decisao
+rastreavel a uma fonte.
 
 ## Codigos diagnosticos (nao e RAG)
 

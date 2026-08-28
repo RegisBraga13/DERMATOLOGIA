@@ -29,12 +29,12 @@ MAX_PROMPT_CHARS = 160000
 MAX_OUTPUT_TOKENS = 2200
 MAX_AUDIO_BYTES = 30 * 1024 * 1024
 ALLOWED_KINDS = {"anamnesis", "mental_exam", "refinement_scope", "refinement", "diagnosis", "diagnosis_review",
-                 "treatment", "treatment_review", "symptomatic", "evolution", "medication"}
+                 "treatment", "treatment_review", "symptomatic", "evolution", "medication", "medication_review"}
 # A segunda passada do Diagnostico e do Tratamento nao e outra tarefa: e a
 # mesma, refeita por um revisor com outro livro na mao. Por isso reaproveita
 # schema, validacao e texto plano do "kind" que ela revisa — a tela recebe a
 # resposta da revisao exatamente como recebeu a da geracao.
-REVIEW_OF_KIND = {"diagnosis_review": "diagnosis", "treatment_review": "treatment"}
+REVIEW_OF_KIND = {"diagnosis_review": "diagnosis", "treatment_review": "treatment", "medication_review": "medication"}
 RXNAV_DISPLAY_TERMS_URL = "https://rxnav.nlm.nih.gov/REST/displaynames.json"
 RXNAV_DISPLAY_TERMS = None
 RXNAV_LOCK = threading.Lock()
@@ -594,7 +594,13 @@ RAG_SCOPE_BY_KIND = {
     # Tratado da ABP. O que separa revisar diagnostico de revisar tratamento e a
     # pergunta e o contexto do prompt, nao o corpus — subir o mesmo arquivo duas
     # vezes para trocar o rotulo nao mudaria o que a busca encontra.
-    "medication": ("farmacologia", "ambos"),
+    # Mesmo desenho do Diagnostico e do Tratamento, a pedido dele: a ficha do
+    # medicamento sai de um livro so, e o especializado revisa depois. Aqui a
+    # revisao pesa mais do que nas outras duas etapas — o que se revisa e dose,
+    # titulacao, contraindicacao e interacao, onde errar tem consequencia
+    # imediata na prescricao.
+    "medication": ("medicamento_base",),
+    "medication_review": ("medicamento_refino",),
     # Aqui a lista tem UM escopo so, sem "ambos", e e de proposito: decisao dele
     # e que o Guia de Prescricao do Stahl responda sozinho no Sintoma-Alvo, com
     # a busca perguntando por manejo do sintoma. O mesmo livro segue indexado

@@ -16,7 +16,7 @@ import { escapeAttr, escapeHtml } from "./ui/html.js";
 import { createVoiceRecording } from "./ui/voiceRecording.js";
 import { clipboardIcon, folderIcon, homeIcon, lockIcon, personIcon, repeatIcon, themeIcon } from "./ui/icons.js";
 import { clinicalSummaryGroups, clinicalSummaryPage } from "./views/clinicalSummary.js";
-import { aiModeSelector, diagnosisModule, evolutionBody, ragSourcesView, targetSymptomModule, treatmentModule } from "./views/decisions.js";
+import { aiModeSelector, diagnosisModule, evolutionBody, ragSourcesView, refineButton, targetSymptomModule, treatmentModule } from "./views/decisions.js";
 import { consultationAccessPanel, mentalExamBody, neurologicExamBody, recordReturnAction, returnAssessmentBody } from "./views/exams.js";
 import { medicationReferenceCard } from "./views/medication.js";
 
@@ -415,6 +415,9 @@ function refinementBody(form = {}) {
 function medicationBody(form) {
   const medicationName = form.medicationGeneric || "";
   const hasInformation = Boolean(form.medicationNameText || form.medicationPresentation || form.medicationSafety || form.medicationBestUse);
+  // Sem o nome: a ficha aparece com o nome preenchido pela busca local antes de
+  // a IA gerar coisa alguma, e ali nao ha primeira passada para revisar.
+  const hasAiInformation = Boolean(form.medicationPresentation || form.medicationSafety || form.medicationBestUse);
   return `
     <div class="medication-reference">
       <header class="medication-reference-head">
@@ -428,7 +431,7 @@ function medicationBody(form) {
       </div>
       <div id="medication-suggestions" class="medication-suggestions" role="listbox"></div>
       ${aiModeSelector(form.pharmaAiMode || "rag", "pharmaAiMode")}
-      <div class="actions"><button class="primary" type="button" data-action="generate-medication-ai">Gerar</button></div>
+      <div class="actions"><button class="primary" type="button" data-action="generate-medication-ai">Gerar</button>${refineButton("refine-medication-ai", hasAiInformation)}</div>
       ${form.medicationOnlineStatus ? `<p class="medication-source-status">${escapeHtml(form.medicationOnlineStatus)}</p>` : ""}
       ${ragSourcesView(form.ragSourcesMedicamento)}
       ${hasInformation ? medicationReferenceCard(form) : `
@@ -863,6 +866,7 @@ function bindActions() {
       if (action === "generate-target-symptoms") await generateTargetSymptomsFromClinicalData(element);
       if (action === "generate-evolution") await generateEvolutionFromClinicalData(element);
       if (action === "generate-medication-ai") await generateMedicationFromClinicalData(element);
+      if (action === "refine-medication-ai") await generateMedicationFromClinicalData(element, "medication_review");
       if (action === "fill-medication-info") await fillMedicationInfo(element);
       if (action === "clear-medication-lookup") clearMedicationLookup();
       if (action === "set-anamnesis-mode") setAnamnesisInputMode(element.dataset.mode);
@@ -1153,25 +1157,38 @@ async function generateEvolutionFromClinicalData(element) {
   render();
 }
 
-async function generateMedicationFromClinicalData(element) {
+async function generateMedicationFromClinicalData(element, kind = "medication") {
   const { scope, target } = syncedTarget(element);
   if (!target?.medicationGeneric?.trim()) return alert("Digite o nome do medicamento antes de consultar a IA.");
-  setClinicalAiStatus(scope, "Consultando IA real para medicamento...");
-  if (scope === "return") draft.return = { ...(draft.return || {}), medicationStatus: "Consultando IA real para medicamento..." };
-  else draft.consultation = { ...(draft.consultation || {}), medicationStatus: "Consultando IA real para medicamento..." };
+  const revisao = kind === "medication_review";
+  // A ficha tem campos que nao vem da IA — mecanismo, monitorizacao,
+  // populacoes especiais, preenchidos pela busca local/online. Por isso o teste
+  // olha so o que a primeira passada da IA escreve: sem isso, "Refinar" ficaria
+  // habilitado sobre uma ficha que a IA nunca gerou.
+  if (revisao && !target?.medicationPresentation && !target?.medicationSafety && !target?.medicationBestUse) {
+    return alert("Gere a ficha antes de refinar: o refinamento revisa a primeira passada, nao a substitui.");
+  }
+  const aviso = revisao ? "Refinando a ficha com a fonte especializada..." : "Consultando IA real para medicamento...";
+  setClinicalAiStatus(scope, aviso);
+  if (scope === "return") draft.return = { ...(draft.return || {}), medicationStatus: aviso };
+  else draft.consultation = { ...(draft.consultation || {}), medicationStatus: aviso };
   render();
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result, sources, mode } = await requestClinicalAi("medication", buildClinicalAiPrompt("medication", context.target, context.patient, context.previous, context.isReturn), context.target?.pharmaAiMode || "rag", buildRagQuery("medication", context.target));
+    const { result, sources, mode } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), context.target?.pharmaAiMode || "rag", buildRagQuery(kind, context.target));
     suggestion = {
       medicationNameText: result.medication || target.medicationGeneric,
       medicationPresentation: result.dose_progression || "",
       medicationSafety: result.side_effects || "",
       medicationBestUse: result.notes || "",
-      medicationStatus: "Medicamento preenchido nos campos essenciais. Revise com bula vigente.",
-      medicationOnlineStatus: "Resposta de medicamento gerada pela IA real. Revise com bula brasileira e dados do paciente.",
-      aiStatus: "Resposta gerada pela IA real. Revise antes de salvar.",
+      medicationStatus: revisao
+        ? "Ficha refinada pela fonte especializada. Revise com bula vigente."
+        : "Medicamento preenchido nos campos essenciais. Revise com bula vigente.",
+      medicationOnlineStatus: revisao
+        ? "Ficha revisada pela fonte especializada. Revise com bula brasileira e dados do paciente."
+        : "Resposta de medicamento gerada pela IA real. Revise com bula brasileira e dados do paciente.",
+      aiStatus: revisao ? "Ficha refinada pela fonte especializada. Revise antes de salvar." : "Resposta gerada pela IA real. Revise antes de salvar.",
       ragSourcesMedicamento: sources,
       pharmaAiMode: mode
     };
