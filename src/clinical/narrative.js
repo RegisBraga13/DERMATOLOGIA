@@ -122,7 +122,13 @@ function evolutionPatientIdentification(patient = {}) {
   const age = calculateAge(patient.nascimento);
   const rawOccupation = String(patient.ocupacao || "").replace(/\s*[—-]\s*dado fictício\s*$/i, "").trim();
   const isAwayFromWork = /\bafastad[oa]\b/i.test(rawOccupation);
-  const occupation = rawOccupation.replace(/\bafastad[oa]\b/i, "").replace(/\s+/g, " ").trim();
+  // A virgula do "Policial militar, afastado" ficava para tras quando a
+  // palavra saia, e a identificacao virava "policial militar,, relata que...".
+  const occupation = rawOccupation.replace(/\bafastad[oa]\b/i, "")
+    .replace(/\s+/g, " ")
+    .replace(/\s*,\s*$/, "")
+    .replace(/^\s*,\s*/, "")
+    .trim();
   const details = [
     age ? `${age} anos` : "",
     patient.estadoCivil ? genderedCivilStatus(patient.estadoCivil, patient.sexo) : "",
@@ -137,7 +143,14 @@ function evolutionPatientIdentification(patient = {}) {
   // paciente e erro de redacao no documento clinico. Sem sexo registrado fica
   // no masculino, que e a forma nao marcada.
   const afastado = normalizeText(patient.sexo) === "feminino" ? "afastada" : "afastado";
-  const workStatus = occupation
+  // "Em atividade" era afirmado para qualquer ocupacao preenchida, entao o
+  // prontuario de um aposentado ou de um desempregado dizia, com todas as
+  // letras, que ele estava trabalhando. Quando a propria ocupacao registra que
+  // nao esta, a frase nao e dita: a identificacao ja informou, e o programa nao
+  // tem campo para saber mais do que isso. Silencio, e nao afirmacao contraria.
+  // normalizeText ja tira acento e caixa, entao a lista vai sem acento.
+  const naoTrabalha = /\b(aposentad[oa]|desempregad[oa]|pensionista|do lar|licenca|sem (?:ocupacao|vinculo|emprego))\b/.test(normalizeText(rawOccupation));
+  const workStatus = occupation && !naoTrabalha
     ? (isAwayFromWork ? `No momento, ${afastado} do trabalho` : "Em atividade")
     : "";
   // Devolve as duas partes separadas: a identificacao emenda com a historia na

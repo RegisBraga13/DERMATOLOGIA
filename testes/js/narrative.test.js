@@ -88,12 +88,42 @@ describe("concordancia com o sexo registrado", () => {
     assert.match(texto, /Em atividade\./);
   });
 
+  it("a virgula do afastamento nao fica orfa na identificacao", () => {
+    // "Policial militar, afastado" virava "policial militar,, relata que...".
+    const texto = buildEvolutionNarrative(
+      { queixa: "Insonia" },
+      { nome: "Adilson Freire", sexo: "Masculino", ocupacao: "Policial militar, afastado" }
+    );
+    assert.match(texto, /^Adilson Freire, policial militar, com queixa de insonia\./);
+    assert.doesNotMatch(texto, /,,/);
+  });
+
   it('"Solteiro(a)" vira solteira ou solteiro, e nunca "solteiroa"', () => {
     assert.match(patientIdentificationText(MARIA), /solteira/);
     assert.match(patientIdentificationText({ ...MARIA, sexo: "Masculino" }), /solteiro,/);
     // Sem sexo registrado a forma com parenteses fica como esta: nao ha o que
     // decidir, e inventar concordancia seria afirmar o que nao foi registrado.
     assert.match(patientIdentificationText({ ...MARIA, sexo: "" }), /solteiro\(a\)/);
+  });
+});
+
+describe("nao afirmar o que o registro contradiz", () => {
+  // "Em atividade" era dito para qualquer ocupacao preenchida -- e o prontuario
+  // de um aposentado afirmava, com todas as letras, que ele estava trabalhando.
+  const semTrabalho = ["Aposentada, ex-costureira", "Motorista de caminhao, desempregado", "Ajudante de obra, sem vinculo fixo", "Pensionista", "Do lar"];
+
+  semTrabalho.forEach(ocupacao => {
+    it(`"${ocupacao}" nao vira "Em atividade"`, () => {
+      const texto = buildEvolutionNarrative({ queixa: "Insonia" }, { ...MARIA, ocupacao });
+      assert.doesNotMatch(texto, /Em atividade/);
+      // A ocupacao continua na identificacao: o que sai e so a afirmacao falsa.
+      assert.match(texto, new RegExp(ocupacao.split(",")[0].toLowerCase()));
+    });
+  });
+
+  it("ocupacao em branco nao produz frase nenhuma sobre trabalho", () => {
+    const texto = buildEvolutionNarrative({ queixa: "Insonia" }, { ...MARIA, ocupacao: "" });
+    assert.doesNotMatch(texto, /Em atividade|afastad/);
   });
 });
 

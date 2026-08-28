@@ -1,0 +1,1249 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Carregar 10 casos fictícios</title>
+<style>
+ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#1e2831;color:#e6ecf1;
+      display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;padding:24px}
+ .card{max-width:680px;background:#26323d;border:1px solid #35434f;border-radius:12px;padding:28px}
+ h1{font-family:Georgia,serif;font-weight:500;font-size:26px;margin:0 0 12px}
+ p{line-height:1.6;color:#a9b8c4;margin:0 0 14px}
+ ol{line-height:1.7;color:#a9b8c4;margin:0 0 18px;padding-left:22px;font-size:15px}
+ ol strong{color:#e6ecf1;font-weight:600}
+ button{font:inherit;font-weight:600;background:#9dc0dc;color:#16202b;border:0;border-radius:8px;
+        padding:12px 20px;cursor:pointer}
+ button:hover{background:#b0cee5}
+ a{color:#9dc0dc}
+ #saida{margin-top:16px;font-size:15px;color:#8fd0a8}
+</style></head><body><div class="card">
+<h1>10 casos fictícios</h1>
+<p>Dez pacientes e dez consultas, preenchidas <strong>da identificação até o exame psíquico</strong>.
+Diagnóstico, tratamento, sintoma-alvo e medicamentos ficam em branco, para você percorrer.</p>
+<ol>
+  <li><strong>Terezinha Alves Prado</strong> — Humor — depressão maior grave com sintomas psicóticos</li>
+  <li><strong>Wagner Portela Bittencourt</strong> — Humor — transtorno bipolar tipo I, episódio maníaco</li>
+  <li><strong>Ismael Cardoso Ferrari</strong> — Psicótico — esquizofrenia</li>
+  <li><strong>Juliana Rezende Moura</strong> — Ansiedade — transtorno do pânico com agorafobia</li>
+  <li><strong>Otavio Lins Barcellos</strong> — Obsessivo-compulsivo — TOC</li>
+  <li><strong>Adilson Freire Tavares</strong> — Trauma — transtorno de estresse pós-traumático</li>
+  <li><strong>Lorena Pacheco Vilhena</strong> — Alimentar — anorexia nervosa</li>
+  <li><strong>Nelson Guimaraes Sampaio</strong> — Substâncias — transtorno por uso de álcool, com dependência</li>
+  <li><strong>Camila Andrade Bastos</strong> — Personalidade — transtorno de personalidade borderline</li>
+  <li><strong>Rogerio Pinheiro Damasceno</strong> — Personalidade — transtorno de personalidade antissocial</li>
+</ol>
+<p><strong>Não apaga nada</strong>: o que já existe é preservado, e rodar duas vezes não duplica.
+Todos os nomes são fictícios e assinalados como tal.</p>
+<button id="btn">Carregar os 10 casos</button>
+<p id="saida"></p>
+<p><a href="/index.html">← voltar ao app</a></p>
+</div>
+<script>
+document.getElementById('btn').addEventListener('click', () => {
+  const CHAVE = 'regis_psiquiatr_ia_v1';
+  const atual = JSON.parse(localStorage.getItem(CHAVE) || '{}');
+  const pacientes = [
+  {
+    "nome": "Terezinha Alves Prado (fictícia)",
+    "sexo": "Feminino",
+    "genero": "Cis",
+    "nascimento": "1968-02-14",
+    "estadoCivil": "Viuvo(a)",
+    "ocupacao": "Aposentada, ex-costureira",
+    "escolaridade": "Fundamental",
+    "religiao": "Catolica",
+    "telefone": "(31) 90000-0001",
+    "cidade": "Contagem",
+    "estado": "MG",
+    "id": "p-caso-01"
+  },
+  {
+    "nome": "Wagner Portela Bittencourt (fictício)",
+    "sexo": "Masculino",
+    "genero": "Cis",
+    "nascimento": "1995-06-30",
+    "estadoCivil": "Solteiro(a)",
+    "ocupacao": "Corretor de imoveis",
+    "escolaridade": "Superior",
+    "religiao": "Sem religiao",
+    "telefone": "(31) 90000-0002",
+    "cidade": "Belo Horizonte",
+    "estado": "MG",
+    "id": "p-caso-02"
+  },
+  {
+    "nome": "Ismael Cardoso Ferrari (fictício)",
+    "sexo": "Masculino",
+    "genero": "Cis",
+    "nascimento": "2002-09-08",
+    "estadoCivil": "Solteiro(a)",
+    "ocupacao": "Estudante, trancou a faculdade",
+    "escolaridade": "Medio",
+    "religiao": "Evangelica",
+    "telefone": "(31) 90000-0003",
+    "cidade": "Betim",
+    "estado": "MG",
+    "id": "p-caso-03"
+  },
+  {
+    "nome": "Juliana Rezende Moura (fictícia)",
+    "sexo": "Feminino",
+    "genero": "Cis",
+    "nascimento": "1997-04-22",
+    "estadoCivil": "Casado(a)",
+    "ocupacao": "Analista de recursos humanos",
+    "escolaridade": "Superior",
+    "religiao": "Espirita",
+    "telefone": "(31) 90000-0004",
+    "cidade": "Nova Lima",
+    "estado": "MG",
+    "id": "p-caso-04"
+  },
+  {
+    "nome": "Otavio Lins Barcellos (fictício)",
+    "sexo": "Masculino",
+    "genero": "Cis",
+    "nascimento": "1991-01-19",
+    "estadoCivil": "Casado(a)",
+    "ocupacao": "Bancario",
+    "escolaridade": "Superior",
+    "religiao": "Catolica",
+    "telefone": "(31) 90000-0005",
+    "cidade": "Belo Horizonte",
+    "estado": "MG",
+    "id": "p-caso-05"
+  },
+  {
+    "nome": "Adilson Freire Tavares (fictício)",
+    "sexo": "Masculino",
+    "genero": "Cis",
+    "nascimento": "1985-07-05",
+    "estadoCivil": "Casado(a)",
+    "ocupacao": "Policial militar, afastado",
+    "escolaridade": "Medio",
+    "religiao": "Evangelica",
+    "telefone": "(31) 90000-0006",
+    "cidade": "Ribeirao das Neves",
+    "estado": "MG",
+    "id": "p-caso-06"
+  },
+  {
+    "nome": "Lorena Pacheco Vilhena (fictícia)",
+    "sexo": "Feminino",
+    "genero": "Cis",
+    "nascimento": "2007-03-27",
+    "estadoCivil": "Solteiro(a)",
+    "ocupacao": "Estudante universitaria",
+    "escolaridade": "Medio",
+    "religiao": "Agnostico(a)",
+    "telefone": "(31) 90000-0007",
+    "cidade": "Belo Horizonte",
+    "estado": "MG",
+    "id": "p-caso-07"
+  },
+  {
+    "nome": "Nelson Guimaraes Sampaio (fictício)",
+    "sexo": "Masculino",
+    "genero": "Cis",
+    "nascimento": "1974-10-11",
+    "estadoCivil": "Divorciado(a)",
+    "ocupacao": "Motorista de caminhao, desempregado",
+    "escolaridade": "Fundamental",
+    "religiao": "Catolica",
+    "telefone": "(31) 90000-0008",
+    "cidade": "Sete Lagoas",
+    "estado": "MG",
+    "id": "p-caso-08"
+  },
+  {
+    "nome": "Camila Andrade Bastos (fictícia)",
+    "sexo": "Feminino",
+    "genero": "Cis",
+    "nascimento": "2000-05-16",
+    "estadoCivil": "Solteiro(a)",
+    "ocupacao": "Publicitaria",
+    "escolaridade": "Superior",
+    "religiao": "Sem religiao",
+    "telefone": "(31) 90000-0009",
+    "cidade": "Belo Horizonte",
+    "estado": "MG",
+    "id": "p-caso-09"
+  },
+  {
+    "nome": "Rogerio Pinheiro Damasceno (fictício)",
+    "sexo": "Masculino",
+    "genero": "Cis",
+    "nascimento": "1992-12-02",
+    "estadoCivil": "Solteiro(a)",
+    "ocupacao": "Ajudante de obra, sem vinculo fixo",
+    "escolaridade": "Fundamental",
+    "religiao": "Sem religiao",
+    "telefone": "(31) 90000-0010",
+    "cidade": "Belo Horizonte",
+    "estado": "MG",
+    "id": "p-caso-10"
+  }
+];
+  const consultas = [
+  {
+    "queixa": "Nao durmo, nao como e sinto que estou apodrecendo por dentro.",
+    "hdaManual": "Ha sete meses, apos a morte do marido, iniciou tristeza continua que nao cedeu com o tempo. Nos ultimos dois meses parou de cozinhar, de sair e de atender o telefone. Perdeu 11 kg sem dieta. Acorda por volta das 3h e nao volta a dormir; diz que a manha e a pior parte do dia. Afirma com conviccao que seus orgaos estao apodrecendo e que nao ha mais tratamento possivel, e que a familia gasta dinheiro a toa com ela. Recusa-se a ir ao medico clinico porque 'nao adianta'. Filha relata que a mae repete que seria melhor 'ir logo encontrar o pai'. Nao ha plano estruturado nem tentativa previa.",
+    "medicos": "Hipertensao em uso de losartana. Hemograma, TSH, B12, funcao renal e hepatica sem alteracoes ha um mes. Nega doenca neurologica.",
+    "depressaoSintomas": [
+      "Desinteresse ou falta de prazer",
+      "Desanimo ou desesperanca",
+      "Cansaco ou falta de energia",
+      "Fala lenta",
+      "Baixa autoestima",
+      "Sentimento de ruina",
+      "Sentimento de estorvo para a familia"
+    ],
+    "maniaHipomaniaSintomas": [
+      "Nega sintomas relacionados"
+    ],
+    "ansiedadeSintomas": [
+      "Tensao corporal"
+    ],
+    "sonoCaracteristicas": [
+      "Despertar precoce",
+      "Sono nao reparador"
+    ],
+    "apetiteCaracteristicas": [
+      "Reducao do apetite",
+      "Perda de peso recente"
+    ],
+    "usoSubstanciasComportamentos": [],
+    "psicoseSintomas": [
+      "Outro"
+    ],
+    "psicoseSintomasOutro": "Conviccao delirante de ruina e de apodrecimento dos orgaos, congruente com o humor. Nega vozes e visoes.",
+    "riscoSuicidioIndicadores": [
+      "Desesperanca",
+      "Desejo de morrer ou de nao acordar",
+      "Ideacao suicida"
+    ],
+    "riscoSuicidioRazoesViver": "Nega plano definido e nega intencao atual. Refere que 'nao faria nada', mas que preferia nao acordar.",
+    "riscoSuicidioRazoesParaViver": "A filha e a neta de seis anos.",
+    "psiPrevios": [
+      "Depressao"
+    ],
+    "tratamentos": [
+      "Antidepressivos"
+    ],
+    "familiares": [
+      "Depressao",
+      "Tentativa ou Suicidio"
+    ],
+    "fatores": [
+      "Luto"
+    ],
+    "fatoresMelhora": [
+      "Repouso"
+    ],
+    "impacto": [
+      "Grave",
+      "Prejuizo familiar"
+    ],
+    "aparencia": [
+      "Contato visual esquivo ou fixo"
+    ],
+    "consciencia": [
+      "Consciente",
+      "Orientado"
+    ],
+    "atencao": [
+      "Hipovigil",
+      "Distraibilidade"
+    ],
+    "memoria": [
+      "Preservada"
+    ],
+    "sensopercepcao": [
+      "Sem alteracao"
+    ],
+    "pensamentoCursoForma": [
+      "Bradipsiquismo"
+    ],
+    "pensamentoConteudo": [
+      "Delirio de ruina",
+      "Ideacao suicida"
+    ],
+    "linguagem": [
+      "Bradilalia"
+    ],
+    "humor": [
+      "Depressao/hipotimia"
+    ],
+    "afeto": [
+      "Afeto restrito/aplanado"
+    ],
+    "psicomotricidade": [
+      "Lentificacao"
+    ],
+    "vontade": [
+      "Hipobulia"
+    ],
+    "juizoCritico": [
+      "Critica parcial"
+    ],
+    "aparenciaOutro": "Vestuario descuidado, cabelos nao penteados, higiene reduzida em relacao ao habitual relatado pela filha.",
+    "id": "c-caso-01",
+    "patientId": "p-caso-01",
+    "type": "consultation",
+    "consultationMode": "IN_PERSON",
+    "anamnesisInputMode": "manual",
+    "label": "Consulta — caso fictício 01",
+    "createdAt": "2026-08-11T09:00:00.000Z"
+  },
+  {
+    "queixa": "Estou otimo. Quem quis vir foi minha familia.",
+    "hdaManual": "Trazido pelo irmao. Ha tres semanas dorme cerca de duas horas por noite e acorda 'com energia de sobra'. Abriu tres negocios simultaneos, assinou contrato de aluguel de uma sala comercial e gastou cerca de R$ 40 mil no cartao do irmao. Fala sem parar, muda de assunto no meio da frase e se irrita quando interrompido. Enviou mensagens de madrugada a antigos clientes. Diz que foi escolhido para 'reorganizar o mercado imobiliario da cidade'. Ha uma internacao previa aos 24 anos, em quadro semelhante, com boa resposta a litio; abandonou a medicacao ha oito meses por conta propria.",
+    "medicos": "Sem comorbidade clinica. Litemia previa em prontuario antigo. Nao faz uso de medicacao no momento.",
+    "depressaoSintomas": [],
+    "maniaHipomaniaSintomas": [
+      "Muito acelerado",
+      "Com muita energia",
+      "Falando mais",
+      "Dormindo pouco",
+      "Fazendo coisas impulsivas"
+    ],
+    "ansiedadeSintomas": [
+      "Irritabilidade",
+      "Agitacao"
+    ],
+    "sonoCaracteristicas": [
+      "Dificuldade para adormecer"
+    ],
+    "apetiteCaracteristicas": [
+      "Reducao do apetite"
+    ],
+    "usoSubstanciasComportamentos": [
+      "Alcool",
+      "Compras Compulsivas"
+    ],
+    "psicoseSintomas": [
+      "Ideias de referencia",
+      "Outro"
+    ],
+    "psicoseSintomasOutro": "Conviccao de missao empresarial grandiosa e de ter sido escolhido para transformar o setor. Nega alucinacoes.",
+    "riscoSuicidioIndicadores": [
+      "Nega ideacao, plano ou intencao suicida"
+    ],
+    "psiPrevios": [
+      "Transtorno bipolar"
+    ],
+    "tratamentos": [
+      "Estabilizador de humor",
+      "Internacao psiquiatrica"
+    ],
+    "familiares": [
+      "Transtorno bipolar"
+    ],
+    "fatores": [
+      "Privacao de sono"
+    ],
+    "fatoresMelhora": [
+      "Medicacao"
+    ],
+    "impacto": [
+      "Grave",
+      "Prejuizo social",
+      "Prejuizo familiar"
+    ],
+    "aparencia": [
+      "Arrogancia",
+      "Seducao"
+    ],
+    "consciencia": [
+      "Consciente",
+      "Orientado"
+    ],
+    "atencao": [
+      "Distraibilidade",
+      "Hipervigil"
+    ],
+    "memoria": [
+      "Preservada"
+    ],
+    "sensopercepcao": [
+      "Sem alteracao"
+    ],
+    "pensamentoCursoForma": [
+      "Taquipsiquismo",
+      "Fuga de ideias"
+    ],
+    "pensamentoConteudo": [
+      "Delirio de grandeza",
+      "Ideias de sobrevalia"
+    ],
+    "linguagem": [
+      "Logorreia",
+      "Taquilalia"
+    ],
+    "humor": [
+      "Euforia/hipertimia",
+      "Disforia (irritabilidade extrema)"
+    ],
+    "afeto": [
+      "Labilidade afetiva"
+    ],
+    "psicomotricidade": [
+      "Agitacao"
+    ],
+    "vontade": [
+      "Impulsividade"
+    ],
+    "juizoCritico": [
+      "Negacao da doenca",
+      "Incapacidade de prever consequencias dos atos"
+    ],
+    "linguagemOutro": "Interrompe o examinador, retoma tres assuntos ao mesmo tempo e faz trocadilhos com as perguntas.",
+    "id": "c-caso-02",
+    "patientId": "p-caso-02",
+    "type": "consultation",
+    "consultationMode": "IN_PERSON",
+    "anamnesisInputMode": "manual",
+    "label": "Consulta — caso fictício 02",
+    "createdAt": "2026-08-12T09:00:00.000Z"
+  },
+  {
+    "queixa": "Eles instalaram alguma coisa em mim e ficam comentando o que eu penso.",
+    "hdaManual": "Ha cerca de dois anos, queda progressiva do rendimento na faculdade, que trancou ha oito meses. Passou a ficar no quarto com as cortinas fechadas, dormindo de dia e acordado de madrugada. Ha um ano refere ouvir duas vozes masculinas que conversam entre si sobre o que ele faz e comentam seus pensamentos em terceira pessoa. Acredita que vizinhos instalaram um dispositivo nele e que seus pensamentos sao 'transmitidos'. Cobriu o espelho do quarto e passou a usar bone dentro de casa. Higiene reduzida, sem interesse por atividades que antes gostava. Mae relata que ele fala sozinho e que as frases 'nao terminam'.",
+    "medicos": "Sem comorbidade clinica conhecida. Nao usa medicacao. Nao ha historico de trauma craniano nem de crise convulsiva.",
+    "depressaoSintomas": [
+      "Desinteresse ou falta de prazer",
+      "Cansaco ou falta de energia"
+    ],
+    "maniaHipomaniaSintomas": [
+      "Nega sintomas relacionados"
+    ],
+    "ansiedadeSintomas": [
+      "Tensao corporal"
+    ],
+    "sonoCaracteristicas": [
+      "Dificuldade para adormecer",
+      "Dormir em excesso"
+    ],
+    "apetiteCaracteristicas": [
+      "Reducao do apetite"
+    ],
+    "usoSubstanciasComportamentos": [
+      "Canabinoides",
+      "Nicotina"
+    ],
+    "psicoseSintomas": [
+      "Ideias de perseguicao",
+      "Sensacao de estar sendo observado ou comentado",
+      "Ideias de referencia",
+      "Desconfianca excessiva",
+      "Vozes ou ruidos sem fonte externa",
+      "Pensamento desorganizado",
+      "Comportamento desorganizado",
+      "Sensacao de controle ou interferencia no pensamento"
+    ],
+    "riscoSuicidioIndicadores": [
+      "Nega ideacao, plano ou intencao suicida"
+    ],
+    "psiPrevios": [],
+    "tratamentos": [],
+    "familiares": [
+      "Esquizofrenia"
+    ],
+    "fatores": [
+      "Uso de substancias"
+    ],
+    "fatoresMelhora": [],
+    "impacto": [
+      "Incapacitante",
+      "Prejuizo social",
+      "Prejuizo familiar"
+    ],
+    "aparencia": [
+      "Bizarrice",
+      "Contato visual esquivo ou fixo"
+    ],
+    "consciencia": [
+      "Consciente",
+      "Orientado"
+    ],
+    "atencao": [
+      "Distraibilidade"
+    ],
+    "memoria": [
+      "Preservada"
+    ],
+    "sensopercepcao": [
+      "Alucinacao auditiva"
+    ],
+    "pensamentoCursoForma": [
+      "Afrouxamento de nexos",
+      "Bloqueio/interceptacao"
+    ],
+    "pensamentoConteudo": [
+      "Delirio de perseguicao"
+    ],
+    "linguagem": [
+      "Neologismo"
+    ],
+    "humor": [
+      "Eutimia (normal)"
+    ],
+    "afeto": [
+      "Embotamento"
+    ],
+    "psicomotricidade": [
+      "Sem alteracao"
+    ],
+    "vontade": [
+      "Abulia"
+    ],
+    "juizoCritico": [
+      "Negacao da doenca"
+    ],
+    "sensopercepcaoOutro": "Duas vozes em terceira pessoa, que comentam seus atos e conversam entre si.",
+    "linguagemOutro": "Usa 'transmissao mental' e 'aparelhagem' com sentido proprio, que nao consegue explicar.",
+    "id": "c-caso-03",
+    "patientId": "p-caso-03",
+    "type": "consultation",
+    "consultationMode": "IN_PERSON",
+    "anamnesisInputMode": "manual",
+    "label": "Consulta — caso fictício 03",
+    "createdAt": "2026-08-13T09:00:00.000Z"
+  },
+  {
+    "queixa": "Tenho crises em que acho que vou morrer, e agora nao consigo mais sair sozinha.",
+    "hdaManual": "Ha cinco meses, primeira crise dentro do onibus: palpitacao, falta de ar, formigamento nas maos, tremor e sensacao de morte iminente, com pico em poucos minutos e duracao de cerca de vinte minutos. Desde entao teve nove crises, quatro delas sem gatilho identificavel. Foi ao pronto-socorro em quatro ocasioes; ECG e exames sem alteracao nas quatro. Passou a evitar onibus, shopping, fila de banco e elevador, e ha seis semanas so sai de casa acompanhada pelo marido. Deixou de ir ao escritorio e trabalha remotamente. Refere medo constante de ter nova crise em publico.",
+    "medicos": "ECG, troponina, hemograma, TSH e eletrolitos normais em quatro atendimentos de urgencia. Sem comorbidade clinica.",
+    "depressaoSintomas": [
+      "Cansaco ou falta de energia"
+    ],
+    "maniaHipomaniaSintomas": [
+      "Nega sintomas relacionados"
+    ],
+    "ansiedadeSintomas": [
+      "Falta de controle",
+      "Preocupacao excessiva",
+      "Tensao corporal",
+      "Sintomas fisicos",
+      "Agitacao"
+    ],
+    "sonoCaracteristicas": [
+      "Dificuldade para adormecer",
+      "Sono nao reparador"
+    ],
+    "apetiteCaracteristicas": [],
+    "usoSubstanciasComportamentos": [
+      "Cafeina"
+    ],
+    "psicoseSintomas": [
+      "Nega sintomas relacionados"
+    ],
+    "riscoSuicidioIndicadores": [
+      "Nega ideacao, plano ou intencao suicida"
+    ],
+    "psiPrevios": [],
+    "tratamentos": [],
+    "familiares": [
+      "Ansiedade"
+    ],
+    "fatores": [
+      "Stress e mudanca de rotina",
+      "Problemas profissionais"
+    ],
+    "fatoresMelhora": [
+      "Tecnicas de relaxamento",
+      "Sono adequado"
+    ],
+    "impacto": [
+      "Moderado",
+      "Prejuizo social"
+    ],
+    "aparencia": [
+      "Adequada"
+    ],
+    "consciencia": [
+      "Consciente",
+      "Orientado"
+    ],
+    "atencao": [
+      "Hipervigil"
+    ],
+    "memoria": [
+      "Preservada"
+    ],
+    "sensopercepcao": [
+      "Sem alteracao"
+    ],
+    "pensamentoCursoForma": [
+      "Adequado"
+    ],
+    "pensamentoConteudo": [
+      "Fobias"
+    ],
+    "linguagem": [
+      "Adequada"
+    ],
+    "humor": [
+      "Humor ansioso"
+    ],
+    "afeto": [
+      "Preservado"
+    ],
+    "psicomotricidade": [
+      "Agitacao"
+    ],
+    "vontade": [
+      "Normal"
+    ],
+    "juizoCritico": [
+      "Preservado"
+    ],
+    "pensamentoConteudoOutro": "Medo antecipatorio de nova crise e de perder o controle em publico; reconhece o medo como desproporcional.",
+    "id": "c-caso-04",
+    "patientId": "p-caso-04",
+    "type": "consultation",
+    "consultationMode": "IN_PERSON",
+    "anamnesisInputMode": "manual",
+    "label": "Consulta — caso fictício 04",
+    "createdAt": "2026-08-14T09:00:00.000Z"
+  },
+  {
+    "queixa": "Sei que nao faz sentido, mas nao consigo parar de lavar as maos e de conferir tudo.",
+    "hdaManual": "Ha cerca de seis anos, com piora progressiva nos ultimos dez meses. Refere pensamentos repetitivos de contaminacao que descreve como 'nao meus', acompanhados de ansiedade intensa, aliviada temporariamente pela lavagem. Lava as maos cerca de quarenta vezes por dia, com dermatite de contato nas maos e nos punhos. Antes de sair, confere fogao, tomadas e fechadura em series de tres, e recomeca se perder a conta. Sai de casa em media cinquenta minutos antes do necessario e ainda assim chega atrasado. A esposa passou a conferir por ele, o que reduziu as brigas e, segundo ele, 'piorou tudo'. Reconhece que os rituais sao excessivos e se envergonha deles.",
+    "medicos": "Dermatite de contato em maos, em acompanhamento dermatologico. Sem outras comorbidades.",
+    "depressaoSintomas": [
+      "Cansaco ou falta de energia",
+      "Baixa autoestima"
+    ],
+    "maniaHipomaniaSintomas": [
+      "Nega sintomas relacionados"
+    ],
+    "ansiedadeSintomas": [
+      "Preocupacao excessiva",
+      "Tensao corporal",
+      "Dificuldade de focar"
+    ],
+    "sonoCaracteristicas": [
+      "Dificuldade para adormecer"
+    ],
+    "apetiteCaracteristicas": [],
+    "usoSubstanciasComportamentos": [],
+    "psicoseSintomas": [
+      "Nega sintomas relacionados"
+    ],
+    "riscoSuicidioIndicadores": [
+      "Nega ideacao, plano ou intencao suicida"
+    ],
+    "psiPrevios": [],
+    "tratamentos": [
+      "Psicoterapia"
+    ],
+    "familiares": [
+      "TOC"
+    ],
+    "fatores": [
+      "Stress e mudanca de rotina",
+      "Problemas profissionais"
+    ],
+    "fatoresMelhora": [
+      "Psicoterapia",
+      "Rotina estruturada"
+    ],
+    "impacto": [
+      "Grave",
+      "Prejuizo familiar"
+    ],
+    "aparencia": [
+      "Adequada"
+    ],
+    "consciencia": [
+      "Consciente",
+      "Orientado"
+    ],
+    "atencao": [
+      "Hipertenaz"
+    ],
+    "memoria": [
+      "Preservada"
+    ],
+    "sensopercepcao": [
+      "Sem alteracao"
+    ],
+    "pensamentoCursoForma": [
+      "Perseveracao"
+    ],
+    "pensamentoConteudo": [
+      "Obsessoes"
+    ],
+    "linguagem": [
+      "Adequada"
+    ],
+    "humor": [
+      "Humor ansioso"
+    ],
+    "afeto": [
+      "Preservado"
+    ],
+    "psicomotricidade": [
+      "Sem alteracao"
+    ],
+    "vontade": [
+      "Compulsao"
+    ],
+    "juizoCritico": [
+      "Preservado"
+    ],
+    "aparenciaOutro": "Maos com eritema e fissuras; evita apertar a mao do examinador e pede para nao tocar na mesa.",
+    "id": "c-caso-05",
+    "patientId": "p-caso-05",
+    "type": "consultation",
+    "consultationMode": "IN_PERSON",
+    "anamnesisInputMode": "manual",
+    "label": "Consulta — caso fictício 05",
+    "createdAt": "2026-08-15T09:00:00.000Z"
+  },
+  {
+    "queixa": "Depois daquele dia eu nao consigo mais ficar de costas para a porta.",
+    "hdaManual": "Ha catorze meses participou de confronto armado em servico, no qual um colega foi morto ao seu lado. Desde entao apresenta pesadelos quase diarios com a cena e revivescencias durante o dia, desencadeadas por estampido, fogos de artificio e cheiro de polvora. Evita a rua onde ocorreu o fato e deixou de assistir a noticiario. Sobressalto exagerado a ruidos, verificacao repetida de portas e janelas, e recusa a sentar-se de costas para a entrada de qualquer ambiente. Irritabilidade importante, com dois episodios de explosao verbal em casa que o assustaram. Aumentou o consumo de alcool a noite 'para conseguir dormir'. Refere lembranca fragmentada do proprio confronto: nao recorda os minutos seguintes aos disparos.",
+    "medicos": "Sem comorbidade clinica. Afastado do servico operacional ha dez meses. Nao usa medicacao psiquiatrica.",
+    "depressaoSintomas": [
+      "Desinteresse ou falta de prazer",
+      "Cansaco ou falta de energia",
+      "Dificuldade de concentracao"
+    ],
+    "maniaHipomaniaSintomas": [
+      "Nega sintomas relacionados"
+    ],
+    "ansiedadeSintomas": [
+      "Tensao corporal",
+      "Irritabilidade",
+      "Sintomas fisicos"
+    ],
+    "sonoCaracteristicas": [
+      "Dificuldade para adormecer",
+      "Despertares noturnos",
+      "Sono nao reparador"
+    ],
+    "apetiteCaracteristicas": [
+      "Reducao do apetite"
+    ],
+    "usoSubstanciasComportamentos": [
+      "Alcool",
+      "Nicotina"
+    ],
+    "psicoseSintomas": [
+      "Nega sintomas relacionados"
+    ],
+    "riscoSuicidioIndicadores": [
+      "Desesperanca"
+    ],
+    "riscoSuicidioRazoesViver": "Nega ideacao, plano e intencao. Refere desanimo com o futuro profissional, sem desejo de morrer.",
+    "riscoSuicidioRazoesParaViver": "As duas filhas e a esposa.",
+    "psiPrevios": [],
+    "tratamentos": [],
+    "familiares": [
+      "Depressao"
+    ],
+    "fatores": [
+      "Outro"
+    ],
+    "fatoresOutro": "Confronto armado em servico, com morte de colega ao seu lado.",
+    "fatoresMelhora": [
+      "Afastamento de estressor",
+      "Atividade fisica"
+    ],
+    "impacto": [
+      "Grave",
+      "Prejuizo social",
+      "Prejuizo familiar"
+    ],
+    "aparencia": [
+      "Contato visual esquivo ou fixo"
+    ],
+    "consciencia": [
+      "Consciente",
+      "Orientado"
+    ],
+    "atencao": [
+      "Hipervigil",
+      "Distraibilidade"
+    ],
+    "memoria": [
+      "Amnesia lacunar"
+    ],
+    "sensopercepcao": [
+      "Sem alteracao"
+    ],
+    "pensamentoCursoForma": [
+      "Adequado"
+    ],
+    "pensamentoConteudo": [
+      "Adequado"
+    ],
+    "linguagem": [
+      "Adequada"
+    ],
+    "humor": [
+      "Disforia (irritabilidade extrema)"
+    ],
+    "afeto": [
+      "Afeto restrito/aplanado"
+    ],
+    "psicomotricidade": [
+      "Sem alteracao"
+    ],
+    "vontade": [
+      "Normal"
+    ],
+    "juizoCritico": [
+      "Preservado"
+    ],
+    "memoriaOutro": "Lacuna para os minutos seguintes aos disparos; memoria preservada no dia a dia.",
+    "sensopercepcaoOutro": "Revivescencias intrusivas da cena, com critica preservada -- reconhece que a cena nao esta acontecendo.",
+    "psicomotricidadeOutro": "Sobressalto marcado a ruido de porta durante a entrevista.",
+    "id": "c-caso-06",
+    "patientId": "p-caso-06",
+    "type": "consultation",
+    "consultationMode": "IN_PERSON",
+    "anamnesisInputMode": "manual",
+    "label": "Consulta — caso fictício 06",
+    "createdAt": "2026-08-16T09:00:00.000Z"
+  },
+  {
+    "queixa": "Minha mae me trouxe. Eu me acho gorda e ela acha que eu estou magra demais.",
+    "hdaManual": "Ha cerca de dezoito meses iniciou restricao alimentar progressiva, comecando por 'cortar besteira'. Hoje faz uma refeicao por dia, pesa os alimentos e mantem lista mental de calorias. Perdeu 16 kg no periodo; IMC atual 15,8. Exercita-se por cerca de tres horas por dia, e fica angustiada se e impedida. Refere uso de laxante duas a tres vezes por semana nos ultimos quatro meses. Amenorreia ha cinco meses. Veste roupas largas e evita se pesar diante de outras pessoas, mas se pesa varias vezes ao dia em casa. Descreve o corpo como 'flacido e enorme' e nao reconhece risco no proprio estado. Rendimento academico mantido, com nota alta e cobranca importante de desempenho.",
+    "medicos": "IMC 15,8. Amenorreia ha cinco meses. Potassio 3,1 mEq/L, bradicardia de 48 bpm, hipotensao postural. Encaminhada para avaliacao clinica e nutricional.",
+    "depressaoSintomas": [
+      "Baixa autoestima",
+      "Cansaco ou falta de energia",
+      "Dificuldade de concentracao"
+    ],
+    "maniaHipomaniaSintomas": [
+      "Nega sintomas relacionados"
+    ],
+    "ansiedadeSintomas": [
+      "Preocupacao excessiva",
+      "Tensao corporal"
+    ],
+    "sonoCaracteristicas": [
+      "Dificuldade para adormecer",
+      "Sono nao reparador"
+    ],
+    "apetiteCaracteristicas": [
+      "Reducao do apetite",
+      "Perda de peso recente"
+    ],
+    "usoSubstanciasComportamentos": [
+      "Transtornos Alimentares"
+    ],
+    "psicoseSintomas": [
+      "Nega sintomas relacionados"
+    ],
+    "riscoSuicidioIndicadores": [
+      "Nega ideacao, plano ou intencao suicida"
+    ],
+    "psiPrevios": [],
+    "tratamentos": [],
+    "familiares": [
+      "Depressao",
+      "Ansiedade"
+    ],
+    "fatores": [
+      "Stress e mudanca de rotina"
+    ],
+    "fatoresMelhora": [],
+    "impacto": [
+      "Grave",
+      "Prejuizo social"
+    ],
+    "aparencia": [
+      "Contato visual esquivo ou fixo"
+    ],
+    "consciencia": [
+      "Consciente",
+      "Orientado"
+    ],
+    "atencao": [
+      "Hipertenaz"
+    ],
+    "memoria": [
+      "Preservada"
+    ],
+    "sensopercepcao": [
+      "Sem alteracao"
+    ],
+    "pensamentoCursoForma": [
+      "Perseveracao"
+    ],
+    "pensamentoConteudo": [
+      "Ideias de sobrevalia"
+    ],
+    "linguagem": [
+      "Adequada"
+    ],
+    "humor": [
+      "Humor ansioso"
+    ],
+    "afeto": [
+      "Afeto restrito/aplanado"
+    ],
+    "psicomotricidade": [
+      "Sem alteracao"
+    ],
+    "vontade": [
+      "Normal"
+    ],
+    "juizoCritico": [
+      "Negacao da doenca"
+    ],
+    "aparenciaOutro": "Emagrecimento evidente, lanugo em antebracos, extremidades frias. Veste tres camadas de roupa em dia quente.",
+    "pensamentoConteudoOutro": "Ideias supervalorizadas sobre peso e forma corporal, com distorcao da imagem: refere-se ao proprio corpo como 'enorme'.",
+    "id": "c-caso-07",
+    "patientId": "p-caso-07",
+    "type": "consultation",
+    "consultationMode": "IN_PERSON",
+    "anamnesisInputMode": "manual",
+    "label": "Consulta — caso fictício 07",
+    "createdAt": "2026-08-17T09:00:00.000Z"
+  },
+  {
+    "queixa": "Eu paro quando eu quiser. So que agora acordo passando mal se nao beber.",
+    "hdaManual": "Uso de alcool desde os quinze anos, diario ha cerca de doze anos. Nos ultimos tres anos passou a beber ao acordar para conter tremor de maos e nausea. Refere aumento importante da quantidade necessaria para o mesmo efeito. Tentou parar sozinho quatro vezes; na ultima, ha dois meses, apresentou tremor intenso, sudorese e uma crise convulsiva, com atendimento em pronto-socorro. Perdeu a carteira de habilitacao ha dez meses e, com ela, o emprego. Divorciado ha dois anos; ve os filhos uma vez por mes. Refere dois episodios em que acordou sem lembrar da noite anterior. Diz que bebe 'como todo mundo' e que veio pela insistencia da irma.",
+    "medicos": "TGO 92, TGP 61, GGT 340, VCM 103. Uma crise convulsiva em abstinencia ha dois meses. Hipertensao sem tratamento regular.",
+    "depressaoSintomas": [
+      "Desanimo ou desesperanca",
+      "Cansaco ou falta de energia",
+      "Baixa autoestima"
+    ],
+    "maniaHipomaniaSintomas": [
+      "Nega sintomas relacionados"
+    ],
+    "ansiedadeSintomas": [
+      "Tensao corporal",
+      "Irritabilidade",
+      "Sintomas fisicos"
+    ],
+    "sonoCaracteristicas": [
+      "Despertares noturnos",
+      "Sono nao reparador"
+    ],
+    "apetiteCaracteristicas": [
+      "Reducao do apetite"
+    ],
+    "usoSubstanciasComportamentos": [
+      "Alcool",
+      "Nicotina"
+    ],
+    "psicoseSintomas": [
+      "Nega sintomas relacionados"
+    ],
+    "riscoSuicidioIndicadores": [
+      "Desesperanca",
+      "Desejo de morrer ou de nao acordar"
+    ],
+    "riscoSuicidioRazoesViver": "Nega plano e intencao. Refere que 'as vezes pensa que seria mais facil sumir', sem intencao de se matar.",
+    "riscoSuicidioRazoesParaViver": "Os dois filhos e a irma, que o acompanhou a consulta.",
+    "psiPrevios": [],
+    "tratamentos": [
+      "Internacao psiquiatrica"
+    ],
+    "familiares": [
+      "Outro"
+    ],
+    "familiaresOutro": "Pai com dependencia de alcool, falecido por cirrose.",
+    "fatores": [
+      "Uso de substancias",
+      "Problemas profissionais",
+      "Problemas financeiros"
+    ],
+    "fatoresMelhora": [
+      "Reducao de substancias",
+      "Afastamento de estressor"
+    ],
+    "impacto": [
+      "Grave",
+      "Prejuizo social",
+      "Prejuizo familiar"
+    ],
+    "aparencia": [
+      "Contato visual esquivo ou fixo"
+    ],
+    "consciencia": [
+      "Consciente",
+      "Orientado"
+    ],
+    "atencao": [
+      "Hipovigil",
+      "Distraibilidade"
+    ],
+    "memoria": [
+      "Amnesia lacunar"
+    ],
+    "sensopercepcao": [
+      "Sem alteracao"
+    ],
+    "pensamentoCursoForma": [
+      "Adequado"
+    ],
+    "pensamentoConteudo": [
+      "Adequado"
+    ],
+    "linguagem": [
+      "Adequada"
+    ],
+    "humor": [
+      "Disforia (irritabilidade extrema)"
+    ],
+    "afeto": [
+      "Labilidade afetiva"
+    ],
+    "psicomotricidade": [
+      "Sem alteracao"
+    ],
+    "vontade": [
+      "Compulsao"
+    ],
+    "juizoCritico": [
+      "Negacao da doenca",
+      "Critica parcial"
+    ],
+    "memoriaOutro": "Dois episodios de amnesia para a noite anterior (blackout) nos ultimos seis meses.",
+    "psicomotricidadeOutro": "Tremor fino de extremidades durante a entrevista, referido como 'do nervoso'.",
+    "id": "c-caso-08",
+    "patientId": "p-caso-08",
+    "type": "consultation",
+    "consultationMode": "IN_PERSON",
+    "anamnesisInputMode": "manual",
+    "label": "Consulta — caso fictício 08",
+    "createdAt": "2026-08-18T09:00:00.000Z"
+  },
+  {
+    "queixa": "Toda vez que acho que vao me largar, eu exploto e depois me corto.",
+    "hdaManual": "Refere, desde a adolescencia, um padrao continuo de relacoes intensas e curtas, que comecam com idealizacao e terminam em ruptura brusca. Descreve sensacao permanente de vazio e dificuldade de dizer quem e quando esta sozinha. Diante de sinal de afastamento -- mensagem nao respondida, plano desmarcado --, apresenta raiva desproporcional seguida de arrependimento intenso. Autolesao por corte em antebracos ha cerca de sete anos, geralmente nas horas seguintes a uma briga; descreve alivio imediato da tensao. Uma tentativa de suicidio aos vinte e dois anos, por ingestao de comprimidos, apos termino de relacionamento. Gastos impulsivos, episodios de beber muito em uma unica noite e dois acidentes de transito dirigindo com raiva. Ja foi rotulada como depressao em dois atendimentos anteriores; refere que os antidepressivos 'nao mudaram nada'. Descreve episodios breves, de minutos a horas, em que se sente 'de fora do proprio corpo', sempre em situacoes de estresse.",
+    "medicos": "Sem comorbidade clinica. Cicatrizes lineares em antebracos. Sem uso atual de medicacao.",
+    "depressaoSintomas": [
+      "Baixa autoestima",
+      "Desanimo ou desesperanca"
+    ],
+    "maniaHipomaniaSintomas": [
+      "Nega sintomas relacionados"
+    ],
+    "ansiedadeSintomas": [
+      "Falta de controle",
+      "Irritabilidade",
+      "Tensao corporal"
+    ],
+    "sonoCaracteristicas": [
+      "Dificuldade para adormecer",
+      "Despertares noturnos"
+    ],
+    "apetiteCaracteristicas": [
+      "Compulsao alimentar"
+    ],
+    "usoSubstanciasComportamentos": [
+      "Alcool",
+      "Compras Compulsivas",
+      "Redes Sociais"
+    ],
+    "psicoseSintomas": [
+      "Nega sintomas relacionados"
+    ],
+    "riscoSuicidioIndicadores": [
+      "Ideacao suicida",
+      "Tentativa de suicidio previa",
+      "Autoagressao sem intencao suicida"
+    ],
+    "riscoSuicidioRazoesViver": "Ideacao flutuante, ligada a rupturas. Nega plano atual e nega intencao no momento da consulta.",
+    "riscoSuicidioRazoesParaViver": "A irma mais velha e o trabalho, onde se sente competente.",
+    "psiPrevios": [
+      "Depressao"
+    ],
+    "tratamentos": [
+      "Antidepressivos",
+      "Psicoterapia"
+    ],
+    "familiares": [
+      "Depressao",
+      "Tentativa ou Suicidio"
+    ],
+    "fatores": [
+      "Conflito familiar",
+      "Outro"
+    ],
+    "fatoresOutro": "Rupturas amorosas e situacoes vividas como abandono.",
+    "fatoresMelhora": [
+      "Psicoterapia",
+      "Rotina estruturada"
+    ],
+    "impacto": [
+      "Grave",
+      "Prejuizo social",
+      "Prejuizo familiar"
+    ],
+    "aparencia": [
+      "Seducao",
+      "Hostilidade"
+    ],
+    "consciencia": [
+      "Consciente",
+      "Orientado",
+      "Dissociacao"
+    ],
+    "atencao": [
+      "Vigil"
+    ],
+    "memoria": [
+      "Preservada"
+    ],
+    "sensopercepcao": [
+      "Despersonalizacao"
+    ],
+    "pensamentoCursoForma": [
+      "Adequado"
+    ],
+    "pensamentoConteudo": [
+      "Ideacao suicida"
+    ],
+    "linguagem": [
+      "Adequada"
+    ],
+    "humor": [
+      "Disforia (irritabilidade extrema)"
+    ],
+    "afeto": [
+      "Labilidade afetiva",
+      "Incontinencia afetiva"
+    ],
+    "psicomotricidade": [
+      "Sem alteracao"
+    ],
+    "vontade": [
+      "Impulsividade"
+    ],
+    "juizoCritico": [
+      "Critica parcial"
+    ],
+    "conscienciaOutro": "Episodios dissociativos breves, de minutos a horas, sempre associados a estresse interpessoal.",
+    "afetoOutro": "Passa de choro a riso e a irritacao dentro da mesma entrevista, com mudanca a partir do tema tratado.",
+    "id": "c-caso-09",
+    "patientId": "p-caso-09",
+    "type": "consultation",
+    "consultationMode": "IN_PERSON",
+    "anamnesisInputMode": "manual",
+    "label": "Consulta — caso fictício 09",
+    "createdAt": "2026-08-19T09:00:00.000Z"
+  },
+  {
+    "queixa": "Vim porque o juiz mandou. Problema quem tem sao os outros.",
+    "hdaManual": "Encaminhado por determinacao judicial, no contexto de medida protetiva requerida pela ex-companheira. Refere, desde os treze anos, brigas frequentes, furtos em casa e no comercio, tres expulsoes escolares e fuga de casa por semanas. Abandonou a escola no oitavo ano. Historico de empregos que duram menos de tres meses, terminados por conflito com chefia ou por faltas. Tres passagens pela policia por lesao corporal e furto. Nao paga pensao do filho de sete anos, que ve 'quando da'. Descreve com detalhe e sem constrangimento episodios em que enganou pessoas por dinheiro, e comenta que 'quem cai e porque e bobo'. Nao apresenta arrependimento ao falar da ex-companheira, e atribui as agressoes a provocacao dela. Uso de alcool nos fins de semana e de cocaina inalada de forma episodica.",
+    "medicos": "Cicatriz de ferimento por arma branca em hemitorax esquerdo, ha seis anos. Sem comorbidade clinica em acompanhamento. Nao usa medicacao.",
+    "depressaoSintomas": [],
+    "maniaHipomaniaSintomas": [
+      "Nega sintomas relacionados"
+    ],
+    "ansiedadeSintomas": [
+      "Irritabilidade"
+    ],
+    "sonoCaracteristicas": [
+      "Sono reparador"
+    ],
+    "apetiteCaracteristicas": [],
+    "usoSubstanciasComportamentos": [
+      "Alcool",
+      "Cocaina",
+      "Nicotina",
+      "Jogos de Azar"
+    ],
+    "psicoseSintomas": [
+      "Nega sintomas relacionados"
+    ],
+    "riscoSuicidioIndicadores": [
+      "Nega ideacao, plano ou intencao suicida"
+    ],
+    "psiPrevios": [
+      "Outro"
+    ],
+    "psiPreviosOutro": "Transtorno de conduta na adolescencia, referido em avaliacao escolar aos catorze anos.",
+    "tratamentos": [],
+    "familiares": [
+      "Outro"
+    ],
+    "familiaresOutro": "Pai com dependencia de alcool e passagens pela policia; ausente a partir dos oito anos do paciente.",
+    "fatores": [
+      "Uso de substancias",
+      "Problemas financeiros"
+    ],
+    "fatoresMelhora": [],
+    "impacto": [
+      "Grave",
+      "Prejuizo social",
+      "Prejuizo familiar"
+    ],
+    "aparencia": [
+      "Arrogancia",
+      "Hostilidade",
+      "Seducao",
+      "Simulacao"
+    ],
+    "consciencia": [
+      "Consciente",
+      "Orientado"
+    ],
+    "atencao": [
+      "Vigil"
+    ],
+    "memoria": [
+      "Preservada"
+    ],
+    "sensopercepcao": [
+      "Sem alteracao"
+    ],
+    "pensamentoCursoForma": [
+      "Adequado"
+    ],
+    "pensamentoConteudo": [
+      "Adequado"
+    ],
+    "linguagem": [
+      "Adequada"
+    ],
+    "humor": [
+      "Eutimia (normal)"
+    ],
+    "afeto": [
+      "Embotamento"
+    ],
+    "psicomotricidade": [
+      "Sem alteracao"
+    ],
+    "vontade": [
+      "Impulsividade"
+    ],
+    "juizoCritico": [
+      "Incapacidade de prever consequencias dos atos",
+      "Negacao da doenca"
+    ],
+    "afetoOutro": "Frieza afetiva ao relatar prejuizos causados a terceiros; ausencia de remorso, sem tristeza nem ansiedade associadas.",
+    "aparenciaOutro": "Alterna cordialidade calculada e hostilidade conforme percebe vantagem na resposta do examinador.",
+    "id": "c-caso-10",
+    "patientId": "p-caso-10",
+    "type": "consultation",
+    "consultationMode": "IN_PERSON",
+    "anamnesisInputMode": "manual",
+    "label": "Consulta — caso fictício 10",
+    "createdAt": "2026-08-20T09:00:00.000Z"
+  }
+];
+  const semDuplicata = (lista, ids) => (Array.isArray(lista) ? lista : []).filter(x => !ids.has(x.id));
+  const idsPacientes = new Set(pacientes.map(p => p.id));
+  const idsConsultas = new Set(consultas.map(c => c.id));
+  const novo = {
+    ...atual,
+    patients: [...pacientes, ...semDuplicata(atual.patients, idsPacientes)],
+    consultations: [...consultas, ...semDuplicata(atual.consultations, idsConsultas)],
+    returns: Array.isArray(atual.returns) ? atual.returns : []
+  };
+  localStorage.setItem(CHAVE, JSON.stringify(novo));
+  console.log('Casos carregados. Pacientes agora:', novo.patients.length);
+  document.getElementById('saida').textContent =
+    'Pronto: ' + pacientes.length + ' casos carregados. Voltando ao app...';
+  setTimeout(() => { location.href = '/index.html'; }, 1200);
+});
+</script></body></html>
