@@ -2559,3 +2559,15 @@ textarea:focus-visible {
   .sync-status.sync-failed { color: #ffd9bf; background: #4a2412; border-color: #8a4a22; }
   .sync-status.storage-failed { color: #ffd4d4; background: #4a1212; border-color: #8a2222; }
 }
+
+/* Nivel de cuidado: primeiro bloco da Conduta, largura inteira. Fica fora do
+   treatment-card-grid de proposito -- e uma decisao unica, e nao mais um cartao
+   competindo por atencao com medicamento e exames. */
+.care-card { margin-bottom: 14px; }
+.care-levels { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; margin: 10px 0; }
+.care-option { align-items: flex-start; }
+.care-option small { display: block; opacity: 0.75; line-height: 1.45; margin-top: 2px; }
+/* A sugestao da IA fica visivel sem vir marcada: quem assinala e o medico. */
+.care-suggested { outline: 1px solid currentColor; outline-offset: 2px; border-radius: 6px; }
+.care-tag { font-style: normal; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.7; }
+.care-warning { margin: 8px 0 0; font-weight: 600; line-height: 1.5; }

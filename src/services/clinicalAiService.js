@@ -1,4 +1,5 @@
 import { diagnosticAggravatingOptionLines, diagnosticComorbidityOptionLines, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSpecifierOptionLines, diagnosticSyndromicOptionLines, formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharmacologicalOption, normalizeDiagnosticOptions, parseTreatmentResponse, selectedAggravatingValues, selectedComorbidityValues, selectedDiagnosisValues, selectedSpecifierValues, treatmentOptionLines } from "../clinical/diagnosis.js";
+import { careLevelOptions as CARE_LEVELS } from "../data/careLevels.js";
 import { anamnesisText, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, patientIdentificationText, professionalSelectedTreatmentItems, refinementAnswersText, requestedExamsText, returnStoryText, treatmentDiagnosisText } from "../clinical/narrative.js";
 import { arrayValue, cleanClinicalLine, compactText, formatClinicalList, joinValues, normalizeText, stripFinalPeriod } from "../clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, MENTAL_EXAM_AI_FIELDS } from "../clinical/vocabulary.js";
@@ -104,7 +105,43 @@ export function buildRagQuery(kind, form = {}) {
   // vai contra a biblioteca marcada "sintomatico". O diagnostico entra so como
   // contexto, no fim: quem manda aqui e o sintoma.
   if (kind === "symptomatic") return `Manejo sintomatico e alivio imediato de: ${alvos || symptoms}. Conduta farmacologica e nao farmacologica dirigida ao sintoma. Contexto clinico: ${diagnosis}; ${symptoms}`.slice(0, 4000);
-  if (kind === "diagnosis") return `Criterios diagnosticos e diagnostico diferencial para: ${symptoms}`.slice(0, 4000);
+  // A CONSULTA FALA A LINGUA DO LIVRO, e nao a do formulario.
+  //
+  // Ate 28/08/2026 esta linha mandava `symptoms`, que comeca pelas listas de
+  // sintomas em linguagem de paciente -- "Desinteresse ou falta de prazer",
+  // "Cansaco ou falta de energia", "Sentimento de ruina". Nenhum livro escreve
+  // assim: eles escrevem anedonia, fadiga, delirio de ruina. As listas leigas
+  // afogavam os termos clinicos, e a busca nao achava nada.
+  //
+  // Medido nos 10 casos, contando trechos acima do limiar (maximo 80):
+  //
+  //     consulta antiga (listas leigas primeiro) ......  4
+  //     exame psiquico apenas ......................... 38 a 53
+  //     exame psiquico + queixa ....................... 56 a 58   <- esta
+  //
+  // Em OITO dos dez casos a consulta antiga recuperava ZERO trechos. Zero fonte
+  // e 422 no servidor, e 422 derruba a etapa no catalogo local de 27 regras --
+  // entao o medico que apertava "Gerar" em modo RAG recebia casamento de termo
+  // com um aviso de indisponibilidade, e nao a literatura. Isso explica por que
+  // o RAG parecia perder feio para um modelo de nuvem sem livro nenhum: na
+  // maioria dos casos nao havia RAG na resposta.
+  //
+  // O exame psiquico ja esta escrito em vocabulario clinico -- bradipsiquismo,
+  // hipotimia, hipobulia, delirio de ruina, bradilalia -- porque e o campo que
+  // o medico preenche com os termos dele. E o pedaco do prontuario que mais se
+  // parece com o texto dos livros. A queixa entra depois porque ancora o motivo
+  // da consulta; sozinha ela rende menos (2 de 8 no caso 1).
+  //
+  // Tamanho nao era o problema: cortar a consulta antiga para 250 caracteres
+  // manteve 0 de 8. Vocabulario era.
+  if (kind === "diagnosis") {
+    const exame = mentalStateFindings(form).join("; ");
+    // Sem exame preenchido — diagnostico pedido antes dele — cai na formulacao
+    // antiga, que e o unico dado que existe nessa hora.
+    return exame
+      ? `Criterios diagnosticos e diagnostico diferencial. Exame psiquico: ${exame}. Queixa: ${form.queixa || ""}`.slice(0, 4000)
+      : `Criterios diagnosticos e diagnostico diferencial para: ${symptoms}`.slice(0, 4000);
+  }
   // A busca da revisao nao repete a da geracao: o que se pergunta ao livro
   // especializado e se AQUELAS hipoteses se sustentam. Sem as hipoteses na
   // consulta, o refino recuperaria os mesmos trechos genericos do quadro e
@@ -237,6 +274,16 @@ function validateClinicalAiPayload(kind, result, text = "") {
     });
   }
   if (kind === "treatment") {
+    // Nivel sem justificativa e descartado, e nao fatal: indicar leito sem
+    // escrever por que e o que nao pode chegar ao prontuario. Mesma regra do
+    // servidor -- validar nos dois lados porque a tela tambem recebe resposta
+    // pelo caminho de texto plano, que nao passa pelo schema.
+    const nivel = result.care_level;
+    const nivelValido = nivel && CARE_LEVELS.includes(String(nivel.level || "").trim())
+      && String(nivel.justification || "").trim();
+    result.care_level = nivelValido
+      ? { level: String(nivel.level).trim(), justification: String(nivel.justification).trim() }
+      : null;
     if (!Array.isArray(result.medication_options) || result.medication_options.length > 3) throw new Error("O tratamento aceita no máximo 3 opções medicamentosas.");
     if (!Array.isArray(result.non_pharmacological_options) || result.non_pharmacological_options.length > 3) throw new Error("O tratamento aceita no máximo 3 abordagens não farmacológicas.");
     // Descarta a opcao incompleta em vez de derrubar a resposta: sem indicacao
@@ -346,6 +393,7 @@ function parseFallbackClinicalText(kind, text = "") {
   if (kind === "treatment") {
     const parsed = parseTreatmentResponse(text);
     return {
+      care_level: parsed.careLevel,
       medication_options: parsed.medicationOptions,
       non_pharmacological_options: parsed.approachOptions
     };
@@ -427,6 +475,16 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "Nao gere diagnostico nem tratamento."
     ],
     diagnosis: [
+      // Pedido dele, 28/08/2026: "Os diagnosticos devem ter o DSM-5-TR e CID-11
+      // como pressupostos basicos -- eles sao o padrao ouro." Os dois entraram
+      // no acervo nesse dia, no genero "criterios", e esta etapa os le. Ate
+      // entao o app nao tinha FONTE DE CRITERIO nenhuma: psicopatologia
+      // descreve fenomeno, sindromes descreve entidade, e nenhum dos dois traz
+      // "cinco dos nove sintomas por duas semanas" nem a lista de
+      // especificadores -- que foi justamente o que ele teve de corrigir a mao.
+      "DSM-5-TR e CID-11 sao o padrao de referencia desta etapa, e nao duas fontes entre outras. Toda hipotese NOSOLOGICA deve ser entidade existente em um dos dois; rotulo descritivo que nao seja entidade dessas classificacoes nao entra nessa camada — se for conjunto de achados, e sindromico.",
+      "Confira os criterios na literatura recuperada antes de propor: numero de sintomas, duracao minima, prejuizo funcional e exclusoes. Proponha o que os criterios sustentam, e nao o que o quadro sugere de longe. Quando um criterio decisivo nao puder ser verificado com o que esta registrado, diga isso na justificativa em vez de assumir que esta preenchido.",
+      "Os especificadores devem sair das listas oficiais do DSM-5-TR ou da CID-11 para AQUELA entidade: gravidade; com sintomas psicoticos, dizendo se sao congruentes ou incongruentes com o humor; caracteristicas melancolicas, atipicas, catatonicas, ansiosas; padrao sazonal; curso e remissao. Nao invente especificador descritivo fora dessas listas.",
       "Analise de forma integrada e nao superficial toda a anamnese, os antecedentes, o impacto funcional, os riscos e cada dominio preenchido do exame psiquico.",
       "Gere ate 3 hipoteses nosologicas, ate 3 sindromicas e ate 2 etiologicas: e teto, nao piso. Grupo vazio e resposta legitima quando o registro nao sustenta.",
       // As tres camadas nao sao rotulos alternativos do mesmo achado: sao
@@ -455,6 +513,15 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "Comorbidade e agravante sem apoio no registro nao entram. Lista vazia e resposta legitima nos dois grupos.",
     ],
     treatment: [
+      // Primeira instrucao da etapa, e nao a ultima: onde tratar decide-se antes
+      // de com o que tratar. Num caso de depressao psicotica com recusa
+      // alimentar, perda de 11 kg e ideacao suicida, a resposta trazia
+      // antidepressivo e psicoeducacao sem em nenhum momento dizer que aquilo
+      // era indicacao de leito.
+      `Comece por 'care_level': onde este paciente deve ser tratado. Escolha UMA modalidade, exatamente como escrita, da lista fechada: ${CARE_LEVELS.join("; ")}. Nao invente modalidade fora da lista.`,
+      "Em 'justification', diga em uma frase por que esse nivel, ancorada no que esta registrado — risco atual, capacidade de autocuidado, suporte disponivel, adesao, gravidade. Nivel sem justificativa e descartado.",
+      "Recuse o ambulatorio quando o registro nao o sustentar: risco de suicidio com intencao, recusa alimentar com perda ponderal, sintomas psicoticos que impedem o autocuidado, e incapacidade de garantir seguranca em casa sao indicacao de leito ou de emergencia, e nao de retorno agendado.",
+      "As modalidades de internacao seguem a Lei 10.216/2001, e a diferenca entre elas e juridica: voluntaria e com consentimento escrito do paciente; involuntaria e sem o consentimento dele, a pedido de terceiro; compulsoria e determinada por juiz. Escolha pela situacao do caso, e nao pela gravidade isolada.",
       "Gere ate 3 opcoes de abordagem medicamentosa: primeira opcao, segunda opcao e uma opcao off-label, exclusivamente com dados do Assistant da IA atual ou do RAG com literatura. E teto, nao piso.",
       "Quando o quadro nao sustentar farmacoterapia — ausencia de psicopatologia de relevancia clinica, sintoma reativo ou adaptativo — devolva a lista de medicamentos VAZIA. Nao preencha a vaga com 'nao indicado', 'nenhum' ou linha sem dose: lista vazia e a resposta correta, e as orientacoes carregam a conduta.",
       // Remissao do quadro agudo nao e alta terapeutica: suspender manutencao
@@ -690,6 +757,9 @@ function promptResponseFormat(kind) {
   }
   if (kind === "treatment") {
     return [
+      "NIVEL DE CUIDADO:",
+      "Modalidade exatamente como na lista | Justificativa em uma frase, ancorada no registro",
+      "",
       "TRATAMENTO MEDICAMENTOSO:",
       "Medicamento | Dose inicial: ... | Progressao: ... | Dose final: ...",
       "(ate 3 opcoes; menos, se o quadro nao sustentar mais)",

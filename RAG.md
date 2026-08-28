@@ -1,74 +1,96 @@
 # Biblioteca RAG de psiquiatria
 
-O aplicativo preserva o modo `IA atual` e oferece uma biblioteca RAG de psiquiatria. A de semiologia e compartilhada
-pela Anamnese e pelo Refinamento; Diagnostico, Tratamento e Medicamento tem livro proprio em cada uma das suas duas passadas.
-Os PDFs nao devem ser adicionados ao Git. Somente materiais licenciados ou autorizados devem ser indexados.
+O aplicativo preserva o modo `IA atual` e oferece uma biblioteca RAG de psiquiatria: **14 arquivos, 14 titulos,
+um genero e um leitor para cada**. Os PDFs nao devem ser adicionados ao Git. Somente materiais licenciados ou autorizados devem
+ser indexados.
 
 ## Preparacao
 
 ```bash
 python3 -m pip install -r requirements.txt
 export OPENAI_API_KEY="..."
-python3 scripts/ingest_rag.py \
-  "/caminho/fonte-1.pdf" \
-  "/caminho/fonte-2.pdf"
+python3 scripts/ingest_rag.py --escopo psicopatologia "/caminho/fonte.pdf"
 ```
 
 Copie o `OPENAI_RAG_VECTOR_STORE_ID` exibido para `.env` e reinicie `server.py`.
 
-## Escopo da fonte
+## A etiqueta diz o que o livro E, e nunca quem o le
 
-A biblioteca e uma so, mas as etapas nao pedem a mesma coisa: o tratado de
-psicofarmacologia nao ajuda a conduzir uma anamnese, e a psicopatologia nao
-dita dose. Cada fonte entra marcada com `--escopo`, e a busca filtra por etapa.
+Esta e a regra que organiza tudo o que vem abaixo, e ela foi aprendida errando.
 
-| Escopo | Quem recupera |
+Ate 28/08/2026 a etiqueta nomeava o leitor: `diagnostico_base`, `tratamento_base`,
+`medicamento_refino`, `refino`. Parecia pratico e custou caro, de tres maneiras:
+
+1. **Trocar quem le um livro exigia mexer no arquivo remoto**, quando deveria ser
+   uma linha de codigo.
+2. **O mesmo livro precisou ser subido duas vezes** para carregar dois rotulos. A
+   Psicofarmacologia 2025 e o Tratado da ABP estavam duplicados na store.
+3. **O `tag_rag_scope.py` envelheceu ate ficar destrutivo.** O mapa dele ainda
+   mandava `("psicofarmacologia", "farmacologia")` e `("guia de prescri",
+   "farmacologia")`; roda-lo apagaria os escopos do Medicamento e do
+   Sintoma-Alvo, e o fallback jogaria os dois volumes da FMUSP em `ambos`. Cinco
+   etapas parariam de achar o livro delas **sem uma linha de erro**: a busca
+   simplesmente nao casa, e a tela diz que nao encontrou fonte.
+
+Genero e propriedade do livro e nao muda. Leitura e decisao clinica e muda quando
+ele quiser — e agora muda em um lugar so, sem tocar em nada na nuvem.
+
+| Genero | Livros |
 | --- | --- |
-| `semiologia` | Anamnese, Refinamento |
-| `ambos` | Anamnese, Refinamento |
-| `sintomatico` | Sintoma-Alvo |
-| `diagnostico_base` | Diagnostico, primeira passada |
-| `tratamento_base` | Tratamento, primeira passada |
-| `medicamento_base` | Medicamento, primeira passada |
-| `refino` | revisao do Diagnostico e do Tratamento |
-| `medicamento_refino` | revisao do Medicamento |
-| `farmacologia` | **ninguem** — ver abaixo |
+| `psicopatologia` | Dalgalarrondo; Cheniaux 6a ed.; FMUSP vol. 1 (Secao 2: Psicopatologia) |
+| `entrevista` | Psicopatologia clinica: entrevista psiquiatrica (USP/Manole); A entrevista psiquiatrica na pratica clinica |
+| `sindromes` | Clinica Psiquiatrica FMUSP, vol. 2 |
+| `terapeutica` | FMUSP vol. 3; FMUSP vol. 4 (Guia Pratico); Clinica de bolso IPq, 3a ed.; Condutas em Psiquiatria (Baldacara e Teng) |
+| `tratado` | Tratado de Psiquiatria da ABP; Kaplan e Sadock, Compendio, 11a ed. |
+| `prescricao` | Stahl, Guia de Prescricao |
+| `psicofarmacologia` | Psicofarmacologia: Da Teoria a Clinica (2025) |
 
-`farmacologia` ficou orfao quando Tratamento e Medicamento passaram a ler um
-livro so cada: eram os seus dois unicos leitores. Os tres livros marcados assim
-seguem indexados e nao respondem em etapa nenhuma. Nao foram removidos: no dia
-que uma etapa precisar deles, basta apontar o escopo, sem reindexar.
+Dentro de um genero, mais livro e estritamente melhor. A busca devolve os **8
+melhores trechos no total**, e nao 8 por livro: somar um livro nao tira vaga de
+ninguem, so acrescenta candidatos a disputa. Livro irrelevante perde e nao custa
+nada; livro que cobre uma entidade rara — Cotard esta em alguns e nao em outros —
+e a diferenca entre chegar nela e nao chegar.
 
-```bash
-python3 scripts/ingest_rag.py --escopo sintomatico "/caminho/manejo-sintomatico.pdf"
-```
+O que dilui e **misturar genero**, e nao somar titulo. Numa pergunta diagnostica,
+trechos de psicofarmacologia pontuam alto o bastante para ocupar vagas, porque
+sao topicamente vizinhos, mas respondem outra pergunta. Foi isso que borrou a
+resposta quando cinco livros competiam sem filtro.
 
-A fonte do Sintoma-Alvo e a Psicofarmacologia: Da Teoria a Clinica (2025), que
-substituiu ali o Guia de Prescricao do Stahl por decisao dele. O Stahl foi
-desassociado do vector store, e nao apagado da conta: reassociar nao pede novo
-upload.
+## Quem le o que
 
-O mesmo livro entra mais de uma vez, com etiquetas diferentes — a de 2025 esta
-em `sintomatico` e em `medicamento_refino`. Isso e desenho, e nao acidente: cada
-copia responde a uma pergunta diferente. Por isso o catalogo local e chaveado
-por (nome, escopo); chaveado so pelo nome, indexar a segunda copia apagava a
-linha da primeira, que seguia viva no vector store.
+Decidido em `RAG_SCOPE_BY_KIND`, no `server.py`, e em nenhum outro lugar.
+Etapa fora do mapa busca sem filtro.
+
+| Etapa | Genero(s) |
+| --- | --- |
+| Anamnese, Refinamento | `psicopatologia` + `entrevista` |
+| Diagnostico, **gera** | `psicopatologia` + `sindromes` |
+| Diagnostico, **revisa** | `tratado` |
+| Tratamento, **gera** | `terapeutica` |
+| Tratamento, **revisa** | `tratado` |
+| Medicamento, **gera** | `prescricao` |
+| Medicamento, **revisa** | `psicofarmacologia` |
+| Sintoma-Alvo | `psicofarmacologia` |
+| BIPP TIPS | `psicofarmacologia` |
+
+### Por que o Diagnostico le dois generos
+
+Nomear a sindrome exige os dois lados: o **fenomeno** e a **entidade**.
+Dalgalarrondo e Cheniaux descrevem o quadro pelo fenomeno — Cotard, catatonia,
+delirio niilista, tracos melancolicos. A FMUSP vol. 2 organiza por entidade
+nosologica.
+
+Ate 28/08/2026 esta etapa lia **so** a FMUSP: os dois livros de psicopatologia do
+acervo entravam na Anamnese e saiam antes da hora de nomear a sindrome. Num caso
+de depressao psicotica com sindrome de Cotard, o app nao chegou nela — e um
+modelo sem livro nenhum chegou.
+
+Isto nao contradiz a decisao de cortar de cinco livros para um. O que diluia,
+quando cinco competiam no mesmo embedding, era **psicofarmacologia disputando com
+psicopatologia**: perguntas diferentes, resposta borrada. Livros do MESMO genero
+se reforcam. O numero nunca foi o problema; a mistura de genero era.
 
 ## Duas passadas no Diagnostico, no Tratamento e no Medicamento
-
-Estas tres etapas nao leem a lista inteira do escopo: leem **um livro cada**.
-Decisao dele, depois de cinco livros competirem no mesmo embedding — a resposta
-nao era rastreavel a uma fonte, e o livro especializado disputava com o geral na
-hora de propor, quando ele deveria entrar depois, para revisar.
-
-| Passada | Livro | Escopo |
-| --- | --- | --- |
-| Diagnostico, gera | Clinica Psiquiatrica FMUSP, vol. 2 | `diagnostico_base` |
-| Diagnostico, revisa | Tratado de Psiquiatria da ABP | `refino` |
-| Tratamento, gera | Clinica Psiquiatrica FMUSP, vol. 3 | `tratamento_base` |
-| Tratamento, revisa | Tratado de Psiquiatria da ABP | `refino` |
-| Medicamento, gera | Stahl, Guia de Prescricao | `medicamento_base` |
-| Medicamento, revisa | Psicofarmacologia: Da Teoria a Clinica (2025) | `medicamento_refino` |
 
 A primeira passada e o botao **Gerar**: propoe, o medico assinala. A segunda e o
 botao **Refinar**, e e opcional — sem clique, o registro fica como a primeira
@@ -77,6 +99,9 @@ passada e a marca `[assinalado pelo medico]` no que ele aceitou, e responde com
 a MESMA estrutura, camada por camada. Nao e um comentario sobre a primeira
 passada: e a primeira passada refeita, e **substitui a tela inteira** — o que a
 revisao nao repetir sai do prontuario.
+
+O geral propoe, o medico assinala, e o especializado entra depois para revisar,
+em vez de competir com o geral na hora de propor.
 
 No Medicamento a revisao pesa mais do que nas outras duas: o que se confere e
 dose, titulacao, teto, contraindicacao e interacao, onde errar chega na receita.
@@ -90,25 +115,40 @@ dessa etapa. Os campos que nao vem da IA — mecanismo, monitorizacao, populacoe
 especiais, preenchidos pela busca local e online — nao sao tocados pela revisao.
 
 Por isso os `kind` de revisao (`diagnosis_review`, `treatment_review`,
-`medication_review`) reaproveitam schema, validacao e texto plano do `kind` que revisam. So mudam
-tres coisas: a busca, que pergunta pelas hipoteses propostas em vez de pelo
-quadro; o escopo, que aponta para o outro livro; e a tarefa no prompt, que poe o
-modelo no papel de revisor.
+`medication_review`) reaproveitam schema, validacao e texto plano do `kind` que
+revisam. So mudam tres coisas: a busca, que pergunta pelas hipoteses propostas em
+vez de pelo quadro; o genero lido, que aponta para o outro livro; e a tarefa no
+prompt, que poe o modelo no papel de revisor.
 
-`refino` e um escopo so para as duas etapas porque o livro revisor e o mesmo. O
-que separa revisar diagnostico de revisar tratamento e a pergunta e o contexto
-do prompt, nao o corpus — subir o mesmo arquivo duas vezes para trocar o rotulo
-nao mudaria o que a busca encontra.
+As duas revisoes leem o mesmo `tratado` porque o livro revisor e o mesmo. O que
+separa revisar diagnostico de revisar tratamento e a pergunta e o contexto do
+prompt, nao o corpus.
 
-Anamnese e Refinamento nao foram tocados: seguem com `semiologia` + `ambos`,
-cinco livros, porque ali a pergunta e de cobertura semiologica e nao de decisao
-rastreavel a uma fonte.
+## Tirar um livro da biblioteca
+
+```bash
+python3 scripts/desassociar_rag.py --escopo psicofarmacologia          # so mostra
+python3 scripts/desassociar_rag.py --file-id file-abc --aplicar
+```
+
+Desassociar **nao apaga da conta**: o arquivo continua la, e reassociar nao pede
+novo upload de um PDF de centenas de megabytes. Livro tirado por engano volta em
+segundos. Apagar da conta nao esta automatizado, e e de proposito — e a operacao
+que nao tem volta, e nao deve ficar a um argumento de distancia da que tem.
+
+Sairam da biblioteca em 28/08/2026, com os arquivos preservados na conta: o Stahl
+Psicofarmacologia Clinica, o Stahl Guia de Prescricao 2019, o Cordioli
+Psicofarmacos consulta rapida (os tres orfaos do antigo `farmacologia`, que nao
+respondiam em etapa nenhuma), o Manual do Residente e uma segunda copia do
+Tratado da ABP (psiquiatria geral, e nao tecnica de entrevista), e a copia
+duplicada da Psicofarmacologia 2025, que a etiqueta por genero tornou
+desnecessaria.
 
 ## BIPP TIPS
 
 A ficha do Medicamento traz sempre a secao **BIPP TIPS** daquele farmaco, da
-Psicofarmacologia: Da Teoria a Clinica (2025) — a mesma obra do
-`medicamento_refino`, e por isso o mesmo escopo. E chamada separada da ficha
+Psicofarmacologia: Da Teoria a Clinica (2025) — a mesma obra da revisao
+do Medicamento, e por isso o mesmo genero. E chamada separada da ficha
 porque e outra coisa: a ficha e redigida a partir da literatura, os tips sao
 reproduzidos de uma secao que ja existe escrita, no fim do capitulo de cada
 farmaco, antes das referencias.

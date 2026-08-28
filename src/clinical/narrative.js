@@ -86,7 +86,7 @@ export function buildEvolutionNarrative(form, patient = {}, previous = null, isR
   ].filter(Boolean).join("\n\n"));
 }
 
-function professionalTreatmentText(form = {}, isReturn = false) {
+export function professionalTreatmentText(form = {}, isReturn = false) {
   const medications = professionalSelectedTreatmentItems(form.tratamentoMedicamentosSelecionados, form.tratamentoMedicamentoso);
   const approaches = professionalSelectedTreatmentItems(form.abordagensSelecionadas, form.abordagensTerapeuticas);
   const returnMedicationActions = professionalListWithOther(
@@ -96,7 +96,16 @@ function professionalTreatmentText(form = {}, isReturn = false) {
   const targetSymptomConducts = professionalSelectedTreatmentItems(form.sintomasAlvoSelecionados, "");
   const physicianPlan = professionalClinicalTerms(stripFinalPeriod(form.condutaMedica || ""));
   const selectedExams = professionalClinicalTerms(requestedExamsText(form) || form.examesLaboratoriais || "");
+  // PRIMEIRA frase da conduta, e nao a ultima: quem le o prontuario depois
+  // precisa saber onde o paciente foi tratado antes de saber com o que. Vale
+  // sobretudo quando quem le e o proprio medico, meses adiante, tentando
+  // entender por que aquela consulta terminou como terminou.
+  const nivelCuidado = stripFinalPeriod(String(form.nivelCuidado || "").trim());
+  const justificativaNivel = stripFinalPeriod(String(form.nivelCuidadoJustificativa || "").trim());
   const sentences = [
+    nivelCuidado
+      ? `O nível de cuidado definido é ${lowerFirst(nivelCuidado)}${justificativaNivel ? `, ${lowerFirst(justificativaNivel)}` : ""}.`
+      : "",
     medications ? `O tratamento medicamentoso selecionado inclui ${lowerFirst(medications)}.` : "",
     approaches ? `Como medidas não farmacológicas, foram selecionadas ${lowerFirst(approaches)}.` : "",
     isReturn && returnMedicationActions ? `A conduta medicamentosa definida no retorno inclui ${lowerFirst(returnMedicationActions)}.` : "",

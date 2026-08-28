@@ -18,6 +18,21 @@ logger = logging.getLogger("prontuario")
 API_URL = "https://api.openai.com/v1/responses"
 AUDIO_TRANSCRIPTIONS_API_URL = "https://api.openai.com/v1/audio/transcriptions"
 VECTOR_STORE_API_URL = "https://api.openai.com/v1/vector_stores/{vector_store_id}/search"
+# Nivel de cuidado: a lista fechada, espelhando src/data/careLevels.js. Vai no
+# enum do schema para que o modelo NAO possa inventar modalidade -- "internacao
+# domiciliar", "observacao" --, que e categoria sem existencia juridica no Brasil
+# e que ninguem saberia executar. As modalidades de internacao sao as da Lei
+# 10.216/2001.
+CARE_LEVELS = [
+    "Ambulatorial",
+    "Ambulatorial intensivo",
+    "Hospital-dia",
+    "Internação voluntária",
+    "Internação involuntária",
+    "Internação compulsória",
+    "Encaminhamento imediato a emergência",
+]
+
 DEFAULT_MODEL = "gpt-4.1"
 DEFAULT_TRANSCRIPTION_MODEL = "gpt-4o-transcribe-diarize"
 # O refinamento leva o catalogo do protocolo inteiro — 436 perguntas, 110
@@ -446,6 +461,20 @@ SCHEMAS = {
         "type": "object",
         "additionalProperties": False,
         "properties": {
+            # PRIMEIRO campo do tratamento, e nao um apendice: onde tratar vem
+            # antes de com o que tratar. Num caso de depressao psicotica com
+            # recusa alimentar e ideacao suicida, o programa propunha sertralina
+            # e psicoeducacao sem em nenhum momento dizer que aquilo era
+            # indicacao de leito.
+            "care_level": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "level": {"type": "string", "enum": CARE_LEVELS},
+                    "justification": {"type": "string"},
+                },
+                "required": ["level", "justification"],
+            },
             "medication_options": {
                 "type": "array",
                 "minItems": 0,
@@ -477,7 +506,7 @@ SCHEMAS = {
                 },
             },
         },
-        "required": ["medication_options", "non_pharmacological_options"],
+        "required": ["care_level", "medication_options", "non_pharmacological_options"],
     },
     # Etapa propria, com pagina propria e biblioteca propria. O Sintoma-Alvo e a
     # queixa mais urgente, incomoda ou incapacitante, que orienta a conduta
@@ -653,63 +682,118 @@ def extract_response_text(data):
     return "\n\n".join(parts).strip()
 
 
-# Que escopo de fonte cada etapa pode recuperar. A biblioteca e uma so, mas as
-# perguntas nao sao: o tratado de psicofarmacologia nao ajuda a conduzir uma
-# anamnese, e a psicopatologia nao dita dose. Fonte marcada "ambos" entra nas
-# duas listas — e por isso que o filtro cita o escopo proprio E "ambos".
+# QUEM LE O QUE. Este e o unico lugar onde isso se decide.
+#
+# A etiqueta no arquivo diz o GENERO do livro -- "psicopatologia", "tratado",
+# "prescricao" --, que e propriedade dele e nao muda. Quem le cada genero e
+# decisao clinica, e muda quando ele quiser: muda aqui, e nada e re-etiquetado
+# na nuvem.
+#
+# Ate 28/08/2026 era ao contrario: a etiqueta nomeava o leitor
+# ("diagnostico_base", "medicamento_refino"). Custava caro. Trocar um leitor
+# exigia mexer no arquivo remoto; o mesmo livro precisou ser subido DUAS vezes
+# para carregar dois rotulos -- a Psicofarmacologia 2025 e o Tratado da ABP
+# estavam duplicados na store; e o script de etiquetar envelheceu ate ficar
+# destrutivo, porque gravava decisao em vez de fato.
+#
 # Etapa fora deste mapa busca sem filtro, que e o comportamento antigo.
 RAG_SCOPE_BY_KIND = {
-    "anamnesis": ("semiologia", "ambos"),
-    "refinement": ("semiologia", "ambos"),
-    "refinement_scope": ("semiologia", "ambos"),
-    # Diagnostico e Tratamento leem UM livro cada, e nao a lista inteira do
-    # escopo. Decisao dele: com cinco livros competindo no mesmo embedding, a
-    # resposta nao era rastreavel a uma fonte, e o especializado disputava com o
-    # geral na hora de propor. Agora o geral propoe sozinho, o medico assinala,
-    # e o especializado entra depois — no "_review", revisando o que ficou.
-    "diagnosis": ("diagnostico_base",),
-    "diagnosis_review": ("refino",),
-    "treatment": ("tratamento_base",),
-    "treatment_review": ("refino",),
-    # "refino" e um so para as duas revisoes porque o livro revisor e o mesmo, o
-    # Tratado da ABP. O que separa revisar diagnostico de revisar tratamento e a
-    # pergunta e o contexto do prompt, nao o corpus — subir o mesmo arquivo duas
-    # vezes para trocar o rotulo nao mudaria o que a busca encontra.
-    # Mesmo desenho do Diagnostico e do Tratamento, a pedido dele: a ficha do
-    # medicamento sai de um livro so, e o especializado revisa depois. Aqui a
-    # revisao pesa mais do que nas outras duas etapas — o que se revisa e dose,
-    # titulacao, contraindicacao e interacao, onde errar tem consequencia
-    # imediata na prescricao.
-    "medication": ("medicamento_base",),
-    "medication_review": ("medicamento_refino",),
-    # Os BIPP TIPS sao uma secao propria da Psicofarmacologia: Da Teoria a
-    # Clinica (2025), no fim do capitulo de cada farmaco, antes das referencias.
-    # Livro ja indexado como "medicamento_refino" — e o mesmo corpus, entao le o
-    # mesmo escopo. O que muda e a pergunta: aqui nao se revisa nada, se procura
-    # uma secao nomeada.
-    "medication_tips": ("medicamento_refino",),
-    # Aqui a lista tem UM escopo so, sem "ambos", e e de proposito: decisao dele
-    # e que o Guia de Prescricao do Stahl responda sozinho no Sintoma-Alvo, com
-    # a busca perguntando por manejo do sintoma. O mesmo livro segue indexado
-    # como "farmacologia" para o Tratamento, intocado — sao duas copias com
-    # etiquetas diferentes, cada uma respondendo a uma pergunta diferente.
+    # Cobertura semiologica e tecnica de entrevista. Aqui a pergunta e de
+    # cobertura, e nao de decisao rastreavel a uma fonte -- por isso mais de um
+    # livro nao atrapalha.
+    "anamnesis": ("psicopatologia", "entrevista"),
+    "refinement": ("psicopatologia", "entrevista"),
+    "refinement_scope": ("psicopatologia", "entrevista"),
+    # Nomear a sindrome exige os DOIS lados: o fenomeno e a entidade.
+    # Dalgalarrondo e Cheniaux descrevem o quadro pelo fenomeno -- Cotard,
+    # catatonia, delirio niilista, tracos melancolicos --, a FMUSP vol. 2
+    # organiza por entidade nosologica. Ate 28/08/2026 esta etapa lia SO a
+    # FMUSP: os dois livros de psicopatologia do acervo entravam na Anamnese e
+    # saiam antes da hora de nomear. Num caso de depressao psicotica com
+    # sindrome de Cotard, o app nao chegou nela; um modelo sem livro nenhum
+    # chegou. Livros do MESMO genero se reforcam -- o que diluia, quando cinco
+    # competiam no mesmo embedding, era psicofarmacologia disputando com
+    # psicopatologia, que sao perguntas diferentes.
+    # "criterios" entrou em 28/08/2026 com o DSM-5-TR e o capitulo 6 da CID-11.
+    # Era a lacuna: psicopatologia descreve o fenomeno, sindromes descreve a
+    # entidade, e NENHUM dos dois traz o criterio operacional -- "cinco dos nove
+    # sintomas por duas semanas" -- nem a lista de especificadores. Foi
+    # exatamente o que o medico teve de corrigir a mao num caso: gravidade, e
+    # caracteristicas melancolicas e psicoticas congruentes com o humor.
     #
-    # Se um dia entrar aqui uma fonte que nao seja de psicofarmacologia, e a
-    # busca do sintoma passar a competir com ela, revisar esta linha.
-    "symptomatic": ("sintomatico",),
+    # Estes dois livros citam codigo em prosa, e a licao ja medida do projeto e
+    # que a recuperacao acerta o tema e erra o digito. O codigo continua vindo
+    # de tabela; o que se recupera aqui e criterio, e nao numero.
+    "diagnosis": ("psicopatologia", "sindromes", "criterios"),
+    "treatment": ("terapeutica",),
+    # As duas revisoes leem o mesmo tratado porque o revisor e o mesmo. O que
+    # separa revisar diagnostico de revisar tratamento e a pergunta e o contexto
+    # do prompt, nao o corpus.
+    "diagnosis_review": ("tratado",),
+    "treatment_review": ("tratado",),
+    # A ficha do medicamento sai do guia de prescricao, e o especializado revisa
+    # depois. Aqui a revisao pesa mais do que nas outras duas etapas: o que se
+    # confere e dose, titulacao, contraindicacao e interacao, onde errar chega
+    # na receita. Num teste com ficha errada de proposito -- 400 mg/dia de
+    # sertralina --, a revisao devolveu o teto de 200 mg/dia.
+    "medication": ("prescricao",),
+    "medication_review": ("psicofarmacologia",),
+    # Os BIPP TIPS sao uma secao propria da Psicofarmacologia 2025, no fim do
+    # capitulo de cada farmaco. Mesmo livro da revisao; o que muda e a pergunta,
+    # que procura uma secao nomeada em vez de revisar.
+    "medication_tips": ("psicofarmacologia",),
+    # Decisao dele: no Sintoma-Alvo a busca pergunta por manejo do sintoma, e
+    # quem responde e a Psicofarmacologia 2025. Era uma copia separada do
+    # arquivo so para carregar outro rotulo; com a etiqueta por genero, o mesmo
+    # arquivo serve as tres etapas.
+    "symptomatic": ("psicofarmacologia",),
 }
 
 
-def search_rag_sources(query, api_key, kind=""):
+# Generos que a etapa recupera SEMPRE, em busca propria e separada.
+#
+# Pressuposto que disputa vaga nao e pressuposto. O DSM-5-TR e a CID-11 entraram
+# no acervo a pedido dele -- "sao o padrao ouro" --, e na primeira medicao NAO
+# apareceram entre as quatro fontes recuperadas: perdiam para Dalgalarrondo,
+# Cheniaux e FMUSP, que pontuam mais alto porque a consulta e montada com o
+# vocabulario do exame psiquico e eles descrevem fenomeno com essas palavras.
+#
+# Entao o criterio nao concorre: ele tem busca propria e vaga garantida. A busca
+# geral continua trazendo o fenomeno e a entidade; esta traz a regra.
+RAG_ALWAYS_SCOPE_BY_KIND = {
+    "diagnosis": ("criterios",),
+}
+
+# Quantos trechos a busca garantida traz. Poucos de proposito: ela COMPLEMENTA a
+# busca geral, e nao a substitui -- criterio sem fenomeno diagnostica por
+# checklist, que e o oposto do que este programa faz.
+RAG_ALWAYS_MAX_RESULTS = 4
+
+
+def search_rag_sources(query, api_key, kind="", escopos=None):
     vector_store_id = os.environ.get("OPENAI_RAG_VECTOR_STORE_ID", "").strip()
     if not vector_store_id:
         raise ValueError("OPENAI_RAG_VECTOR_STORE_ID nao configurado.")
     request_body = {
         "query": query,
         "max_num_results": int(os.environ.get("OPENAI_RAG_MAX_RESULTS", str(RAG_MAX_RESULTS))),
-        "rewrite_query": True,
+        # DESLIGADO em 28/08/2026, medido. O rewrite manda a consulta a um modelo
+        # que a reescreve antes de buscar, e a reescrita e nao-deterministica:
+        # a MESMA consulta trazia 8 trechos numa rodada e 0 na seguinte. Zero
+        # trecho e 422 aqui embaixo, e 422 derruba a etapa no catalogo local de
+        # 27 regras -- entao o medico recebia literatura ou casamento de termo
+        # conforme a sorte, sem nada na tela explicando a diferenca.
+        #
+        # Medido no Diagnostico, 10 casos, 3 rodadas cada (maximo 240):
+        #     rewrite_query=True .... 161, instavel
+        #     rewrite_query=False ... 240, identico em toda rodada
+        #
+        # O caso de TOC recuperava ZERO nas tres rodadas com rewrite, e 8 de 8
+        # nas tres sem. A consulta que o app monta ja esta em vocabulario
+        # clinico; reescreve-la so a afasta do texto dos livros.
+        "rewrite_query": False,
     }
-    escopos = RAG_SCOPE_BY_KIND.get(kind)
+    escopos = escopos or RAG_SCOPE_BY_KIND.get(kind)
     if escopos:
         request_body["filters"] = {
             "type": "or",
@@ -885,6 +969,18 @@ def validate_result(kind, result):
                 option["effect"] = ""
         result["aggravating_options"] = agravantes_validos
     elif kind == "treatment":
+        # Nivel sem justificativa e descartado, e nao fatal -- mesmo criterio das
+        # opcoes medicamentosas. Indicar leito sem escrever por que e o que nao
+        # pode chegar ao prontuario: a justificativa e o que o medico confere, e
+        # e o que sustenta a indicacao perante quem a le depois.
+        nivel = result.get("care_level")
+        if not (isinstance(nivel, dict)
+                and nivel.get("level") in CARE_LEVELS
+                and isinstance(nivel.get("justification"), str)
+                and nivel["justification"].strip()):
+            if nivel:
+                logger.warning("tratamento: nivel de cuidado sem modalidade valida ou sem justificativa, descartado")
+            result["care_level"] = None
         medications = result.get("medication_options")
         approaches = result.get("non_pharmacological_options")
         if not isinstance(medications, list) or len(medications) > 3:
@@ -1033,6 +1129,45 @@ def search_icd10cm_by_title(cid11_code):
     return [{"code": c, "name": n} for _, _, c, n in marcados[:8]]
 
 
+# Tracos que distinguem codigos IRMAOS dentro da mesma entidade: sao os eixos em
+# que 6A70.3 e 6A70.4 diferem -- um digito, e a diferenca entre "sem sintomas
+# psicoticos" e "com sintomas psicoticos".
+#
+# So estes tres, de proposito. Sao os que a CID-11 usa para subdividir os
+# transtornos do humor, sao os que a IA erra, e sao os que mudam a conduta. Eixo
+# demais transformaria divergencia de redacao em falso alarme.
+def diagnostic_traits(texto):
+    t = normalize_name(texto or "")
+    tracos = {}
+    if "sem sintomas psicoticos" in t or "without psychotic" in t:
+        tracos["psicotico"] = False
+    elif "com sintomas psicoticos" in t or "with psychotic" in t:
+        tracos["psicotico"] = True
+    # Portugues e ingles: a tabela da OMS guarda titulo em portugues e nameEN em
+    # ingles, e o nome que a IA devolve vem em qualquer um dos dois.
+    for chave, marcas in (("leve", ("leve", "mild")),
+                          ("moderado", ("moderad", "moderat")),
+                          ("grave", ("grave", "severe"))):
+        if any(m in t for m in marcas):
+            tracos["gravidade"] = chave
+            break
+    if "recorrente" in t or "recurrent" in t:
+        tracos["curso"] = "recorrente"
+    elif "episodio unico" in t or "single episode" in t:
+        tracos["curso"] = "unico"
+    return tracos
+
+
+def contradicts(nome, titulo_oficial):
+    """Tracos que os dois textos afirmam, e afirmam DIFERENTE.
+
+    Traco ausente de um dos lados nao e contradicao: o nome da IA quase nunca
+    diz tudo o que o titulo da OMS diz.
+    """
+    a, b = diagnostic_traits(nome), diagnostic_traits(titulo_oficial)
+    return {k for k in a.keys() & b.keys() if a[k] != b[k]}
+
+
 def verify_diagnostic_codes(result):
     """Confere os dois codigos de cada hipotese, cada um contra a sua tabela.
 
@@ -1074,6 +1209,42 @@ def verify_diagnostic_codes(result):
             # do nome, cada um identificado pela sua fonte.
             option["cid11"] = code11
             option["cid11Title"] = known11.get(code11, "")
+
+            # O CODIGO PRECISA COMBINAR COM O NOME, e nao apenas existir.
+            #
+            # Ate 28/08/2026 a conferencia parava em "este codigo existe na
+            # tabela?". Numa chamada real, a IA nomeou "Transtorno depressivo
+            # maior, episodio atual grave COM sintomas psicoticos" e devolveu
+            # 6A70.3, que na tabela da OMS e "grave, SEM sintomas psicoticos".
+            # O codigo existe, entao passava — e chegava ao prontuario ao lado
+            # de um nome que afirma o contrario, com o titulo oficial calculado
+            # e nunca mostrado na tela.
+            #
+            # Divergindo, procura o IRMAO: entre os codigos da mesma entidade
+            # (6A70.0 a 6A70.6), aquele cujo titulo oficial afirma tudo o que o
+            # nome afirma. Isso e busca em tabela, e nao chute — havendo um so,
+            # e ele. Havendo zero ou mais de um, o codigo sai: codigo que o
+            # medico tomaria por conferido e pior do que nenhum.
+            divergentes = contradicts(nome, option["cid11Title"]) if code11 else set()
+            if divergentes:
+                raiz = code11.split(".")[0]
+                desejado = diagnostic_traits(nome)
+                irmaos = [c for c, titulo in known11.items()
+                          if c.startswith(raiz + ".")
+                          and all(diagnostic_traits(titulo).get(k) == v for k, v in desejado.items())]
+                eixos = ", ".join(sorted(divergentes))
+                if len(irmaos) == 1:
+                    warnings.append({"kind": "mismatch", "text":
+                        f"{nome}: CID-11 {code11} e \"{option['cid11Title']}\", que contradiz a hipotese "
+                        f"em {eixos}; reancorado em {irmaos[0]}."})
+                    code11 = irmaos[0]
+                else:
+                    warnings.append({"kind": "mismatch", "text":
+                        f"{nome}: CID-11 {code11} e \"{option['cid11Title']}\", que contradiz a hipotese "
+                        f"em {eixos}; descartado. Especifique o codigo."})
+                    code11 = ""
+                option["cid11"] = code11
+                option["cid11Title"] = known11.get(code11, "")
 
             # --- DSM-5-TR, contra a ICD-10-CM, por conta propria ---
             bruto10 = option.get("dsm5tr") if isinstance(option.get("dsm5tr"), str) else ""
@@ -1160,7 +1331,14 @@ def plain_text_from_result(kind, result):
             f"{item['approach']} | {item['details']}"
             for item in result["non_pharmacological_options"]
         )
-        return f"TRATAMENTO MEDICAMENTOSO:\n{medications}\n\nOUTRAS ABORDAGENS NAO FARMACOLOGICAS:\n{approaches}"
+        nivel = result.get("care_level")
+        # Primeiro no texto pela mesma razao que e primeiro na tela: quem le o
+        # prontuario precisa saber onde o paciente foi tratado antes de saber
+        # com o que.
+        cabecalho = (f"NIVEL DE CUIDADO:\n{nivel['level']} | {nivel['justification']}\n\n"
+                     if nivel else "")
+        return (f"{cabecalho}TRATAMENTO MEDICAMENTOSO:\n{medications}"
+                f"\n\nOUTRAS ABORDAGENS NAO FARMACOLOGICAS:\n{approaches}")
     if kind == "symptomatic":
         def uma(item):
             linhas = [f"{item['symptom']} | {item['conduct']}"]
@@ -1358,6 +1536,14 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 return
             if mode == "rag":
                 sources = search_rag_sources(rag_query, api_key, kind)
+                garantidos = RAG_ALWAYS_SCOPE_BY_KIND.get(kind)
+                if garantidos:
+                    # Deduplicado por trecho: o mesmo pedaco de livro nao entra
+                    # duas vezes no contexto so por ter vindo das duas buscas.
+                    vistos = {(f["file_id"], f["excerpt"]) for f in sources}
+                    extras = [f for f in search_rag_sources(rag_query, api_key, kind, escopos=garantidos)
+                              if (f["file_id"], f["excerpt"]) not in vistos]
+                    sources = sources + extras[:RAG_ALWAYS_MAX_RESULTS]
                 if not sources:
                     self.send_json(422, {
                         "error": "A base RAG nao encontrou evidencia suficientemente relevante para responder com seguranca.",

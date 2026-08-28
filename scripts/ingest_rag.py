@@ -43,32 +43,26 @@ def parse_args():
     parser.add_argument("--store-id", help="Vector store existente; se omitido, cria um novo")
     parser.add_argument("--store-name", default="Biblioteca Psiquiatria - Regis Braga")
     parser.add_argument("--catalog", type=Path, default=Path("rag_sources.local.json"))
-    # A biblioteca e uma so, mas as etapas nao pedem a mesma coisa. Sem escopo,
-    # o tratado de psicofarmacologia responde tambem na Anamnese e no
-    # Refinamento, onde a pergunta e de semiologia. O atributo permite a busca
-    # filtrar por etapa.
-    # "sintomatico" e a biblioteca da pagina Sintoma-Alvo: manejo e alivio
-    # dirigido ao sintoma, que nao e a mesma pergunta do tratamento do
-    # transtorno. Fonte marcada assim so responde ali.
+    # O ESCOPO E O GENERO DO LIVRO, e nunca quem o le.
     #
-    # As tres ultimas sao as duas passadas do Diagnostico e do Tratamento, e
-    # cada uma leva UM livro so. A primeira passada gera; a segunda, opcional,
-    # revisa o que a primeira propos. Por isso "diagnostico_base" e
-    # "tratamento_base" tem um livro cada, e nao uma lista: a resposta fica
-    # rastreavel a uma fonte, e o especializado entra depois da decisao do
-    # medico, revisando, em vez de competir com o geral na hora de propor.
+    # Ate 28/08/2026 estas escolhas nomeavam leitores -- "diagnostico_base",
+    # "medicamento_refino", "refino". Custava caro: trocar quem le um livro
+    # exigia re-etiquetar o arquivo na nuvem, e o mesmo livro precisava ser
+    # subido DUAS vezes para carregar dois rotulos. A Psicofarmacologia 2025
+    # estava em duas copias na store so por isso.
     #
-    # "refino" e um so para as duas etapas porque o livro revisor e o mesmo — o
-    # Tratado da ABP. Subir o mesmo arquivo duas vezes so para trocar o rotulo
-    # nao muda o que a busca encontra; o que separa a revisao do diagnostico da
-    # revisao do tratamento e a pergunta e o contexto do prompt, nao o corpus.
+    # Genero e propriedade do livro e nao muda. Quem le cada genero fica em
+    # RAG_SCOPE_BY_KIND, no server.py, em um lugar so -- e mudar de ideia sobre
+    # isso passou a ser uma linha de codigo, sem tocar em nada remoto.
+    #
+    # Sem default: livro novo declara o que e. O default anterior era "ambos",
+    # e livro subido sem pensar caia numa estante que a Anamnese lia.
     parser.add_argument(
         "--escopo",
-        choices=("semiologia", "farmacologia", "sintomatico", "ambos",
-                 "diagnostico_base", "tratamento_base", "medicamento_base",
-                 "refino", "medicamento_refino"),
-        default="ambos",
-        help="Em que etapas esta fonte pode ser recuperada")
+        required=True,
+        choices=("psicopatologia", "entrevista", "sindromes", "criterios", "terapeutica",
+                 "tratado", "prescricao", "psicofarmacologia"),
+        help="Genero do livro; RAG_SCOPE_BY_KIND decide que etapas o recuperam")
     return parser.parse_args()
 
 

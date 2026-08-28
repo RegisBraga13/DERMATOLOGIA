@@ -117,6 +117,29 @@ describe("aviso de renomeacao", () => {
   });
 });
 
+describe("troca de codigo nao acontece calada", () => {
+  // O servidor troca o codigo quando ele contradiz o nome da hipotese: 6A70.3
+  // e "grave, SEM sintomas psicoticos", e a hipotese dizia "COM". A correcao e
+  // ancorada em tabela, mas trocar um codigo diagnostico sem dizer seria pedir
+  // que o medico confie sem poder conferir.
+  const resultado = diagnosisSuggestionFromAi({
+    result: { nosological_options: [{ name: "Transtorno depressivo maior, episódio atual grave com sintomas psicóticos", cid11: "6A70.4", dsm5tr: "F32.3" }] },
+    codeWarnings: [
+      { kind: "mismatch", text: "Transtorno depressivo maior: CID-11 6A70.3 contradiz a hipotese em psicotico; reancorado em 6A70.4." },
+      { kind: "anchor", text: "detalhe que fica no log" }
+    ]
+  });
+
+  it("o aviso diz qual codigo saiu e qual entrou", () => {
+    assert.match(resultado.aiStatus, /6A70\.3/);
+    assert.match(resultado.aiStatus, /reancorado em 6A70\.4/);
+  });
+
+  it("aviso de ancoragem comum continua no log, sem poluir a tela", () => {
+    assert.doesNotMatch(resultado.aiStatus, /fica no log/);
+  });
+});
+
 describe("contagem no texto da tela", () => {
   it("singular e plural", () => {
     assert.equal(countLabel(1, "nosológica"), "1 nosológica");

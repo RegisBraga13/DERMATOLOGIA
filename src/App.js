@@ -1080,6 +1080,13 @@ async function generateTreatmentFromClinicalData(element, kind = "treatment") {
     const medicationOptions = result.medication_options.map(formatMedicationTreatmentOption);
     const approachOptions = result.non_pharmacological_options.map(formatNonPharmacologicalOption);
     suggestion = {
+      // A IA propoe o nivel; quem assinala e o medico, como em todo o resto do
+      // programa. Privar alguem de liberdade nao e decisao que se aceita por
+      // omissao, entao o radio nao vem marcado.
+      nivelCuidadoAi: result.care_level?.level || "",
+      nivelCuidadoAiJustificativa: result.care_level?.justification || "",
+      nivelCuidado: target?.nivelCuidado || "",
+      nivelCuidadoJustificativa: target?.nivelCuidadoJustificativa || "",
       tratamentoAiMedicamentos: medicationOptions.join("\n"),
       tratamentoAiAbordagens: approachOptions.join("\n"),
       // Mesmo criterio ja aplicado ao diagnostico: a IA propoe, quem assinala
@@ -1093,7 +1100,7 @@ async function generateTreatmentFromClinicalData(element, kind = "treatment") {
       condutaMedica: target?.condutaMedica || "",
       ragSourcesTratamento: sources,
       pharmaAiMode: mode,
-      treatmentStatus: `${revisao ? "Refinado pela fonte especializada: " : ""}${countLabel(medicationOptions.length, "opção medicamentosa", "opções medicamentosas")} e ${countLabel(approachOptions.length, "outra abordagem", "outras abordagens")} propostas para você assinalar. Suas escolhas anteriores foram mantidas.`,
+      treatmentStatus: `${revisao ? "Refinado pela fonte especializada: " : ""}${result.care_level ? `Nível de cuidado proposto: ${result.care_level.level}. ` : "Nenhum nível de cuidado foi proposto — a resposta veio sem modalidade ou sem justificativa. "}${countLabel(medicationOptions.length, "opção medicamentosa", "opções medicamentosas")} e ${countLabel(approachOptions.length, "outra abordagem", "outras abordagens")} propostas para você assinalar. Suas escolhas anteriores foram mantidas.`,
       aiStatus: revisao ? "Tratamento refinado pela fonte especializada, para revisão médica." : "Sugestões de tratamento geradas pela IA para revisão médica."
     };
   } catch (error) {

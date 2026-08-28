@@ -99,7 +99,14 @@ export function diagnosisSuggestionFromAi({ result = {}, target = {}, sources = 
       aggravatingOptions.length ? `${countLabel(aggravatingOptions.length, "fator agravante", "fatores agravantes")} proposto(s).` : "",
       // Renomear muda o que ele le na tela, entao e dito. Os avisos de codigo
       // ficam no log: o codigo nao aparece nesta etapa, so na codificacao.
-      ...(codeWarnings || []).filter(item => item.kind === "rename").map(item => item.text),
+      //
+      // "mismatch" e a excecao, e subiu para a tela em 28/08/2026: e o servidor
+      // dizendo que TROCOU o codigo porque o que a IA devolveu contradizia o
+      // nome da hipotese -- 6A70.3, "grave sem sintomas psicoticos", numa
+      // hipotese nomeada "com sintomas psicoticos". A correcao e automatica e
+      // ancorada em tabela, mas silenciar uma troca de codigo diagnostico seria
+      // pedir que ele confie sem poder conferir.
+      ...(codeWarnings || []).filter(item => ["rename", "mismatch"].includes(item.kind)).map(item => item.text),
       duplicadas.length
         ? `${countLabel(duplicadas.length, "hipótese saiu", "hipóteses saíram")} em mais de uma categoria: ${duplicadas.join("; ")}.`
         : ""

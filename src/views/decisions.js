@@ -3,6 +3,7 @@ import { buildEvolutionNarrative, normalizeEvolutionNarrative, outdatedEvolution
 import { arrayValue, normalizeText } from "../clinical/textFormat.js";
 import { doctorDiagnosisOptions } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js";
+import { CARE_LEVELS_REQUIRING_JUSTIFICATION, careLevelNotes, careLevelOptions } from "../data/careLevels.js";
 import { targetSymptomOptions } from "../data/targetSymptoms.js";
 import { chips, textarea } from "../ui/controls.js";
 import { referenceFor } from "../data/references.js";
@@ -179,6 +180,7 @@ export function treatmentModule(form) {
       ${form.treatmentStatus ? `<p class="online-status">${escapeHtml(form.treatmentStatus)}</p>` : ""}
       ${ragSourcesView(form.ragSourcesTratamento)}
     </div>
+    ${careLevelView(form)}
     <div class="treatment-card-grid">
       <div class="treatment-card">
         <h4>Abordagem medicamentosa</h4>
@@ -302,5 +304,48 @@ function psychopathologicalAnalysisView(linhas) {
           : `<li>${escapeHtml(linha)}</li>`;
       }).join("")}
     </ul>
+  </div>`;
+}
+
+
+// Nivel de cuidado: a PRIMEIRA decisao da Conduta, e por isso o primeiro bloco
+// da tela — onde tratar decide-se antes de com o que tratar.
+//
+// Existe porque nao existia. Num caso de depressao psicotica com sindrome de
+// Cotard, recusa alimentar, perda de 11 kg e ideacao suicida, o programa propos
+// antidepressivo e psicoeducacao sem em nenhum momento dizer que aquilo era
+// indicacao de leito. Nao havia onde escrever: a conduta caia num campo de texto
+// livre que nada confere e que nao volta para o raciocinio.
+export function careLevelView(form = {}) {
+  const proposto = String(form.nivelCuidadoAi || "").trim();
+  const justificativaIa = String(form.nivelCuidadoAiJustificativa || "").trim();
+  const escolhido = String(form.nivelCuidado || "").trim();
+  const justificativa = String(form.nivelCuidadoJustificativa || "").trim();
+  // Radio, e nao caixa de selecao como o resto do programa: nao se esta ao
+  // mesmo tempo em ambulatorio e internado.
+  const opcoes = careLevelOptions.map(nivel => {
+    const sugerido = normalizeText(nivel) === normalizeText(proposto);
+    return `<label class="diagnosis-option care-option${sugerido ? " care-suggested" : ""}">
+      <input type="radio" name="nivelCuidado" value="${escapeAttr(nivel)}" ${escolhido === nivel ? "checked" : ""} />
+      <span><strong>${escapeHtml(nivel)}</strong>${sugerido ? ' <em class="care-tag">sugerido</em>' : ""}
+      <small>${escapeHtml(careLevelNotes[nivel] || "")}</small></span>
+    </label>`;
+  }).join("");
+  // Aviso, e nao bloqueio: quem decide e ele, e um programa que se recusa a
+  // salvar no meio de uma urgencia atrapalha em vez de ajudar. Mas indicar leito
+  // sem escrever por que e o que nao pode ficar calado no prontuario.
+  const exigeJustificativa = CARE_LEVELS_REQUIRING_JUSTIFICATION.has(escolhido) && !justificativa;
+  return `<div class="clinical-card care-card">
+    <h4>Nível de cuidado</h4>
+    <p class="online-status">${proposto
+      ? `Proposto pela literatura: <strong>${escapeHtml(proposto)}</strong>${justificativaIa ? ` — ${escapeHtml(justificativaIa)}` : ""}`
+      : "A IA propõe uma modalidade após a geração. A escolha é sempre sua."}</p>
+    <textarea hidden name="nivelCuidadoAi">${escapeHtml(proposto)}</textarea>
+    <textarea hidden name="nivelCuidadoAiJustificativa">${escapeHtml(justificativaIa)}</textarea>
+    <div class="care-levels">${opcoes}</div>
+    ${exigeJustificativa
+      ? `<p class="care-warning">Registre abaixo por que ${escapeHtml(escolhido.toLowerCase())} — a indicação de leito precisa da justificativa no prontuário.</p>`
+      : ""}
+    ${textarea("nivelCuidadoJustificativa", "Justificativa do médico", justificativa, "Por que este nível de cuidado, neste momento.", 2)}
   </div>`;
 }

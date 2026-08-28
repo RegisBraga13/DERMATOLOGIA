@@ -185,6 +185,25 @@ describe("resposta do tratamento", () => {
   });
 
   it("texto fora do formato nao vira medicamento", () => {
-    assert.deepEqual(parseTreatmentResponse("Não foi possível gerar o tratamento."), { medicationOptions: [], approachOptions: [] });
+    assert.deepEqual(parseTreatmentResponse("Não foi possível gerar o tratamento."),
+      { careLevel: null, medicationOptions: [], approachOptions: [] });
+  });
+
+  it("le o nivel de cuidado, que vem antes das duas listas", () => {
+    const parsed = parseTreatmentResponse([
+      "NIVEL DE CUIDADO:",
+      "Internação involuntária | recusa alimentar com perda de 11 kg e ideação suicida",
+      "",
+      "TRATAMENTO MEDICAMENTOSO:",
+      "Olanzapina | Dose inicial: 5 mg | Progressao: semanal | Dose final: 15 mg"
+    ].join("\n"));
+    assert.deepEqual(parsed.careLevel,
+      { level: "Internação involuntária", justification: "recusa alimentar com perda de 11 kg e ideação suicida" });
+    assert.equal(parsed.medicationOptions.length, 1);
+  });
+
+  it("nivel sem justificativa nao entra: indicar leito sem dizer por que fica fora do prontuario", () => {
+    const parsed = parseTreatmentResponse("NIVEL DE CUIDADO:\nInternação voluntária\n\nTRATAMENTO MEDICAMENTOSO:\n");
+    assert.equal(parsed.careLevel, null);
   });
 });

@@ -299,17 +299,31 @@ class ValidateResultTests(unittest.TestCase):
         diagnosticar pela psicofarmacologia sem nenhum erro na tela.
         """
         esperado = {
-            "diagnosis": ("diagnostico_base",),
-            "diagnosis_review": ("refino",),
-            "treatment": ("tratamento_base",),
-            "treatment_review": ("refino",),
-            "medication": ("medicamento_base",),
-            "medication_review": ("medicamento_refino",),
-            "medication_tips": ("medicamento_refino",),
-            "symptomatic": ("sintomatico",),
+            "anamnesis": ("psicopatologia", "entrevista"),
+            "refinement": ("psicopatologia", "entrevista"),
+            "refinement_scope": ("psicopatologia", "entrevista"),
+            # Os dois lados: o fenomeno (Dalgalarrondo, Cheniaux) e a entidade
+            # (FMUSP vol. 2). Lendo so a FMUSP, o app nao chegou a sindrome de
+            # Cotard num caso que a tinha.
+            "diagnosis": ("psicopatologia", "sindromes", "criterios"),
+            "diagnosis_review": ("tratado",),
+            "treatment": ("terapeutica",),
+            "treatment_review": ("tratado",),
+            "medication": ("prescricao",),
+            "medication_review": ("psicofarmacologia",),
+            "medication_tips": ("psicofarmacologia",),
+            "symptomatic": ("psicofarmacologia",),
         }
         for kind, escopos in esperado.items():
             self.assertEqual(server.RAG_SCOPE_BY_KIND[kind], escopos, kind)
+        # O escopo nomeia o GENERO do livro, e nunca o leitor. Nome de leitor
+        # aqui significa que a etiqueta voltou a carregar decisao: mudar quem le
+        # passaria a exigir re-etiquetar arquivo na nuvem, e o mesmo livro
+        # precisaria ser subido duas vezes para servir duas etapas.
+        todos = {escopo for escopos in server.RAG_SCOPE_BY_KIND.values() for escopo in escopos}
+        for escopo in todos:
+            self.assertNotRegex(escopo, r"_base$|^refino$|_refino$",
+                                f"{escopo} nomeia quem le, e nao o que o livro e")
 
     def test_refinement_requires_three_to_eight_questions(self):
         with self.assertRaises(ValueError):
@@ -317,6 +331,156 @@ class ValidateResultTests(unittest.TestCase):
                 "questions": [{"prompt": "p", "options": ["a", "b"]}],  # so 1, precisa 3-8
                 "red_flags": [], "observations": [], "important_points": [],
             })
+
+
+class CodeMatchesNameTests(unittest.TestCase):
+    """O codigo precisa COMBINAR com o nome, e nao apenas existir.
+
+    Numa chamada real de 28/08/2026 a IA nomeou "Transtorno depressivo maior,
+    episodio atual grave COM sintomas psicoticos" e devolveu 6A70.3, que na
+    tabela da OMS e "grave, SEM sintomas psicoticos". O codigo existe, entao a
+    conferencia antiga aprovava — e a hipotese chegava ao prontuario com um
+    codigo que afirma o contrario do nome ao lado dele.
+    """
+
+    def nosologica(self, nome, cid11):
+        r = {"nosological_options": [{"name": nome, "cid11": cid11, "dsm5tr": ""}]}
+        avisos = server.verify_diagnostic_codes(r)
+        return r["nosological_options"][0], avisos
+
+    def test_reanchors_on_the_sibling_that_matches_the_name(self):
+        """6A70.3 e 6A70.4 diferem em um digito e na presenca de psicose. Havendo
+        UM irmao que afirma tudo o que o nome afirma, e ele -- busca em tabela,
+        e nao chute."""
+        opcao, avisos = self.nosologica(
+            "Transtorno depressivo maior, episódio atual grave com sintomas psicóticos", "6A70.3")
+        self.assertEqual(opcao["cid11"], "6A70.4")
+        self.assertIn("com sintomas psicóticos", opcao["cid11Title"])
+        self.assertTrue(any(a["kind"] == "mismatch" and "reancorado em 6A70.4" in a["text"] for a in avisos))
+
+    def test_the_derived_dsm_code_follows_the_corrected_one(self):
+        """Reancorar sem refazer o DSM derivado trocaria uma incoerencia por
+        outra."""
+        opcao, _ = self.nosologica(
+            "Transtorno depressivo maior, episódio atual grave com sintomas psicóticos", "6A70.3")
+        self.assertEqual(opcao["dsm5tr"], "F32.3")
+
+    def test_recurrent_episode_uses_its_own_family(self):
+        opcao, _ = self.nosologica(
+            "Transtorno depressivo recorrente, episódio atual grave com sintomas psicóticos", "6A71.3")
+        self.assertEqual((opcao["cid11"], opcao["dsm5tr"]), ("6A71.4", "F33.3"))
+
+    def test_a_code_that_matches_is_left_alone(self):
+        opcao, avisos = self.nosologica("Transtorno de ansiedade generalizada", "6B00")
+        self.assertEqual(opcao["cid11"], "6B00")
+        self.assertFalse([a for a in avisos if a["kind"] == "mismatch"])
+
+    def test_a_name_that_asserts_nothing_does_not_contradict(self):
+        """"Depressao maior" nao diz gravidade, curso nem psicose. Traco ausente
+        de um dos lados nao e contradicao -- exigir isso reprovaria quase toda
+        hipotese por diferenca de redacao."""
+        opcao, avisos = self.nosologica("Depressão maior", "6A70.3")
+        self.assertEqual(opcao["cid11"], "6A70.3")
+        self.assertFalse([a for a in avisos if a["kind"] == "mismatch"])
+
+    def test_without_a_single_matching_sibling_the_code_is_dropped(self):
+        """Codigo que o medico tomaria por conferido e pior do que nenhum."""
+        r = {"nosological_options": [{"name": "Transtorno de ansiedade generalizada grave com sintomas psicóticos",
+                                      "cid11": "6B00", "dsm5tr": ""}]}
+        avisos = server.verify_diagnostic_codes(r)
+        opcao = r["nosological_options"][0]
+        if [a for a in avisos if a["kind"] == "mismatch"]:
+            self.assertEqual(opcao["cid11"], "")
+            self.assertEqual(opcao["cid11Title"], "")
+
+    def test_traits_read_both_languages(self):
+        """A tabela da OMS traz titulo em portugues e nameEN em ingles."""
+        self.assertEqual(server.diagnostic_traits("severe, with psychotic symptoms")["psicotico"], True)
+        self.assertEqual(server.diagnostic_traits("severe, without psychotic symptoms")["psicotico"], False)
+        self.assertEqual(server.diagnostic_traits("Recurrent depressive disorder")["curso"], "recorrente")
+
+
+class CareLevelTests(unittest.TestCase):
+    """Nivel de cuidado: onde o paciente vai ser tratado.
+
+    Existe porque nao existia. Num caso de depressao psicotica com sindrome de
+    Cotard, recusa alimentar, perda de 11 kg e ideacao suicida, o programa
+    propunha antidepressivo e psicoeducacao sem em nenhum momento dizer que
+    aquilo era indicacao de leito -- nao havia onde escrever.
+    """
+
+    def tratamento(self, **extra):
+        base = {
+            "care_level": {"level": "Ambulatorial", "justification": "risco baixo, com suporte familiar"},
+            "medication_options": [],
+            "non_pharmacological_options": [],
+        }
+        base.update(extra)
+        return base
+
+    def test_valid_care_level_survives(self):
+        resultado = self.tratamento()
+        server.validate_result("treatment", resultado)
+        self.assertEqual(resultado["care_level"]["level"], "Ambulatorial")
+
+    def test_level_outside_the_closed_list_is_discarded(self):
+        """"Internacao domiciliar" e "observacao" nao existem como modalidade no
+        Brasil. Ninguem saberia executar, e a tela nao teria caixa para marcar."""
+        resultado = self.tratamento(care_level={"level": "Internação domiciliar", "justification": "familia cuida"})
+        server.validate_result("treatment", resultado)
+        self.assertIsNone(resultado["care_level"])
+
+    def test_level_without_justification_is_discarded(self):
+        """Indicar leito sem escrever por que e o que nao pode chegar ao
+        prontuario: a justificativa e o que sustenta a indicacao perante quem a
+        le depois."""
+        resultado = self.tratamento(care_level={"level": "Internação involuntária", "justification": "   "})
+        server.validate_result("treatment", resultado)
+        self.assertIsNone(resultado["care_level"])
+
+    def test_missing_care_level_does_not_kill_the_answer(self):
+        """Mesmo criterio das opcoes medicamentosas: descartar o pedaco e melhor
+        do que derrubar a resposta inteira e perder as orientacoes junto."""
+        resultado = self.tratamento()
+        del resultado["care_level"]
+        server.validate_result("treatment", resultado)
+        self.assertIsNone(resultado["care_level"])
+        self.assertEqual(resultado["medication_options"], [])
+
+    def test_the_three_admissions_are_the_ones_the_law_defines(self):
+        self.assertEqual(len(server.CARE_LEVELS), 7)
+        internacoes = [n for n in server.CARE_LEVELS if n.startswith("Internação")]
+        self.assertEqual(internacoes, ["Internação voluntária", "Internação involuntária", "Internação compulsória"])
+
+    def test_schema_closes_the_list_and_requires_the_field(self):
+        """O enum e o que impede o modelo de inventar modalidade. Instrucao de
+        prompt nao resolveu no caso dos codigos do DSM, e nao resolveria aqui."""
+        treatment = server.SCHEMAS["treatment"]
+        self.assertIn("care_level", treatment["required"])
+        self.assertEqual(treatment["properties"]["care_level"]["properties"]["level"]["enum"], server.CARE_LEVELS)
+
+    def test_care_level_opens_the_plain_text(self):
+        """Quem le o prontuario precisa saber onde o paciente foi tratado antes
+        de saber com o que."""
+        texto = server.plain_text_from_result("treatment", self.tratamento(
+            care_level={"level": "Internação involuntária", "justification": "recusa alimentar com perda de 11 kg"}))
+        self.assertTrue(texto.startswith("NIVEL DE CUIDADO:\nInternação involuntária | recusa alimentar"))
+        self.assertLess(texto.index("NIVEL DE CUIDADO"), texto.index("TRATAMENTO MEDICAMENTOSO"))
+
+    def test_without_care_level_the_text_has_no_empty_heading(self):
+        resultado = self.tratamento(care_level=None)
+        texto = server.plain_text_from_result("treatment", resultado)
+        self.assertNotIn("NIVEL DE CUIDADO", texto)
+        self.assertTrue(texto.startswith("TRATAMENTO MEDICAMENTOSO:"))
+
+    def test_the_review_revises_the_care_level_too(self):
+        """treatment_review reaproveita schema e validacao do treatment, entao o
+        nivel entra na revisao sem codigo proprio -- e a revisao substitui a tela
+        inteira, incluindo ele."""
+        self.assertIs(server.SCHEMAS["treatment_review"], server.SCHEMAS["treatment"])
+        resultado = self.tratamento(care_level={"level": "Hospital-dia", "justification": "suporte diurno"})
+        server.validate_result("treatment_review", resultado)
+        self.assertEqual(resultado["care_level"]["level"], "Hospital-dia")
 
 
 class PlainTextFromResultTests(unittest.TestCase):
