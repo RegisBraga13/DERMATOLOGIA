@@ -28,7 +28,13 @@ DEFAULT_TRANSCRIPTION_MODEL = "gpt-4o-transcribe-diarize"
 MAX_PROMPT_CHARS = 160000
 MAX_OUTPUT_TOKENS = 2200
 MAX_AUDIO_BYTES = 30 * 1024 * 1024
-ALLOWED_KINDS = {"anamnesis", "mental_exam", "refinement_scope", "refinement", "diagnosis", "treatment", "symptomatic", "evolution", "medication"}
+ALLOWED_KINDS = {"anamnesis", "mental_exam", "refinement_scope", "refinement", "diagnosis", "diagnosis_review",
+                 "treatment", "treatment_review", "symptomatic", "evolution", "medication"}
+# A segunda passada do Diagnostico e do Tratamento nao e outra tarefa: e a
+# mesma, refeita por um revisor com outro livro na mao. Por isso reaproveita
+# schema, validacao e texto plano do "kind" que ela revisa — a tela recebe a
+# resposta da revisao exatamente como recebeu a da geracao.
+REVIEW_OF_KIND = {"diagnosis_review": "diagnosis", "treatment_review": "treatment"}
 RXNAV_DISPLAY_TERMS_URL = "https://rxnav.nlm.nih.gov/REST/displaynames.json"
 RXNAV_DISPLAY_TERMS = None
 RXNAV_LOCK = threading.Lock()
@@ -519,6 +525,12 @@ SCHEMAS = {
     },
 }
 
+# A revisao devolve a MESMA estrutura da geracao, camada por camada — nao um
+# comentario sobre ela. E o que permite a tela ser repovoada inteira pela
+# segunda passada, sem layout novo e sem campo novo no rascunho.
+for _review, _base in REVIEW_OF_KIND.items():
+    SCHEMAS[_review] = SCHEMAS[_base]
+
 
 def load_env():
     env_path = ROOT / ".env"
@@ -569,11 +581,19 @@ RAG_SCOPE_BY_KIND = {
     "anamnesis": ("semiologia", "ambos"),
     "refinement": ("semiologia", "ambos"),
     "refinement_scope": ("semiologia", "ambos"),
-    # Criterio diagnostico nao sai de bula. Por decisao do Dr. Regis, os livros
-    # de psicofarmacologia ficam fora daqui: o Diagnostico buscava sem filtro
-    # nos oito, e so nao trazia farmacologia por sorte do embedding.
-    "diagnosis": ("semiologia", "ambos"),
-    "treatment": ("farmacologia", "ambos"),
+    # Diagnostico e Tratamento leem UM livro cada, e nao a lista inteira do
+    # escopo. Decisao dele: com cinco livros competindo no mesmo embedding, a
+    # resposta nao era rastreavel a uma fonte, e o especializado disputava com o
+    # geral na hora de propor. Agora o geral propoe sozinho, o medico assinala,
+    # e o especializado entra depois — no "_review", revisando o que ficou.
+    "diagnosis": ("diagnostico_base",),
+    "diagnosis_review": ("refino",),
+    "treatment": ("tratamento_base",),
+    "treatment_review": ("refino",),
+    # "refino" e um so para as duas revisoes porque o livro revisor e o mesmo, o
+    # Tratado da ABP. O que separa revisar diagnostico de revisar tratamento e a
+    # pergunta e o contexto do prompt, nao o corpus — subir o mesmo arquivo duas
+    # vezes para trocar o rotulo nao mudaria o que a busca encontra.
     "medication": ("farmacologia", "ambos"),
     # Aqui a lista tem UM escopo so, sem "ambos", e e de proposito: decisao dele
     # e que o Guia de Prescricao do Stahl responda sozinho no Sintoma-Alvo, com
@@ -652,6 +672,7 @@ def parse_model_json(text):
 
 
 def validate_result(kind, result):
+    kind = REVIEW_OF_KIND.get(kind, kind)
     if kind == "anamnesis":
         for key, value in result.items():
             if key in {"chief_complaint", "hda", "medical_history"}:
@@ -962,6 +983,7 @@ def verify_diagnostic_codes(result):
 
 
 def plain_text_from_result(kind, result):
+    kind = REVIEW_OF_KIND.get(kind, kind)
     if kind == "anamnesis":
         return f"QP: {result['chief_complaint']}\nHDA: {result['hda']}"
     if kind == "mental_exam":
@@ -1255,7 +1277,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 logger.error("resposta rejeitada (%s): %s", kind, text[:1200])
                 self.send_json(502, {"error": "Resposta da IA fora do formato clinico validado.", "detail": str(error)})
                 return
-            code_warnings = verify_diagnostic_codes(result) if kind == "diagnosis" else []
+            code_warnings = verify_diagnostic_codes(result) if kind in {"diagnosis", "diagnosis_review"} else []
             if code_warnings:
                 logger.warning("ancoragem de codigos: %s", "; ".join(item["text"] for item in code_warnings))
             public_sources_by_file = {}

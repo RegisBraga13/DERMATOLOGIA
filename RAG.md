@@ -1,6 +1,7 @@
 # Biblioteca RAG de psiquiatria
 
-O aplicativo preserva o modo `IA atual` e oferece uma biblioteca RAG de semiologia psiquiátrica compartilhada pela Anamnese e pelo Refinamento, além de diagnóstico e tratamento.
+O aplicativo preserva o modo `IA atual` e oferece uma biblioteca RAG de psiquiatria. A de semiologia e compartilhada
+pela Anamnese e pelo Refinamento; o Diagnostico e o Tratamento tem livro proprio em cada uma das suas duas passadas.
 Os PDFs nao devem ser adicionados ao Git. Somente materiais licenciados ou autorizados devem ser indexados.
 
 ## Preparacao
@@ -23,11 +24,14 @@ dita dose. Cada fonte entra marcada com `--escopo`, e a busca filtra por etapa.
 
 | Escopo | Quem recupera |
 | --- | --- |
-| `semiologia` | Anamnese, Refinamento, Diagnostico |
-| `farmacologia` | Tratamento, Medicamento |
+| `semiologia` | Anamnese, Refinamento |
+| `farmacologia` | Medicamento |
 | `sintomatico` | Sintoma-Alvo |
 | `farmacologia` | tambem responde no Sintoma-Alvo |
-| `ambos` | Todas as etapas |
+| `ambos` | Anamnese, Refinamento, Medicamento |
+| `diagnostico_base` | Diagnostico, primeira passada |
+| `tratamento_base` | Tratamento, primeira passada |
+| `refino` | as duas revisoes |
 
 ```bash
 python3 scripts/ingest_rag.py --escopo sintomatico "/caminho/manejo-sintomatico.pdf"
@@ -42,6 +46,42 @@ do sintoma e nao diretriz da doenca.
 `sintomatico` fica declarado e vazio. No dia que existir material que nao esteja
 nesses livros — protocolo de urgencia, manual de manejo —, indexe com
 `--escopo sintomatico` e ele entra sem mexer em codigo.
+
+## Duas passadas no Diagnostico e no Tratamento
+
+Estas duas etapas nao leem a lista inteira do escopo: leem **um livro cada**.
+Decisao dele, depois de cinco livros competirem no mesmo embedding — a resposta
+nao era rastreavel a uma fonte, e o livro especializado disputava com o geral na
+hora de propor, quando ele deveria entrar depois, para revisar.
+
+| Passada | Livro | Escopo |
+| --- | --- | --- |
+| Diagnostico, gera | Clinica Psiquiatrica FMUSP, vol. 2 | `diagnostico_base` |
+| Diagnostico, revisa | Tratado de Psiquiatria da ABP | `refino` |
+| Tratamento, gera | Clinica Psiquiatrica FMUSP, vol. 3 | `tratamento_base` |
+| Tratamento, revisa | Tratado de Psiquiatria da ABP | `refino` |
+
+A primeira passada e o botao **Gerar**: propoe, o medico assinala. A segunda e o
+botao **Refinar**, e e opcional — sem clique, o registro fica como a primeira
+passada o deixou. O revisor recebe o caso inteiro, a resposta da primeira
+passada e a marca `[assinalado pelo medico]` no que ele aceitou, e responde com
+a MESMA estrutura, camada por camada. Nao e um comentario sobre a primeira
+passada: e a primeira passada refeita, e **substitui a tela inteira** — o que a
+revisao nao repetir sai do prontuario.
+
+Por isso os `kind` de revisao (`diagnosis_review`, `treatment_review`)
+reaproveitam schema, validacao e texto plano do `kind` que revisam. So mudam
+tres coisas: a busca, que pergunta pelas hipoteses propostas em vez de pelo
+quadro; o escopo, que aponta para o outro livro; e a tarefa no prompt, que poe o
+modelo no papel de revisor.
+
+`refino` e um escopo so para as duas etapas porque o livro revisor e o mesmo. O
+que separa revisar diagnostico de revisar tratamento e a pergunta e o contexto
+do prompt, nao o corpus — subir o mesmo arquivo duas vezes para trocar o rotulo
+nao mudaria o que a busca encontra.
+
+As demais etapas nao foram tocadas: Anamnese, Refinamento, Sintoma-Alvo e
+Medicamento seguem com os escopos e os livros de antes.
 
 ## Codigos diagnosticos (nao e RAG)
 

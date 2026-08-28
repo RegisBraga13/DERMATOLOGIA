@@ -1,4 +1,4 @@
-import { formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharmacologicalOption, normalizeDiagnosticOptions, parseTreatmentResponse } from "../clinical/diagnosis.js";
+import { diagnosticAggravatingOptionLines, diagnosticComorbidityOptionLines, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSpecifierOptionLines, diagnosticSyndromicOptionLines, formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharmacologicalOption, normalizeDiagnosticOptions, parseTreatmentResponse, selectedAggravatingValues, selectedComorbidityValues, selectedDiagnosisValues, selectedSpecifierValues, treatmentOptionLines } from "../clinical/diagnosis.js";
 import { anamnesisText, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, patientIdentificationText, professionalSelectedTreatmentItems, refinementAnswersText, requestedExamsText, returnStoryText, treatmentDiagnosisText } from "../clinical/narrative.js";
 import { arrayValue, cleanClinicalLine, compactText, formatClinicalList, joinValues, normalizeText, stripFinalPeriod } from "../clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, MENTAL_EXAM_AI_FIELDS } from "../clinical/vocabulary.js";
@@ -105,11 +105,67 @@ export function buildRagQuery(kind, form = {}) {
   // contexto, no fim: quem manda aqui e o sintoma.
   if (kind === "symptomatic") return `Manejo sintomatico e alivio imediato de: ${alvos || symptoms}. Conduta farmacologica e nao farmacologica dirigida ao sintoma. Contexto clinico: ${diagnosis}; ${symptoms}`.slice(0, 4000);
   if (kind === "diagnosis") return `Criterios diagnosticos e diagnostico diferencial para: ${symptoms}`.slice(0, 4000);
+  // A busca da revisao nao repete a da geracao: o que se pergunta ao livro
+  // especializado e se AQUELAS hipoteses se sustentam. Sem as hipoteses na
+  // consulta, o refino recuperaria os mesmos trechos genericos do quadro e
+  // reescreveria a primeira passada em vez de audita-la.
+  if (kind === "diagnosis_review") {
+    const propostas = firstPassDiagnosisLines(form).join("; ");
+    return `Revisao critica das hipoteses diagnosticas: ${propostas || symptoms}. Criterios formais, diagnostico diferencial, especificadores de gravidade e curso, comorbidade. Quadro clinico: ${symptoms}`.slice(0, 4000);
+  }
+  if (kind === "treatment_review") {
+    const propostas = firstPassTreatmentLines(form).join("; ");
+    return `Revisao critica da conduta proposta: ${propostas || diagnosis}. Adequacao da escolha, dose, titulacao, contraindicacao, interacao e alternativa de primeira linha para ${diagnosis}. Dados clinicos: ${symptoms}`.slice(0, 4000);
+  }
   if (kind === "medication") return `Psicofarmacologia de ${form.medicationGeneric || ""}: dose inicial, titulacao, dose alvo, efeitos colaterais, contraindicacoes e interacoes. Contexto clinico: ${diagnosis}; ${symptoms}`.slice(0, 4000);
   return `${diagnosis}; ${symptoms}`.slice(0, 4000);
 }
 
+// O que a primeira passada colocou na tela. Nao ha campo novo no rascunho: as
+// linhas vivem nos mesmos textareas ocultos que a tela ja preenche, e a
+// revisao le dali. Marcado com [assinalado] o que o medico aceitou — e essa
+// marca que transforma a segunda chamada em revisao de uma decisao clinica, e
+// nao numa segunda opiniao sobre o caso cru.
+function firstPassDiagnosisLines(form = {}) {
+  const marcados = new Set([
+    ...selectedDiagnosisValues(form), ...selectedSpecifierValues(form),
+    ...selectedComorbidityValues(form), ...selectedAggravatingValues(form)
+  ].map(normalizeText));
+  const marca = linha => `${linha}${marcados.has(normalizeText(linha)) ? " [assinalado pelo medico]" : ""}`;
+  return [
+    ...diagnosticNosologicalOptionLines(form).map(linha => `NOSOLOGICO: ${marca(linha)}`),
+    ...diagnosticSyndromicOptionLines(form).map(linha => `SINDROMICO: ${marca(linha)}`),
+    ...diagnosticEtiologicalOptionLines(form).map(linha => `ETIOLOGICO: ${marca(linha)}`),
+    ...diagnosticSpecifierOptionLines(form).map(linha => `ESPECIFICADOR: ${marca(linha)}`),
+    ...diagnosticComorbidityOptionLines(form).map(linha => `COMORBIDADE: ${marca(linha)}`),
+    ...diagnosticAggravatingOptionLines(form).map(linha => `AGRAVANTE: ${marca(linha)}`)
+  ];
+}
+
+function firstPassTreatmentLines(form = {}) {
+  const marcados = new Set(arrayValue(form.tratamentoMedicamentosSelecionados)
+    .concat(arrayValue(form.abordagensSelecionadas)).map(normalizeText));
+  const marca = linha => `${linha}${marcados.has(normalizeText(linha)) ? " [assinalado pelo medico]" : ""}`;
+  return [
+    ...treatmentOptionLines(form.tratamentoAiMedicamentos).map(linha => `MEDICAMENTOSO: ${marca(linha)}`),
+    ...treatmentOptionLines(form.tratamentoAiAbordagens).map(linha => `NAO FARMACOLOGICO: ${marca(linha)}`)
+  ];
+}
+
+function firstPassText(kind, form = {}) {
+  const linhas = kind === "diagnosis_review" ? firstPassDiagnosisLines(form)
+    : kind === "treatment_review" ? firstPassTreatmentLines(form) : [];
+  if (!linhas.length) return "";
+  return `RESPOSTA DA PRIMEIRA PASSADA, A SER REVISADA:\n${linhas.join("\n")}\n`;
+}
+
+// A revisao devolve a mesma estrutura da geracao — mesma validacao, mesmo
+// texto plano, mesmo formato de resposta. So a TAREFA muda: a primeira propoe,
+// a segunda audita o que a primeira propos.
+const REVIEW_OF_KIND = { diagnosis_review: "diagnosis", treatment_review: "treatment" };
+
 function validateClinicalAiPayload(kind, result, text = "") {
+  kind = REVIEW_OF_KIND[kind] || kind;
   if (!result && text) result = parseFallbackClinicalText(kind, text);
   if (!result || typeof result !== "object") throw new Error("Resposta estruturada ausente.");
   if (kind === "anamnesis") {
@@ -227,6 +283,7 @@ function resolveRefinementAgainstProtocol(result) {
 }
 
 function parseFallbackClinicalText(kind, text = "") {
+  kind = REVIEW_OF_KIND[kind] || kind;
   if (["anamnesis", "mental_exam", "refinement"].includes(kind)) return null;
   if (kind === "diagnosis") {
     const options = normalizeDiagnosticOptions(text, 8).map(line => {
@@ -260,6 +317,7 @@ function parseFallbackClinicalText(kind, text = "") {
 }
 
 function clinicalAiTextFromResult(kind, result) {
+  kind = REVIEW_OF_KIND[kind] || kind;
   if (kind === "anamnesis") return `QP: ${result.chief_complaint}\nHDA: ${result.hda}`;
   if (kind === "mental_exam") return Object.entries(result).map(([key, value]) => `${key}: ${joinValues(value)}`).join("\n");
   if (kind === "refinement") return result.questions.map(item => `${item.topic}: ${item.prompt}`).join("\n");
@@ -408,7 +466,24 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "Use linguagem clinica resumida para prontuario."
     ]
   };
-  const task = taskByKind[kind] || taskByKind.evolution;
+  // A segunda passada nao recebe uma tarefa nova: recebe a MESMA tarefa, com o
+  // papel trocado na frente. As regras de saida da geracao continuam valendo
+  // linha por linha — teto de hipoteses, quem leva codigo, o que e
+  // especificador —, porque a revisao devolve a tela inteira, e nao um
+  // comentario sobre ela. Por decisao dele, nada sobrevive da primeira passada:
+  // o que a revisao nao repetir, sai do prontuario.
+  const reviewTask = [
+    "Voce e o REVISOR. Uma primeira passada, feita com outra fonte, ja propos a resposta que vai reproduzida abaixo, e o medico assinalou o que aceitou. Seu papel e auditar aquilo com a literatura especializada aqui recuperada — nao comeca do zero e nao a reescreve por estilo.",
+    "Avalie tambem o caso inteiro, e nao so a lista: o que a primeira passada deixou passar e o registro sustenta, entra.",
+    "Devolva a resposta COMPLETA, com todos os grupos preenchidos como na primeira passada. Ela sera substituida inteira pela sua — item que voce omitir desaparece da tela do medico.",
+    "O que estiver correto, repita sem alterar. Nao troque nome, codigo ou dose so para variar a redacao: mudanca sem motivo clinico apaga a decisao ja tomada pelo medico.",
+    "Corrija o que a fonte especializada nao sustentar: nome impreciso, codigo errado, camada trocada, gravidade sem apoio, dose ou titulacao fora da literatura. Retire o que nao se sustentar e acrescente o que faltar.",
+    "Item marcado [assinalado pelo medico] foi aceito por ele: so o altere ou retire com apoio explicito na literatura recuperada. Preferencia de redacao nao e motivo.",
+    "Nao invente dado clinico novo. Voce revisa o raciocinio, nao o registro."
+  ];
+  const task = REVIEW_OF_KIND[kind]
+    ? [...reviewTask, ...taskByKind[REVIEW_OF_KIND[kind]]]
+    : (taskByKind[kind] || taskByKind.evolution);
   return [
     "Voce e um assistente especializado em psiquiatria, documentacao medica e prontuario eletronico.",
     "Responda em portugues do Brasil, com linguagem tecnica, clara, objetiva e utilizavel em prontuario.",
@@ -423,6 +498,7 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
     "TAREFA:",
     ...task.map(item => `- ${item}`),
     "",
+    firstPassText(kind, form),
     "DADOS DO PACIENTE E DA CONSULTA:",
     kind === "evolution"
         ? clinicalEvolutionPromptData(form, patient, previous, isReturn)
@@ -508,6 +584,7 @@ function choiceSummary(form, keys = []) {
 }
 
 function promptResponseFormat(kind) {
+  kind = REVIEW_OF_KIND[kind] || kind;
   if (kind === "anamnesis") return "Objeto estruturado de anamnese conforme o schema, sem texto adicional.";
   if (kind === "mental_exam") return "Objeto estruturado do exame psiquico conforme o schema, sem texto adicional.";
   if (kind === "refinement_scope") return "Objeto com a chave blocks: lista de nomes de bloco, sem texto adicional.";

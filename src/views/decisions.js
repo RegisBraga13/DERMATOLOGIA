@@ -26,6 +26,7 @@ export function diagnosisModule(form) {
       ${aiModeSelector(form.aiMode)}
       <div class="actions">
         <button class="primary" type="button" data-action="generate-diagnosis">Gerar</button>
+        ${refineButton("refine-diagnosis", nosologicalOptions.length || syndromicOptions.length || etiologicalOptions.length)}
       </div>
       ${aiStatus ? `<p class="online-status">${escapeHtml(aiStatus)}</p>` : ""}
       ${ragSourcesView(form.ragSourcesDiagnostico)}
@@ -129,6 +130,15 @@ function diagnosisAiStatusText(message = "") {
   return message;
 }
 
+// A segunda passada e opcional, e por isso e um botao separado, e nao uma etapa
+// automatica: quem decide se o caso pede a fonte especializada e o medico. Fica
+// desabilitado ate existir primeira passada — refino sem o que revisar seria
+// uma segunda geracao disfarcada, com outro livro.
+function refineButton(action, temPrimeiraPassada) {
+  return `<button class="secondary" type="button" data-action="${action}" ${temPrimeiraPassada ? "" : "disabled"}
+    title="Revisa a resposta acima com a fonte especializada. Substitui o que esta na tela.">Refinar</button>`;
+}
+
 export function aiModeSelector(value = "current", name = "aiMode") {
   return `<fieldset class="ai-mode-selector">
     <legend>Fonte da resposta</legend>
@@ -161,6 +171,7 @@ export function treatmentModule(form) {
       ${aiModeSelector(form.pharmaAiMode || "rag", "pharmaAiMode")}
       <div class="actions">
         <button class="primary" type="button" data-action="generate-treatment">Gerar</button>
+        ${refineButton("refine-treatment", medicationOptions.length || approachOptions.length)}
       </div>
       ${form.treatmentStatus ? `<p class="online-status">${escapeHtml(form.treatmentStatus)}</p>` : ""}
       ${ragSourcesView(form.ragSourcesTratamento)}

@@ -1,5 +1,5 @@
 import { countLabel, diagnosisSuggestionFromAi, diagnosisSuggestionFromLocalCatalogue } from "./clinical/aiDiagnosisResult.js";
-import { formatMedicationTreatmentOption, formatNonPharmacologicalOption } from "./clinical/diagnosis.js";
+import { diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, formatMedicationTreatmentOption, formatNonPharmacologicalOption, treatmentOptionLines } from "./clinical/diagnosis.js";
 import { anamnesisText, buildEvolutionNarrative, normalizeEvolutionNarrative, outdatedEvolutionText, removeReturnBoilerplate, requestedExamsText, returnEvolutionContainsIdentity, shouldRefreshEvolutionNarrative, treatmentDiagnosisText } from "./clinical/narrative.js";
 import { loadProtocol, protocolLoaded } from "./clinical/protocol.js";
 import { arrayValue, joinValues, lowerFirst, normalizeText, stripFinalPeriod } from "./clinical/textFormat.js";
@@ -857,7 +857,9 @@ function bindActions() {
       if (action === "start-refinement") await startRefinement(element);
       if (action === "save-next-page") await saveCurrentPageAndAdvance(element);
       if (action === "generate-diagnosis") await generateDiagnosisFromClinicalData(element);
+      if (action === "refine-diagnosis") await generateDiagnosisFromClinicalData(element, "diagnosis_review");
       if (action === "generate-treatment") await generateTreatmentFromClinicalData(element);
+      if (action === "refine-treatment") await generateTreatmentFromClinicalData(element, "treatment_review");
       if (action === "generate-target-symptoms") await generateTargetSymptomsFromClinicalData(element);
       if (action === "generate-evolution") await generateEvolutionFromClinicalData(element);
       if (action === "generate-medication-ai") await generateMedicationFromClinicalData(element);
@@ -991,15 +993,27 @@ function syncedTarget(element) {
   return { scope, target: scope === "return" ? draft.return : draft.consultation };
 }
 
-async function generateDiagnosisFromClinicalData(element) {
+// Duas passadas, um gerador so. A primeira ("diagnosis") propoe com o livro
+// geral; a segunda ("diagnosis_review"), opcional, revisa com o especializado e
+// devolve a mesma estrutura — por isso o caminho de volta e identico, ate o
+// mapeamento para o rascunho. Por decisao dele, a revisao substitui a tela
+// inteira: nada da primeira passada sobrevive ao que a segunda nao repetir.
+async function generateDiagnosisFromClinicalData(element, kind = "diagnosis") {
   const { scope, target } = syncedTarget(element);
-  setClinicalAiStatus(scope, "Consultando IA real para diagnostico...");
+  const revisao = kind === "diagnosis_review";
+  if (revisao && !diagnosticNosologicalOptionLines(target || {}).length
+      && !diagnosticSyndromicOptionLines(target || {}).length
+      && !diagnosticEtiologicalOptionLines(target || {}).length) {
+    return alert("Gere as hipoteses antes de refinar: o refinamento revisa a primeira passada, nao a substitui.");
+  }
+  setClinicalAiStatus(scope, revisao ? "Refinando o diagnostico com a fonte especializada..." : "Consultando IA real para diagnostico...");
   render();
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result, sources, mode, codeWarnings } = await requestClinicalAi("diagnosis", buildClinicalAiPrompt("diagnosis", context.target, context.patient, context.previous, context.isReturn), context.target?.aiMode, buildRagQuery("diagnosis", context.target));
+    const { result, sources, mode, codeWarnings } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), context.target?.aiMode, buildRagQuery(kind, context.target));
     suggestion = diagnosisSuggestionFromAi({ result, target, sources, mode, codeWarnings });
+    if (revisao) suggestion.aiStatus = `Refinado pela fonte especializada. ${suggestion.aiStatus}`;
   } catch (error) {
     suggestion = diagnosisSuggestionFromLocalCatalogue(target, error);
   }
@@ -1008,18 +1022,24 @@ async function generateDiagnosisFromClinicalData(element) {
   render();
 }
 
-async function generateTreatmentFromClinicalData(element) {
+async function generateTreatmentFromClinicalData(element, kind = "treatment") {
   const { scope, target } = syncedTarget(element);
   const diagnosisText = treatmentDiagnosisText(target || {});
   if (!diagnosisText) return alert("Selecione ao menos uma hipotese diagnostica antes de gerar o tratamento.");
-  setClinicalAiStatus(scope, "Consultando IA real para tratamento...");
-  if (scope === "return") draft.return = { ...(draft.return || {}), treatmentStatus: "Consultando IA real para tratamento..." };
-  else draft.consultation = { ...(draft.consultation || {}), treatmentStatus: "Consultando IA real para tratamento..." };
+  const revisao = kind === "treatment_review";
+  if (revisao && !treatmentOptionLines(target?.tratamentoAiMedicamentos).length
+      && !treatmentOptionLines(target?.tratamentoAiAbordagens).length) {
+    return alert("Gere o tratamento antes de refinar: o refinamento revisa a primeira passada, nao a substitui.");
+  }
+  const aviso = revisao ? "Refinando o tratamento com a fonte especializada..." : "Consultando IA real para tratamento...";
+  setClinicalAiStatus(scope, aviso);
+  if (scope === "return") draft.return = { ...(draft.return || {}), treatmentStatus: aviso };
+  else draft.consultation = { ...(draft.consultation || {}), treatmentStatus: aviso };
   render();
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result, sources, mode } = await requestClinicalAi("treatment", buildClinicalAiPrompt("treatment", context.target, context.patient, context.previous, context.isReturn), context.target?.pharmaAiMode || "rag", buildRagQuery("treatment", context.target));
+    const { result, sources, mode } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), context.target?.pharmaAiMode || "rag", buildRagQuery(kind, context.target));
     const medicationOptions = result.medication_options.map(formatMedicationTreatmentOption);
     const approachOptions = result.non_pharmacological_options.map(formatNonPharmacologicalOption);
     suggestion = {
@@ -1036,8 +1056,8 @@ async function generateTreatmentFromClinicalData(element) {
       condutaMedica: target?.condutaMedica || "",
       ragSourcesTratamento: sources,
       pharmaAiMode: mode,
-      treatmentStatus: `${countLabel(medicationOptions.length, "opção medicamentosa", "opções medicamentosas")} e ${countLabel(approachOptions.length, "outra abordagem", "outras abordagens")} propostas para você assinalar. Suas escolhas anteriores foram mantidas.`,
-      aiStatus: "Sugestões de tratamento geradas pela IA para revisão médica."
+      treatmentStatus: `${revisao ? "Refinado pela fonte especializada: " : ""}${countLabel(medicationOptions.length, "opção medicamentosa", "opções medicamentosas")} e ${countLabel(approachOptions.length, "outra abordagem", "outras abordagens")} propostas para você assinalar. Suas escolhas anteriores foram mantidas.`,
+      aiStatus: revisao ? "Tratamento refinado pela fonte especializada, para revisão médica." : "Sugestões de tratamento geradas pela IA para revisão médica."
     };
   } catch (error) {
     suggestion = (target?.pharmaAiMode || "rag") === "rag"

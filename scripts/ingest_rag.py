@@ -50,8 +50,24 @@ def parse_args():
     # "sintomatico" e a biblioteca da pagina Sintoma-Alvo: manejo e alivio
     # dirigido ao sintoma, que nao e a mesma pergunta do tratamento do
     # transtorno. Fonte marcada assim so responde ali.
-    parser.add_argument("--escopo", choices=("semiologia", "farmacologia", "sintomatico", "ambos"), default="ambos",
-                        help="Em que etapas esta fonte pode ser recuperada")
+    #
+    # As tres ultimas sao as duas passadas do Diagnostico e do Tratamento, e
+    # cada uma leva UM livro so. A primeira passada gera; a segunda, opcional,
+    # revisa o que a primeira propos. Por isso "diagnostico_base" e
+    # "tratamento_base" tem um livro cada, e nao uma lista: a resposta fica
+    # rastreavel a uma fonte, e o especializado entra depois da decisao do
+    # medico, revisando, em vez de competir com o geral na hora de propor.
+    #
+    # "refino" e um so para as duas etapas porque o livro revisor e o mesmo — o
+    # Tratado da ABP. Subir o mesmo arquivo duas vezes so para trocar o rotulo
+    # nao muda o que a busca encontra; o que separa a revisao do diagnostico da
+    # revisao do tratamento e a pergunta e o contexto do prompt, nao o corpus.
+    parser.add_argument(
+        "--escopo",
+        choices=("semiologia", "farmacologia", "sintomatico", "ambos",
+                 "diagnostico_base", "tratamento_base", "refino"),
+        default="ambos",
+        help="Em que etapas esta fonte pode ser recuperada")
     return parser.parse_args()
 
 
