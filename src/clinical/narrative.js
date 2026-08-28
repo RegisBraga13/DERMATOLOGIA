@@ -56,6 +56,13 @@ export function buildEvolutionNarrative(form, patient = {}, previous = null, isR
   // anos, relata que historia da doenca atual nao informada".
   const semHistoria = /^hist[oó]ria (da doen[cç]a atual|do retorno) n[aã]o informada$/i.test(history || "");
   const historicoProprio = history && !semHistoria && normalizeText(history) !== normalizeText(complaint) ? history : "";
+  // Mesmo caso da historia, do outro lado: conciseComplaintText devolve
+  // "Queixa principal nao informada" quando nao ha queixa, e emendado depois
+  // de "com queixa de" isso virava "Maria Silva, 42 anos, com queixa de queixa
+  // principal nao informada" no prontuario. Sem queixa registrada a abertura e
+  // so a identificacao.
+  const semQueixa = /^queixa (principal|de retorno) n[aã]o informada$/i.test(complaint || "");
+  const queixaPropria = complaint && !semQueixa ? complaint : "";
   const opening = isReturn
     ? (history ? `${history}.` : "")
     : [
@@ -63,8 +70,8 @@ export function buildEvolutionNarrative(form, patient = {}, previous = null, isR
         ? `${identification}, ${lowerFirst(historyClause(historicoProprio))}.`
         // Sem historia registrada a queixa e o unico conteudo, entao ela ainda
         // abre o texto — nao ha o que repetir.
-        : complaint
-          ? `${identification}, com queixa de ${lowerFirst(professionalClinicalTerms(complaint))}.`
+        : queixaPropria
+          ? `${identification}, com queixa de ${lowerFirst(professionalClinicalTerms(queixaPropria))}.`
           : `${identification}.`,
       workStatus ? `${workStatus}.` : ""
     ].filter(Boolean).join(" ");
@@ -125,8 +132,13 @@ function evolutionPatientIdentification(patient = {}) {
   ].filter(Boolean);
   const name = patient.nome?.trim() || "Nome não informado";
   const identification = `${name}${details.length ? `, ${details.join(", ")}` : ""}`;
+  // Concordancia com o sexo registrado, pela mesma razao que o estado civil ja
+  // concordava: quem le o prontuario e outro medico, e "afastado" numa
+  // paciente e erro de redacao no documento clinico. Sem sexo registrado fica
+  // no masculino, que e a forma nao marcada.
+  const afastado = normalizeText(patient.sexo) === "feminino" ? "afastada" : "afastado";
   const workStatus = occupation
-    ? (isAwayFromWork ? "No momento, afastado do trabalho" : "Em atividade")
+    ? (isAwayFromWork ? `No momento, ${afastado} do trabalho` : "Em atividade")
     : "";
   // Devolve as duas partes separadas: a identificacao emenda com a historia na
   // mesma frase, e a situacao de trabalho vem depois, como frase propria.
