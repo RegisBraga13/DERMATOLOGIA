@@ -195,22 +195,89 @@ class ValidateResultTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             server.validate_result("anamnesis", {"chief_complaint": ["nao deveria ser lista"]})
 
-    def test_diagnosis_requires_exact_option_counts(self):
-        good_option = {"name": "x", "cid11": "y", "dsm5tr": "z"}
-        result = {
-            "syndromic_options": [good_option] * 3,
-            "nosological_options": [good_option] * 3,
-            "etiological_options": [good_option] * 2,
+    # As seis camadas do diagnostico, e nao as tres de agosto de 2026: quando
+    # comorbidade e agravante ganharam bloco proprio, o validador passou a
+    # conferir os seis e este caso parou de montar uma resposta completa.
+    # Faltando comorbidity_options, a falha era "aceita no maximo 3 opcoes" —
+    # queixa de quantidade sobre um campo que nao veio.
+    @staticmethod
+    def diagnosis_result(**alteracoes):
+        opcao = {"name": "x", "cid11": "y", "dsm5tr": "z"}
+        base = {
+            "syndromic_options": [dict(opcao) for _ in range(3)],
+            "nosological_options": [dict(opcao) for _ in range(3)],
+            "etiological_options": [dict(opcao) for _ in range(2)],
+            "comorbidity_options": [dict(opcao) for _ in range(3)],
+            "specifier_options": [{"name": "grave", "applies_to": "x"}],
+            "aggravating_options": [{"name": "insonia cronica", "effect": "piora o curso"}],
         }
-        self.assertEqual(server.validate_result("diagnosis", result), result)
+        base.update(alteracoes)
+        return base
+
+    def test_diagnosis_accepts_all_groups_at_the_limit(self):
+        result = self.diagnosis_result()
+        validado = server.validate_result("diagnosis", result)
+        self.assertEqual(len(validado["nosological_options"]), 3)
+        self.assertEqual(len(validado["comorbidity_options"]), 3)
+        # Sindrome nao e entidade catalogada: o codigo cai fora por construcao.
+        for option in validado["syndromic_options"]:
+            self.assertEqual(option["cid11"], "")
+            self.assertEqual(option["dsm5tr"], "")
+
+    def test_diagnosis_accepts_every_group_empty(self):
+        """Teto, nao piso: registro que nao sustenta hipotese nao e erro."""
+        vazios = {chave: [] for chave in self.diagnosis_result()}
+        self.assertEqual(server.validate_result("diagnosis", vazios), vazios)
 
     def test_diagnosis_rejects_wrong_option_count(self):
-        with self.assertRaises(ValueError):
-            server.validate_result("diagnosis", {
-                "syndromic_options": [{"name": "x", "cid11": "y", "dsm5tr": "z"}],  # deveria ter 3
-                "nosological_options": [],
-                "etiological_options": [],
-            })
+        with self.assertRaisesRegex(ValueError, "aceita no maximo 3 opcoes"):
+            server.validate_result("diagnosis", self.diagnosis_result(
+                nosological_options=[{"name": "x", "cid11": "y", "dsm5tr": "z"}] * 4))
+
+    # Campo ausente e campo com opcoes demais sao problemas diferentes e agora
+    # dizem coisas diferentes. Enquanto davam a mesma mensagem, a falha deste
+    # proprio arquivo mandava procurar opcao demais onde nao veio opcao nenhuma.
+    def test_diagnosis_missing_group_says_it_is_missing(self):
+        incompleto = self.diagnosis_result()
+        del incompleto["comorbidity_options"]
+        with self.assertRaisesRegex(ValueError, "nao veio na resposta"):
+            server.validate_result("diagnosis", incompleto)
+
+    def test_diagnosis_group_of_wrong_type_says_it_is_not_a_list(self):
+        with self.assertRaisesRegex(ValueError, "deveria ser uma lista"):
+            server.validate_result("diagnosis", self.diagnosis_result(aggravating_options="insonia"))
+
+    # A segunda passada devolve a MESMA estrutura da primeira, e por isso
+    # reaproveita schema e validacao do kind que revisa. Se o alias se perder, a
+    # revisao passa a nao ser validada — cai no ramo final, que nao confere
+    # nada — e uma resposta torta chega a tela sem ninguem reclamar.
+    def test_review_kinds_validate_as_the_kind_they_review(self):
+        for revisao, base in server.REVIEW_OF_KIND.items():
+            self.assertIs(server.SCHEMAS[revisao], server.SCHEMAS[base])
+            self.assertIn(revisao, server.ALLOWED_KINDS)
+        with self.assertRaisesRegex(ValueError, "aceita no maximo 3 opcoes"):
+            server.validate_result("diagnosis_review", self.diagnosis_result(
+                nosological_options=[{"name": "x", "cid11": "y", "dsm5tr": "z"}] * 4))
+
+    def test_each_kind_reads_its_own_books(self):
+        """Uma etapa por escopo, e o escopo aponta para onde se espera.
+
+        Trocar duas linhas do mapa nao quebra nada visivelmente: a etapa
+        responde, so que lendo o livro da outra. O Tratamento passaria a
+        diagnosticar pela psicofarmacologia sem nenhum erro na tela.
+        """
+        esperado = {
+            "diagnosis": ("diagnostico_base",),
+            "diagnosis_review": ("refino",),
+            "treatment": ("tratamento_base",),
+            "treatment_review": ("refino",),
+            "medication": ("medicamento_base",),
+            "medication_review": ("medicamento_refino",),
+            "medication_tips": ("medicamento_refino",),
+            "symptomatic": ("sintomatico",),
+        }
+        for kind, escopos in esperado.items():
+            self.assertEqual(server.RAG_SCOPE_BY_KIND[kind], escopos, kind)
 
     def test_refinement_requires_three_to_eight_questions(self):
         with self.assertRaises(ValueError):

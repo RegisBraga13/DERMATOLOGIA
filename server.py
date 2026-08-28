@@ -743,6 +743,23 @@ def parse_model_json(text):
         raise
 
 
+def diagnostic_group(result, group, limit):
+    """Um grupo de opcoes do diagnostico, com as tres falhas separadas.
+
+    As tres davam a mesma mensagem — "aceita no maximo N opcoes" —, e so uma
+    delas fala de quantidade. Campo ausente lendo "aceita no maximo 3 opcoes"
+    manda procurar opcao demais onde nao veio opcao nenhuma.
+    """
+    options = result.get(group)
+    if options is None:
+        raise ValueError(f"O grupo {group} nao veio na resposta.")
+    if not isinstance(options, list):
+        raise ValueError(f"O grupo {group} deveria ser uma lista.")
+    if len(options) > limit:
+        raise ValueError(f"O grupo {group} aceita no maximo {limit} opcoes.")
+    return options
+
+
 def validate_result(kind, result):
     kind = REVIEW_OF_KIND.get(kind, kind)
     if kind == "anamnesis":
@@ -781,9 +798,7 @@ def validate_result(kind, result):
         # descritiva nao tem codigo, e exigir um so produzia "N/A".
         for group, limit in (("syndromic_options", 3), ("nosological_options", 3), ("etiological_options", 2),
                              ("comorbidity_options", 3)):
-            options = result.get(group)
-            if not isinstance(options, list) or len(options) > limit:
-                raise ValueError(f"O grupo {group} aceita no maximo {limit} opcoes.")
+            options = diagnostic_group(result, group, limit)
             # Opcao sem nome e descartada, nao fatal. Ela aparece de vez em
             # quando — a IA emite uma entrada vazia para preencher o grupo — e
             # derrubar a resposta inteira por causa dela custava as hipoteses
@@ -813,9 +828,7 @@ def validate_result(kind, result):
         # descartada em vez de derrubar a resposta. "applies_to" vazio nao
         # descarta — o especificador ainda serve ao medico, que sabe a qual
         # hipotese ele se aplica.
-        especificadores = result.get("specifier_options")
-        if not isinstance(especificadores, list) or len(especificadores) > 4:
-            raise ValueError("O grupo specifier_options aceita no maximo 4 opcoes.")
+        especificadores = diagnostic_group(result, "specifier_options", 4)
         validos = [o for o in especificadores
                    if isinstance(o, dict) and isinstance(o.get("name"), str) and o["name"].strip()]
         if len(validos) != len(especificadores):
@@ -828,9 +841,7 @@ def validate_result(kind, result):
         # Fator agravante segue o mesmo criterio do especificador: teto, entrada
         # sem nome descartada, e "effect" vazio nao descarta — o medico sabe por
         # que aquele fator pesa no caso dele.
-        agravantes = result.get("aggravating_options")
-        if not isinstance(agravantes, list) or len(agravantes) > 4:
-            raise ValueError("O grupo aggravating_options aceita no maximo 4 opcoes.")
+        agravantes = diagnostic_group(result, "aggravating_options", 4)
         agravantes_validos = [o for o in agravantes
                               if isinstance(o, dict) and isinstance(o.get("name"), str) and o["name"].strip()]
         if len(agravantes_validos) != len(agravantes):
