@@ -315,6 +315,26 @@ SCHEMAS = {
         "type": "object",
         "additionalProperties": False,
         "properties": {
+            # A analise vem antes das hipoteses de proposito: e o raciocinio que
+            # as sustenta. Cada item traz o dominio, o achado e a EVIDENCIA —
+            # o trecho do registro que o sustenta. Sem evidencia o item cai:
+            # achado sem apoio no prontuario e afirmacao, e este programa nao
+            # afirma o que o registro nao diz.
+            "psychopathological_analysis": {
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 8,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "domain": {"type": "string"},
+                        "finding": {"type": "string"},
+                        "evidence": {"type": "string"},
+                    },
+                    "required": ["domain", "finding", "evidence"],
+                },
+            },
             "syndromic_options": {
                 "type": "array",
                 "minItems": 0,
@@ -419,8 +439,8 @@ SCHEMAS = {
                 },
             },
         },
-        "required": ["syndromic_options", "nosological_options", "etiological_options", "specifier_options",
-                     "comorbidity_options", "aggravating_options"],
+        "required": ["psychopathological_analysis", "syndromic_options", "nosological_options",
+                     "etiological_options", "specifier_options", "comorbidity_options", "aggravating_options"],
     },
     "treatment": {
         "type": "object",
@@ -794,6 +814,18 @@ def validate_result(kind, result):
             if not isinstance(result.get(key), list):
                 raise ValueError("Bloco de refinamento invalido.")
     elif kind == "diagnosis":
+        # A analise psicopatologica: item sem dominio, sem achado ou sem
+        # evidencia e descartado, e nao derruba a resposta. Descartar e o
+        # comportamento certo aqui — um achado que a IA nao conseguiu ancorar
+        # no registro nao pode aparecer na tela como se estivesse ancorado.
+        analise = diagnostic_group(result, "psychopathological_analysis", 8)
+        ancorados = [item for item in analise
+                     if isinstance(item, dict)
+                     and all(isinstance(item.get(k), str) and item[k].strip() for k in ("domain", "finding", "evidence"))]
+        if len(ancorados) != len(analise):
+            logger.warning("psychopathological_analysis: %d item(ns) sem dominio, achado ou evidencia descartado(s)",
+                           len(analise) - len(ancorados))
+        result["psychopathological_analysis"] = ancorados
         # Teto, nao piso: menos hipoteses e uma resposta legitima quando o
         # registro nao sustenta mais. So o nome e obrigatorio — sindrome
         # descritiva nao tem codigo, e exigir um so produzia "N/A".
@@ -1104,8 +1136,17 @@ def plain_text_from_result(kind, result):
             return "\n".join(
                 " - ".join(part for part in [item.get("name") or "", (item.get("effect") or "").strip()] if part)
                 for item in options)
-        return ("DIAGNOSTICO NOSOLOGICO:\n{}\n\nESPECIFICADORES:\n{}\n\nCOMORBIDADES:\n{}\n\n"
-                "FATORES AGRAVANTES:\n{}\n\nDIAGNOSTICO SINDROMICO:\n{}\n\nDIAGNOSTICO ETIOLOGICO:\n{}").format(
+        def format_analysis(options):
+            # "Humor: deprimido, com anedonia severa (parou de sair e de cozinhar)"
+            return "\n".join(
+                "{}: {} ({})".format(item.get("domain") or "", item.get("finding") or "", item.get("evidence") or "")
+                for item in options)
+        # A analise abre o texto: ela e o raciocinio, e as hipoteses sao a
+        # conclusao. Lida na ordem inversa, a conclusao chega sem o caminho.
+        return ("ANALISE PSICOPATOLOGICA:\n{}\n\nDIAGNOSTICO NOSOLOGICO:\n{}\n\nESPECIFICADORES:\n{}\n\n"
+                "COMORBIDADES:\n{}\n\nFATORES AGRAVANTES:\n{}\n\nDIAGNOSTICO SINDROMICO:\n{}\n\n"
+                "DIAGNOSTICO ETIOLOGICO:\n{}").format(
+            format_analysis(result.get("psychopathological_analysis") or []),
             format_options(result["nosological_options"]), format_specifiers(result.get("specifier_options") or []),
             format_options(result.get("comorbidity_options") or []),
             format_aggravating(result.get("aggravating_options") or []),

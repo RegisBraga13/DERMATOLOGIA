@@ -152,4 +152,77 @@ describe("contingencia do catalogo local", () => {
     const resultado = diagnosisSuggestionFromLocalCatalogue({ qphda: "Paciente deprimida." }, falha);
     assert.deepEqual(resultado.ragSourcesDiagnostico, []);
   });
+
+  it("a contingencia nao produz analise psicopatologica, e limpa a que havia", () => {
+    // O catalogo casa termo: nao le o registro e nao tem como apontar
+    // evidencia. Analise sem evidencia e o que esta etapa recusa a produzir.
+    const resultado = diagnosisSuggestionFromLocalCatalogue(
+      { qphda: "Paciente deprimida, anedonia.", impacto: ["Grave"], analisePsicopatologica: "Humor: deprimido (anedonia)" },
+      falha
+    );
+    assert.equal(resultado.analisePsicopatologica, "");
+  });
+});
+
+describe("analise psicopatologica", () => {
+  const analise = [
+    { domain: "Humor", finding: "Deprimido, com anedonia severa.", evidence: "parou de sair, de cozinhar e de atender o telefone" },
+    { domain: "Sono", finding: "Insônia terminal", evidence: "acorda às 3h e não reata o sono" },
+    { domain: "Pensamento", finding: "Delírios niilistas e de ruína", evidence: "órgãos apodrecendo; família gasta dinheiro à toa" }
+  ];
+
+  it("cada achado sai com a evidencia do registro entre parenteses", () => {
+    const resultado = diagnosisSuggestionFromAi({ result: { psychopathological_analysis: analise } });
+    assert.deepEqual(linhas(resultado.analisePsicopatologica), [
+      "Humor: Deprimido, com anedonia severa (parou de sair, de cozinhar e de atender o telefone)",
+      "Sono: Insônia terminal (acorda às 3h e não reata o sono)",
+      "Pensamento: Delírios niilistas e de ruína (órgãos apodrecendo; família gasta dinheiro à toa)"
+    ]);
+  });
+
+  it("achado que a IA nao ancorou no registro nao entra", () => {
+    // Sem evidencia e afirmacao, e o prontuario nao afirma o que nao foi
+    // registrado. Descartar o item e melhor do que mostra-lo com cara de
+    // ancorado -- e melhor do que derrubar a resposta inteira por causa dele.
+    const resultado = diagnosisSuggestionFromAi({
+      result: {
+        psychopathological_analysis: [
+          analise[0],
+          { domain: "Cognição", finding: "Provável declínio cognitivo", evidence: "" },
+          { domain: "", finding: "Achado sem domínio", evidence: "algo" },
+          { domain: "Risco", finding: "", evidence: "sem achado" }
+        ]
+      }
+    });
+    assert.deepEqual(linhas(resultado.analisePsicopatologica).length, 1);
+    assert.doesNotMatch(resultado.analisePsicopatologica, /declínio cognitivo/);
+  });
+
+  it("o mesmo dominio repetido nao sai duas vezes", () => {
+    const resultado = diagnosisSuggestionFromAi({
+      result: { psychopathological_analysis: [analise[0], analise[0], analise[1]] }
+    });
+    assert.equal(linhas(resultado.analisePsicopatologica).length, 2);
+  });
+
+  it("a tela diz quantos dominios vieram, e que cada um tem evidencia", () => {
+    const resultado = diagnosisSuggestionFromAi({ result: { psychopathological_analysis: analise } });
+    assert.match(resultado.aiStatus, /Análise psicopatológica: 3 domínios, cada um com a evidência do registro\./);
+  });
+
+  it("um dominio so fala no singular", () => {
+    const resultado = diagnosisSuggestionFromAi({ result: { psychopathological_analysis: [analise[0]] } });
+    assert.match(resultado.aiStatus, /1 domínio,/);
+  });
+
+  it("resposta sem analise nao inventa a secao nem o aviso", () => {
+    const resultado = diagnosisSuggestionFromAi({ result: {} });
+    assert.equal(resultado.analisePsicopatologica, "");
+    assert.doesNotMatch(resultado.aiStatus, /Análise psicopatológica/);
+  });
+
+  it("a analise nao vem assinalada: nao ha o que assinalar num raciocinio", () => {
+    const resultado = diagnosisSuggestionFromAi({ result: { psychopathological_analysis: analise } });
+    assert.deepEqual(resultado.diagnosticoSelecionado, []);
+  });
 });

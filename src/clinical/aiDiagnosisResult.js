@@ -1,5 +1,5 @@
 import { buildDiagnosticSuggestion, doctorSelectedOptions, formatDiagnosticOption } from "./diagnosis.js";
-import { normalizeText } from "./textFormat.js";
+import { normalizeText, stripFinalPeriod } from "./textFormat.js";
 
 // Transformacao do que a IA devolve no que o formulario guarda. Estava dentro
 // do gerador, no App.js, misturada com a chamada de rede, o estado do
@@ -60,7 +60,17 @@ export function diagnosisSuggestionFromAi({ result = {}, target = {}, sources = 
   // caso. Fora do uniqueGroup pelo mesmo motivo do especificador.
   const aggravatingOptions = pairedOptions(result.aggravating_options, "effect");
   const selectedDoctorOptions = doctorSelectedOptions(target || {});
+  // "Humor: deprimido, com anedonia severa (parou de sair e de cozinhar)".
+  // A evidencia entre parenteses e o que separa esta analise de um rotulo
+  // colado no caso -- e o que permite ao medico conferir cada achado contra o
+  // proprio registro, sem reler a consulta inteira.
+  const analysis = (result.psychopathological_analysis || [])
+    .filter(item => ["domain", "finding", "evidence"].every(key => String(item?.[key] || "").trim()))
+    .map(item => `${String(item.domain).trim()}: ${stripFinalPeriod(String(item.finding).trim())} (${stripFinalPeriod(String(item.evidence).trim())})`)
+    .filter((linha, index, lista) => lista.indexOf(linha) === index)
+    .slice(0, 8);
   return {
+    analisePsicopatologica: analysis.join("\n"),
     diagnosticoAiSindromico: syndromicOptions.join("\n"),
     diagnosticoAiNosologico: nosologicalOptions.join("\n"),
     diagnosticoAiEtiologico: etiologicalOptions.join("\n"),
@@ -80,6 +90,9 @@ export function diagnosisSuggestionFromAi({ result = {}, target = {}, sources = 
     ragSourcesDiagnostico: sources,
     aiMode: mode,
     aiStatus: [
+      analysis.length
+        ? `Análise psicopatológica: ${countLabel(analysis.length, "domínio", "domínios")}, cada um com a evidência do registro.`
+        : "",
       `Propostas para você assinalar: ${countLabel(nosologicalOptions.length, "nosológica")}, ${countLabel(syndromicOptions.length, "sindrômica")} e ${countLabel(etiologicalOptions.length, "etiológica")}. As hipóteses do médico foram mantidas.`,
       specifierOptions.length ? `${countLabel(specifierOptions.length, "especificador", "especificadores")} proposto(s).` : "",
       comorbidityOptions.length ? `${countLabel(comorbidityOptions.length, "comorbidade")} proposta(s).` : "",
@@ -120,6 +133,12 @@ export function diagnosisSuggestionFromLocalCatalogue(target = {}, error = {}) {
   const encontrou = local.diagnosticoAiSindromico || local.diagnosticoAiNosologico || local.diagnosticoAiEtiologico;
   return {
     ...local,
+    // O catalogo local casa termo; nao le o registro e nao tem como apontar a
+    // evidencia de nada. Analise sem evidencia e o que esta etapa recusa a
+    // produzir, entao aqui ela fica vazia -- e limpa o que a IA tenha escrito
+    // antes, para nao sobrar analise de uma geracao ao lado de hipoteses de
+    // outra.
+    analisePsicopatologica: "",
     ragSourcesDiagnostico: [],
     treatmentStatus: `${fonte} indisponivel: ${error.message}`,
     aiStatus: encontrou

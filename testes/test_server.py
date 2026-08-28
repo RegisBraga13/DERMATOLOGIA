@@ -204,6 +204,9 @@ class ValidateResultTests(unittest.TestCase):
     def diagnosis_result(**alteracoes):
         opcao = {"name": "x", "cid11": "y", "dsm5tr": "z"}
         base = {
+            "psychopathological_analysis": [
+                {"domain": "Humor", "finding": "deprimido", "evidence": "parou de sair e de cozinhar"}
+            ],
             "syndromic_options": [dict(opcao) for _ in range(3)],
             "nosological_options": [dict(opcao) for _ in range(3)],
             "etiological_options": [dict(opcao) for _ in range(2)],
@@ -228,6 +231,35 @@ class ValidateResultTests(unittest.TestCase):
         """Teto, nao piso: registro que nao sustenta hipotese nao e erro."""
         vazios = {chave: [] for chave in self.diagnosis_result()}
         self.assertEqual(server.validate_result("diagnosis", vazios), vazios)
+
+    def test_analysis_drops_the_item_it_could_not_anchor(self):
+        """Achado sem evidencia no registro e afirmacao, e cai fora.
+
+        Descartar o item e melhor do que mostra-lo na tela com cara de
+        ancorado, e melhor do que derrubar a resposta inteira por causa dele —
+        os achados bem ancorados iriam junto.
+        """
+        validado = server.validate_result("diagnosis", self.diagnosis_result(
+            psychopathological_analysis=[
+                {"domain": "Humor", "finding": "deprimido", "evidence": "parou de sair"},
+                {"domain": "Cognicao", "finding": "declinio provavel", "evidence": "   "},
+                {"domain": "", "finding": "achado sem dominio", "evidence": "algo"},
+                {"domain": "Risco", "finding": "", "evidence": "sem achado"},
+            ]))
+        self.assertEqual(len(validado["psychopathological_analysis"]), 1)
+        self.assertEqual(validado["psychopathological_analysis"][0]["domain"], "Humor")
+
+    def test_analysis_missing_group_says_it_is_missing(self):
+        result = self.diagnosis_result()
+        del result["psychopathological_analysis"]
+        with self.assertRaisesRegex(ValueError, "nao veio na resposta"):
+            server.validate_result("diagnosis", result)
+
+    def test_analysis_rejects_more_than_eight_domains(self):
+        item = {"domain": "Humor", "finding": "deprimido", "evidence": "parou de sair"}
+        with self.assertRaisesRegex(ValueError, "aceita no maximo 8 opcoes"):
+            server.validate_result("diagnosis", self.diagnosis_result(
+                psychopathological_analysis=[dict(item) for _ in range(9)]))
 
     def test_diagnosis_rejects_wrong_option_count(self):
         with self.assertRaisesRegex(ValueError, "aceita no maximo 3 opcoes"):
@@ -303,6 +335,26 @@ class PlainTextFromResultTests(unittest.TestCase):
         text = server.plain_text_from_result("medication", result)
         for expected in ("Sertralina", "50mg -> 100mg", "nausea", "acompanhar em 4 semanas"):
             self.assertIn(expected, text)
+
+    def test_diagnosis_text_opens_with_the_analysis(self):
+        """A analise e o raciocinio; a hipotese e a conclusao.
+
+        Lida na ordem inversa, a conclusao chega sem o caminho — e o caminho e
+        justamente o que o medico precisa conferir.
+        """
+        result = {
+            "psychopathological_analysis": [
+                {"domain": "Humor", "finding": "deprimido, com anedonia severa",
+                 "evidence": "parou de sair, de cozinhar e de atender o telefone"}
+            ],
+            "nosological_options": [{"name": "Transtorno depressivo", "cid11": "6A70.4", "dsm5tr": "F32.3"}],
+            "syndromic_options": [{"name": "Sindrome depressiva", "cid11": "", "dsm5tr": ""}],
+            "etiological_options": [],
+        }
+        text = server.plain_text_from_result("diagnosis", result)
+        self.assertTrue(text.startswith("ANALISE PSICOPATOLOGICA:"))
+        self.assertIn("Humor: deprimido, com anedonia severa (parou de sair, de cozinhar e de atender o telefone)", text)
+        self.assertLess(text.index("ANALISE PSICOPATOLOGICA"), text.index("DIAGNOSTICO NOSOLOGICO"))
 
 
 class ServerIntegrationTests(unittest.TestCase):

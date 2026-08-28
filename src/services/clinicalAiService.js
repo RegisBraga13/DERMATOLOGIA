@@ -222,6 +222,13 @@ function validateClinicalAiPayload(kind, result, text = "") {
   if (kind === "diagnosis") {
     // Teto, nao piso. Ver o comentario no schema do server.py: exigir um numero
     // fixo obrigava o modelo a inventar hipotese quando faltava dado.
+    // Item sem dominio, achado ou evidencia e descartado, e nao derruba a
+    // resposta: um achado que a IA nao ancorou no registro nao pode chegar a
+    // tela com cara de ancorado. Mesmo criterio do server.py.
+    if (!Array.isArray(result.psychopathological_analysis)) result.psychopathological_analysis = [];
+    result.psychopathological_analysis = result.psychopathological_analysis
+      .filter(item => ["domain", "finding", "evidence"].every(key => typeof item?.[key] === "string" && item[key].trim()))
+      .slice(0, 8);
     [["syndromic_options", 3], ["nosological_options", 3], ["etiological_options", 2]].forEach(([group, limit]) => {
       if (!Array.isArray(result[group]) || result[group].length > limit) throw new Error(`O grupo ${group} aceita no maximo ${limit} opcoes.`);
       result[group].forEach(option => {
@@ -426,6 +433,8 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       // perguntas clinicas diferentes. Escrever isso no prompt e o que impede
       // a IA de devolver a mesma entidade tres vezes com nomes trocados.
       "A camada NOSOLOGICA identifica a entidade nos manuais oficiais. E a base do tratamento principal, do seguimento continuo, do atestado e do laudo, e e ela que recebe os especificadores.",
+      "Comece pela ANALISE PSICOPATOLOGICA, e so depois nomeie as hipoteses: e ela o raciocinio que as sustenta. Para cada dominio, escreva o achado e, entre parenteses, a EVIDENCIA — o trecho do registro que o sustenta, o mais literal possivel. 'Anedonia severa (parou de sair, de cozinhar e de atender o telefone)'. Achado que voce nao conseguir ancorar num trecho do registro NAO ENTRA: sem evidencia e afirmacao, e este prontuario nao afirma o que nao foi registrado.",
+      "Na analise, ligue o que se explica: um achado somatico que decorre do conteudo do pensamento e o mesmo sintoma, e nao dois — perda de peso por recusa alimentar num delirio de negacao de orgaos muda a conduta, e a lista de sintomas separados nao diz isso. Diga a ligacao quando o registro a sustentar.",
       "A camada SINDROMICA descreve os sinais e sintomas que ocorrem juntos. Sao inespecificos e aparecem em varios transtornos — sindrome depressiva ocorre tambem no esquizofrenico e no borderline. Ela orienta a conduta imediata: alivio do sofrimento e controle de risco, antes mesmo de saber o nome definitivo do quadro. NAO repita aqui a entidade que voce nomeou na camada nosologica.",
       "A camada ETIOLOGICA aponta a causa primaria: vulnerabilidade genetica ou temperamental, estressores psicossociais, substancias, condicao medica geral. E o que permite tratamento causal — tratar a tireoide em vez de medicar o sintoma — e prevenir recidiva.",
       "As hipoteses sao mero auxilio ao psiquiatra e nao substituem avaliacao, confirmacao de criterios, exame clinico ou decisao medica.",
@@ -649,6 +658,13 @@ function promptResponseFormat(kind) {
   if (kind === "refinement") return "Objeto estruturado com questions (cada uma com id do protocolo e opcoes de resposta), mandatory_gaps e alerts (apenas ids do protocolo), sem texto adicional.";
   if (kind === "diagnosis") {
     return [
+      "ANALISE PSICOPATOLOGICA: ate 8 itens, um por linha, no formato",
+      "Dominio: achado (evidencia literal do registro).",
+      "Dominios uteis: humor, variacao circadiana, sono, apetite e alteracoes",
+      "somaticas, pensamento (curso, forma e conteudo), sensopercepcao,",
+      "cognicao, psicomotricidade, juizo critico, funcionalidade, risco.",
+      "So os dominios que este caso sustenta: dominio sem achado nao entra.",
+      "",
       "DIAGNOSTICO NOSOLOGICO: ate 3 hipoteses, uma por linha.",
       "ESPECIFICADORES: ate 4, uma por linha, no formato Nome - hipotese nosologica que ele qualifica.",
       "COMORBIDADES: ate 3, uma por linha, com os dois codigos.",

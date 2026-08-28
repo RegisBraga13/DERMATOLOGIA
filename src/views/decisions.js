@@ -21,6 +21,7 @@ export function diagnosisModule(form) {
   const selectedValues = selectedDiagnosisValues(form);
   const selectedText = selectedDiagnosisText(form);
   const aiStatus = diagnosisAiStatusText(form.aiStatus);
+  const analysisLines = psychopathologicalAnalysisLines(form);
   return `
     <div class="diagnosis-ai-panel">
       ${aiModeSelector(form.aiMode)}
@@ -31,6 +32,8 @@ export function diagnosisModule(form) {
       ${aiStatus ? `<p class="online-status">${escapeHtml(aiStatus)}</p>` : ""}
       ${ragSourcesView(form.ragSourcesDiagnostico)}
     </div>
+    ${psychopathologicalAnalysisView(analysisLines)}
+    <textarea hidden name="analisePsicopatologica">${escapeHtml(analysisLines.join("\n"))}</textarea>
     <textarea hidden name="diagnosticoManual">${escapeHtml(selectedText)}</textarea>
     <textarea hidden name="diagnosticoAiSindromico">${escapeHtml(syndromicOptions.join("\n"))}</textarea>
     <textarea hidden name="diagnosticoAiNosologico">${escapeHtml(nosologicalOptions.join("\n"))}</textarea>
@@ -269,4 +272,35 @@ export function evolutionBody(form, patient, previous = null, isReturn = false) 
     ${form.aiStatus ? `<p class="online-status">${escapeHtml(form.aiStatus)}</p>` : ""}
     ${textarea("evolution", "", evolution || generatedEvolution)}
   `;
+}
+
+// A analise psicopatologica: o raciocinio que sustenta as hipoteses, um dominio
+// por linha, cada achado com a evidencia do registro entre parenteses.
+//
+// Nao e checklist e nao tem caixa de selecao: nao ha o que assinalar num
+// raciocinio. O que o medico assinala sao as hipoteses, logo abaixo — e e por
+// isso que a analise vem antes delas na tela, na mesma ordem em que se pensa.
+export function psychopathologicalAnalysisLines(form = {}) {
+  return String(form.analisePsicopatologica || "")
+    .split("\n")
+    .map(linha => linha.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
+function psychopathologicalAnalysisView(linhas) {
+  if (!linhas.length) return "";
+  return `<div class="clinical-card analysis-card">
+    <h4>Análise psicopatológica</h4>
+    <p class="online-status">Cada achado vem com o trecho do registro que o sustenta. Achado sem evidência no prontuário não entra — e o catálogo local, que casa termo, não produz esta análise.</p>
+    <ul class="analysis-list">
+      ${linhas.map(linha => {
+        const [dominio, ...resto] = linha.split(/:\s*/);
+        const corpo = resto.join(": ");
+        return corpo
+          ? `<li><strong>${escapeHtml(dominio)}:</strong> ${escapeHtml(corpo)}</li>`
+          : `<li>${escapeHtml(linha)}</li>`;
+      }).join("")}
+    </ul>
+  </div>`;
 }
