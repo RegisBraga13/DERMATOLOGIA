@@ -933,10 +933,29 @@ async function saveCurrentPageAndAdvance(element) {
   const completedPage = currentPageForScope(scope);
   saveClinicalRecord(scope);
   const nextPage = nextPageForScope(scope);
+  // A pagina seguinte e liberada de qualquer jeito, inclusive no desvio: o
+  // fluxo avancou: o que muda e onde ele para. Sem isto, quem fosse desviado
+  // para a ficha voltaria e acharia o Sintoma-Alvo ainda trancado.
   if (nextPage) unlockPage(scope, nextPage);
-  if (scope === "consultation" && nextPage) consultationPage = nextPage;
+  const destino = medicationDetour(scope, completedPage) || nextPage;
+  if (scope === "consultation" && destino) consultationPage = destino;
   if (scope === "return" && nextPage) returnPage = nextPage;
   render();
+}
+
+// Decisao dele: assinalado o medicamento no Tratamento, "Salvar e avancar" leva
+// a ficha em vez da proxima etapa. A consulta a ficha nasce da prescricao — sem
+// farmaco marcado nao ha o que consultar, e o fluxo segue reto.
+//
+// Nao e um pulo: e uma parada. A etapa seguinte fica liberada na mesma acao, e
+// se alcanca dela pela aba, como qualquer pagina ja percorrida. Medicamentos e
+// pagina-apendice (APPENDIX_PAGES) e nao precisa ser liberada.
+function medicationDetour(scope, completedPage) {
+  if (scope !== "consultation" || completedPage !== "tratamento") return "";
+  // Pelo escopo, e nao por currentClinicalDraft(), que le a `view` global: aqui
+  // quem manda e o escopo do botao que foi clicado.
+  const marcados = arrayValue((draft.consultation || {}).tratamentoMedicamentosSelecionados);
+  return marcados.length ? "medicamentos" : "";
 }
 
 function saveClinicalRecord(scope) {
