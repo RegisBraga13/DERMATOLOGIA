@@ -221,6 +221,32 @@ describe("analise psicopatologica", () => {
     assert.doesNotMatch(resultado.analisePsicopatologica, /declínio cognitivo/);
   });
 
+  it("evidencia ja escrita dentro do achado nao sai duas vezes", () => {
+    // Visto na tela em 28/08/2026, nos oito dominios do mesmo caso: a IA fecha
+    // o achado com a evidencia entre parenteses, e o formato da linha poe a
+    // evidencia entre parenteses de novo.
+    const resultado = diagnosisSuggestionFromAi({
+      result: { psychopathological_analysis: [{
+        domain: "Humor",
+        finding: "Tristeza persistente, desesperança (tristeza continua que nao cedeu com o tempo)",
+        evidence: "tristeza continua que nao cedeu com o tempo"
+      }] }
+    });
+    assert.equal(resultado.analisePsicopatologica,
+      "Humor: Tristeza persistente, desesperança (tristeza continua que nao cedeu com o tempo)");
+  });
+
+  it("parentese que diz outra coisa e informacao, e fica", () => {
+    const resultado = diagnosisSuggestionFromAi({
+      result: { psychopathological_analysis: [{
+        domain: "Sono",
+        finding: "Insônia terminal (desde a morte do marido)",
+        evidence: "acorda às 3h e não reata o sono"
+      }] }
+    });
+    assert.match(resultado.analisePsicopatologica, /\(desde a morte do marido\) \(acorda às 3h/);
+  });
+
   it("o mesmo dominio repetido nao sai duas vezes", () => {
     const resultado = diagnosisSuggestionFromAi({
       result: { psychopathological_analysis: [analise[0], analise[0], analise[1]] }

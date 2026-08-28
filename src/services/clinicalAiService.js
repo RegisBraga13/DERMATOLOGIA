@@ -482,6 +482,7 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       // descreve fenomeno, sindromes descreve entidade, e nenhum dos dois traz
       // "cinco dos nove sintomas por duas semanas" nem a lista de
       // especificadores -- que foi justamente o que ele teve de corrigir a mao.
+      "Em 'finding' escreva SO o achado, sem repetir a evidencia entre parenteses: a evidencia tem campo proprio e a tela ja a mostra entre parenteses depois do achado. Repetindo, a linha sai com o mesmo trecho duas vezes.",
       "DSM-5-TR e CID-11 sao o padrao de referencia desta etapa, e nao duas fontes entre outras. Toda hipotese NOSOLOGICA deve ser entidade existente em um dos dois; rotulo descritivo que nao seja entidade dessas classificacoes nao entra nessa camada — se for conjunto de achados, e sindromico.",
       "Confira os criterios na literatura recuperada antes de propor: numero de sintomas, duracao minima, prejuizo funcional e exclusoes. Proponha o que os criterios sustentam, e nao o que o quadro sugere de longe. Quando um criterio decisivo nao puder ser verificado com o que esta registrado, diga isso na justificativa em vez de assumir que esta preenchido.",
       "Os especificadores devem sair das listas oficiais do DSM-5-TR ou da CID-11 para AQUELA entidade: gravidade; com sintomas psicoticos, dizendo se sao congruentes ou incongruentes com o humor; caracteristicas melancolicas, atipicas, catatonicas, ansiosas; padrao sazonal; curso e remissao. Nao invente especificador descritivo fora dessas listas.",

@@ -66,7 +66,22 @@ export function diagnosisSuggestionFromAi({ result = {}, target = {}, sources = 
   // proprio registro, sem reler a consulta inteira.
   const analysis = (result.psychopathological_analysis || [])
     .filter(item => ["domain", "finding", "evidence"].every(key => String(item?.[key] || "").trim()))
-    .map(item => `${String(item.domain).trim()}: ${stripFinalPeriod(String(item.finding).trim())} (${stripFinalPeriod(String(item.evidence).trim())})`)
+    .map(item => {
+      const evidencia = stripFinalPeriod(String(item.evidence).trim());
+      // A IA muitas vezes ja fecha o achado com a evidencia entre parenteses,
+      // e o formato desta linha poe a evidencia entre parenteses de novo: saia
+      // "Humor: tristeza persistente (parou de sair) (parou de sair)". Visto na
+      // tela em 28/08/2026, nos oito dominios do mesmo caso.
+      //
+      // So corta quando o parentese do achado E a evidencia -- um contido no
+      // outro. Parentese que diga outra coisa e informacao, e fica.
+      const achado = stripFinalPeriod(String(item.finding).trim())
+        .replace(/\s*\(([^()]*)\)\s*$/, (tudo, dentro) => {
+          const a = normalizeText(dentro), b = normalizeText(evidencia);
+          return a && b && (a.includes(b) || b.includes(a)) ? "" : tudo;
+        }).trim();
+      return `${String(item.domain).trim()}: ${stripFinalPeriod(achado)} (${evidencia})`;
+    })
     .filter((linha, index, lista) => lista.indexOf(linha) === index)
     .slice(0, 8);
   return {
