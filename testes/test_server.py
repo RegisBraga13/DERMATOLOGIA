@@ -377,6 +377,26 @@ class ServerIntegrationTests(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_module_is_not_cached_by_the_browser(self):
+        """Codigo tem de revalidar: e o que impede uma correcao de ficar presa."""
+        for caminho in ("/src/App.js", "/src/styles/theme.css", "/src/data/examOptions.js"):
+            with self.subTest(caminho=caminho):
+                response = self._get(caminho)
+                self.assertIn("no-store", response.headers["Cache-Control"])
+
+    def test_query_string_does_not_buy_immutable_cache_for_code(self):
+        """O ?v= sumiu, mas um link velho no historico do navegador ainda o traz."""
+        response = self._get("/src/App.js?v=pagina-alvo-3")
+        self.assertIn("no-store", response.headers["Cache-Control"])
+
+    def test_index_html_is_never_cached(self):
+        response = self._get("/index.html")
+        self.assertIn("no-store", response.headers["Cache-Control"])
+
+    def test_font_is_cached_forever(self):
+        response = self._get("/fonts/Outfit-Variable-latin.woff2")
+        self.assertIn("immutable", response.headers["Cache-Control"])
+
     def test_unknown_api_path_is_404(self):
         conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
         try:
@@ -385,6 +405,24 @@ class ServerIntegrationTests(unittest.TestCase):
             self.assertEqual(response.status, 404)
         finally:
             conn.close()
+
+
+class CacheBusterTests(unittest.TestCase):
+    """O ?v= manual saiu de circulacao. Tres vezes a etiqueta ficou para tras do
+    arquivo e o navegador do medico segurou a versao velha por um ano; e, com
+    seis modulos importando examOptions.js, bastava esquecer um para o mesmo
+    arquivo carregar duas vezes, em duas instancias. O servidor e local: nao
+    cachear codigo nao custa nada."""
+
+    def _fontes(self):
+        arquivos = [ROOT / "index.html", ROOT / "carregar-caso.html"]
+        arquivos += sorted((ROOT / "src").rglob("*.js"))
+        return [a for a in arquivos if a.exists()]
+
+    def test_no_source_file_versions_an_import_by_query_string(self):
+        for arquivo in self._fontes():
+            with self.subTest(arquivo=str(arquivo.relative_to(ROOT))):
+                self.assertNotIn("?v=", arquivo.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ import { diagnosticAggravatingOptionLines, diagnosticComorbidityOptionLines, dia
 import { buildEvolutionNarrative, normalizeEvolutionNarrative, outdatedEvolutionText, requestedExamsText, returnEvolutionContainsIdentity, shouldRefreshEvolutionNarrative } from "../clinical/narrative.js";
 import { arrayValue, normalizeText } from "../clinical/textFormat.js";
 import { doctorDiagnosisOptions } from "../clinical/vocabulary.js";
-import { optionGroups } from "../data/examOptions.js?v=tratamento-5";
+import { optionGroups } from "../data/examOptions.js";
 import { targetSymptomOptions } from "../data/targetSymptoms.js";
 import { chips, textarea } from "../ui/controls.js";
 import { referenceFor } from "../data/references.js";

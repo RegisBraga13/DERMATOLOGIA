@@ -1,4 +1,4 @@
-import { medications } from "../data/medications.js?v=medicamentos-1";
+import { medications } from "../data/medications.js";
 import { selectedAggravatingValues, selectedComorbidityValues, selectedDiagnosisText, selectedSpecifierValues, treatmentOptionLines } from "./diagnosis.js";
 import { arrayValue, calculateAge, capitalizeFirst, cleanClinicalLine, clinicalPhrase, formatClinicalList, formatPlainList, joinValues, lowerFirst, mentalExamKeys, normalizedSingleChoiceValue, normalizeText, professionalClinicalTerms, professionalList, professionalListWithOther, stripFinalPeriod } from "./textFormat.js";
 import { EVOLUTION_REFRESH_PATTERNS, laboratoryExamRequestItems, RETURN_BOILERPLATE_PHRASES } from "./vocabulary.js";

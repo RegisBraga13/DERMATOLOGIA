@@ -1,7 +1,7 @@
 import { anamnesisText } from "../clinical/narrative.js";
 import { calculateAge, joinValues, mentalExamKeys, normalizeText } from "../clinical/textFormat.js";
 import { anamnesisQuestionGroups, MENTAL_EXAM_NORMAL } from "../clinical/vocabulary.js";
-import { optionGroups } from "../data/examOptions.js?v=tratamento-5";
+import { optionGroups } from "../data/examOptions.js";
 import { targetSymptomOptions } from "../data/targetSymptoms.js";
 import { formatSummaryDate, section, summaryGroupedOptionRow, summaryTable, summaryTextRow } from "../ui/controls.js";
 

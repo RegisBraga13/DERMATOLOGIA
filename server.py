@@ -70,9 +70,10 @@ BLOCKED_STEMS = ("rag_sources", "book_chapters")   # *.local.json
 # quem pedisse — 2,6 MB de obra licenciada, num programa que o resto do tempo
 # toma o cuidado de nao versionar nem o PDF.
 
-# Assets versionados por query string (?v=) podem ficar em cache longo.
+# Cache longo so para asset que nunca muda em uso: fonte e imagem. Codigo
+# (.js, .css) e dado (.json) ficam de fora de proposito — ver send_head().
 # HTML e respostas de API nunca — carregam dado clínico.
-CACHEABLE_SUFFIXES = {".woff2", ".woff", ".ttf", ".eot", ".css", ".js", ".svg", ".png", ".jpg", ".webp", ".ico"}
+CACHEABLE_SUFFIXES = {".woff2", ".woff", ".ttf", ".eot", ".svg", ".png", ".jpg", ".webp", ".ico"}
 
 
 def is_blocked_path(relative_parts):
@@ -1162,12 +1163,13 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
     def send_head(self):
         parsed = urllib.parse.urlparse(self.path)
         suffix = Path(parsed.path).suffix.lower()
-        # Cache eterno so para quem carrega versao na URL. O App.js foi
-        # dividido em modulos, e esses modulos sao importados sem ?v= — sem
-        # esta condicao eles ficavam um ano no cache do navegador sem nenhum
-        # meio de invalidar, e uma correcao publicada nunca chegava a quem ja
-        # tinha aberto o app.
-        self._cacheable = suffix in CACHEABLE_SUFFIXES and bool(parsed.query)
+        # Cache eterno so para fonte e imagem. Codigo e dado eram versionados
+        # a mao (App.js?v=pagina-alvo-3) e a mao a versao ficava para tras: o
+        # arquivo mudava, a etiqueta nao, e o navegador de quem ja tinha aberto
+        # o app segurava a versao velha por um ano. Aconteceu tres vezes. Aqui
+        # o servidor e local, entao revalidar .js/.css/.json nao custa nada e o
+        # ?v= deixou de existir.
+        self._cacheable = suffix in CACHEABLE_SUFFIXES
         return super().send_head()
 
     def end_headers(self):
@@ -1175,8 +1177,8 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
         if self._cacheable:
-            # index.html versiona os assets com ?v=; revalidar a cada carga
-            # torna o boot lento sem ganho nenhum.
+            # Fonte e imagem tem nome estavel e conteudo estavel; revalidar
+            # a cada carga torna o boot lento sem ganho nenhum.
             self.send_header("Cache-Control", "public, max-age=31536000, immutable")
         else:
             self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")

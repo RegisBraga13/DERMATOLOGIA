@@ -16,7 +16,7 @@ let protocolo = null;
 
 export async function loadProtocol() {
   if (protocolo) return protocolo;
-  const resposta = await fetch("src/data/protocol/entrevista.json?v=protocolo-1");
+  const resposta = await fetch("src/data/protocol/entrevista.json");
   if (!resposta.ok) throw new Error(`Protocolo de entrevista indisponivel (HTTP ${resposta.status}).`);
   protocolo = await resposta.json();
   return protocolo;

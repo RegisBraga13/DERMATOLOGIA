@@ -1,5 +1,5 @@
 import { compactText, normalizeText } from "../clinical/textFormat.js";
-import { medications } from "../data/medications.js?v=medicamentos-1";
+import { medications } from "../data/medications.js";
 
 export async function buildMedicationAutofill(typedName = "") {
   const rxnav = await fetchRxNavMedication(typedName);
