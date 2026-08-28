@@ -680,13 +680,16 @@ async function selectMedicationLookup(name) {
   const local = null;
   const loading = {
     medicationGeneric: name,
+    medicationTips: "",
     medicationOnlineStatus: local ? "Carregando ficha clínica e verificando fontes complementares..." : "Consultando RxNav/NLM e openFDA..."
   };
   if (scope === "return") draft.return = { ...(target || {}), ...loading };
   else draft.consultation = { ...(target || {}), ...loading };
   render();
 
-  const information = { medicationGeneric: name };
+  // Trocou de farmaco: o tip do anterior sai junto, pelo mesmo motivo do
+  // clearMedicationLookup.
+  const information = { medicationGeneric: name, medicationTips: "" };
   if (scope === "return") draft.return = { ...(draft.return || {}), ...information };
   else draft.consultation = { ...(draft.consultation || {}), ...information };
   render();
@@ -699,7 +702,10 @@ function clearMedicationLookup() {
     medicationPresentation: "", medicationSafety: "", medicationBestUse: "", medicationMechanism: "",
     medicationMonitoring: "", medicationSpecialPopulations: "", medicationOnlineStatus: "",
     medicationActiveIngredient: "", medicationPresentationHighlight: "", medicationRecommendedDose: "",
-    medicationMainEffects: ""
+    medicationMainEffects: "",
+    // Tip e do farmaco, nao da tela: sem limpar, o BIPP TIPS da duloxetina
+    // ficaria na caixa enquanto o medico pesquisa outro medicamento.
+    medicationTips: ""
   };
   if (scope === "return") draft.return = { ...(draft.return || {}), ...cleared };
   else draft.consultation = { ...(draft.consultation || {}), ...cleared };
@@ -1207,6 +1213,7 @@ async function generateMedicationFromClinicalData(element, kind = "medication") 
       medicationOnlineStatus: revisao
         ? "Ficha revisada pela fonte especializada. Revise com bula brasileira e dados do paciente."
         : "Resposta de medicamento gerada pela IA real. Revise com bula brasileira e dados do paciente.",
+      medicationTips: await fetchMedicationTips(context, target),
       aiStatus: revisao ? "Ficha refinada pela fonte especializada. Revise antes de salvar." : "Resposta gerada pela IA real. Revise antes de salvar.",
       ragSourcesMedicamento: sources,
       pharmaAiMode: mode
@@ -1222,6 +1229,32 @@ async function generateMedicationFromClinicalData(element, kind = "medication") 
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
   else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
   render();
+}
+
+// Os BIPP TIPS sao uma secao da Psicofarmacologia: Da Teoria a Clinica (2025),
+// no fim do capitulo de cada farmaco. Vem em chamada separada da ficha, e nao
+// no mesmo schema, porque sao outra coisa: a ficha e redigida a partir da
+// literatura, os tips sao reproduzidos de uma secao que ja existe escrita.
+//
+// Falha aqui nao derruba a ficha. A caixa some da tela e o resto fica: a ficha
+// e o que sustenta a prescricao, e os tips sao acrescimo.
+async function fetchMedicationTips(context, target) {
+  try {
+    const { result } = await requestClinicalAi(
+      "medication_tips",
+      buildClinicalAiPrompt("medication_tips", context.target, context.patient, context.previous, context.isReturn),
+      // Sempre RAG: reproduzir uma secao de um livro so faz sentido com o livro
+      // na mao. No modo "IA atual" nao ha secao nenhuma para reproduzir.
+      "rag",
+      buildRagQuery("medication_tips", context.target)
+    );
+    return (result.tips || []).join("\n\n");
+  } catch {
+    // Mantem o que ja estava: o farmaco e o mesmo desta chamada, e a caixa
+    // anterior continua valendo. Zerar aqui apagaria a secao por causa de uma
+    // falha de rede.
+    return target?.medicationTips || "";
+  }
 }
 
 function clinicalAiContext(scope = view === "return" ? "return" : "consultation") {

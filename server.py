@@ -29,7 +29,8 @@ MAX_PROMPT_CHARS = 160000
 MAX_OUTPUT_TOKENS = 2200
 MAX_AUDIO_BYTES = 30 * 1024 * 1024
 ALLOWED_KINDS = {"anamnesis", "mental_exam", "refinement_scope", "refinement", "diagnosis", "diagnosis_review",
-                 "treatment", "treatment_review", "symptomatic", "evolution", "medication", "medication_review"}
+                 "treatment", "treatment_review", "symptomatic", "evolution", "medication", "medication_review",
+                 "medication_tips"}
 # A segunda passada do Diagnostico e do Tratamento nao e outra tarefa: e a
 # mesma, refeita por um revisor com outro livro na mao. Por isso reaproveita
 # schema, validacao e texto plano do "kind" que ela revisa — a tela recebe a
@@ -523,6 +524,18 @@ SCHEMAS = {
         },
         "required": ["medication", "dose_progression", "side_effects", "notes"],
     },
+    # Secao existente no livro, e nao texto a ser redigido: cada tip e um
+    # paragrafo do BIPP TIPS daquele farmaco. Lista vazia e resposta legitima —
+    # ha farmaco sem a secao, e inventar um "tip" plausivel no lugar seria pior
+    # do que nao mostrar caixa nenhuma.
+    "medication_tips": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "tips": {"type": "array", "minItems": 0, "maxItems": 8, "items": {"type": "string"}},
+        },
+        "required": ["tips"],
+    },
 }
 
 # A revisao devolve a MESMA estrutura da geracao, camada por camada — nao um
@@ -601,6 +614,12 @@ RAG_SCOPE_BY_KIND = {
     # imediata na prescricao.
     "medication": ("medicamento_base",),
     "medication_review": ("medicamento_refino",),
+    # Os BIPP TIPS sao uma secao propria da Psicofarmacologia: Da Teoria a
+    # Clinica (2025), no fim do capitulo de cada farmaco, antes das referencias.
+    # Livro ja indexado como "medicamento_refino" — e o mesmo corpus, entao le o
+    # mesmo escopo. O que muda e a pergunta: aqui nao se revisa nada, se procura
+    # uma secao nomeada.
+    "medication_tips": ("medicamento_refino",),
     # Aqui a lista tem UM escopo so, sem "ambos", e e de proposito: decisao dele
     # e que o Guia de Prescricao do Stahl responda sozinho no Sintoma-Alvo, com
     # a busca perguntando por manejo do sintoma. O mesmo livro segue indexado
@@ -820,6 +839,11 @@ def validate_result(kind, result):
         if len(alvos_uteis) != len(alvos):
             logger.warning("sintomatico: %d conduta(s) incompleta(s) descartada(s)", len(alvos) - len(alvos_uteis))
         result["target_symptom_options"] = alvos_uteis
+    elif kind == "medication_tips":
+        tips = result.get("tips")
+        if not isinstance(tips, list) or not all(isinstance(item, str) for item in tips):
+            raise ValueError("BIPP TIPS fora do formato esperado.")
+        result["tips"] = [item.strip() for item in tips if item.strip()][:8]
     elif kind == "evolution":
         markdown = result.get("markdown")
         if not isinstance(markdown, str) or not markdown.strip():
@@ -1047,6 +1071,8 @@ def plain_text_from_result(kind, result):
             return "\n".join(linhas)
         return "CONDUTA PARA OS SINTOMAS-ALVO:\n" + "\n".join(
             uma(item) for item in (result.get("target_symptom_options") or []))
+    if kind == "medication_tips":
+        return "\n\n".join(result["tips"])
     if kind == "evolution":
         return result["markdown"]
     if kind == "medication":

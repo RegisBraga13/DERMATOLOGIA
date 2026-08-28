@@ -992,6 +992,45 @@ details[open] summary:after { content: "-"; }
   line-height: 1.65;
 }
 
+/* Caixa dos BIPP TIPS. Destacada por borda lateral, e nao por cor de fundo
+   forte: o conteudo e clinico, nao aviso de risco, e a ficha inteira e de
+   leitura. A fonte no topo existe porque a caixa reproduz uma secao de um livro
+   nomeado — sem a linha, viraria mais um campo escrito pela IA. */
+.medication-bipp-tips {
+  margin-top: 20px;
+  padding: 16px 20px;
+  border-left: 3px solid var(--sage);
+  background: var(--surface-2);
+  border-radius: 8px;
+}
+
+.medication-bipp-tips h4 {
+  margin: 0;
+  font-size: 17px;
+  letter-spacing: 0.06em;
+}
+
+.medication-bipp-source {
+  margin: 2px 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.medication-bipp-tips ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.medication-bipp-tips li {
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.65;
+}
+
+.medication-bipp-tips li + li {
+  margin-top: 10px;
+}
+
 .medication-reference-links {
   display: flex;
   gap: 10px;

@@ -25,9 +25,29 @@ export function medicationReferenceCard(form) {
         ${medicationFact("Monitorização", form.medicationMonitoring)}
         ${medicationFact("Populações especiais", form.medicationSpecialPopulations)}
       </div>
+      ${bippTips(form.medicationTips)}
       ${medicationNameLinks(form.medicationGeneric || form.medicationNameText)}
     </article>
   `;
+}
+
+// Secao propria da Psicofarmacologia: Da Teoria a Clinica (2025), no fim do
+// capitulo de cada farmaco. Vai em caixa separada, e nao dissolvida entre os
+// outros fatos da ficha, porque nao e do mesmo tipo: os demais campos sao
+// redigidos pela IA a partir da literatura, e este e reproduzido de uma secao
+// que ja existe escrita no livro. A caixa diz de onde veio.
+//
+// Sem tips, nao ha caixa. Ha farmaco sem a secao no livro, e uma caixa vazia
+// com o titulo do livro afirmaria que o livro nao tem nada a dizer sobre o
+// farmaco — que e diferente de a secao nao existir.
+function bippTips(value = "") {
+  const itens = String(value || "").split(/\n{2,}/).map(item => item.trim()).filter(Boolean);
+  if (!itens.length) return "";
+  return `<section class="medication-bipp-tips">
+    <h4>BIPP TIPS</h4>
+    <p class="medication-bipp-source">Psicofarmacologia: Da Teoria à Clínica, 1ª ed., 2025</p>
+    <ul>${itens.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+  </section>`;
 }
 
 function medicationPriorityFact(title, value) {

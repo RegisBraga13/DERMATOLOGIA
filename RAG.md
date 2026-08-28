@@ -104,6 +104,37 @@ Anamnese e Refinamento nao foram tocados: seguem com `semiologia` + `ambos`,
 cinco livros, porque ali a pergunta e de cobertura semiologica e nao de decisao
 rastreavel a uma fonte.
 
+## BIPP TIPS
+
+A ficha do Medicamento traz sempre a secao **BIPP TIPS** daquele farmaco, da
+Psicofarmacologia: Da Teoria a Clinica (2025) — a mesma obra do
+`medicamento_refino`, e por isso o mesmo escopo. E chamada separada da ficha
+porque e outra coisa: a ficha e redigida a partir da literatura, os tips sao
+reproduzidos de uma secao que ja existe escrita, no fim do capitulo de cada
+farmaco, antes das referencias.
+
+A consulta e literalmente `BIPPTIPS <farmaco>`, duas palavras. `BIPPTIPS` e um
+token raro, que so aparece no titulo da secao, e e ele que localiza o trecho.
+Descrever o que a secao contem — "cuidados de uso, limite de dose, evidencia de
+eficacia" — dilui o token em prosa farmacologica generica e a busca passa a
+devolver o capitulo comum. Medido nos dois formatos: a consulta curta achou a
+secao em seis de seis farmacos, a descritiva falhou em quatro.
+
+Vai sem espaco porque e assim que sai da extracao do PDF: `BIPPTIPS`.
+
+Medido em dez farmacos, tres rodadas, com e sem `rewrite_query`: 9/10, estavel
+nas seis rodadas. So a venlafaxina nao volta.
+
+Lista vazia e resposta legitima e significa que **este** farmaco nao tem a secao
+— nunca a de um farmaco parecido. Num teste o litio veio vazio com a busca
+trazendo o BIPP TIPS de outros oito farmacos, e a recusa foi o comportamento
+certo. Sem tips, a caixa nao aparece: caixa vazia com o nome do livro afirmaria
+que o livro nao tem nada a dizer sobre o farmaco, que e outra coisa.
+
+Nao ha contingencia local para os BIPP TIPS. A caixa afirma reproduzir uma secao
+de um livro nomeado; texto remontado de resposta solta nao e mais essa secao, e
+a tela nao teria como dizer isso ao medico.
+
 ## Codigos diagnosticos (nao e RAG)
 
 Codigo nao se recupera por busca semantica. A recuperacao acerta o tema e erra o

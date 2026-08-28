@@ -122,6 +122,18 @@ export function buildRagQuery(kind, form = {}) {
   // farmaco — a dose que ela escreveu, a titulacao, o efeito que ela citou —,
   // e nao pelo farmaco em geral. E o que faz o segundo livro conferir a ficha
   // em vez de redigi-la outra vez.
+  // Duas palavras, e de proposito. "BIPPTIPS" e um token raro, que so aparece no
+  // titulo da secao — e e ele que localiza o trecho. Descrever o que a secao
+  // contem ("cuidados de uso, limite de dose, evidencia de eficacia") dilui o
+  // token em prosa farmacologica generica, e a busca passa a devolver o
+  // capitulo comum do farmaco. Medido nos dois formatos, em seis farmacos: a
+  // consulta curta achou a secao nos seis; a descritiva falhou em quatro,
+  // sertralina e litio inclusive.
+  //
+  // Vai sem espaco porque e assim que sai da extracao do PDF: "BIPPTIPS".
+  if (kind === "medication_tips") {
+    return `BIPPTIPS ${form.medicationGeneric || form.medicationNameText || ""}`.trim().slice(0, 4000);
+  }
   if (kind === "medication_review") {
     const ficha = compactText([form.medicationPresentation, form.medicationSafety, form.medicationBestUse].filter(Boolean).join(" "), 1500);
     return `Revisao critica da ficha de ${form.medicationGeneric || form.medicationNameText || ""}: dose inicial, titulacao, dose alvo, efeitos colaterais, contraindicacoes, interacoes e monitorizacao. Afirmacoes a conferir: ${ficha}. Contexto clinico: ${diagnosis}`.slice(0, 4000);
@@ -242,6 +254,10 @@ function validateClinicalAiPayload(kind, result, text = "") {
       }))
       .slice(0, 6);
   }
+  if (kind === "medication_tips") {
+    if (!Array.isArray(result.tips)) throw new Error("BIPP TIPS fora do formato esperado.");
+    result.tips = result.tips.map(item => String(item || "").trim()).filter(Boolean).slice(0, 8);
+  }
   if (kind === "evolution" && typeof result.markdown !== "string") throw new Error("Evolucao fora do formato esperado.");
   if (kind === "medication") {
     ["medication", "dose_progression", "side_effects", "notes"].forEach(key => {
@@ -305,7 +321,10 @@ function resolveRefinementAgainstProtocol(result) {
 
 function parseFallbackClinicalText(kind, text = "") {
   kind = REVIEW_OF_KIND[kind] || kind;
-  if (["anamnesis", "mental_exam", "refinement"].includes(kind)) return null;
+  // Sem contingencia para os BIPP TIPS: a caixa afirma reproduzir uma secao do
+  // livro. Texto remontado de resposta solta nao e mais essa secao, e a tela
+  // nao teria como dizer isso ao medico.
+  if (["anamnesis", "mental_exam", "refinement", "medication_tips"].includes(kind)) return null;
   if (kind === "diagnosis") {
     const options = normalizeDiagnosticOptions(text, 8).map(line => {
       const [namePart, cidPart = "", dsmPart = ""] = line.split(/\s+-\s+/);
@@ -349,6 +368,7 @@ function clinicalAiTextFromResult(kind, result) {
   if (kind === "treatment") {
     return `TRATAMENTO MEDICAMENTOSO:\n${result.medication_options.map(formatMedicationTreatmentOption).join("\n")}\n\nOUTRAS ABORDAGENS NÃO FARMACOLÓGICAS:\n${result.non_pharmacological_options.map(formatNonPharmacologicalOption).join("\n")}`;
   }
+  if (kind === "medication_tips") return result.tips.join("\n\n");
   if (kind === "evolution") return result.markdown;
   if (kind === "medication") {
     return [
@@ -480,6 +500,17 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "No exame psiquico, descreva os achados de forma direta e integrada ao texto.",
       "Use apenas as hipoteses assinaladas pelo psiquiatra.",
       "Finalize com o tratamento efetivamente selecionado ou registrado: medicamentos, medidas nao farmacologicas, ajustes do medico e exames solicitados. Omita categorias sem registro."
+    ],
+    // Nao e redacao, e recuperacao: os BIPP TIPS ja existem escritos no livro,
+    // no fim do capitulo de cada farmaco. O trabalho do modelo aqui e achar a
+    // secao nos trechos recuperados e devolve-la, e nao escrever dicas suas.
+    medication_tips: [
+      `Nos trechos recuperados, localize a secao BIPP TIPS (aparece como "BIPPTIPS" ou "BIPP TIPS") do capitulo de ${form.medicationGeneric || form.medicationNameText || "nao informado"}.`,
+      "Devolva cada paragrafo daquela secao como um item de 'tips', na ordem em que aparecem, preservando o conteudo: farmaco citado, numero de dose, unidade, enzima, populacao e conduta.",
+      "Nao resuma a ponto de perder o dado, nao junte dois paragrafos num item e nao reordene por importancia.",
+      "Retire do texto as marcas de nota de rodape que sobraram da extracao do PDF — os numeros soltos de referencia no meio ou no fim da frase.",
+      "So entra o que estiver dentro da secao BIPP TIPS. Precaucao, posologia ou efeito colateral que estejam em outra parte do capitulo NAO sao BIPP TIPS.",
+      "Se a secao nao aparecer nos trechos recuperados, ou se ela for de outro farmaco, devolva a lista VAZIA. Nunca escreva dicas de sua autoria, e nunca aproveite a secao de um farmaco parecido: lista vazia significa que este farmaco nao tem BIPP TIPS no livro."
     ],
     medication: [
       `Preencha somente os campos solicitados sobre o medicamento informado: ${form.medicationGeneric || "nao informado"}.`,
@@ -660,6 +691,9 @@ function promptResponseFormat(kind) {
       "  2a opcao: idem, quando a literatura sustentar alternativa",
       "(uma entrada por sintoma assinalado; sem opcao medicamentosa quando o sintoma nao tiver tratamento farmacologico)"
     ].join("\n");
+  }
+  if (kind === "medication_tips") {
+    return "Objeto com a chave tips: lista de paragrafos da secao BIPP TIPS, um por item, sem texto adicional. Lista vazia quando o farmaco nao tiver a secao.";
   }
   if (kind === "medication") {
     return [
