@@ -50,6 +50,44 @@ function bippTips(value = "") {
   </section>`;
 }
 
+// O capitulo sai do livro com quebras de linha de diagramacao: a frase quebra
+// no meio porque a coluna acabou, e nao porque o paragrafo acabou. Remontar e o
+// que faz o texto voltar a ser legivel na tela — respeitando o paragrafo, que e
+// a linha em branco, e as linhas de item dos BIPP TIPS, que comecam com o
+// marcador.
+export function bookChapterView(form) {
+  if (form.medicationChapterStatus) {
+    return `<p class="medication-source-status">${escapeHtml(form.medicationChapterStatus)}</p>`;
+  }
+  const capitulo = form.medicationChapter;
+  if (!Array.isArray(capitulo?.blocos) || !capitulo.blocos.length) return "";
+  const corpo = capitulo.blocos.filter(bloco => bloco.t !== "titulo").map(chapterBlock).join("");
+  return `<section class="book-chapter">
+    <header>
+      <h3>${escapeHtml(capitulo.nome)}</h3>
+      <p class="medication-bipp-source">${escapeHtml(capitulo.livro)} — capítulo integral, sem as referências</p>
+    </header>
+    ${corpo}
+  </section>`;
+}
+
+// O tipo do bloco vem do script que recortou o livro, e nao e adivinhado aqui:
+// o que distingue um cabecalho de secao de um item dos BIPP TIPS e a marca de
+// diagramacao do PDF, que a tela nao ve.
+function chapterBlock(bloco = {}) {
+  const texto = escapeHtml(String(bloco.v || ""));
+  if (bloco.t === "secao") return `<h4>${texto}</h4>`;
+  if (bloco.t === "item") return `<p class="book-chapter-item">${texto}</p>`;
+  if (bloco.t === "rotulo") {
+    // "ABSORCAO: Apos administracao oral..." — o rotulo em negrito, o valor
+    // seguido, como no livro. Sem dois pontos, e cabecalho de campo sozinho.
+    const corte = texto.indexOf(":");
+    if (corte > 0) return `<p><strong>${texto.slice(0, corte + 1)}</strong>${texto.slice(corte + 1)}</p>`;
+    return `<p><strong>${texto}</strong></p>`;
+  }
+  return `<p>${texto}</p>`;
+}
+
 function medicationPriorityFact(title, value) {
   if (!value) return "";
   return `<section class="medication-priority-fact"><span>${escapeHtml(title)}</span><strong>${escapeHtml(value)}</strong></section>`;

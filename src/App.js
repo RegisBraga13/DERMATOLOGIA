@@ -18,7 +18,7 @@ import { clipboardIcon, folderIcon, homeIcon, lockIcon, personIcon, repeatIcon, 
 import { clinicalSummaryGroups, clinicalSummaryPage } from "./views/clinicalSummary.js";
 import { aiModeSelector, diagnosisModule, evolutionBody, ragSourcesView, refineButton, targetSymptomModule, treatmentModule } from "./views/decisions.js";
 import { consultationAccessPanel, mentalExamBody, neurologicExamBody, recordReturnAction, returnAssessmentBody } from "./views/exams.js";
-import { medicationReferenceCard } from "./views/medication.js";
+import { bookChapterView, medicationReferenceCard } from "./views/medication.js";
 
 const app = document.querySelector("#app");
 let state = loadState();
@@ -431,9 +431,16 @@ function medicationBody(form) {
       </div>
       <div id="medication-suggestions" class="medication-suggestions" role="listbox"></div>
       ${aiModeSelector(form.pharmaAiMode || "rag", "pharmaAiMode")}
-      <div class="actions"><button class="primary" type="button" data-action="generate-medication-ai">Gerar</button>${refineButton("refine-medication-ai", hasAiInformation)}</div>
+      <div class="actions">
+        <button class="primary" type="button" data-action="generate-medication-ai">Gerar</button>
+        ${refineButton("refine-medication-ai", hasAiInformation)}
+        <button class="secondary${form.medicationChapter ? " active" : ""}" type="button" data-action="toggle-book-chapter"
+          ${medicationName ? "" : "disabled"}
+          title="Mostra o capitulo deste farmaco como esta no livro, do nome ate o fim dos BIPP TIPS.">${form.medicationChapter ? "Ocultar" : "Mostrar tudo"}</button>
+      </div>
       ${form.medicationOnlineStatus ? `<p class="medication-source-status">${escapeHtml(form.medicationOnlineStatus)}</p>` : ""}
       ${ragSourcesView(form.ragSourcesMedicamento)}
+      ${bookChapterView(form)}
       ${hasInformation ? medicationReferenceCard(form) : `
         <div class="medication-empty-state">
           <span>Rx</span>
@@ -873,6 +880,7 @@ function bindActions() {
       if (action === "generate-evolution") await generateEvolutionFromClinicalData(element);
       if (action === "generate-medication-ai") await generateMedicationFromClinicalData(element);
       if (action === "refine-medication-ai") await generateMedicationFromClinicalData(element, "medication_review");
+      if (action === "toggle-book-chapter") await toggleBookChapter(element);
       if (action === "fill-medication-info") await fillMedicationInfo(element);
       if (action === "clear-medication-lookup") clearMedicationLookup();
       if (action === "set-anamnesis-mode") setAnamnesisInputMode(element.dataset.mode);
@@ -1229,6 +1237,36 @@ async function generateMedicationFromClinicalData(element, kind = "medication") 
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
   else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
   render();
+}
+
+// "Mostrar tudo": o capitulo do farmaco como esta no livro, do nome ate o fim
+// dos BIPP TIPS, sem as referencias. Nao passa por IA nem por RAG — o texto vem
+// recortado do PDF por scripts/build_book_chapters.py e servido inteiro, em
+// ordem. Busca semantica devolveria trecho solto, e emendar trecho solto com um
+// modelo produz parafrase, que e o oposto de "tal qual no livro".
+//
+// O texto nao entra no rascunho salvo: sao 13 a 30 mil caracteres do livro por
+// farmaco, e o prontuario nao e lugar de guardar copia de obra licenciada. Fica
+// so enquanto a tela esta aberta.
+async function toggleBookChapter(element) {
+  const { scope, target } = syncedTarget(element);
+  const aplica = dados => {
+    if (scope === "return") draft.return = { ...(draft.return || {}), ...dados };
+    else draft.consultation = { ...(draft.consultation || {}), ...dados };
+    render();
+  };
+  if (target?.medicationChapter) return aplica({ medicationChapter: null, medicationChapterStatus: "" });
+  const nome = (target?.medicationGeneric || target?.medicationNameText || "").trim();
+  if (!nome) return alert("Escolha o medicamento antes de mostrar o capitulo.");
+  aplica({ medicationChapterStatus: "Abrindo o capitulo do livro..." });
+  try {
+    const resposta = await fetch(`/api/book-chapter?medicamento=${encodeURIComponent(nome)}`);
+    const dados = await resposta.json().catch(() => ({}));
+    if (!resposta.ok) return aplica({ medicationChapter: null, medicationChapterStatus: dados.error || "Nao foi possivel abrir o capitulo." });
+    aplica({ medicationChapter: dados, medicationChapterStatus: "" });
+  } catch (error) {
+    aplica({ medicationChapter: null, medicationChapterStatus: `Capitulo indisponivel: ${error.message}` });
+  }
 }
 
 // Os BIPP TIPS sao uma secao da Psicofarmacologia: Da Teoria a Clinica (2025),

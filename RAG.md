@@ -135,6 +135,51 @@ Nao ha contingencia local para os BIPP TIPS. A caixa afirma reproduzir uma secao
 de um livro nomeado; texto remontado de resposta solta nao e mais essa secao, e
 a tela nao teria como dizer isso ao medico.
 
+## Capitulo do livro na tela (nao e RAG)
+
+O botao **Mostrar tudo**, na pagina Medicamentos, abre o capitulo daquele
+farmaco como esta no livro: do nome com a bolinha ate o fim dos BIPP TIPS, sem
+as referencias. Recorte definido pelo Dr. Regis — e como ele le o livro na
+consulta.
+
+Isso nao passa por RAG, e nao poderia passar. Busca semantica devolve trecho
+solto e fora de ordem; emendar trecho solto com um modelo produz parafrase, que
+e o oposto de "tal qual no livro". O texto vem recortado do PDF:
+
+```bash
+python3 -m pip install -r requirements.txt
+python3 scripts/build_book_chapters.py "/caminho/Psicofarmacologia 2025.pdf"
+```
+
+A saida, `book_chapters.local.json`, fica **fora do Git** pela mesma razao que
+os PDFs: e o livro. E fica fora da superficie estatica do servidor tambem —
+servido como arquivo, um GET entregaria a obra inteira a quem pedisse. Sai por
+`/api/book-chapter?medicamento=`, um capitulo por vez.
+
+O recorte se apoia nas marcas de diagramacao do proprio livro:
+
+| Marca | O que e |
+| --- | --- |
+| `● Nome` em linha propria | comeco do capitulo |
+| `Referencias` ou `Leituras Recomendadas` | fim do recorte |
+| linha com espaco a esquerda | titulo de secao ou item dos BIPP TIPS |
+| `ROTULO:` em caixa alta, `Rotulo curto:` | campo nomeado |
+
+Medido nos 186 capitulos: 186 com marcador de fim, 186 com BIPP TIPS, e **zero**
+com bibliografia sobrando depois dos tips. As tres grafias da secao aparecem no
+livro — `BIPP TIPS`, `BIPPTIPS` e `BIPP TIP` no singular, este ultimo so na
+ciamemazina, que por causa dele parecia ser o unico capitulo sem a secao.
+
+O PDF quebra a linha onde a coluna acaba, e nao onde o paragrafo acaba: nao ha
+linha em branco entre paragrafos. Por isso o script remonta os blocos antes de
+gravar, e a tela recebe o texto ja em paragrafos. A remontagem fica no script, e
+nao na tela, porque o que distingue um cabecalho de um item e a marca de
+diagramacao — que o navegador nao ve.
+
+O texto do capitulo nao entra no prontuario salvo: sao 13 a 30 mil caracteres de
+obra licenciada por farmaco, e o registro do paciente nao e lugar de guardar
+copia de livro. Fica so enquanto a tela esta aberta.
+
 ## Codigos diagnosticos (nao e RAG)
 
 Codigo nao se recupera por busca semantica. A recuperacao acerta o tema e erra o

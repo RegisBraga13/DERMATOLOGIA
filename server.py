@@ -64,7 +64,11 @@ ICD10CM_PATTERN = re.compile(r"\bF[0-9]{2}(?:\.[0-9A-Z]+)?\b")
 BLOCKED_NAMES = {".env", ".git", ".gitignore", ".venv", "__pycache__", ".DS_Store", "node_modules"}
 BLOCKED_SUFFIXES = {".py", ".pyc", ".sql", ".log", ".command", ".m4a", ".pem", ".key"}
 BLOCKED_PREFIXES = (".env",)          # .env.local, .env.production, ...
-BLOCKED_STEMS = ("rag_sources",)      # rag_sources.local.json
+BLOCKED_STEMS = ("rag_sources", "book_chapters")   # *.local.json
+# O capitulo do livro sai por /api/book-chapter, um de cada vez. Servido como
+# arquivo estatico, GET /book_chapters.local.json entregaria o livro inteiro a
+# quem pedisse — 2,6 MB de obra licenciada, num programa que o resto do tempo
+# toma o cuidado de nao versionar nem o PDF.
 
 # Assets versionados por query string (?v=) podem ficar em cache longo.
 # HTML e respostas de API nunca — carregam dado clínico.
@@ -543,6 +547,49 @@ SCHEMAS = {
 # segunda passada, sem layout novo e sem campo novo no rascunho.
 for _review, _base in REVIEW_OF_KIND.items():
     SCHEMAS[_review] = SCHEMAS[_base]
+
+
+# --- Capitulos do livro (nao e RAG) -------------------------------------------
+# Texto do livro recortado por scripts/build_book_chapters.py, do nome do farmaco
+# ate o fim dos BIPP TIPS. Fica em memoria porque sao 2,6 MB lidos a cada
+# consulta de ficha, e o arquivo nao muda entre reinicios.
+BOOK_CHAPTERS_PATH = ROOT / "book_chapters.local.json"
+BOOK_CHAPTERS = None
+BOOK_CHAPTERS_LOCK = threading.Lock()
+
+
+def load_book_chapters():
+    global BOOK_CHAPTERS
+    with BOOK_CHAPTERS_LOCK:
+        if BOOK_CHAPTERS is None:
+            if not BOOK_CHAPTERS_PATH.exists():
+                raise FileNotFoundError(BOOK_CHAPTERS_PATH)
+            BOOK_CHAPTERS = json.loads(BOOK_CHAPTERS_PATH.read_text(encoding="utf-8"))
+    return BOOK_CHAPTERS
+
+
+def find_book_chapter(nome=""):
+    """Capitulo do farmaco, por nome, sem depender de acento nem de caixa.
+
+    Casa tambem por prefixo porque o campo de pesquisa aceita o que o medico
+    digita: "sertralina 50mg" e "cloridrato de sertralina" tem que chegar ao
+    capitulo da sertralina. Prefixo curto nao entra — "li" nao pode virar litio.
+    """
+    alvo = normalize_name(nome)
+    if len(alvo) < 3:
+        return None
+    dados = load_book_chapters()
+    capitulos = dados.get("capitulos") or []
+    for item in capitulos:
+        if item.get("chave") == alvo:
+            return {"livro": dados.get("livro", ""), "nome": item["nome"], "blocos": item["blocos"]}
+    # O nome do capitulo dentro do que foi digitado, ou o contrario. O mais
+    # longo primeiro, senao "Lítio" ganharia de "Carbonato de lítio".
+    for item in sorted(capitulos, key=lambda x: -len(x.get("chave", ""))):
+        chave = item.get("chave", "")
+        if len(chave) >= 4 and (chave in alvo or alvo in chave):
+            return {"livro": dados.get("livro", ""), "nome": item["nome"], "blocos": item["blocos"]}
+    return None
 
 
 def load_env():
@@ -1150,6 +1197,18 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 "model": os.environ.get("OPENAI_MODEL", DEFAULT_MODEL),
                 "hasApiKey": bool(os.environ.get("OPENAI_API_KEY")),
             })
+            return
+        if parsed_path.path == "/api/book-chapter":
+            nome = urllib.parse.parse_qs(parsed_path.query).get("medicamento", [""])[0]
+            try:
+                capitulo = find_book_chapter(nome)
+            except FileNotFoundError:
+                self.send_json(503, {"error": "Capitulos do livro nao gerados. Rode scripts/build_book_chapters.py."})
+                return
+            if not capitulo:
+                self.send_json(404, {"error": "Este farmaco nao tem capitulo no livro."})
+                return
+            self.send_json(200, capitulo)
             return
         if parsed_path.path == "/api/medication-suggest":
             query = urllib.parse.parse_qs(parsed_path.query).get("q", [""])[0].strip().lower()

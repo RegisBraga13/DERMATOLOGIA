@@ -1031,6 +1031,64 @@ details[open] summary:after { content: "-"; }
   margin-top: 10px;
 }
 
+/* Capitulo do livro. Coluna estreita e entrelinha larga porque aqui se le
+   corrido, e nao se consulta campo — e a unica parte do programa que e leitura
+   de livro, e nao prontuario. */
+.book-chapter {
+  margin-top: 20px;
+  padding: 24px 28px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  max-width: 72ch;
+}
+
+.book-chapter header {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 12px;
+  margin-bottom: 18px;
+}
+
+.book-chapter h3 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.book-chapter h4 {
+  margin: 26px 0 10px;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sage);
+}
+
+.book-chapter p {
+  margin: 0 0 12px;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+.book-chapter strong {
+  color: var(--text);
+}
+
+/* Item dos BIPP TIPS: o livro os marca com bolinha, e a tela repete a marca. */
+.book-chapter-item {
+  position: relative;
+  padding-left: 20px;
+  color: var(--muted);
+}
+
+.book-chapter-item::before {
+  content: "●";
+  position: absolute;
+  left: 0;
+  color: var(--sage);
+  font-size: 11px;
+  top: 5px;
+}
+
 .medication-reference-links {
   display: flex;
   gap: 10px;
