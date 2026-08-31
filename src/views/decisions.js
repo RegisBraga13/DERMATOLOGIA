@@ -4,7 +4,6 @@ import { arrayValue, normalizeText } from "../clinical/textFormat.js";
 import { doctorDiagnosisOptions } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js";
 import { CARE_LEVELS_REQUIRING_JUSTIFICATION, careLevelNotes, careLevelOptions } from "../data/careLevels.js";
-import { targetSymptomOptions } from "../data/targetSymptoms.js";
 import { chips, textarea } from "../ui/controls.js";
 import { referenceFor } from "../data/references.js";
 import { escapeAttr, escapeHtml } from "../ui/html.js";
@@ -209,6 +208,7 @@ export function treatmentModule(form) {
         ${chips("examesSolicitados", "", optionGroups.examesPsiquiatria, form.examesSolicitados, form)}
         <textarea hidden name="examesLaboratoriais">${escapeHtml(examesText)}</textarea>
       </div>
+      ${targetSymptomCard(form)}
       <div class="treatment-card physician-adjustments">
         <h4>Ajustes do medico</h4>
         ${textarea("condutaMedica", "", form.condutaMedica, "", 3)}
@@ -217,44 +217,35 @@ export function treatmentModule(form) {
   `;
 }
 
-
-// Pagina propria, decidida com ele: tratar o transtorno e aliviar o que nao
-// pode esperar sao dois atos clinicos diferentes, e no Tratamento o alvo
-// disputava espaco com a conduta da doenca. A biblioteca tambem e outra — o
-// escopo "sintomatico" do RAG —, entao a chamada e propria.
-export function targetSymptomModule(form) {
+// O Sintoma-Alvo dentro do Tratamento, desde 31/08/2026. Nao ha aqui o que
+// gerar: quem procura conduta de sintoma e a busca do apendice, e o que chega
+// nesta caixa e o que ele adotou de la, ja assinalado. A caixa existe para ele
+// poder DESMARCAR — adotar e ato dele, mas mudar de ideia antes de salvar
+// tambem — e para o sintoma aparecer no prontuario junto com a conduta.
+//
+// Sem nada adotado a caixa nao aparece: um card vazio no Tratamento sugeriria
+// que falta preencher alguma coisa, quando nao ha nada pendente.
+function targetSymptomCard(form) {
   const options = treatmentOptionLines(form.tratamentoAiSintomasAlvo);
   const selected = arrayValue(form.sintomasAlvoSelecionados);
-  const assinalados = arrayValue(form.sintomasResiduais);
+  const sintomas = arrayValue(form.sintomasResiduais);
+  if (!options.length && !sintomas.length) return "";
   return `
     <div class="treatment-card">
       <h4>Sintoma-Alvo</h4>
-      <p class="field-hint">A queixa mais urgente, incômoda ou incapacitante, que orienta a conduta terapêutica imediata no início do acompanhamento — independentemente de já haver diagnóstico nosológico estabelecido.</p>
-      ${chips("sintomasResiduais", "", targetSymptomOptions, form.sintomasResiduais, form)}
-    </div>
-    <div class="diagnosis-ai-panel">
-      ${aiModeSelector(form.symptomaticAiMode || "rag", "symptomaticAiMode")}
-      <div class="actions">
-        <button class="primary" type="button" data-action="generate-target-symptoms">Gerar</button>
-      </div>
-      <p class="online-status">${assinalados.length
-        ? `${assinalados.length} sintoma-alvo assinalado(s). A IA propõe conduta apenas para estes.`
-        : "Assinale ao menos um sintoma-alvo acima antes de gerar."}</p>
-      ${form.symptomaticStatus ? `<p class="online-status">${escapeHtml(form.symptomaticStatus)}</p>` : ""}
-      ${ragSourcesView(form.ragSourcesSintomatico)}
-    </div>
-    <div class="treatment-card">
-      <h4>Conduta para os Sintomas-Alvo</h4>
-      <p class="field-hint">Cada linha é independente: a conduta de manejo e, quando houver, a 1ª e a 2ª opção medicamentosa referenciadas na literatura. Assinale só o que entra no prontuário — deixe em branco se o tratamento da hipótese nosológica já contempla o alvo.</p>
+      <p class="field-hint">A queixa mais urgente, incômoda ou incapacitante, que orienta a conduta imediata — independentemente de já haver diagnóstico nosológico. Procure o manejo em <strong>Medicamentos</strong> e traga de lá o que adotar.</p>
+      ${sintomas.length ? `<p class="field-hint"><strong>Sintomas:</strong> ${escapeHtml(sintomas.join("; "))}</p>` : ""}
       <textarea hidden name="tratamentoAiSintomasAlvo">${escapeHtml(options.join("\n"))}</textarea>
+      ${sintomas.map(sintoma => `<input type="hidden" name="sintomasResiduais" value="${escapeAttr(sintoma)}" />`).join("")}
       <div class="diagnosis-options">
         ${options.length
           ? treatmentOptionCheckboxes("sintomasAlvoSelecionados", options, selected)
-          : `<p class="diagnosis-empty">As condutas aparecerão após a geração.</p>`}
+          : `<p class="diagnosis-empty">Nenhuma conduta trazida do apêndice.</p>`}
       </div>
     </div>
   `;
 }
+
 
 function treatmentOptionCheckboxes(name, options, selectedValues) {
   return options.map(option => `

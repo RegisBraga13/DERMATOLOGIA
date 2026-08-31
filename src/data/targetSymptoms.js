@@ -16,6 +16,14 @@
 //
 // O campo continua salvo como "sintomasResiduais" no prontuario, para nao
 // perder o que ja foi registrado antes desta mudanca.
+//
+// 31/08/2026: deixou de ser lista de escolha. Era uma grade fixa de trinta chips,
+// a mesma para todo paciente -- num caso de mania o medico via anedonia, craving
+// e restricao alimentar, e nao via ideacao delirante de GRANDEZA, que so existia
+// na versao persecutoria. O sintoma fora da lista nao existia. Agora se digita o
+// sintoma na busca do apendice, e esta lista sobrevive como SUGESTAO: o datalist
+// do campo. Curadoria dele, e continua util para lembrar; so nao fecha mais a
+// porta para o que ela nao previu.
 export const targetSymptomOptions = [
   "Insônia inicial ou de manutenção",
   "Agitação psicomotora",

@@ -1,8 +1,7 @@
 import { anamnesisText } from "../clinical/narrative.js";
-import { calculateAge, joinValues, mentalExamKeys, normalizeText } from "../clinical/textFormat.js";
+import { arrayValue, calculateAge, joinValues, mentalExamKeys, normalizeText } from "../clinical/textFormat.js";
 import { anamnesisQuestionGroups, MENTAL_EXAM_NORMAL } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js";
-import { targetSymptomOptions } from "../data/targetSymptoms.js";
 import { formatSummaryDate, section, summaryGroupedOptionRow, summaryTable, summaryTextRow } from "../ui/controls.js";
 
 export function clinicalSummaryPage(form = {}, patient = {}) {
@@ -74,9 +73,19 @@ export function clinicalSummaryGroups(form = {}, patient = {}) {
     summaryTextRow("Exame físico", "Achados relevantes",
       String(form.fisico || "").trim() || "Exame físico sem alterações significativas")
   ];
+  // Ate 31/08/2026 esta linha era montada CONTRA o catalogo dos trinta sintomas:
+  // percorria a lista fixa e mostrava os que estivessem marcados. Com a busca por
+  // sintoma no apendice, o que o medico escreve nao esta em catalogo nenhum, e
+  // pelo caminho antigo simplesmente nao apareceria no Resumo — o registro
+  // perderia em silencio o sintoma que ele digitou. Agora mostra o que esta
+  // gravado, seja termo do catalogo antigo ou frase dele. Prontuario ja salvo
+  // continua igual: o que la esta gravado sao os proprios rotulos.
+  const residualValues = [
+    ...arrayValue(form.sintomasResiduais).filter(item => normalizeText(item) !== "outro"),
+    String(form.sintomasResiduaisOutro || "").trim()
+  ].filter(Boolean);
   const residualRows = [
-    summaryGroupedOptionRow("Sintoma-Alvo", "Assinalados", "sintomasResiduais",
-      targetSymptomOptions, form, "sintomasResiduaisOutro")
+    { section: "Sintoma-Alvo", item: "Assinalados", value: residualValues.join("; ") }
   ].filter(row => row.value);
   const refinementRows = refinementSummaryRows(form);
   return [

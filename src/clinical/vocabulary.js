@@ -78,11 +78,13 @@ export const consultationPages = [
   ["refinamento", "Refinamento"],
   ["resumo", "Resumo"],
   ["diagnostico", "Diagnóstico"],
+  // O Sintoma-Alvo teve pagina propria de 21/08 a 31/08/2026. Saiu do fluxo por
+  // decisao dele: a escolha era feita numa lista fixa de trinta sintomas, igual
+  // para todo paciente, e o sintoma que nao estivesse nela nao existia. A busca
+  // passou para o apendice de Medicamentos, onde se digita o sintoma; o que ele
+  // adota de la volta para o Tratamento, que e onde conduta mora e o que o
+  // prontuario registra. Uma etapa a menos, e o campo continua no registro.
   ["tratamento", "Tratamento"],
-  // Depois do Tratamento por decisao clinica: o manejo do sintoma-alvo precisa
-  // saber o que ja foi prescrito para a doenca, senao repete a prescricao em
-  // vez de dizer que ela ja contempla o alvo.
-  ["sintoma-alvo", "Sintoma-Alvo"],
   ["evolucao", "História clínica"],
   ["medicamentos", "Medicamentos"]
 ];

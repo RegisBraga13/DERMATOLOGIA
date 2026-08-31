@@ -5,6 +5,7 @@ import { loadProtocol, protocolLoaded } from "./clinical/protocol.js";
 import { arrayValue, joinValues, lowerFirst, normalizeText, stripFinalPeriod } from "./clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, anamnesisQuestionGroups, pagesForScope } from "./clinical/vocabulary.js";
 import { optionGroups } from "./data/examOptions.js";
+import { targetSymptomOptions } from "./data/targetSymptoms.js";
 import { fetchCep } from "./services/cepService.js";
 import { buildClinicalAiPrompt, buildRagQuery, canonicalAiSelections, localRefinementPlan, requestClinicalAi } from "./services/clinicalAiService.js";
 import { buildMedicationAutofill, localMedicationSuggestions } from "./services/medicationService.js";
@@ -16,7 +17,7 @@ import { escapeAttr, escapeHtml } from "./ui/html.js";
 import { createVoiceRecording } from "./ui/voiceRecording.js";
 import { clipboardIcon, folderIcon, homeIcon, lockIcon, personIcon, repeatIcon, themeIcon } from "./ui/icons.js";
 import { clinicalSummaryGroups, clinicalSummaryPage } from "./views/clinicalSummary.js";
-import { aiModeSelector, diagnosisModule, evolutionBody, ragSourcesView, refineButton, targetSymptomModule, treatmentModule } from "./views/decisions.js";
+import { aiModeSelector, diagnosisModule, evolutionBody, ragSourcesView, refineButton, treatmentModule } from "./views/decisions.js";
 import { consultationAccessPanel, mentalExamBody, neurologicExamBody, recordReturnAction, returnAssessmentBody } from "./views/exams.js";
 import { bookChapterView, medicationReferenceCard } from "./views/medication.js";
 
@@ -327,6 +328,11 @@ function clinicalPage(title, body, scope = "", showActions = true) {
 }
 
 function consultationPageBody(form, patient) {
+  // A derivacao QP + HDA so serve ao modo microfone, onde a transcricao integral
+  // e o unico campo na tela. No modo manual ela duplicava palavra por palavra o
+  // que o medico ja tinha escrito logo abaixo, porque nunca chegava a ser salva
+  // em qphda -- era texto de tela, nao dado. Ali a anotacao livre mostra apenas
+  // o que existe de fato em qphda (uma transcricao anterior, ou nada).
   const qphda = form.qphda || [form.queixa && `QP: ${form.queixa}`, form.hdaManual && `HDA: ${form.hdaManual}`].filter(Boolean).join("\n\n");
   const anamnesisInputMode = form.anamnesisInputMode === "microphone" ? "microphone" : "manual";
   if (consultationPage === "anamnese") return clinicalPage("Anamnese", `
@@ -342,9 +348,9 @@ function consultationPageBody(form, patient) {
       ` : `
         <div class="online-status">Modo manual: nenhum campo ou sintoma será preenchido automaticamente.</div>
         <div class="manual-anamnesis">
-          ${textarea("qphda", "Anotação clínica livre", qphda, "", 5)}
           ${textarea("queixa", "QP - preenchimento manual", form.queixa, "", 1)}
           ${textarea("hdaManual", "HDA - preenchimento manual", form.hdaManual, "", 1)}
+          ${textarea("qphda", "Anotação clínica livre", form.qphda, "", 5)}
         </div>
       `}
     </div>
@@ -366,7 +372,6 @@ function consultationPageBody(form, patient) {
   if (consultationPage === "resumo") return clinicalPage("Resumo", clinicalSummaryPage(form, patient), "consultation");
   if (consultationPage === "diagnostico") return clinicalPage("Diagnostico e diferenciais", diagnosisModule(form), "consultation");
   if (consultationPage === "tratamento") return clinicalPage("Tratamento e orientacoes", treatmentModule(form), "consultation");
-  if (consultationPage === "sintoma-alvo") return clinicalPage("Sintoma-Alvo", targetSymptomModule(form), "consultation");
   if (consultationPage === "evolucao") return clinicalPage("Historia clinica", evolutionBody(form, patient), "consultation");
   if (consultationPage === "medicamentos") return clinicalPage("Medicamentos", medicationBody(form), "consultation", false);
   return clinicalPage("Historia clinica", evolutionBody(form, patient), "consultation");
@@ -412,43 +417,98 @@ function refinementBody(form = {}) {
   `;
 }
 
+// Duas portas na mesma sala, decidido com ele em 31/08/2026. Ate aqui so se
+// entrava pelo nome do farmaco; quem queria a conduta de um sintoma tinha a
+// lista fixa de trinta chips do Sintoma-Alvo, igual para todo paciente, e o
+// sintoma que nao estivesse nela nao existia. Agora se digita o sintoma do mesmo
+// jeito que se digita o nome do remedio.
+//
+// A busca por sintoma NAO e sem paciente: quando ha atendimento aberto, a
+// conduta sai ancorada nele. A mesma insonia se maneja de um jeito na mania, de
+// outro na depressao psicotica e de outro na abstinencia alcoolica, e "tratamento
+// da insonia" em abstrato responderia igual para os tres.
 function medicationBody(form) {
+  const modo = form.appendixSearchMode === "sintoma" ? "sintoma" : "medicamento";
   const medicationName = form.medicationGeneric || "";
+  const sintomaBuscado = form.appendixSymptom || "";
   const hasInformation = Boolean(form.medicationNameText || form.medicationPresentation || form.medicationSafety || form.medicationBestUse);
   // Sem o nome: a ficha aparece com o nome preenchido pela busca local antes de
   // a IA gerar coisa alguma, e ali nao ha primeira passada para revisar.
   const hasAiInformation = Boolean(form.medicationPresentation || form.medicationSafety || form.medicationBestUse);
+  const condutas = appendixSymptomLines(form);
   return `
     <div class="medication-reference">
       <header class="medication-reference-head">
         <span class="eyebrow">CONSULTA FARMACOLÓGICA · BRASIL</span>
       </header>
-      <div class="medication-search-shell">
-        <span class="medication-search-icon" aria-hidden="true">⌕</span>
-        <input id="medication-lookup" name="medicationGeneric" value="${escapeAttr(medicationName)}"
-          autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="medication-suggestions" />
-        <button class="medication-clear" type="button" data-action="clear-medication-lookup" aria-label="Limpar pesquisa">×</button>
+      <div class="appendix-search-selector" role="group" aria-label="O que procurar">
+        <button class="${modo === "medicamento" ? "active" : ""}" type="button" data-action="set-appendix-search" data-mode="medicamento">Medicamento</button>
+        <button class="${modo === "sintoma" ? "active" : ""}" type="button" data-action="set-appendix-search" data-mode="sintoma">Sintoma</button>
       </div>
-      <div id="medication-suggestions" class="medication-suggestions" role="listbox"></div>
-      ${aiModeSelector(form.pharmaAiMode || "rag", "pharmaAiMode")}
-      <div class="actions">
-        <button class="primary" type="button" data-action="generate-medication-ai">Gerar</button>
-        ${refineButton("refine-medication-ai", hasAiInformation)}
-        <button class="secondary${form.medicationChapter ? " active" : ""}" type="button" data-action="toggle-book-chapter"
-          ${medicationName ? "" : "disabled"}
-          title="Mostra o capitulo deste farmaco como esta no livro, do nome ate o fim dos BIPP TIPS.">${form.medicationChapter ? "Ocultar" : "Mostrar tudo"}</button>
-      </div>
-      ${form.medicationOnlineStatus ? `<p class="medication-source-status">${escapeHtml(form.medicationOnlineStatus)}</p>` : ""}
-      ${ragSourcesView(form.ragSourcesMedicamento)}
-      ${bookChapterView(form)}
-      ${hasInformation ? medicationReferenceCard(form) : `
-        <div class="medication-empty-state">
-          <span>Rx</span>
-          <h4>Medicamento</h4>
+      ${modo === "medicamento" ? `
+        <div class="medication-search-shell">
+          <span class="medication-search-icon" aria-hidden="true">⌕</span>
+          <input id="medication-lookup" name="medicationGeneric" value="${escapeAttr(medicationName)}"
+            autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="medication-suggestions" />
+          <button class="medication-clear" type="button" data-action="clear-medication-lookup" aria-label="Limpar pesquisa">×</button>
         </div>
+        <div id="medication-suggestions" class="medication-suggestions" role="listbox"></div>
+        ${aiModeSelector(form.pharmaAiMode || "rag", "pharmaAiMode")}
+        <div class="actions">
+          <button class="primary" type="button" data-action="generate-medication-ai">Gerar</button>
+          ${refineButton("refine-medication-ai", hasAiInformation)}
+          <button class="secondary${form.medicationChapter ? " active" : ""}" type="button" data-action="toggle-book-chapter"
+            ${medicationName ? "" : "disabled"}
+            title="Mostra o capitulo deste farmaco como esta no livro, do nome ate o fim dos BIPP TIPS.">${form.medicationChapter ? "Ocultar" : "Mostrar tudo"}</button>
+        </div>
+        ${form.medicationOnlineStatus ? `<p class="medication-source-status">${escapeHtml(form.medicationOnlineStatus)}</p>` : ""}
+        ${ragSourcesView(form.ragSourcesMedicamento)}
+        ${bookChapterView(form)}
+        ${hasInformation ? medicationReferenceCard(form) : `
+          <div class="medication-empty-state">
+            <span>Rx</span>
+            <h4>Medicamento</h4>
+          </div>
+        `}
+      ` : `
+        <div class="medication-search-shell">
+          <span class="medication-search-icon" aria-hidden="true">⌕</span>
+          <input id="appendix-symptom-lookup" name="appendixSymptom" value="${escapeAttr(sintomaBuscado)}"
+            autocomplete="off" list="appendix-symptom-hints" aria-label="Sintoma a consultar" />
+          <datalist id="appendix-symptom-hints">${targetSymptomOptions
+            .filter(item => item !== "Outro")
+            .map(item => `<option value="${escapeAttr(item)}"></option>`).join("")}</datalist>
+          <button class="medication-clear" type="button" data-action="clear-appendix-symptom" aria-label="Limpar pesquisa">×</button>
+        </div>
+        <p class="field-hint">Escreva o sintoma com as palavras que quiser — não há lista fechada. Com atendimento aberto, a conduta sai ancorada neste paciente.</p>
+        ${aiModeSelector(form.symptomaticAiMode || "rag", "symptomaticAiMode")}
+        <div class="actions">
+          <button class="primary" type="button" data-action="generate-appendix-symptom">Gerar</button>
+        </div>
+        ${form.appendixSymptomStatus ? `<p class="medication-source-status">${escapeHtml(form.appendixSymptomStatus)}</p>` : ""}
+        ${ragSourcesView(form.ragSourcesSintomatico)}
+        ${condutas.length ? `
+          <section class="appendix-symptom-results">
+            <h4>Manejo de ${escapeHtml(sintomaBuscado)}</h4>
+            <p class="field-hint">Consulta, não prontuário. O que você levar para o Tratamento é o que fica registrado.</p>
+            <ul>${condutas.map(linha => `
+              <li>
+                <span>${escapeHtml(linha)}</span>
+                <button class="secondary" type="button" data-action="adopt-appendix-conduct" data-conduta="${escapeAttr(linha)}"
+                  title="Leva esta conduta para o Tratamento, onde ela entra no prontuario.">Levar para o Tratamento</button>
+              </li>`).join("")}</ul>
+          </section>
+        ` : ""}
       `}
     </div>
   `;
+}
+
+export function appendixSymptomLines(form = {}) {
+  return String(form.appendixSymptomConducts || "")
+    .split("\n")
+    .map(linha => linha.trim())
+    .filter(Boolean);
 }
 
 function medicalRecord() {
@@ -876,7 +936,6 @@ function bindActions() {
       if (action === "refine-diagnosis") await generateDiagnosisFromClinicalData(element, "diagnosis_review");
       if (action === "generate-treatment") await generateTreatmentFromClinicalData(element);
       if (action === "refine-treatment") await generateTreatmentFromClinicalData(element, "treatment_review");
-      if (action === "generate-target-symptoms") await generateTargetSymptomsFromClinicalData(element);
       if (action === "generate-evolution") await generateEvolutionFromClinicalData(element);
       if (action === "generate-medication-ai") await generateMedicationFromClinicalData(element);
       if (action === "refine-medication-ai") await generateMedicationFromClinicalData(element, "medication_review");
@@ -884,6 +943,10 @@ function bindActions() {
       if (action === "fill-medication-info") await fillMedicationInfo(element);
       if (action === "clear-medication-lookup") clearMedicationLookup();
       if (action === "set-anamnesis-mode") setAnamnesisInputMode(element.dataset.mode);
+      if (action === "set-appendix-search") setAppendixSearchMode(element.dataset.mode);
+      if (action === "clear-appendix-symptom") clearAppendixSymptom();
+      if (action === "generate-appendix-symptom") await generateAppendixSymptomConduct(element);
+      if (action === "adopt-appendix-conduct") adoptAppendixConduct(element.dataset.conduta || "");
       if (action === "clear-patient") { draft.patient = {}; render(); }
       if (action === "delete-patient") deletePatient();
       if (action === "voice") voiceRecording.startVoice(element.dataset.target, element);
@@ -912,6 +975,28 @@ function switchFormPage(element) {
   if (form) updateDraftFromForm(form);
   if (scope === "consultation") consultationPage = page;
   if (scope === "return") returnPage = page;
+  render();
+}
+
+// O apendice guarda o modo de busca no rascunho, e nao numa variavel de modulo,
+// porque ele acompanha o atendimento: sair da pagina e voltar tem de devolver a
+// tela como estava.
+function setAppendixSearchMode(mode) {
+  const scope = view === "return" ? "return" : "consultation";
+  const modo = mode === "sintoma" ? "sintoma" : "medicamento";
+  if (scope === "return") draft.return = { ...(draft.return || {}), appendixSearchMode: modo };
+  else draft.consultation = { ...(draft.consultation || {}), appendixSearchMode: modo };
+  render();
+}
+
+function clearAppendixSymptom() {
+  const scope = view === "return" ? "return" : "consultation";
+  // A conduta sai junto com o sintoma: manter na tela o manejo da insonia
+  // enquanto ele digita "agitacao" e oferecer a resposta errada com cara de
+  // certa. Mesma razao pela qual o BIPP TIPS some ao trocar de farmaco.
+  const limpo = { appendixSymptom: "", appendixSymptomConducts: "", appendixSymptomStatus: "", ragSourcesSintomatico: [] };
+  if (scope === "return") draft.return = { ...(draft.return || {}), ...limpo };
+  else draft.consultation = { ...(draft.consultation || {}), ...limpo };
   render();
 }
 
@@ -1120,61 +1205,97 @@ async function generateTreatmentFromClinicalData(element, kind = "treatment") {
 }
 
 
-// Etapa propria, com biblioteca propria: o escopo "sintomatico" do RAG. Sem
-// sintoma assinalado nao ha o que perguntar — e a chamada nem sai, para nao
-// gastar uma consulta que so pode voltar vazia.
-async function generateTargetSymptomsFromClinicalData(element) {
+// Cada linha e uma caixa de selecao independente: a conduta de manejo, a
+// primeira opcao medicamentosa e a segunda. Ele pode querer so a orientacao, so
+// o remedio, ou os dois — decisao dele a cada sintoma. Sintoma sem tratamento
+// farmacologico vem so com a linha de conduta.
+//
+// Uma funcao so para os dois caminhos que chegam aqui — a busca do apendice e a
+// geracao a partir do caso —, porque o formato da linha e o que o Tratamento, o
+// Resumo e a narrativa sabem ler. Duas copias divergiriam, e a divergencia so
+// apareceria no prontuario.
+function targetSymptomConductLines(result = {}) {
+  return (result.target_symptom_options || []).flatMap(item => {
+    const sintoma = String(item?.symptom || "").trim();
+    const conduta = String(item?.conduct || "").trim();
+    if (!sintoma || !conduta) return [];
+    const linhas = [`${sintoma} — ${conduta}`];
+    (item?.medication_options || []).forEach((med, ordem) => {
+      const partes = [
+        String(med?.medication || "").trim(),
+        `Dose inicial: ${String(med?.initial_dose || "").trim()}`,
+        `Progressão: ${String(med?.progression || "").trim()}`,
+        String(med?.interaction || "").trim() ? `Interação: ${String(med.interaction).trim()}` : ""
+      ].filter(Boolean);
+      linhas.push(`${sintoma} · ${ordem + 1}ª opção: ${partes.join(" | ")}`);
+    });
+    return linhas;
+  }).filter((option, index, list) => list.indexOf(option) === index);
+}
+
+// A busca por sintoma do apendice. Usa a MESMA etapa "symptomatic" — mesmo
+// prompt, mesma biblioteca, mesmo formato de resposta —, trocando so a origem do
+// sintoma: em vez dos chips assinalados, o que ele digitou. Por isso monta um
+// alvo-sombra com sintomasResiduais preenchido: assim a consulta ao RAG e a
+// linha do registro que a IA le continuam as mesmas, e nao ha um segundo
+// caminho para manter em pe.
+async function generateAppendixSymptomConduct(element) {
   const { scope, target } = syncedTarget(element);
-  if (!arrayValue(target?.sintomasResiduais).length) {
-    return alert("Assinale ao menos um sintoma-alvo antes de gerar.");
-  }
-  setClinicalAiStatus(scope, "Consultando a literatura de manejo sintomatico...");
-  if (scope === "return") draft.return = { ...(draft.return || {}), symptomaticStatus: "Consultando a literatura de manejo sintomatico..." };
-  else draft.consultation = { ...(draft.consultation || {}), symptomaticStatus: "Consultando a literatura de manejo sintomatico..." };
+  const sintoma = String(target?.appendixSymptom || "").trim();
+  if (!sintoma) return alert("Escreva o sintoma que voce quer consultar antes de gerar.");
+  const gravar = dados => {
+    if (scope === "return") draft.return = { ...(draft.return || {}), ...dados };
+    else draft.consultation = { ...(draft.consultation || {}), ...dados };
+  };
+  gravar({ appendixSymptomStatus: "Consultando a literatura de manejo sintomatico..." });
   render();
-  let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result, sources, mode } = await requestClinicalAi("symptomatic", buildClinicalAiPrompt("symptomatic", context.target, context.patient, context.previous, context.isReturn), context.target?.symptomaticAiMode || "rag", buildRagQuery("symptomatic", context.target));
-    // Cada linha e uma caixa de selecao independente: a conduta de manejo, a
-    // primeira opcao medicamentosa e a segunda. Ele pode querer so a orientacao,
-    // so o remedio, ou os dois — decisao dele a cada sintoma. Sintoma sem
-    // tratamento farmacologico vem so com a linha de conduta.
-    const options = (result.target_symptom_options || []).flatMap(item => {
-      const sintoma = String(item?.symptom || "").trim();
-      const conduta = String(item?.conduct || "").trim();
-      if (!sintoma || !conduta) return [];
-      const linhas = [`${sintoma} — ${conduta}`];
-      (item?.medication_options || []).forEach((med, ordem) => {
-        const partes = [
-          String(med?.medication || "").trim(),
-          `Dose inicial: ${String(med?.initial_dose || "").trim()}`,
-          `Progressão: ${String(med?.progression || "").trim()}`,
-          String(med?.interaction || "").trim() ? `Interação: ${String(med.interaction).trim()}` : ""
-        ].filter(Boolean);
-        linhas.push(`${sintoma} · ${ordem + 1}ª opção: ${partes.join(" | ")}`);
-      });
-      return linhas;
-    }).filter((option, index, list) => list.indexOf(option) === index);
-    suggestion = {
-      tratamentoAiSintomasAlvo: options.join("\n"),
-      // A IA propoe, ele assinala — e pode nao assinalar nenhuma, quando julgar
-      // que o tratamento da hipotese nosologica ja contempla o alvo.
-      sintomasAlvoSelecionados: arrayValue(target?.sintomasAlvoSelecionados),
+    const sombra = { ...(context.target || {}), sintomasResiduais: [sintoma], sintomasResiduaisOutro: "" };
+    const { result, sources, mode } = await requestClinicalAi(
+      "symptomatic",
+      buildClinicalAiPrompt("symptomatic", sombra, context.patient, context.previous, context.isReturn),
+      context.target?.symptomaticAiMode || "rag",
+      buildRagQuery("symptomatic", sombra));
+    const linhas = targetSymptomConductLines(result);
+    gravar({
+      appendixSymptomConducts: linhas.join("\n"),
       ragSourcesSintomatico: sources,
       symptomaticAiMode: mode,
-      symptomaticStatus: options.length
-        ? `${countLabel(options.length, "linha")} para você assinalar: conduta e opções medicamentosas, quando houver.`
-        : "Nenhuma conduta proposta para os sintomas assinalados."
-    };
+      appendixSymptomStatus: linhas.length
+        ? `${countLabel(linhas.length, "linha")} de manejo. Leve para o Tratamento o que voce adotar — o resto fica so nesta consulta.`
+        : "Nenhuma conduta encontrada para este sintoma."
+    });
   } catch (error) {
-    suggestion = {
-      ragSourcesSintomatico: [],
-      symptomaticStatus: `Literatura de manejo sintomatico indisponivel: ${error.message}`
-    };
+    gravar({ ragSourcesSintomatico: [], appendixSymptomStatus: `Literatura de manejo sintomatico indisponivel: ${error.message}` });
   }
-  if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
-  else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
+  render();
+}
+
+// A ponte entre o apendice e o prontuario, e o unico lugar por onde a consulta
+// vira registro. O apendice nao documenta: enquanto a conduta esta so na tela de
+// busca, ela nao existe para o prontuario. Trazida para ca, ela entra no
+// Tratamento ja assinalada — foi um ato dele, e nao uma proposta a conferir — e o
+// sintoma entra na lista do caso, que e o que o Resumo e a narrativa leem.
+function adoptAppendixConduct(conduta) {
+  const linha = String(conduta || "").trim();
+  if (!linha) return;
+  const scope = view === "return" ? "return" : "consultation";
+  const target = (scope === "return" ? draft.return : draft.consultation) || {};
+  const sintoma = String(target.appendixSymptom || "").trim();
+  const propostas = treatmentOptionLines(target.tratamentoAiSintomasAlvo);
+  const marcadas = arrayValue(target.sintomasAlvoSelecionados);
+  const sintomas = arrayValue(target.sintomasResiduais);
+  const dados = {
+    tratamentoAiSintomasAlvo: (propostas.includes(linha) ? propostas : [...propostas, linha]).join("\n"),
+    sintomasAlvoSelecionados: marcadas.includes(linha) ? marcadas : [...marcadas, linha],
+    sintomasResiduais: sintoma && !sintomas.some(item => normalizeText(item) === normalizeText(sintoma))
+      ? [...sintomas, sintoma]
+      : sintomas,
+    appendixSymptomStatus: `"${linha}" foi para o Tratamento, ja assinalada.`
+  };
+  if (scope === "return") draft.return = { ...(draft.return || {}), ...dados };
+  else draft.consultation = { ...(draft.consultation || {}), ...dados };
   render();
 }
 

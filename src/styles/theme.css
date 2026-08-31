@@ -2601,3 +2601,65 @@ textarea:focus-visible {
 .diagnosis-group-compact .diagnosis-option span { font-size: 15px; line-height: 1.4; }
 .diagnosis-group-compact .diagnosis-option input { width: 16px; min-height: 16px; margin-top: 1px; }
 .diagnosis-group-compact .diagnosis-empty { padding: 10px; font-size: 14px; }
+
+/* A caixa de busca do medicamento e uma moldura so: a borda e o anel de foco
+   ficam na shell, e o input dentro dela nao tem borda propria. Faltava desligar
+   o outline generico de input:focus-visible, que desenhava um segundo retangulo
+   por dentro do primeiro -- dupla margem na mesma caixa. Sem prejuizo de
+   acessibilidade: quem indica o foco e a shell, que troca de cor e ganha anel
+   de 3px em :focus-within. */
+.medication-search-shell input:focus,
+.medication-search-shell input:focus-visible {
+  outline: none;
+  box-shadow: none;
+  border: 0;
+}
+
+/* As duas portas do apendice. Mesma forma do seletor de registro da anamnese --
+   duas metades, a ativa destacada -- porque e a mesma pergunta na tela: por onde
+   voce quer entrar. */
+.appendix-search-selector {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.appendix-search-selector button {
+  min-height: 46px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.appendix-search-selector button.active {
+  border-color: var(--primary-2);
+  background: color-mix(in srgb, var(--primary-2) 13%, var(--surface));
+  color: var(--text);
+  font-weight: 700;
+}
+
+.appendix-symptom-results { margin-top: 18px; }
+.appendix-symptom-results ul { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+
+.appendix-symptom-results li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.appendix-symptom-results li span { font-size: 15px; line-height: 1.45; }
+.appendix-symptom-results li button { white-space: nowrap; }
+
+/* O botao empilha embaixo no telefone: lado a lado, sobra menos de metade da
+   largura para a conduta, que e a parte que se le. */
+@media (max-width: 640px) {
+  .appendix-symptom-results li { grid-template-columns: minmax(0, 1fr); }
+  .appendix-symptom-results li button { justify-self: start; }
+}

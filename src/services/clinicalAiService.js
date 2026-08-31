@@ -493,6 +493,13 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       // a IA de devolver a mesma entidade tres vezes com nomes trocados.
       "A camada NOSOLOGICA identifica a entidade nos manuais oficiais. E a base do tratamento principal, do seguimento continuo, do atestado e do laudo, e e ela que recebe os especificadores.",
       "Comece pela ANALISE PSICOPATOLOGICA, e so depois nomeie as hipoteses: e ela o raciocinio que as sustenta. Para cada dominio, escreva o achado e, entre parenteses, a EVIDENCIA — o trecho do registro que o sustenta, o mais literal possivel. 'Anedonia severa (parou de sair, de cozinhar e de atender o telefone)'. Achado que voce nao conseguir ancorar num trecho do registro NAO ENTRA: sem evidencia e afirmacao, e este prontuario nao afirma o que nao foi registrado.",
+      // O exame psiquico e preenchido por termo tecnico marcado em lista. Sem a
+      // regra abaixo, o trecho "mais literal" do registro para o dominio humor e
+      // a propria lista de termos, e a linha sai tautologica: "euforia,
+      // labilidade afetiva (euforia, labilidade afetiva)". Nomear duas vezes nao
+      // e fundamentar. A evidencia tem de vir do relato -- comportamento, fala,
+      // numero, data -- que e onde esta o fato que o termo interpreta.
+      "A EVIDENCIA e o FATO BRUTO do relato: um comportamento, uma fala do paciente, um numero, uma data, um evento da anamnese, dos antecedentes ou do impacto funcional. NUNCA use como evidencia o termo tecnico marcado no exame psiquico, nem uma reformulacao do proprio achado. 'Grandiosidade (diz que foi escolhido para reorganizar o mercado imobiliario da cidade)' esta certo; 'Grandiosidade (ideias de grandeza)' esta errado, porque repete o achado com outras palavras e nao prova nada. Se o unico apoio para um achado for o termo do exame psiquico que ja o nomeia, o item NAO ENTRA: o exame psiquico diz o que o medico concluiu, e a evidencia tem de dizer o que o paciente fez ou falou.",
       "Na analise, ligue o que se explica: um achado somatico que decorre do conteudo do pensamento e o mesmo sintoma, e nao dois — perda de peso por recusa alimentar num delirio de negacao de orgaos muda a conduta, e a lista de sintomas separados nao diz isso. Diga a ligacao quando o registro a sustentar.",
       "A camada SINDROMICA descreve os sinais e sintomas que ocorrem juntos. Sao inespecificos e aparecem em varios transtornos — sindrome depressiva ocorre tambem no esquizofrenico e no borderline. Ela orienta a conduta imediata: alivio do sofrimento e controle de risco, antes mesmo de saber o nome definitivo do quadro. NAO repita aqui a entidade que voce nomeou na camada nosologica.",
       "A camada ETIOLOGICA aponta a causa primaria: vulnerabilidade genetica ou temperamental, estressores psicossociais, substancias, condicao medica geral. E o que permite tratamento causal — tratar a tireoide em vez de medicar o sintoma — e prevenir recidiva.",
@@ -535,7 +542,16 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       // Num teste com tres alvos assinalados, as tres opcoes medicamentosas
       // viraram tres hipnoticos: o sintoma-alvo tomou o lugar do tratamento da
       // doenca. Agora o alvo tem etapa propria, mas o aviso continua valendo.
-      "'medication_options' trata a hipotese NOSOLOGICA — e o tratamento de fundo, o que sustenta o seguimento. O manejo pontual do sintoma-alvo tem etapa propria no programa e nao entra aqui.",
+      "'medication_options' trata a hipotese NOSOLOGICA — e o tratamento de fundo, o que sustenta o seguimento. O manejo pontual do sintoma-alvo e consultado a parte, no apendice do programa, e nao entra aqui.",
+      // A regra acima, sozinha, empurrou a etapa para a manutencao pura: numa
+      // mania grave com sintomas psicoticos a resposta veio litio e valproato,
+      // sem antipsicotico nenhum. O antipsicotico tinha sido lido como manejo de
+      // sintoma, quando e o tratamento de primeira linha do episodio. Fase aguda
+      // nao e sintoma-alvo: o alvo e a queixa isolada -- insonia, ansiedade --,
+      // e o episodio e a doenca acontecendo agora. Corrigido em 31/08/2026,
+      // sobre o caso Wagner.
+      "O EPISODIO AGUDO faz parte do tratamento da hipotese nosologica, e nao do sintoma-alvo. Quando a hipotese escolhida traz episodio atual — sobretudo com o especificador grave ou com sintomas psicoticos —, a classe indicada para a FASE AGUDA daquele episodio TEM de aparecer entre as opcoes, e vem na 1a opcao, antes do que so age na manutencao. Mania aguda com sintomas psicoticos pede antipsicotico de segunda geracao; depressao com sintomas psicoticos pede antipsicotico associado ao antidepressivo. Propor apenas estabilizador de humor de inicio lento num episodio maniaco agudo esta errado, mesmo que o estabilizador seja o certo para o seguimento.",
+      "Quando a fase aguda e a manutencao pedirem farmacos diferentes, diga isso na propria opcao — qual entra agora e qual sustenta o seguimento — em vez de sacrificar um dos dois para caber nas tres vagas.",
       "Para cada opcao medicamentosa informe medicamento, dose inicial, progressao/titulacao e dose final ou dose-alvo. Opcao sem esses quatro dados e descartada.",
       "Gere ate 3 abordagens nao farmacologicas ou orientacoes gerais, com uma orientacao objetiva para cada uma. Estas valem mesmo sem medicamento, e sao a conduta principal quando nao ha indicacao farmacologica.",
       "Considere as hipoteses escolhidas e os dados clinicos informados, incluindo riscos, comorbidades, substancias e exame psiquico. Nao invente dados.",
@@ -546,7 +562,7 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
     // diagnostico fechar.
     symptomatic: [
       "SINTOMA-ALVO e a queixa mais urgente, incomoda ou incapacitante do caso, e orienta a conduta terapeutica imediata mesmo sem diagnostico nosologico estabelecido.",
-      "Os sintomas-alvo deste atendimento sao APENAS os que o medico assinalou, listados no registro sob 'Sintomas-alvo assinalados'. Nunca proponha conduta para sintoma que ele nao assinalou, e nunca crie um sintoma-alvo por conta propria. Sem sintoma assinalado, devolva a lista VAZIA.",
+      "Os sintomas-alvo desta consulta sao APENAS os listados no registro sob 'Sintomas-alvo assinalados'. Nunca proponha conduta para sintoma que nao esteja ali, e nunca crie um sintoma-alvo por conta propria. Sem sintoma listado, devolva a lista VAZIA.",
       "Para cada sintoma assinalado devolva uma entrada em 'target_symptom_options': 'symptom' repete o nome exato do sintoma e 'conduct' diz a conduta imediata para ele — manejo, orientacao, monitorizacao.",
       // Num teste, a opcao medicamentosa voltou como "Ajuste de sertralina;
       // intervencoes comportamentais para sono" — prosa repetindo a conduta,
@@ -727,7 +743,7 @@ function promptResponseFormat(kind) {
   if (kind === "diagnosis") {
     return [
       "ANALISE PSICOPATOLOGICA: ate 8 itens, um por linha, no formato",
-      "Dominio: achado (evidencia literal do registro).",
+      "Dominio: achado (fato do relato que o sustenta, e nao o termo do exame psiquico que ja o nomeia).",
       "Dominios uteis: humor, variacao circadiana, sono, apetite e alteracoes",
       "somaticas, pensamento (curso, forma e conteudo), sensopercepcao,",
       "cognicao, psicomotricidade, juizo critico, funcionalidade, risco.",
