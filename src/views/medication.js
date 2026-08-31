@@ -11,24 +11,58 @@ export function medicationReferenceCard(form) {
         </div>
         ${form.medicationClass ? `<span class="medication-class">${escapeHtml(form.medicationClass)}</span>` : ""}
       </div>
-      <div class="medication-priority-grid">
-        ${medicationPriorityFact("Princípio ativo", form.medicationActiveIngredient || form.medicationNameText)}
-        ${medicationPriorityFact("Apresentação", form.medicationPresentationHighlight)}
-        ${medicationPriorityFact("Dose recomendada", form.medicationRecommendedDose)}
-        ${medicationPriorityFact("Principais efeitos colaterais", form.medicationMainEffects)}
-      </div>
-      <div class="medication-facts-grid">
-        ${medicationFact("Indicações e uso clínico", form.medicationBestUse)}
-        ${medicationFact("Posologia e progressão", form.medicationPresentation)}
-        ${medicationFact("Segurança, contraindicações e interações", form.medicationSafety)}
-        ${medicationFact("Mecanismo e receptores", form.medicationMechanism)}
-        ${medicationFact("Monitorização", form.medicationMonitoring)}
-        ${medicationFact("Populações especiais", form.medicationSpecialPopulations)}
-      </div>
+      ${medicationBriefing(form)}
+      ${legacyMedicationFacts(form)}
       ${bippTips(form.medicationTips)}
       ${medicationNameLinks(form.medicationGeneric || form.medicationNameText)}
     </article>
   `;
+}
+
+// A ficha telegrafica, desenhada por ele em 31/08/2026 diante da ficha da
+// risperidona: "nao e essa enxurrada de informacao que interessa -- isso ai tem
+// na bula". O formato saiu da boca dele, quase palavra por palavra --
+// "antipsicotico atipico, antagonista do receptor ..., dose inicial x, aumento
+// y por semana, ate dose n, evitar uso com h, efeitos colaterais ..., limite m".
+//
+// Classe e mecanismo abrem em linha inteira porque sao a frase que situa o
+// farmaco; o resto vai em grade, que e como se consulta com a receita na mao.
+// Campo vazio nao vira caixa: rotulo sem valor afirma que nao ha o que dizer, e
+// nao e a mesma coisa que a IA nao ter dito.
+function medicationBriefing(form) {
+  const linha = [
+    ["Dose inicial", form.medicationInitialDose],
+    ["Titulação", form.medicationTitration],
+    ["Dose alvo", form.medicationTargetDose],
+    ["Limite", form.medicationCeiling],
+    ["Evitar com", form.medicationAvoidWith],
+    ["Efeitos colaterais", form.medicationSideEffects],
+    ["Monitorização", form.medicationMonitoringShort]
+  ].filter(([, valor]) => String(valor || "").trim());
+  if (!String(form.medicationClassMechanism || "").trim() && !linha.length) return "";
+  return `
+    <div class="medication-briefing">
+      ${form.medicationClassMechanism ? `<p class="medication-briefing-class">${escapeHtml(form.medicationClassMechanism)}</p>` : ""}
+      <dl>${linha.map(([rotulo, valor]) => `
+        <div><dt>${escapeHtml(rotulo)}</dt><dd>${escapeHtml(valor)}</dd></div>
+      `).join("")}</dl>
+    </div>`;
+}
+
+// Ficha gerada antes de 31/08/2026: tres campos de prosa longa. Prontuario
+// salvo nao muda porque o programa mudou, entao ela continua sendo exibida --
+// so que nunca mais e produzida.
+function legacyMedicationFacts(form) {
+  const antigos = [
+    ["Indicações e uso clínico", form.medicationBestUse],
+    ["Posologia e progressão", form.medicationPresentation],
+    ["Segurança, contraindicações e interações", form.medicationSafety],
+    ["Mecanismo e receptores", form.medicationMechanism],
+    ["Monitorização", form.medicationMonitoring],
+    ["Populações especiais", form.medicationSpecialPopulations]
+  ].filter(([, valor]) => String(valor || "").trim());
+  if (!antigos.length) return "";
+  return `<div class="medication-facts-grid">${antigos.map(([rotulo, valor]) => medicationFact(rotulo, valor)).join("")}</div>`;
 }
 
 // Secao propria da Psicofarmacologia: Da Teoria a Clinica (2025), no fim do
@@ -86,11 +120,6 @@ function chapterBlock(bloco = {}) {
     return `<p><strong>${texto}</strong></p>`;
   }
   return `<p>${texto}</p>`;
-}
-
-function medicationPriorityFact(title, value) {
-  if (!value) return "";
-  return `<section class="medication-priority-fact"><span>${escapeHtml(title)}</span><strong>${escapeHtml(value)}</strong></section>`;
 }
 
 function medicationFact(title, value) {

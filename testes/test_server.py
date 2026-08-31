@@ -490,14 +490,24 @@ class PlainTextFromResultTests(unittest.TestCase):
         self.assertEqual(text, "QP: tristeza\nHDA: dois meses")
 
     def test_medication_format_includes_all_sections(self):
+        """A ficha virou telegrafica em 31/08/2026: campos curtos no lugar de
+        tres blocos de prosa que reescreviam a bula. Dose alvo e limite sao
+        campos separados de proposito -- confundir os dois e o que faz errar
+        receita."""
         result = {
             "medication": "Sertralina",
-            "dose_progression": "50mg -> 100mg",
-            "side_effects": "nausea",
-            "notes": "acompanhar em 4 semanas",
+            "class_and_mechanism": "ISRS, inibidor da recaptacao de serotonina",
+            "initial_dose": "50 mg/dia VO",
+            "titration": "aumentar 50 mg a cada 7 dias",
+            "target_dose": "100 a 150 mg/dia",
+            "ceiling": "200 mg/dia",
+            "avoid_with": "IMAO (sindrome serotoninergica)",
+            "side_effects": "nausea, insonia, disfuncao sexual",
+            "monitoring": "resposta em 4 semanas",
         }
         text = server.plain_text_from_result("medication", result)
-        for expected in ("Sertralina", "50mg -> 100mg", "nausea", "acompanhar em 4 semanas"):
+        for expected in ("Sertralina", "ISRS", "50 mg/dia VO", "a cada 7 dias",
+                         "100 a 150 mg/dia", "200 mg/dia", "IMAO", "nausea", "4 semanas"):
             self.assertIn(expected, text)
 
     def test_diagnosis_text_opens_with_the_analysis(self):
@@ -639,6 +649,40 @@ class CacheBusterTests(unittest.TestCase):
         for arquivo in self._fontes():
             with self.subTest(arquivo=str(arquivo.relative_to(ROOT))):
                 self.assertNotIn("?v=", arquivo.read_text(encoding="utf-8"))
+
+
+class BookChapterLookupTests(unittest.TestCase):
+    """O capitulo do farmaco, por nome. A regra geral e casar por prefixo e por
+    contido-em, e ela cobre quase tudo -- o que falha e quando a palavra e outra:
+    o capitulo se chama "Acido valproico" e a receita brasileira diz "valproato
+    de sodio". O app chegou a dizer que o livro nao tinha o farmaco, tendo."""
+
+    def test_sal_da_receita_chega_ao_capitulo_do_acido(self):
+        for nome in ("Valproato de sódio", "valproato", "divalproex", "divalproato de sodio"):
+            with self.subTest(nome=nome):
+                capitulo = server.find_book_chapter(nome)
+                self.assertIsNotNone(capitulo, f"{nome} nao chegou a capitulo nenhum")
+                self.assertEqual(capitulo["nome"], "Ácido valproico")
+
+    def test_a_regra_geral_continua_valendo(self):
+        casos = {
+            "cloridrato de fluoxetina": "Fluoxetina",
+            "carbonato de lítio": "Lítio",
+            "hemifumarato de quetiapina": "Quetiapina",
+            "Risperidona": "Risperidona",
+        }
+        for nome, esperado in casos.items():
+            with self.subTest(nome=nome):
+                self.assertEqual(server.find_book_chapter(nome)["nome"], esperado)
+
+    def test_canabidiol_nao_vira_o_capitulo_do_thc(self):
+        """Moleculas diferentes. Mandar uma para o capitulo da outra seria erro
+        clinico disfarcado de conveniencia."""
+        self.assertIsNone(server.find_book_chapter("cbd"))
+        self.assertIsNone(server.find_book_chapter("canabidiol"))
+
+    def test_prefixo_curto_nao_casa(self):
+        self.assertIsNone(server.find_book_chapter("li"))
 
 
 if __name__ == "__main__":

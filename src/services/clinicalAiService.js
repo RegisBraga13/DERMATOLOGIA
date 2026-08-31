@@ -1,8 +1,8 @@
 import { diagnosticAggravatingOptionLines, diagnosticComorbidityOptionLines, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSpecifierOptionLines, diagnosticSyndromicOptionLines, formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharmacologicalOption, normalizeDiagnosticOptions, parseTreatmentResponse, selectedAggravatingValues, selectedComorbidityValues, selectedDiagnosisValues, selectedSpecifierValues, treatmentOptionLines } from "../clinical/diagnosis.js";
 import { careLevelOptions as CARE_LEVELS } from "../data/careLevels.js";
 import { anamnesisText, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, patientIdentificationText, professionalSelectedTreatmentItems, refinementAnswersText, requestedExamsText, returnStoryText, treatmentDiagnosisText } from "../clinical/narrative.js";
-import { arrayValue, cleanClinicalLine, compactText, formatClinicalList, joinValues, normalizeText, stripFinalPeriod } from "../clinical/textFormat.js";
-import { ANAMNESIS_AI_FIELDS, MENTAL_EXAM_AI_FIELDS } from "../clinical/vocabulary.js";
+import { arrayValue, cleanClinicalLine, compactText, formatClinicalList, joinValues, mentalExamKeys, normalizeText, stripFinalPeriod } from "../clinical/textFormat.js";
+import { ANAMNESIS_AI_FIELDS, MENTAL_EXAM_AI_FIELDS, MENTAL_EXAM_NORMAL } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js";
 
 import { protocolBlocksText, protocolCatalogText, protocolItemById, protocolLoaded } from "../clinical/protocol.js";
@@ -28,11 +28,11 @@ export function localRefinementPlan(form = {}) {
   };
 }
 
-export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery = "") {
+export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery = "", webQuery = "") {
   const response = await fetch("/api/clinical-ai", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ kind, prompt, mode: mode === "rag" ? "rag" : "current", ragQuery })
+    body: JSON.stringify({ kind, prompt, mode: mode === "rag" ? "rag" : "current", ragQuery, webQuery })
   });
   let data = {};
   try {
@@ -49,6 +49,10 @@ export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery
     result,
     text: data.text || clinicalAiTextFromResult(kind, result),
     sources: Array.isArray(data.sources) ? data.sources : [],
+    // As paginas que a busca da web citou. Chegam so no modo Nuvem, e vao a
+    // tela pelo mesmo motivo das fontes do RAG: resposta sem procedencia nao
+    // entra em prontuario.
+    webSources: Array.isArray(data.web_sources) ? data.web_sources : [],
     // Codigo que a IA inventou e o servidor removeu. Vai a tela: a hipotese
     // chega sem codigo, e sem o aviso isso passaria por sindrome descritiva,
     // que legitimamente nao tem codigo.
@@ -326,7 +330,7 @@ function validateClinicalAiPayload(kind, result, text = "") {
   }
   if (kind === "evolution" && typeof result.markdown !== "string") throw new Error("Evolucao fora do formato esperado.");
   if (kind === "medication") {
-    ["medication", "dose_progression", "side_effects", "notes"].forEach(key => {
+    ["medication", "class_and_mechanism", "initial_dose", "titration", "target_dose", "ceiling", "avoid_with", "side_effects", "monitoring"].forEach(key => {
       if (typeof result[key] !== "string") throw new Error("Medicamento fora do formato esperado.");
     });
   }
@@ -412,12 +416,15 @@ function parseFallbackClinicalText(kind, text = "") {
   }
   if (kind === "evolution") return { markdown: text };
   if (kind === "medication") {
+    // Caminho de texto plano: fallback de quando a resposta nao vem pelo schema.
+    // Os campos curtos nao existem la, e inventar um parser de nove rotulos para
+    // um caminho que quase nunca dispara custaria mais do que vale. Chega o nome
+    // e o resto vazio, e a tela mostra so o que tem.
     const parsed = parseMedicationResponse(text);
     return {
       medication: parsed.medicationNameText,
-      dose_progression: parsed.medicationPresentation,
-      side_effects: parsed.medicationSafety,
-      notes: parsed.medicationBestUse
+      class_and_mechanism: "", initial_dose: "", titration: "", target_dose: "",
+      ceiling: "", avoid_with: "", side_effects: parsed.medicationSafety || "", monitoring: ""
     };
   }
   return null;
@@ -440,9 +447,14 @@ function clinicalAiTextFromResult(kind, result) {
   if (kind === "medication") {
     return [
       `MEDICAMENTO:\n${result.medication}`,
-      `DOSE INICIAL E PROGRESSAO:\n${result.dose_progression}`,
-      `PRINCIPAIS EFEITOS COLATERAIS:\n${result.side_effects}`,
-      `OBSERVACOES:\n${result.notes}`
+      `CLASSE E MECANISMO:\n${result.class_and_mechanism}`,
+      `DOSE INICIAL:\n${result.initial_dose}`,
+      `TITULACAO:\n${result.titration}`,
+      `DOSE ALVO:\n${result.target_dose}`,
+      `LIMITE:\n${result.ceiling}`,
+      `EVITAR COM:\n${result.avoid_with}`,
+      `EFEITOS COLATERAIS:\n${result.side_effects}`,
+      `MONITORIZACAO:\n${result.monitoring}`
     ].join("\n\n");
   }
   return "";
@@ -452,6 +464,68 @@ function clinicalAiTextFromResult(kind, result) {
 // e fracasso da IA: e a informacao que diz o que perguntar no retorno, e vale
 // mais do que um "preenchido" assumido em cima do que ninguem registrou.
 export const CRITERION_STATUS = ["preenchido", "nao preenchido", "nao avaliavel"];
+
+// A consulta que vai para o buscador da web, e ela NAO e a consulta do RAG.
+//
+// A do RAG pode carregar a narrativa inteira: vai para o acervo dele, na conta
+// dele, e quanto mais contexto melhor a recuperacao. A da web vai para um
+// terceiro. Entao aqui entra so VOCABULARIO CLINICO FECHADO -- os termos que o
+// medico marcou em lista, que sao palavras de livro -- e as hipoteses ja
+// nomeadas. Nao entra queixa, nao entra HDA, nao entra resposta de refinamento,
+// nao entra nome, idade, sexo, cidade nem ocupacao. "Delirio de grandeza, fuga
+// de ideias, logorreia" nao diz quem e ninguem; "Estou otimo, quem quis vir foi
+// minha familia" diz, e foi exatamente o que a primeira versao mandou para o
+// buscador.
+//
+// Consulta vazia significa nao pesquisar. E a resposta certa: e melhor a Nuvem
+// responder do que sabe, e a tela dizer que nao houve busca, do que pesquisar
+// com o prontuario dentro.
+export function buildWebQuery(kind, form = {}) {
+  // Achado normal fica de fora: "consciente; orientado; preservada; sem
+  // alteracao" nao tem o que procurar, e na primeira medicao esses termos
+  // dominaram a consulta e trouxeram pagina de transtorno de personalidade
+  // narcisista para um caso de mania -- "arrogancia" e "seducao" pontuando alto
+  // num mar de normalidade.
+  // Tambem as metades dos rotulos compostos: "Consciente/orientado" chega aqui
+  // partido em dois achados, e nenhum dos dois casaria com o rotulo inteiro.
+  // SO O QUE ESTA NA LISTA. mentalStateFindings devolve tambem o texto que o
+  // medico escreveu no campo "Outro", e ali ele descreve o paciente com as
+  // proprias palavras -- "interrompe o examinador, retoma tres assuntos ao mesmo
+  // tempo e faz trocadilhos com as perguntas". Isso e narrativa de um caso, nao
+  // termo de livro, e nao vai para buscador nenhum. O vocabulario fechado vai,
+  // porque e palavra que ja esta impressa em todo manual.
+  const catalogo = new Set(mentalExamKeys()
+    .flatMap(chave => optionGroups[chave] || [])
+    .map(normalizeText));
+  const normais = new Set(Object.values(MENTAL_EXAM_NORMAL)
+    .flatMap(valor => [valor, ...String(valor).split(/[\/(]/)])
+    .map(item => normalizeText(item.replace(/\)/g, "")))
+    .filter(Boolean));
+  const termos = [
+    ...arrayValue(form.diagnosticoSelecionado),
+    ...String(form.diagnosticoAiNosologico || "").split("\n"),
+    ...mentalStateFindings(form)
+      .filter(item => catalogo.has(normalizeText(item)) && !normais.has(normalizeText(item)))
+  ].map(item => String(item || "").split(" - ")[0].trim()).filter(Boolean);
+  const unicos = [...new Set(termos)].slice(0, 12).join("; ");
+  const farmaco = String(form.medicationGeneric || "").trim();
+  const sintoma = String(form.appendixSymptom || "").trim();
+  if (kind === "medication" || kind === "medication_review") {
+    return farmaco ? `${farmaco}: bula vigente, dose, titulacao, dose maxima, contraindicacao, interacao, alerta regulatorio` : "";
+  }
+  if (kind === "medication_tips") return "";
+  if (kind === "symptomatic") {
+    const alvo = sintoma || arrayValue(form.sintomasResiduais).join("; ");
+    return alvo ? `Manejo farmacologico e nao farmacologico de ${alvo}: conduta, dose e cuidado` : "";
+  }
+  if (kind === "treatment" || kind === "treatment_review") {
+    return unicos ? `Tratamento e diretriz atual para: ${unicos}. Primeira linha, dose, monitorizacao` : "";
+  }
+  if (kind === "diagnosis" || kind === "diagnosis_review") {
+    return unicos ? `Criterios diagnosticos DSM-5-TR e CID-11 e diagnostico diferencial para: ${unicos}` : "";
+  }
+  return "";
+}
 
 export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = null, isReturn = false, scope = null) {
   const taskByKind = {
@@ -632,10 +706,23 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "So entra o que estiver dentro da secao BIPP TIPS. Precaucao, posologia ou efeito colateral que estejam em outra parte do capitulo NAO sao BIPP TIPS.",
       "Se a secao nao aparecer nos trechos recuperados, ou se ela for de outro farmaco, devolva a lista VAZIA. Nunca escreva dicas de sua autoria, e nunca aproveite a secao de um farmaco parecido: lista vazia significa que este farmaco nao tem BIPP TIPS no livro."
     ],
+    // Refeita em 31/08/2026. A ficha vinha em tres campos de prosa longa que
+    // reescreviam a bula -- sedacao, ganho de peso, extrapiramidais,
+    // hiperprolactinemia. Ele foi direto ao ponto: "isso ai tem na bula", e
+    // ditou o formato que queria, telegrafico. O texto longo e do livro, e o
+    // livro agora abre sozinho no capitulo; aqui e a linha de consulta rapida.
     medication: [
       `Preencha somente os campos solicitados sobre o medicamento informado: ${form.medicationGeneric || "nao informado"}.`,
-      "Seja objetivo e nao inclua preco, links, indicacoes extensas ou cabecalhos adicionais.",
-      "Use linguagem clinica resumida para prontuario."
+      "TELEGRAFICO. Cada campo e um fragmento, nao uma frase: sem sujeito, sem verbo de ligacao, sem 'recomenda-se', sem 'deve-se'. 'Antipsicotico atipico, antagonista D2 e 5-HT2A' e o formato certo; 'A risperidona e um antipsicotico atipico que atua como antagonista' e o errado.",
+      "NAO REESCREVA A BULA. Efeito colateral comum de classe, cuidado obvio e frase de cautela generica ja estao na bula e no capitulo do livro, e nao ganham nada repetidos aqui. O que se consulta neste bloco e o que se precisa com a receita na mao.",
+      "Em 'class_and_mechanism': a classe e o mecanismo em uma linha, com os receptores quando definirem o perfil clinico.",
+      "Em 'initial_dose': so o numero, a via e a fracao — '2 mg/dia VO, 1 a 2 tomadas'. Em idoso ou paciente sensivel, a dose menor entre parenteses.",
+      "Em 'titration': quanto se aumenta, de quanto em quanto tempo — 'aumentar 1 a 2 mg a cada 24 h'. Sem 'conforme resposta clinica' no lugar do numero.",
+      "Em 'target_dose' e 'ceiling': as duas faixas, separadas. Dose alvo nao e dose maxima, e confundir as duas na mesma linha e o que faz errar receita.",
+      "Em 'avoid_with': o que NAO combinar, e por que, em fragmento — 'levodopa (antagonismo)'. Quando o registro disser o que o paciente ja toma, cruze com isso primeiro e diga o risco concreto.",
+      "Em 'side_effects': ate cinco, os que mudam conduta ou fazem o paciente abandonar o tratamento, separados por virgula. Nao e a lista da bula.",
+      "Em 'monitoring': o exame e a periodicidade — 'litemia 5 dias apos dose estavel, depois trimestral; TSH e creatinina semestrais'. Sem exame nao ha o que escrever: campo curto e melhor do que campo cheio de generalidade.",
+      "Nao inclua preco, link, cabecalho, nem a frase de que a decisao e medica: ela ja esta na tela."
     ]
   };
   // A segunda passada nao recebe uma tarefa nova: recebe a MESMA tarefa, com o
@@ -828,12 +915,14 @@ function promptResponseFormat(kind) {
   if (kind === "medication") {
     return [
       "MEDICAMENTO: (repita exatamente o nome informado em 'Medicamento pesquisado')",
-      "",
-      "DOSE INICIAL E PROGRESSAO:",
-      "",
-      "PRINCIPAIS EFEITOS COLATERAIS:",
-      "",
-      "OBSERVACOES:"
+      "CLASSE E MECANISMO: (fragmento, sem verbo)",
+      "DOSE INICIAL: (numero, via e fracao)",
+      "TITULACAO: (quanto se aumenta, de quanto em quanto tempo)",
+      "DOSE ALVO: (faixa)",
+      "LIMITE: (dose maxima)",
+      "EVITAR COM: (o que nao combinar, e por que)",
+      "EFEITOS COLATERAIS: (ate cinco, separados por virgula)",
+      "MONITORIZACAO: (exame e periodicidade)"
     ].join("\n");
   }
   return [

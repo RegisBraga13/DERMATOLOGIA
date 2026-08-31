@@ -7,7 +7,7 @@ import { ANAMNESIS_AI_FIELDS, anamnesisQuestionGroups, pagesForScope } from "./c
 import { optionGroups } from "./data/examOptions.js";
 import { targetSymptomOptions } from "./data/targetSymptoms.js";
 import { fetchCep } from "./services/cepService.js";
-import { buildClinicalAiPrompt, buildRagQuery, canonicalAiSelections, localRefinementPlan, requestClinicalAi } from "./services/clinicalAiService.js";
+import { buildClinicalAiPrompt, buildRagQuery, buildWebQuery, canonicalAiSelections, localRefinementPlan, requestClinicalAi } from "./services/clinicalAiService.js";
 import { buildMedicationAutofill, localMedicationSuggestions } from "./services/medicationService.js";
 import { exportTextAsPdf } from "./services/pdfService.js";
 import { loadState, mergeStates, saveState, uid } from "./services/storageService.js";
@@ -427,14 +427,22 @@ function refinementBody(form = {}) {
 // conduta sai ancorada nele. A mesma insonia se maneja de um jeito na mania, de
 // outro na depressao psicotica e de outro na abstinencia alcoolica, e "tratamento
 // da insonia" em abstrato responderia igual para os tres.
+// Cada modo tem a sua procedencia, e o campo do formulario guarda a do modo que
+// respondeu. Nunca as duas: uma chamada e RAG ou e Nuvem.
+function sourcesOfMode(mode, sources = [], webSources = []) {
+  return mode === "rag" ? (sources || []) : (webSources || []);
+}
+
 function medicationBody(form) {
   const modo = form.appendixSearchMode === "sintoma" ? "sintoma" : "medicamento";
   const medicationName = form.medicationGeneric || "";
   const sintomaBuscado = form.appendixSymptom || "";
-  const hasInformation = Boolean(form.medicationNameText || form.medicationPresentation || form.medicationSafety || form.medicationBestUse);
+  const hasInformation = Boolean(form.medicationNameText || form.medicationClassMechanism || form.medicationInitialDose
+    || form.medicationPresentation || form.medicationSafety || form.medicationBestUse);
   // Sem o nome: a ficha aparece com o nome preenchido pela busca local antes de
   // a IA gerar coisa alguma, e ali nao ha primeira passada para revisar.
-  const hasAiInformation = Boolean(form.medicationPresentation || form.medicationSafety || form.medicationBestUse);
+  const hasAiInformation = Boolean(form.medicationClassMechanism || form.medicationInitialDose || form.medicationSideEffects
+    || form.medicationPresentation || form.medicationSafety || form.medicationBestUse);
   const condutas = appendixSymptomLines(form);
   return `
     <div class="medication-reference">
@@ -459,17 +467,17 @@ function medicationBody(form) {
           ${refineButton("refine-medication-ai", hasAiInformation)}
           <button class="secondary${form.medicationChapter ? " active" : ""}" type="button" data-action="toggle-book-chapter"
             ${medicationName ? "" : "disabled"}
-            title="Mostra o capitulo deste farmaco como esta no livro, do nome ate o fim dos BIPP TIPS.">${form.medicationChapter ? "Ocultar" : "Mostrar tudo"}</button>
+            title="O capitulo deste farmaco como esta no livro, do nome ate o fim dos BIPP TIPS. Abre sozinho ao escolher o medicamento.">${form.medicationChapter ? "Ocultar o capítulo" : "Capítulo do livro"}</button>
         </div>
         ${form.medicationOnlineStatus ? `<p class="medication-source-status">${escapeHtml(form.medicationOnlineStatus)}</p>` : ""}
         ${ragSourcesView(form.ragSourcesMedicamento)}
         ${bookChapterView(form)}
-        ${hasInformation ? medicationReferenceCard(form) : `
+        ${hasInformation ? medicationReferenceCard(form) : (form.medicationChapter ? "" : `
           <div class="medication-empty-state">
             <span>Rx</span>
             <h4>Medicamento</h4>
           </div>
-        `}
+        `)}
       ` : `
         <div class="medication-search-shell">
           <span class="medication-search-icon" aria-hidden="true">⌕</span>
@@ -754,12 +762,17 @@ async function selectMedicationLookup(name) {
   else draft.consultation = { ...(target || {}), ...loading };
   render();
 
-  // Trocou de farmaco: o tip do anterior sai junto, pelo mesmo motivo do
-  // clearMedicationLookup.
-  const information = { medicationGeneric: name, medicationTips: "" };
+  // Trocou de farmaco: o tip e o capitulo do anterior saem junto, pelo mesmo
+  // motivo do clearMedicationLookup — o capitulo da duloxetina na tela enquanto
+  // ele pesquisa outro farmaco e pior do que tela vazia.
+  const information = { medicationGeneric: name, medicationTips: "", medicationChapter: null };
   if (scope === "return") draft.return = { ...(draft.return || {}), ...information };
   else draft.consultation = { ...(draft.consultation || {}), ...information };
   render();
+  // O capitulo e local: nao custa chamada de API nem espera perceptivel, entao
+  // abre sozinho. Farmaco sem capitulo no livro cai no aviso de sempre, e a
+  // ficha da IA passa a ser a contingencia — que e o lugar dela.
+  await loadBookChapter(scope, name);
 }
 
 function clearMedicationLookup() {
@@ -767,12 +780,15 @@ function clearMedicationLookup() {
   const cleared = {
     medicationGeneric: "", medicationNameText: "", medicationBrands: "", medicationClass: "",
     medicationPresentation: "", medicationSafety: "", medicationBestUse: "", medicationMechanism: "",
+    medicationClassMechanism: "", medicationInitialDose: "", medicationTitration: "", medicationTargetDose: "",
+    medicationCeiling: "", medicationAvoidWith: "", medicationSideEffects: "", medicationMonitoringShort: "",
     medicationMonitoring: "", medicationSpecialPopulations: "", medicationOnlineStatus: "",
     medicationActiveIngredient: "", medicationPresentationHighlight: "", medicationRecommendedDose: "",
     medicationMainEffects: "",
     // Tip e do farmaco, nao da tela: sem limpar, o BIPP TIPS da duloxetina
     // ficaria na caixa enquanto o medico pesquisa outro medicamento.
-    medicationTips: ""
+    medicationTips: "",
+    medicationChapter: null, medicationChapterStatus: ""
   };
   if (scope === "return") draft.return = { ...(draft.return || {}), ...cleared };
   else draft.consultation = { ...(draft.consultation || {}), ...cleared };
@@ -1139,8 +1155,10 @@ async function generateDiagnosisFromClinicalData(element, kind = "diagnosis") {
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result, sources, mode, codeWarnings } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), revisao ? "rag" : context.target?.aiMode, buildRagQuery(kind, context.target));
-    suggestion = diagnosisSuggestionFromAi({ result, target, sources, mode, codeWarnings, revisao });
+    const { result, sources, webSources, mode, codeWarnings } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), revisao ? "rag" : context.target?.aiMode, buildRagQuery(kind, context.target), buildWebQuery(kind, context.target));
+    // A procedencia da resposta e a do modo que respondeu: trechos do acervo no
+    // RAG, paginas da web na Nuvem. So um dos dois vem preenchido por chamada.
+    suggestion = diagnosisSuggestionFromAi({ result, target, sources: sourcesOfMode(mode, sources, webSources), mode, codeWarnings, revisao });
     if (revisao) suggestion.aiStatus = `Refinado pela fonte especializada. ${suggestion.aiStatus}`;
   } catch (error) {
     suggestion = diagnosisSuggestionFromLocalCatalogue(target, error);
@@ -1167,7 +1185,7 @@ async function generateTreatmentFromClinicalData(element, kind = "treatment") {
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result, sources, mode } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), revisao ? "rag" : (context.target?.pharmaAiMode || "rag"), buildRagQuery(kind, context.target));
+    const { result, sources, webSources, mode } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), revisao ? "rag" : (context.target?.pharmaAiMode || "rag"), buildRagQuery(kind, context.target), buildWebQuery(kind, context.target));
     const medicationOptions = result.medication_options.map(formatMedicationTreatmentOption);
     const approachOptions = result.non_pharmacological_options.map(formatNonPharmacologicalOption);
     suggestion = {
@@ -1189,7 +1207,7 @@ async function generateTreatmentFromClinicalData(element, kind = "treatment") {
       abordagensTerapeuticas: "",
       examesLaboratoriais: requestedExamsText(target || {}),
       condutaMedica: target?.condutaMedica || "",
-      ragSourcesTratamento: sources,
+      ragSourcesTratamento: sourcesOfMode(mode, sources, webSources),
       pharmaAiMode: mode,
       treatmentStatus: `${revisao ? "Refinado pela fonte especializada: " : ""}${result.care_level ? `Nível de cuidado proposto: ${result.care_level.level}. ` : "Nenhum nível de cuidado foi proposto — a resposta veio sem modalidade ou sem justificativa. "}${countLabel(medicationOptions.length, "opção medicamentosa", "opções medicamentosas")} e ${countLabel(approachOptions.length, "outra abordagem", "outras abordagens")} propostas para você assinalar. Suas escolhas anteriores foram mantidas.`,
       aiStatus: revisao ? "Tratamento refinado pela fonte especializada, para revisão médica." : "Sugestões de tratamento geradas pela IA para revisão médica."
@@ -1252,15 +1270,15 @@ async function generateAppendixSymptomConduct(element) {
   try {
     const context = clinicalAiContext(scope);
     const sombra = { ...(context.target || {}), sintomasResiduais: [sintoma], sintomasResiduaisOutro: "" };
-    const { result, sources, mode } = await requestClinicalAi(
+    const { result, sources, webSources, mode } = await requestClinicalAi(
       "symptomatic",
       buildClinicalAiPrompt("symptomatic", sombra, context.patient, context.previous, context.isReturn),
       context.target?.symptomaticAiMode || "rag",
-      buildRagQuery("symptomatic", sombra));
+      buildRagQuery("symptomatic", sombra), buildWebQuery("symptomatic", sombra));
     const linhas = targetSymptomConductLines(result);
     gravar({
       appendixSymptomConducts: linhas.join("\n"),
-      ragSourcesSintomatico: sources,
+      ragSourcesSintomatico: sourcesOfMode(mode, sources, webSources),
       symptomaticAiMode: mode,
       appendixSymptomStatus: linhas.length
         ? `${countLabel(linhas.length, "linha")} de manejo. Leve para o Tratamento o que voce adotar — o resto fica so nesta consulta.`
@@ -1332,7 +1350,7 @@ async function generateMedicationFromClinicalData(element, kind = "medication") 
   // populacoes especiais, preenchidos pela busca local/online. Por isso o teste
   // olha so o que a primeira passada da IA escreve: sem isso, "Refinar" ficaria
   // habilitado sobre uma ficha que a IA nunca gerou.
-  if (revisao && !target?.medicationPresentation && !target?.medicationSafety && !target?.medicationBestUse) {
+  if (revisao && !target?.medicationInitialDose && !target?.medicationClassMechanism && !target?.medicationSideEffects) {
     return alert("Gere a ficha antes de refinar: o refinamento revisa a primeira passada, nao a substitui.");
   }
   const aviso = revisao ? "Refinando a ficha com a fonte especializada..." : "Consultando IA real para medicamento...";
@@ -1343,12 +1361,23 @@ async function generateMedicationFromClinicalData(element, kind = "medication") 
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result, sources, mode } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), context.target?.pharmaAiMode || "rag", buildRagQuery(kind, context.target));
+    const { result, sources, webSources, mode } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), context.target?.pharmaAiMode || "rag", buildRagQuery(kind, context.target), buildWebQuery(kind, context.target));
     suggestion = {
       medicationNameText: result.medication || target.medicationGeneric,
-      medicationPresentation: result.dose_progression || "",
-      medicationSafety: result.side_effects || "",
-      medicationBestUse: result.notes || "",
+      medicationClassMechanism: result.class_and_mechanism || "",
+      medicationInitialDose: result.initial_dose || "",
+      medicationTitration: result.titration || "",
+      medicationTargetDose: result.target_dose || "",
+      medicationCeiling: result.ceiling || "",
+      medicationAvoidWith: result.avoid_with || "",
+      medicationSideEffects: result.side_effects || "",
+      medicationMonitoringShort: result.monitoring || "",
+      // Os tres campos longos da ficha antiga saem de cena, e sao limpos: ficha
+      // telegrafica de um farmaco ao lado da prosa do farmaco anterior seria o
+      // pior dos dois mundos.
+      medicationPresentation: "",
+      medicationSafety: "",
+      medicationBestUse: "",
       medicationStatus: revisao
         ? "Ficha refinada pela fonte especializada. Revise com bula vigente."
         : "Medicamento preenchido nos campos essenciais. Revise com bula vigente.",
@@ -1357,7 +1386,7 @@ async function generateMedicationFromClinicalData(element, kind = "medication") 
         : "Resposta de medicamento gerada pela IA real. Revise com bula brasileira e dados do paciente.",
       medicationTips: await fetchMedicationTips(context, target),
       aiStatus: revisao ? "Ficha refinada pela fonte especializada. Revise antes de salvar." : "Resposta gerada pela IA real. Revise antes de salvar.",
-      ragSourcesMedicamento: sources,
+      ragSourcesMedicamento: sourcesOfMode(mode, sources, webSources),
       pharmaAiMode: mode
     };
   } catch (error) {
@@ -1382,25 +1411,48 @@ async function generateMedicationFromClinicalData(element, kind = "medication") 
 // O texto nao entra no rascunho salvo: sao 13 a 30 mil caracteres do livro por
 // farmaco, e o prontuario nao e lugar de guardar copia de obra licenciada. Fica
 // so enquanto a tela esta aberta.
-async function toggleBookChapter(element) {
-  const { scope, target } = syncedTarget(element);
+// O capitulo do livro deixou de ser o "Mostrar tudo" e virou a ficha, em
+// 31/08/2026, por decisao dele diante da ficha da risperidona: "nao e essa
+// enxurrada de informacao que interessa -- isso ai tem na bula".
+//
+// A inversao era gritante depois de escrita. O programa tem o livro inteiro
+// local -- 186 capitulos, verbatim --, com nomes comerciais no Brasil, situacao
+// na Rename do SUS, indicacoes de bula da ANVISA e do FDA, off-label,
+// contraindicacoes, testes laboratoriais sugeridos, interacoes e os BIPP TIPS.
+// Custo zero e resposta imediata. E ele estava escondido atras de um botao,
+// enquanto o que abria por padrao era uma chamada de API parafraseando a bula.
+//
+// Agora o capitulo carrega sozinho ao escolher o farmaco. O botao continua, e
+// so fecha e reabre.
+async function loadBookChapter(scope, nome) {
   const aplica = dados => {
     if (scope === "return") draft.return = { ...(draft.return || {}), ...dados };
     else draft.consultation = { ...(draft.consultation || {}), ...dados };
     render();
   };
-  if (target?.medicationChapter) return aplica({ medicationChapter: null, medicationChapterStatus: "" });
-  const nome = (target?.medicationGeneric || target?.medicationNameText || "").trim();
-  if (!nome) return alert("Escolha o medicamento antes de mostrar o capitulo.");
+  const alvo = String(nome || "").trim();
+  if (!alvo) return aplica({ medicationChapter: null, medicationChapterStatus: "" });
   aplica({ medicationChapterStatus: "Abrindo o capitulo do livro..." });
   try {
-    const resposta = await fetch(`/api/book-chapter?medicamento=${encodeURIComponent(nome)}`);
+    const resposta = await fetch(`/api/book-chapter?medicamento=${encodeURIComponent(alvo)}`);
     const dados = await resposta.json().catch(() => ({}));
     if (!resposta.ok) return aplica({ medicationChapter: null, medicationChapterStatus: dados.error || "Nao foi possivel abrir o capitulo." });
     aplica({ medicationChapter: dados, medicationChapterStatus: "" });
   } catch (error) {
     aplica({ medicationChapter: null, medicationChapterStatus: `Capitulo indisponivel: ${error.message}` });
   }
+}
+
+async function toggleBookChapter(element) {
+  const { scope, target } = syncedTarget(element);
+  if (target?.medicationChapter) {
+    if (scope === "return") draft.return = { ...(draft.return || {}), medicationChapter: null, medicationChapterStatus: "" };
+    else draft.consultation = { ...(draft.consultation || {}), medicationChapter: null, medicationChapterStatus: "" };
+    return render();
+  }
+  const nome = (target?.medicationGeneric || target?.medicationNameText || "").trim();
+  if (!nome) return alert("Escolha o medicamento antes de mostrar o capitulo.");
+  await loadBookChapter(scope, nome);
 }
 
 // Os BIPP TIPS sao uma secao da Psicofarmacologia: Da Teoria a Clinica (2025),

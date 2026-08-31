@@ -2719,3 +2719,38 @@ textarea:focus-visible {
 .return-case-item { display: grid; gap: 6px; padding: 8px 0; }
 .return-case-item + .return-case-item { border-top: 1px solid var(--line); }
 .return-case-item strong { font-size: 15px; line-height: 1.45; font-weight: 600; }
+
+/* A ficha telegrafica. Classe e mecanismo em linha inteira -- e a frase que
+   situa o farmaco; o resto em grade, que e como se consulta com a receita na
+   mao. */
+.medication-briefing { margin-top: 4px; }
+
+.medication-briefing-class {
+  margin: 0 0 14px;
+  font-size: 18px;
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+.medication-briefing dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.medication-briefing dl > div {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  background: var(--surface);
+}
+
+.medication-briefing dt {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.medication-briefing dd { margin: 3px 0 0; font-size: 16px; line-height: 1.4; }

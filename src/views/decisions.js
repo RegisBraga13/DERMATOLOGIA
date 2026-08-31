@@ -203,7 +203,7 @@ export function refineButton(action, liberado) {
 export function aiModeSelector(value = "current", name = "aiMode") {
   return `<fieldset class="ai-mode-selector">
     <legend>Fonte da resposta</legend>
-    <label><input type="radio" name="${name}" value="current" ${value !== "rag" ? "checked" : ""} /><span>IA Nuvem</span><small>Modelo da nuvem sem consultar os livros indexados</small></label>
+    <label><input type="radio" name="${name}" value="current" ${value !== "rag" ? "checked" : ""} /><span>IA Nuvem</span><small>Pesquisa na web: bula vigente, alerta de agência, diretriz recente. Não lê os livros indexados</small></label>
     <label><input type="radio" name="${name}" value="rag" ${value === "rag" ? "checked" : ""} /><span>RAG com literatura</span><small>Restringe a resposta às fontes indexadas (psicopatologia e psicofarmacologia)</small></label>
   </fieldset>`;
 }
@@ -212,14 +212,47 @@ export function aiModeSelector(value = "current", name = "aiMode") {
 // restringe a busca; nao garante que cada frase saiu dali — o modelo ainda
 // generaliza. Prometer mais do que o mecanismo entrega e pior do que nao
 // mostrar nada.
+// A procedencia da resposta, nas duas colunas. O mesmo campo do formulario
+// guarda as duas formas porque so uma existe por vez -- a resposta veio de um
+// modo ou do outro --, e o item diz qual e: fonte do RAG tem 'filename' e
+// pontuacao de relevancia, pagina da web tem 'url'.
+//
+// Desde 31/08/2026 a IA Nuvem pesquisa na web, e passou a ter procedencia
+// tambem. Antes ela respondia de cabeca e esta caixa ficava vazia do lado dela
+// -- o que era honesto, e era exatamente a fraqueza: afirmacao sem origem.
 export function ragSourcesView(sources = []) {
   if (!Array.isArray(sources) || !sources.length) return "";
+  if (sources.every(source => source?.url || source?.query)) return webSourcesView(sources);
   const refs = sources.map(source => ({ ...source, ref: referenceFor(source.filename) }));
   const nomes = [...new Set(refs.map(item => item.ref.curto))];
   return `
     <p class="rag-consulted">Consultado: ${nomes.map(nome => `<strong>${escapeHtml(nome)}</strong>`).join(" · ")}</p>
     <details class="rag-sources"><summary>${sources.length} ${sources.length === 1 ? "trecho recuperado" : "trechos recuperados"}</summary><ol>${refs.map(item => `
       <li><strong>${escapeHtml(item.ref.completo)}</strong><span>Relevancia: ${Math.round(Number(item.score || 0) * 100)}%</span></li>`).join("")}</ol></details>`;
+}
+
+// O link abre em aba nova, com rel="noopener noreferrer": a pagina vem de busca
+// na web, e nao se entrega o contexto do prontuario a um destino que ninguem
+// auditou.
+function webSourcesView(sources) {
+  const paginas = sources.filter(item => item.url);
+  const consultas = sources.filter(item => item.query && !item.url);
+  const sites = [...new Set(paginas.map(item => item.site).filter(Boolean))];
+  const total = paginas.length || consultas.length;
+  return `
+    <p class="rag-consulted">${sites.length
+      ? `Pesquisado na web: ${sites.map(site => `<strong>${escapeHtml(site)}</strong>`).join(" · ")}`
+      : "Pesquisado na web"}</p>
+    <details class="rag-sources"><summary>${total} ${paginas.length
+      ? (total === 1 ? "página citada" : "páginas citadas")
+      : (total === 1 ? "consulta feita" : "consultas feitas")}</summary><ol>${[
+      ...paginas.map(item => `
+      <li><a href="${escapeAttr(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title || item.url)}</a><span>${escapeHtml(item.site || "")}</span></li>`),
+      // Sem URL, a procedencia possivel e a CONSULTA: o que ele foi procurar.
+      // Vale mostrar — e o que permite ver que a busca foi ao lugar certo, e que
+      // nao levou nada do paciente junto.
+      ...consultas.map(item => `<li><span>${escapeHtml(item.query)}</span></li>`)
+    ].join("")}</ol></details>`;
 }
 
 export function treatmentModule(form) {
