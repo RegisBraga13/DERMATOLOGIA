@@ -350,10 +350,14 @@ export function evolutionBody(form, patient, previous = null, isReturn = false) 
     : normalizeEvolutionNarrative(form.evolution);
   const generatedEvolution = buildEvolutionNarrative(form, patient, previous, isReturn);
   return `
-    <div class="actions">
-      <button class="primary" type="button" data-action="generate-evolution">${isReturn ? "Atualizar evolução" : "Atualizar história clínica"}</button>
+    <div class="diagnosis-ai-panel">
+      ${aiModeSelector(form.evolutionAiMode || "rag", "evolutionAiMode")}
+      <div class="actions">
+        <button class="primary" type="button" data-action="generate-evolution">${isReturn ? "Atualizar evolução" : "Atualizar história clínica"}</button>
+      </div>
+      ${form.aiStatus ? `<p class="online-status">${escapeHtml(form.aiStatus)}</p>` : ""}
+      ${ragSourcesView(form.ragSourcesEvolucao)}
     </div>
-    ${form.aiStatus ? `<p class="online-status">${escapeHtml(form.aiStatus)}</p>` : ""}
     ${textarea("evolution", "", evolution || generatedEvolution)}
   `;
 }

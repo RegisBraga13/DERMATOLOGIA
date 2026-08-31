@@ -313,7 +313,17 @@ class ValidateResultTests(unittest.TestCase):
             "medication_review": ("psicofarmacologia",),
             "medication_tips": ("psicofarmacologia",),
             "symptomatic": ("psicofarmacologia",),
+            # Duas prateleiras porque sao duas perguntas: a conduta (quando
+            # ajustar, quando trocar) e o curso (o que e remissao, o que e
+            # recaida). Ate 31/08/2026 nao havia linha nenhuma, e a Evolucao era
+            # a unica etapa clinica que escrevia sem livro.
+            "evolution": ("terapeutica", "tratado"),
         }
+        # Nenhuma etapa clinica pode ficar de fora do mapa: sem linha aqui, a
+        # etapa nao falha -- ela responde de cabeca, e a falta so aparece na
+        # ausencia do painel de fontes, que e onde ninguem olha.
+        for kind in ("anamnesis", "diagnosis", "treatment", "evolution"):
+            self.assertIn(kind, server.RAG_SCOPE_BY_KIND, kind)
         for kind, escopos in esperado.items():
             self.assertEqual(server.RAG_SCOPE_BY_KIND[kind], escopos, kind)
         # O escopo nomeia o GENERO do livro, e nunca o leitor. Nome de leitor

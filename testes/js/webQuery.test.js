@@ -58,3 +58,51 @@ describe("a consulta da web nao leva o paciente junto", () => {
     assert.ok(!consulta.toLowerCase().includes("wagner"));
   });
 });
+
+// A Evolucao entrou nas duas buscas em 31/08/2026. Ate ali era a unica etapa
+// clinica sem livro nenhum, e a chamada caia no modo Nuvem por omissao, sem
+// consulta montada -- entao nem web havia. Ganhou fonte; o cerco tem de valer
+// para ela igual.
+describe("a evolucao pergunta pelo seguimento, nao pelo paciente", () => {
+  const retorno = {
+    nome: "Wagner Portela Bittencourt",
+    queixa: "Estou otimo. Quem quis vir foi minha familia.",
+    cidade: "Belo Horizonte",
+    diagnosticoSelecionado: ["Transtorno bipolar tipo I, episodio maniaco com sintomas psicoticos"],
+    tratamentoMedicamentosSelecionados: ["Risperidona - 2 mg/dia, ajustar conforme resposta"],
+    evolucaoClinicaRetorno: ["Melhora clínica"],
+    efeitosOutro: "diz que a boca seca atrapalha as visitas que faz aos clientes"
+  };
+
+  it("nao leva identidade nem texto livre para o buscador", () => {
+    const consulta = buildWebQuery("evolution", retorno).toLowerCase();
+    for (const vazamento of ["wagner", "belo horizonte", "quem quis vir", "clientes", "boca seca"]) {
+      assert.ok(!consulta.includes(vazamento), `vazou para a busca: ${vazamento}`);
+    }
+  });
+
+  it("leva o par que define a regua: diagnostico e farmaco em uso", () => {
+    const consulta = buildWebQuery("evolution", retorno).toLowerCase();
+    assert.ok(consulta.includes("bipolar"));
+    assert.ok(consulta.includes("risperidona"));
+    // A dose e o resto da linha do tratamento ficam de fora: o que se pergunta
+    // ao buscador e sobre o farmaco, e nao sobre a prescricao deste caso.
+    assert.ok(!consulta.includes("2 mg/dia"));
+  });
+
+  it("sem diagnostico e sem farmaco nao ha o que perguntar", () => {
+    assert.equal(buildWebQuery("evolution", { queixa: "retorno de rotina" }), "");
+  });
+
+  it("so com farmaco ainda pergunta, porque o farmaco tem regua propria", () => {
+    const consulta = buildWebQuery("evolution", { tratamentoMedicamentosSelecionados: ["Litio - 900 mg/dia"] });
+    assert.ok(consulta.toLowerCase().includes("litio"));
+  });
+
+  it("a consulta do RAG pergunta por prazo, remissao e troca", () => {
+    const consulta = buildRagQuery("evolution", retorno).toLowerCase();
+    assert.ok(consulta.includes("risperidona"));
+    assert.ok(consulta.includes("remissao"));
+    assert.ok(consulta.includes("troca de farmaco"));
+  });
+});

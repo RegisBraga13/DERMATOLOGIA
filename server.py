@@ -954,6 +954,18 @@ RAG_SCOPE_BY_KIND = {
     # capitulo de cada farmaco. Mesmo livro da revisao; o que muda e a pergunta,
     # que procura uma secao nomeada em vez de revisar.
     "medication_tips": ("psicofarmacologia",),
+    # A Evolucao le as DUAS prateleiras porque faz duas perguntas de uma vez.
+    # "terapeutica" responde a conduta -- em quanto tempo se espera resposta,
+    # quando aumentar, quando trocar, quando chamar de refratario. "tratado"
+    # responde ao curso -- como a doenca costuma evoluir, o que e remissao e o
+    # que e recaida. Julgar se o tratamento esta funcionando exige as duas: sem
+    # a primeira nao ha regua de conduta, sem a segunda nao ha regua de tempo.
+    #
+    # Ate 31/08/2026 esta etapa nao tinha linha nenhuma aqui. Era a unica etapa
+    # clinica que escrevia sem livro: a chamada no front ia com dois argumentos,
+    # o modo caia no default "current" e, sem webQuery montada, nem a busca na
+    # web rodava. Modelo de cabeca, e sem uma fonte na tela.
+    "evolution": ("terapeutica", "tratado"),
     # Decisao dele: no Sintoma-Alvo a busca pergunta por manejo do sintoma, e
     # quem responde e a Psicofarmacologia 2025. Era uma copia separada do
     # arquivo so para carregar outro rotulo; com a etiqueta por genero, o mesmo

@@ -138,6 +138,16 @@ export function buildRagQuery(kind, form = {}) {
   //
   // Tamanho nao era o problema: cortar a consulta antiga para 250 caracteres
   // manteve 0 de 8. Vocabulario era.
+  // A Evolucao pergunta pelo SEGUIMENTO, e nao pelo diagnostico outra vez. O
+  // que ela precisa do livro e a regua: tempo esperado de resposta, criterio de
+  // remissao e de recaida, quando ajustar dose e quando trocar. Por isso a
+  // consulta e montada em torno do par diagnostico + farmaco em uso, que e o
+  // que define essa regua -- litio em mania tem prazo diferente de sertralina
+  // em depressao, e a pergunta "esta funcionando?" so tem resposta com os dois.
+  if (kind === "evolution") {
+    const farmacos = joinValues(arrayValue(form.tratamentoMedicamentosSelecionados));
+    return `Seguimento e resposta ao tratamento de ${diagnosis}. Tempo esperado de resposta, criterios de remissao e de recaida, ajuste de dose, troca de farmaco e refratariedade. Em uso: ${farmacos}. Quadro atual: ${symptoms}`.slice(0, 4000);
+  }
   if (kind === "diagnosis") {
     const exame = mentalStateFindings(form).join("; ");
     // Sem exame preenchido — diagnostico pedido antes dele — cai na formulacao
@@ -520,6 +530,16 @@ export function buildWebQuery(kind, form = {}) {
   }
   if (kind === "treatment" || kind === "treatment_review") {
     return unicos ? `Tratamento e diretriz atual para: ${unicos}. Primeira linha, dose, monitorizacao` : "";
+  }
+  // Vale o mesmo cerco das outras etapas: so vocabulario fechado. Diagnostico
+  // assinalado e nome de farmaco sao palavras que estao impressas em qualquer
+  // manual -- o que NAO vai e o estado deste paciente hoje, que so existe neste
+  // prontuario. A pergunta a web e sobre a doenca e o remedio, nunca sobre ele.
+  if (kind === "evolution") {
+    const farmacos = arrayValue(form.tratamentoMedicamentosSelecionados)
+      .map(item => String(item || "").split(" - ")[0].trim()).filter(Boolean).slice(0, 6);
+    if (!unicos && !farmacos.length) return "";
+    return `Seguimento de ${unicos || farmacos.join("; ")}${farmacos.length && unicos ? ` em uso de ${farmacos.join("; ")}` : ""}: tempo esperado de resposta, criterio de remissao, quando ajustar dose ou trocar`;
   }
   if (kind === "diagnosis" || kind === "diagnosis_review") {
     return unicos ? `Criterios diagnosticos DSM-5-TR e CID-11 e diagnostico diferencial para: ${unicos}` : "";

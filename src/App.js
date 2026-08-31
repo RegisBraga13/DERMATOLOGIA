@@ -1324,16 +1324,26 @@ async function generateEvolutionFromClinicalData(element) {
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result } = await requestClinicalAi("evolution", buildClinicalAiPrompt("evolution", context.target, context.patient, context.previous, context.isReturn));
+    const { result, sources, webSources, mode } = await requestClinicalAi(
+      "evolution",
+      buildClinicalAiPrompt("evolution", context.target, context.patient, context.previous, context.isReturn),
+      context.target?.evolutionAiMode || "rag",
+      buildRagQuery("evolution", context.target),
+      buildWebQuery("evolution", context.target));
     const text = normalizeEvolutionNarrative(result.markdown);
     suggestion = {
       evolution: text,
+      ragSourcesEvolucao: sourcesOfMode(mode, sources, webSources),
+      evolutionAiMode: mode,
       aiStatus: "Evolução gerada pela IA real. Revise antes de salvar.",
     };
   } catch (error) {
     const context = clinicalAiContext(scope);
     suggestion = {
       evolution: buildEvolutionNarrative(target || {}, context.patient, context.previous, context.isReturn),
+      // A narrativa local nao consultou fonte nenhuma. Deixar na tela o painel
+      // da geracao anterior faria o texto local herdar a procedencia dela.
+      ragSourcesEvolucao: [],
       aiStatus: `IA indisponível: ${error.message}. Evolução local aplicada.`
     };
   }
