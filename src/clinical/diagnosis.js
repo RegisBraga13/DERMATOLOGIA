@@ -54,7 +54,22 @@ export function selectedDiagnosisValues(form = {}) {
     : form.diagnosticoSelecionado
       ? [form.diagnosticoSelecionado]
       : [];
-  return values.filter(Boolean);
+  return values.filter(Boolean).map(canonicalDoctorOption);
+}
+
+// As quatro hipoteses do medico ganharam CID-10 e DSM-5-TR no rotulo em
+// 31/08/2026. O prontuario guarda o texto inteiro, entao um registro salvo
+// antes disso traz o rotulo curto e deixaria de casar — a marcacao sumiria da
+// tela sem sumir do registro, exatamente o que ja acontecera com os acentos.
+// A chave e a descricao antes dos codigos; o resto do rotulo pode mudar.
+function doctorOptionKey(texto = "") {
+  return normalizeText(String(texto).split(/ - (?:CID-10|DSM-5-TR):/)[0]);
+}
+
+const DOCTOR_OPTION_BY_KEY = new Map(doctorDiagnosisOptions.map(option => [doctorOptionKey(option), option]));
+
+export function canonicalDoctorOption(value = "") {
+  return DOCTOR_OPTION_BY_KEY.get(doctorOptionKey(value)) || value;
 }
 
 // "Outro" e a marca de que o medico escreveu a propria hipotese. Aqui ela e
@@ -103,10 +118,8 @@ export function formatDiagnosticOption(item = {}) {
 // psicopatologia...". Com comparacao literal, a hipotese dele desaparecia ao
 // gerar o diagnostico de novo — o registro perdia a escolha do medico.
 export function doctorSelectedOptions(form = {}) {
-  const canonico = new Map(doctorDiagnosisOptions.map(option => [normalizeText(option), option]));
-  return selectedDiagnosisValues(form)
-    .map(value => canonico.get(normalizeText(value)))
-    .filter(Boolean);
+  const catalogo = new Set(doctorDiagnosisOptions);
+  return selectedDiagnosisValues(form).filter(value => catalogo.has(value));
 }
 
 // A marca do transtorno, lida dos campos estruturados em vez de adivinhada no

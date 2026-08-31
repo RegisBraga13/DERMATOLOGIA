@@ -28,7 +28,7 @@ export function diagnosisModule(form) {
       ${aiModeSelector(form.aiMode)}
       <div class="actions">
         <button class="primary" type="button" data-action="generate-diagnosis">Gerar</button>
-        ${refineButton("refine-diagnosis", nosologicalOptions.length || syndromicOptions.length || etiologicalOptions.length)}
+        ${refineButton("refine-diagnosis", selectedValues.length > 0)}
       </div>
       ${aiStatus ? `<p class="online-status">${escapeHtml(aiStatus)}</p>` : ""}
       ${ragSourcesView(form.ragSourcesDiagnostico)}
@@ -42,27 +42,27 @@ export function diagnosisModule(form) {
     <textarea hidden name="diagnosticoAiEspecificadores">${escapeHtml(specifierOptions.join("\n"))}</textarea>
     <textarea hidden name="diagnosticoAiComorbidades">${escapeHtml(comorbidityOptions.join("\n"))}</textarea>
     <textarea hidden name="diagnosticoAiAgravantes">${escapeHtml(aggravatingOptions.join("\n"))}</textarea>
-    ${diagnosisCategory("Nosológico", nosologicalOptions, selectedValues, "Base do tratamento principal e do seguimento. Linguagem universal entre profissionais — CID-11 e DSM-5-TR —, sustenta atestados, laudos e direitos previdenciários, e é quem recebe os especificadores.")}
     ${diagnosisCategory("Sindrômico", syndromicOptions, selectedValues, "Sinais e sintomas inespecíficos, presentes em vários transtornos. Norteia a conduta imediata — alívio do sofrimento, controle de risco — mesmo antes de saber a causa ou o nome definitivo do quadro.")}
+    ${diagnosisCategory("Nosológico", nosologicalOptions, selectedValues, "Base do tratamento principal e do seguimento. Linguagem universal entre profissionais — CID-11 e DSM-5-TR —, sustenta atestados, laudos e direitos previdenciários, e é quem recebe os especificadores.")}
     ${checklistGroup({
       label: "Especificadores", campo: "especificadorSelecionado",
       options: specifierOptions, selecionados: selectedSpecifiers,
       vazio: "Nenhum especificador proposto. O catálogo local não propõe especificador — gravidade, remissão e curso não se leem por correspondência de termo."
     })}
     ${checklistGroup({
-      label: "Comorbidades", campo: "comorbidadeSelecionada",
+      label: "Comorbidades", campo: "comorbidadeSelecionada", compacto: true,
       options: comorbidityOptions, selecionados: selectedComorbidities,
       papel: "Entidade que coexiste com a hipótese principal, e não alternativa a ela. Leva código pelo mesmo motivo da camada nosológica: é entidade dos manuais.",
       vazio: "Nenhuma comorbidade proposta. Afirmar que duas entidades coexistem não se lê por correspondência de termo — vem da IA."
     })}
     ${checklistGroup({
-      label: "Fatores agravantes", campo: "agravanteSelecionado",
+      label: "Fatores agravantes", campo: "agravanteSelecionado", compacto: true,
       options: aggravatingOptions, selecionados: selectedAggravating,
       papel: "Não são diagnóstico: são o que piora o curso, a resposta ao tratamento e o prognóstico — insônia crônica, uso nocivo de álcool, baixa adesão, conflito conjugal, doença clínica descompensada.",
       vazio: "Nenhum fator agravante proposto."
     })}
-    ${diagnosisCategory("Etiológico", etiologicalOptions, selectedValues, "A raiz do mal. Permite o tratamento causal e definitivo — tratar a tireoide em vez de medicar o sintoma —, evita erro grosseiro de manejo e previne recidiva. Pede acompanhamento multiprofissional e longitudinal.")}
-    <div class="diagnosis-group diagnosis-doctor-group">
+    ${diagnosisCategory("Etiológico", etiologicalOptions, selectedValues, "A raiz do mal. Permite o tratamento causal e definitivo — tratar a tireoide em vez de medicar o sintoma —, evita erro grosseiro de manejo e previne recidiva. Pede acompanhamento multiprofissional e longitudinal.", true)}
+    <div class="diagnosis-group diagnosis-group-compact diagnosis-doctor-group">
       <h4>Hipóteses do médico</h4>
       <div class="diagnosis-options">${diagnosisOptionCheckboxes(doctorDiagnosisOptions, selectedValues)}</div>
       ${textarea("diagnosticoMedicoOutro", "Ao marcar \"Outro\": escreva a hipótese e os códigos", form.diagnosticoMedicoOutro, "Ex.: Transtorno de ansiedade generalizada - CID-11: 6B00 - DSM-5-TR: F41.1", 2)}
@@ -72,16 +72,19 @@ export function diagnosisModule(form) {
 
 // O titulo conta o que esta na tela, nao o teto do grupo. Antes dizia sempre
 // "3 hipoteses", inclusive logo acima de "Nenhuma hipotese gerada".
-// A ordem das tres camadas na tela e clinica, nao alfabetica nem historica:
-// nosologico primeiro porque e a base do tratamento e o que sustenta laudo e
-// atestado; sindromico depois, porque orienta a conduta imediata mesmo sem o
-// nome definitivo; etiologico por ultimo, a raiz, que pede acompanhamento
-// longitudinal. E o core do programa — nao reordenar sem decisao medica.
-function diagnosisCategory(label, options, selectedValues, papel = "") {
+// A ordem das tres camadas na tela e clinica, nao alfabetica nem historica, e
+// segue o raciocinio a beira do leito: sindromico primeiro, porque e o que se
+// reconhece antes de qualquer nome e o que orienta a conduta imediata --
+// alivio do sofrimento e controle de risco; nosologico depois, a base do
+// tratamento e o que sustenta laudo, atestado e direito previdenciario;
+// etiologico por ultimo, a raiz, que pede acompanhamento longitudinal.
+// Invertido em 31/08/2026 por decisao do medico. E o core do programa -- nao
+// reordenar sem decisao medica.
+function diagnosisCategory(label, options, selectedValues, papel = "", compacto = false) {
   const total = options.length
     ? `${options.length} ${options.length === 1 ? "hipótese" : "hipóteses"}`
     : "sem hipóteses";
-  return `<div class="diagnosis-group"><h4>${label} — ${total}</h4>
+  return `<div class="diagnosis-group${compacto ? " diagnosis-group-compact" : ""}"><h4>${label} — ${total}</h4>
       ${papel ? `<p class="diagnosis-role">${escapeHtml(papel)}</p>` : ""}
       <div class="diagnosis-options">
         ${options.length ? diagnosisOptionCheckboxes(options, selectedValues) : `<p class="diagnosis-empty">O registro atual não sustenta hipótese nesta categoria. Veja <strong>Hipóteses do médico</strong>.</p>`}
@@ -99,9 +102,9 @@ function diagnosisCategory(label, options, selectedValues, papel = "") {
 // diferencial; agravante nao e diagnostico nenhum, e o que piora curso,
 // resposta ao tratamento e prognostico. Sao tres coisas diferentes, e por isso
 // tres caixas, cada uma com o seu campo.
-function checklistGroup({ label, campo, options, selecionados, vazio, papel = "" }) {
+function checklistGroup({ label, campo, options, selecionados, vazio, papel = "", compacto = false }) {
   const marcados = new Set(selecionados.map(normalizeText));
-  return `<div class="diagnosis-group">
+  return `<div class="diagnosis-group${compacto ? " diagnosis-group-compact" : ""}">
     <h4>${label} — ${options.length ? `${options.length}` : "nenhum"}</h4>
     ${papel ? `<p class="diagnosis-role">${escapeHtml(papel)}</p>` : ""}
     <div class="diagnosis-options">
@@ -135,18 +138,21 @@ function diagnosisAiStatusText(message = "") {
 }
 
 // A segunda passada e opcional, e por isso e um botao separado, e nao uma etapa
-// automatica: quem decide se o caso pede a fonte especializada e o medico. Fica
-// desabilitado ate existir primeira passada — refino sem o que revisar seria
-// uma segunda geracao disfarcada, com outro livro.
-export function refineButton(action, temPrimeiraPassada) {
-  return `<button class="secondary" type="button" data-action="${action}" ${temPrimeiraPassada ? "" : "disabled"}
-    title="Revisa a resposta acima com a fonte especializada. Substitui o que esta na tela.">Refinar</button>`;
+// automatica: quem decide se o caso pede a fonte especializada e o medico.
+// No diagnostico fica desabilitado ate o medico ASSINALAR as hipoteses, e nao
+// apenas gera-las: por decisao dele (31/08/2026), o medico primeiro escolhe
+// entre IA Nuvem e RAG -- podendo alternar e gerar de novo quantas vezes
+// quiser --, decide o que fica, e so entao refina. Refinar sobre uma lista nao
+// escolhida seria revisar hipotese que o medico ja tinha descartado.
+export function refineButton(action, liberado) {
+  return `<button class="secondary" type="button" data-action="${action}" ${liberado ? "" : "disabled"}
+    title="Revisa com a fonte especializada, sempre pelo RAG. Substitui o que esta na tela.">Refinar</button>`;
 }
 
 export function aiModeSelector(value = "current", name = "aiMode") {
   return `<fieldset class="ai-mode-selector">
     <legend>Fonte da resposta</legend>
-    <label><input type="radio" name="${name}" value="current" ${value !== "rag" ? "checked" : ""} /><span>IA atual</span><small>Modelo e regras clinicas atuais</small></label>
+    <label><input type="radio" name="${name}" value="current" ${value !== "rag" ? "checked" : ""} /><span>IA Nuvem</span><small>Modelo da nuvem sem consultar os livros indexados</small></label>
     <label><input type="radio" name="${name}" value="rag" ${value === "rag" ? "checked" : ""} /><span>RAG com literatura</span><small>Restringe a resposta às fontes indexadas (psicopatologia e psicofarmacologia)</small></label>
   </fieldset>`;
 }

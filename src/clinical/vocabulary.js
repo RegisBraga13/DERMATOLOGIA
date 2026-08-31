@@ -92,11 +92,15 @@ export const returnPages = [
   ["texto-retorno", "Texto final"]
 ];
 
+// As quatro saidas de "nenhum transtorno" carregam codigo pelo mesmo motivo da
+// camada nosologica: sem codigo nao sustentam atestado, laudo nem faturamento.
+// CID-10 e o da OMS; DSM-5-TR codifica pela CID-10-CM, que diverge nos Z --
+// Z03.2 da OMS corresponde a Z03.89 la, e por isso os dois aparecem separados.
 export const doctorDiagnosisOptions = [
-  "Ausência de psicopatologia de relevância clínica - a mente está funcionando dentro do esperado para os desafios atuais.",
-  "Sintomas reativos/adaptativos - sofrimento como reação a um problema específico, como luto, término ou estresse profissional.",
-  "Z03.2 (CID-10) - Observação por suspeita de transtornos mentais e de comportamento, quando a suspeita foi descartada.",
-  "Z00.4 (CID-10) - Exame psiquiátrico geral, incluindo exames admissionais sem psicopatologia identificada.",
+  "Ausência de psicopatologia de relevância clínica - a mente está funcionando dentro do esperado para os desafios atuais. - CID-10: Z03.2 - DSM-5-TR: Z03.89 (Nenhum diagnóstico ou condição)",
+  "Sintomas reativos/adaptativos - sofrimento como reação a um problema específico, como luto, término ou estresse profissional. - CID-10: F43.2 - DSM-5-TR: F43.2x (Transtorno de adaptação, com subtipo)",
+  "Z03.2 (CID-10) - Observação por suspeita de transtornos mentais e de comportamento, quando a suspeita foi descartada. - DSM-5-TR: Z03.89",
+  "Z00.4 (CID-10) - Exame psiquiátrico geral, incluindo exames admissionais sem psicopatologia identificada. - DSM-5-TR: Z02.89 (Exame administrativo)",
   "Outro"
 ];
 

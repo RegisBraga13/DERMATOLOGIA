@@ -7,6 +7,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { doctorDiagnosisOptions } from "../../src/clinical/vocabulary.js";
 import {
   buildDiagnosticSuggestion,
   doctorSelectedOptions,
@@ -100,16 +101,34 @@ describe("hipoteses sem correspondencia", () => {
 });
 
 describe("hipotese do medico", () => {
-  const ACENTUADA = "Ausência de psicopatologia de relevância clínica - a mente está funcionando dentro do esperado para os desafios atuais.";
+  const ATUAL = doctorDiagnosisOptions[0];
+  const SEM_CODIGO = "Ausência de psicopatologia de relevância clínica - a mente está funcionando dentro do esperado para os desafios atuais.";
 
   it("prontuario salvo sem acento continua casando com o rotulo atual", () => {
     const semAcento = "Ausencia de psicopatologia de relevancia clinica - a mente esta funcionando dentro do esperado para os desafios atuais.";
-    assert.deepEqual(doctorSelectedOptions({ diagnosticoSelecionado: [semAcento] }), [ACENTUADA]);
+    assert.deepEqual(doctorSelectedOptions({ diagnosticoSelecionado: [semAcento] }), [ATUAL]);
+  });
+
+  it("prontuario salvo antes dos codigos continua casando com o rotulo atual", () => {
+    assert.ok(ATUAL.includes("CID-10: Z03.2"));
+    assert.deepEqual(doctorSelectedOptions({ diagnosticoSelecionado: [SEM_CODIGO] }), [ATUAL]);
+  });
+
+  // Z03.2 e Z00.4 ja nomeiam o proprio codigo no inicio do rotulo, e por isso
+  // escrevem "(CID-10)" em vez de "CID-10:" -- mudar isso quebraria o casamento
+  // com prontuario salvo. O que o teste exige e que os dois padroes estejam la,
+  // e nao uma pontuacao unica.
+  it("as quatro hipoteses do medico levam CID-10 e DSM-5-TR", () => {
+    doctorDiagnosisOptions.filter(option => option !== "Outro").forEach(option => {
+      assert.match(option, /CID-10[:)]/, option);
+      assert.match(option, /DSM-5-TR: /, option);
+    });
+    assert.equal(doctorDiagnosisOptions.length, 5);
   });
 
   it("a escolha do medico sobrevive a gerar o diagnostico de novo", () => {
-    const resultado = buildDiagnosticSuggestion({ diagnosticoSelecionado: [ACENTUADA] });
-    assert.deepEqual(resultado.diagnosticoSelecionado, [ACENTUADA]);
+    const resultado = buildDiagnosticSuggestion({ diagnosticoSelecionado: [ATUAL] });
+    assert.deepEqual(resultado.diagnosticoSelecionado, [ATUAL]);
   });
 
   it("texto que nao esta no catalogo e descartado", () => {

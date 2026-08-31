@@ -1,5 +1,5 @@
 import { countLabel, diagnosisSuggestionFromAi, diagnosisSuggestionFromLocalCatalogue } from "./clinical/aiDiagnosisResult.js";
-import { diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, formatMedicationTreatmentOption, formatNonPharmacologicalOption, treatmentOptionLines } from "./clinical/diagnosis.js";
+import { diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, formatMedicationTreatmentOption, formatNonPharmacologicalOption, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
 import { anamnesisText, buildEvolutionNarrative, normalizeEvolutionNarrative, outdatedEvolutionText, removeReturnBoilerplate, requestedExamsText, returnEvolutionContainsIdentity, shouldRefreshEvolutionNarrative, treatmentDiagnosisText } from "./clinical/narrative.js";
 import { loadProtocol, protocolLoaded } from "./clinical/protocol.js";
 import { arrayValue, joinValues, lowerFirst, normalizeText, stripFinalPeriod } from "./clinical/textFormat.js";
@@ -1038,17 +1038,23 @@ function syncedTarget(element) {
 async function generateDiagnosisFromClinicalData(element, kind = "diagnosis") {
   const { scope, target } = syncedTarget(element);
   const revisao = kind === "diagnosis_review";
-  if (revisao && !diagnosticNosologicalOptionLines(target || {}).length
-      && !diagnosticSyndromicOptionLines(target || {}).length
-      && !diagnosticEtiologicalOptionLines(target || {}).length) {
-    return alert("Gere as hipoteses antes de refinar: o refinamento revisa a primeira passada, nao a substitui.");
+  // Refino so depois da escolha: o medico gera quantas vezes quiser, alternando
+  // entre IA Nuvem e RAG, e assinala o que fica. O refinamento revisa o que ele
+  // escolheu -- nao a lista inteira que a ultima geracao deixou na tela.
+  if (revisao && !selectedDiagnosisValues(target || {}).length) {
+    const houveGeracao = diagnosticNosologicalOptionLines(target || {}).length
+      || diagnosticSyndromicOptionLines(target || {}).length
+      || diagnosticEtiologicalOptionLines(target || {}).length;
+    return alert(houveGeracao
+      ? "Assinale as hipoteses antes de refinar: o refinamento revisa o que voce escolheu."
+      : "Gere as hipoteses antes de refinar: o refinamento revisa a primeira passada, nao a substitui.");
   }
   setClinicalAiStatus(scope, revisao ? "Refinando o diagnostico com a fonte especializada..." : "Consultando IA real para diagnostico...");
   render();
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result, sources, mode, codeWarnings } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), context.target?.aiMode, buildRagQuery(kind, context.target));
+    const { result, sources, mode, codeWarnings } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), revisao ? "rag" : context.target?.aiMode, buildRagQuery(kind, context.target));
     suggestion = diagnosisSuggestionFromAi({ result, target, sources, mode, codeWarnings });
     if (revisao) suggestion.aiStatus = `Refinado pela fonte especializada. ${suggestion.aiStatus}`;
   } catch (error) {
@@ -1076,7 +1082,7 @@ async function generateTreatmentFromClinicalData(element, kind = "treatment") {
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result, sources, mode } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), context.target?.pharmaAiMode || "rag", buildRagQuery(kind, context.target));
+    const { result, sources, mode } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), revisao ? "rag" : (context.target?.pharmaAiMode || "rag"), buildRagQuery(kind, context.target));
     const medicationOptions = result.medication_options.map(formatMedicationTreatmentOption);
     const approachOptions = result.non_pharmacological_options.map(formatNonPharmacologicalOption);
     suggestion = {

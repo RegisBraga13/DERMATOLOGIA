@@ -746,6 +746,7 @@ details[open] summary:after { content: "-"; }
   border-left: 2px solid color-mix(in srgb, var(--primary-2) 65%, var(--line));
 }
 
+
 .diagnosis-option {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
@@ -2571,3 +2572,22 @@ textarea:focus-visible {
 .care-suggested { outline: 1px solid currentColor; outline-offset: 2px; border-radius: 6px; }
 .care-tag { font-style: normal; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.7; }
 .care-warning { margin: 8px 0 0; font-weight: 600; line-height: 1.5; }
+
+/* A partir de Comorbidades a tela deixa de ser decisao principal e vira
+   qualificacao do que ja foi decidido: comorbidade, agravante, etiologia e as
+   saidas de "nenhum transtorno". Por decisao dele (31/08/2026) essas caixas
+   ficam mais baixas, para o bloco todo caber sem rolagem depois das hipoteses.
+   O alvo de toque cai de 48px para 40px -- acima do minimo de 24px da WCAG
+   2.5.8 AA, que e o que este projeto se compromete a cumprir. */
+.diagnosis-group-compact {
+  margin-top: 10px;
+  padding: 12px 14px;
+}
+.diagnosis-group-compact h4 { font-size: 19px; }
+.diagnosis-group-compact .diagnosis-role { margin-top: 4px; font-size: 13px; }
+.diagnosis-group-compact .diagnosis-options { margin-top: 9px; gap: 6px; }
+.diagnosis-group-compact .diagnosis-option {
+  min-height: 40px;
+  padding: 7px 10px;
+}
+.diagnosis-group-compact .diagnosis-empty { padding: 10px; font-size: 14px; }

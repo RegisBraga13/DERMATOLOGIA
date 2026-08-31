@@ -8,6 +8,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { doctorDiagnosisOptions } from "../../src/clinical/vocabulary.js";
 import {
   countLabel,
   diagnosisSuggestionFromAi,
@@ -66,7 +67,7 @@ describe("o que concorre e o que qualifica", () => {
 });
 
 describe("quem assinala e o medico", () => {
-  const HIPOTESE_DO_MEDICO = "Sintomas reativos/adaptativos - sofrimento como reação a um problema específico, como luto, término ou estresse profissional.";
+  const HIPOTESE_DO_MEDICO = doctorDiagnosisOptions[1];
   const resultado = diagnosisSuggestionFromAi({
     result: { nosological_options: [{ name: "Depressão Maior", cid11: "6A70" }] },
     target: { diagnosticoSelecionado: [HIPOTESE_DO_MEDICO] }
