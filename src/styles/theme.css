@@ -2587,7 +2587,13 @@ textarea:focus-visible {
 .diagnosis-group-compact .diagnosis-role { margin-top: 4px; font-size: 13px; }
 .diagnosis-group-compact .diagnosis-options { margin-top: 9px; gap: 6px; }
 .diagnosis-group-compact .diagnosis-option {
-  min-height: 40px;
-  padding: 7px 10px;
+  min-height: 34px;
+  padding: 6px 10px;
 }
+/* 15px contra os 18px do resto da tela. Estes rotulos sao longos -- a hipotese
+   inteira mais CID-10 mais DSM-5-TR na mesma linha -- e a 18px cada opcao
+   ocupava tres linhas. Nao desce mais: abaixo disso o codigo, que e o que o
+   medico confere antes de assinalar, fica dificil de ler. */
+.diagnosis-group-compact .diagnosis-option span { font-size: 15px; line-height: 1.4; }
+.diagnosis-group-compact .diagnosis-option input { width: 16px; min-height: 16px; margin-top: 1px; }
 .diagnosis-group-compact .diagnosis-empty { padding: 10px; font-size: 14px; }
