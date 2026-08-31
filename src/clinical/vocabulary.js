@@ -106,14 +106,15 @@ export const doctorDiagnosisOptions = [
   "Outro"
 ];
 
-// Rotulos que ja foram gravados em prontuario e sairam do catalogo. O texto do
+// Rotulos que ja foram gravados em prontuario e mudaram de forma. O texto do
 // registro nao muda; o que este mapa faz e reencontrar a opcao correspondente
-// para que a marcacao continue aparecendo na tela.
-// "Z03.2 (CID-10) - Observacao por suspeita..." foi excluida em 31/08/2026 por
-// dizer, com outra redacao, o mesmo que a primeira opcao -- que ficou com os
-// codigos Z03.2 e Z03.89. Por isso as duas antigas apontam para ela.
+// para que a marcacao continue aparecendo na tela. So entra aqui quem e a MESMA
+// opcao com outra redacao -- o Z00.4, que apenas perdeu os codigos.
+// A "Z03.2 (CID-10) - Observacao por suspeita..." nao entra: ela foi excluida
+// em 31/08/2026, e por decisao dele desaparece de vez. Prontuario que a tenha
+// marcado guarda o texto no registro, mas nao mostra mais a marcacao -- fazer
+// ela virar outra opcao seria reescrever uma escolha clinica ja tomada.
 export const doctorDiagnosisAliases = new Map([
-  ["Z03.2 (CID-10) - Observação por suspeita de transtornos mentais e de comportamento, quando a suspeita foi descartada.", 0],
   ["Z00.4 (CID-10) - Exame psiquiátrico geral, incluindo exames admissionais sem psicopatologia identificada.", 2]
 ]);
 

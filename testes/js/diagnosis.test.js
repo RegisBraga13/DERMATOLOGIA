@@ -125,14 +125,16 @@ describe("hipotese do medico", () => {
     assert.ok(!doctorDiagnosisOptions.some(option => option.startsWith("Z03.2")));
   });
 
-  // As duas opcoes que sairam do catalogo em 31/08/2026 continuam casando: sem
-  // isso, a marcacao de um prontuario antigo sumiria da tela sem sumir do
-  // registro.
-  it("prontuario com as opcoes que foram excluidas continua marcado", () => {
-    const z032 = "Z03.2 (CID-10) - Observação por suspeita de transtornos mentais e de comportamento, quando a suspeita foi descartada. - DSM-5-TR: Z03.89";
+  // O Z00.4 apenas perdeu os codigos: e a mesma opcao, e continua marcada.
+  it("prontuario com o rotulo antigo do exame geral continua marcado", () => {
     const z004 = "Z00.4 (CID-10) - Exame psiquiátrico geral, incluindo exames admissionais sem psicopatologia identificada. - DSM-5-TR: Z02.89 (Exame administrativo)";
-    assert.deepEqual(doctorSelectedOptions({ diagnosticoSelecionado: [z032] }), [doctorDiagnosisOptions[0]]);
     assert.deepEqual(doctorSelectedOptions({ diagnosticoSelecionado: [z004] }), [doctorDiagnosisOptions[2]]);
+  });
+
+  // A Z03.2 foi excluida e desaparece: por decisao dele, nao vira outra opcao.
+  it("a Z03.2 excluida nao reaparece como outra hipotese", () => {
+    const z032 = "Z03.2 (CID-10) - Observação por suspeita de transtornos mentais e de comportamento, quando a suspeita foi descartada. - DSM-5-TR: Z03.89";
+    assert.deepEqual(doctorSelectedOptions({ diagnosticoSelecionado: [z032] }), []);
   });
 
   it("a escolha do medico sobrevive a gerar o diagnostico de novo", () => {
