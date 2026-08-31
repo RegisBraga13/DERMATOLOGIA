@@ -114,16 +114,25 @@ describe("hipotese do medico", () => {
     assert.deepEqual(doctorSelectedOptions({ diagnosticoSelecionado: [SEM_CODIGO] }), [ATUAL]);
   });
 
-  // Z03.2 e Z00.4 ja nomeiam o proprio codigo no inicio do rotulo, e por isso
-  // escrevem "(CID-10)" em vez de "CID-10:" -- mudar isso quebraria o casamento
-  // com prontuario salvo. O que o teste exige e que os dois padroes estejam la,
-  // e nao uma pontuacao unica.
-  it("as quatro hipoteses do medico levam CID-10 e DSM-5-TR", () => {
-    doctorDiagnosisOptions.filter(option => option !== "Outro").forEach(option => {
-      assert.match(option, /CID-10[:)]/, option);
-      assert.match(option, /DSM-5-TR: /, option);
-    });
-    assert.equal(doctorDiagnosisOptions.length, 5);
+  // Duas das quatro levam codigo; o exame psiquiatrico geral ficou sem, por
+  // decisao dele -- e ato administrativo, e nao achado clinico.
+  it("as hipoteses clinicas do medico levam CID-10 e DSM-5-TR", () => {
+    const comCodigo = doctorDiagnosisOptions.filter(option => /CID-10/.test(option));
+    assert.equal(comCodigo.length, 2);
+    comCodigo.forEach(option => assert.match(option, /DSM-5-TR: /, option));
+    assert.equal(doctorDiagnosisOptions.length, 4);
+    assert.ok(!doctorDiagnosisOptions.some(option => option.startsWith("Z00.4")));
+    assert.ok(!doctorDiagnosisOptions.some(option => option.startsWith("Z03.2")));
+  });
+
+  // As duas opcoes que sairam do catalogo em 31/08/2026 continuam casando: sem
+  // isso, a marcacao de um prontuario antigo sumiria da tela sem sumir do
+  // registro.
+  it("prontuario com as opcoes que foram excluidas continua marcado", () => {
+    const z032 = "Z03.2 (CID-10) - Observação por suspeita de transtornos mentais e de comportamento, quando a suspeita foi descartada. - DSM-5-TR: Z03.89";
+    const z004 = "Z00.4 (CID-10) - Exame psiquiátrico geral, incluindo exames admissionais sem psicopatologia identificada. - DSM-5-TR: Z02.89 (Exame administrativo)";
+    assert.deepEqual(doctorSelectedOptions({ diagnosticoSelecionado: [z032] }), [doctorDiagnosisOptions[0]]);
+    assert.deepEqual(doctorSelectedOptions({ diagnosticoSelecionado: [z004] }), [doctorDiagnosisOptions[2]]);
   });
 
   it("a escolha do medico sobrevive a gerar o diagnostico de novo", () => {

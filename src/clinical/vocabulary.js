@@ -99,10 +99,23 @@ export const returnPages = [
 export const doctorDiagnosisOptions = [
   "Ausência de psicopatologia de relevância clínica - a mente está funcionando dentro do esperado para os desafios atuais. - CID-10: Z03.2 - DSM-5-TR: Z03.89 (Nenhum diagnóstico ou condição)",
   "Sintomas reativos/adaptativos - sofrimento como reação a um problema específico, como luto, término ou estresse profissional. - CID-10: F43.2 - DSM-5-TR: F43.2x (Transtorno de adaptação, com subtipo)",
-  "Z03.2 (CID-10) - Observação por suspeita de transtornos mentais e de comportamento, quando a suspeita foi descartada. - DSM-5-TR: Z03.89",
-  "Z00.4 (CID-10) - Exame psiquiátrico geral, incluindo exames admissionais sem psicopatologia identificada. - DSM-5-TR: Z02.89 (Exame administrativo)",
+  // Sem codigo por decisao dele (31/08/2026): exame psiquiatrico geral e
+  // admissional e ato administrativo, e nao achado clinico -- codificar
+  // sugeriria que houve avaliacao diagnostica com desfecho, que nao e o caso.
+  "Exame psiquiátrico geral, incluindo exames admissionais sem psicopatologia identificada.",
   "Outro"
 ];
+
+// Rotulos que ja foram gravados em prontuario e sairam do catalogo. O texto do
+// registro nao muda; o que este mapa faz e reencontrar a opcao correspondente
+// para que a marcacao continue aparecendo na tela.
+// "Z03.2 (CID-10) - Observacao por suspeita..." foi excluida em 31/08/2026 por
+// dizer, com outra redacao, o mesmo que a primeira opcao -- que ficou com os
+// codigos Z03.2 e Z03.89. Por isso as duas antigas apontam para ela.
+export const doctorDiagnosisAliases = new Map([
+  ["Z03.2 (CID-10) - Observação por suspeita de transtornos mentais e de comportamento, quando a suspeita foi descartada.", 0],
+  ["Z00.4 (CID-10) - Exame psiquiátrico geral, incluindo exames admissionais sem psicopatologia identificada.", 2]
+]);
 
 export const laboratoryExamRequestItems = [
   "Hemograma",

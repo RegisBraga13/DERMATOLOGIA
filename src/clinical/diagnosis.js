@@ -1,6 +1,6 @@
 import { anamnesisText } from "./narrative.js";
 import { arrayValue, joinValues, normalizeText } from "./textFormat.js";
-import { doctorDiagnosisOptions } from "./vocabulary.js";
+import { doctorDiagnosisAliases, doctorDiagnosisOptions } from "./vocabulary.js";
 
 export function treatmentOptionLines(value = "") {
   if (Array.isArray(value)) return value.filter(Boolean);
@@ -66,7 +66,10 @@ function doctorOptionKey(texto = "") {
   return normalizeText(String(texto).split(/ - (?:CID-10|DSM-5-TR):/)[0]);
 }
 
-const DOCTOR_OPTION_BY_KEY = new Map(doctorDiagnosisOptions.map(option => [doctorOptionKey(option), option]));
+const DOCTOR_OPTION_BY_KEY = new Map([
+  ...doctorDiagnosisOptions.map(option => [doctorOptionKey(option), option]),
+  ...[...doctorDiagnosisAliases].map(([antigo, indice]) => [doctorOptionKey(antigo), doctorDiagnosisOptions[indice]])
+]);
 
 export function canonicalDoctorOption(value = "") {
   return DOCTOR_OPTION_BY_KEY.get(doctorOptionKey(value)) || value;
