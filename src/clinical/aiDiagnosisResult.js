@@ -13,6 +13,12 @@ export function countLabel(total, singular, plural = `${singular}s`) {
   return `${total} ${total === 1 ? singular : plural}`;
 }
 
+// Separador improvavel de aparecer em criterio, evidencia ou nome de hipotese.
+// Barra vertical sozinha nao servia: ela ja e usada dentro das linhas de
+// tratamento, e o dia em que os dois formatos se encontrassem a linha quebraria
+// no lugar errado.
+export const CRITERION_SEPARATOR = " ::: ";
+
 export function diagnosisSuggestionFromAi({ result = {}, target = {}, sources = [], mode = "", codeWarnings = [], revisao = false }) {
   // Sem completar as vagas que sobram: se a IA propos duas sindromicas,
   // mostra duas. Antes o catalogo local enchia o resto das tres categorias
@@ -45,6 +51,21 @@ export function diagnosisSuggestionFromAi({ result = {}, target = {}, sources = 
   // e a afirmacao mais especifica. Ficar com a sindromica esvaziava a
   // categoria util.
   const nosologicalOptions = uniqueGroup(result.nosological_options, 3, "Nosológico");
+  // Os criterios viajam como linhas de texto, chaveadas pela MESMA linha que
+  // rotula a caixa de selecao — nome mais os dois codigos. Assim a tela casa
+  // criterio com hipotese por igualdade literal, sem indice paralelo que se
+  // desalinha quando uma hipotese cai na deduplicacao. Hipotese deduplicada
+  // leva os criterios dela junto, porque a chave sai da lista final.
+  const criterionLines = (result.nosological_options || []).flatMap(item => {
+    const hipotese = formatDiagnosticOption(item);
+    if (!nosologicalOptions.includes(hipotese)) return [];
+    return (item?.criteria || []).map(criterio => [
+      hipotese,
+      String(criterio?.criterion || "").trim(),
+      String(criterio?.status || "").trim(),
+      String(criterio?.evidence || "").trim()
+    ].join(CRITERION_SEPARATOR)).filter(linha => linha.split(CRITERION_SEPARATOR).every(parte => parte));
+  });
   const syndromicOptions = uniqueGroup(result.syndromic_options, 3, "Sindrômico");
   const etiologicalOptions = uniqueGroup(result.etiological_options, 2, "Etiológico");
   // Comorbidade passa pelo uniqueGroup, ao contrario do especificador: ela e
@@ -100,6 +121,7 @@ export function diagnosisSuggestionFromAi({ result = {}, target = {}, sources = 
     analisePsicopatologica: analysis.join("\n"),
     diagnosticoAiSindromico: syndromicOptions.join("\n"),
     diagnosticoAiNosologico: nosologicalOptions.join("\n"),
+    diagnosticoAiCriterios: criterionLines.join("\n"),
     diagnosticoAiEtiologico: etiologicalOptions.join("\n"),
     diagnosticoAiEspecificadores: specifierOptions.join("\n"),
     diagnosticoAiComorbidades: comorbidityOptions.join("\n"),
@@ -182,6 +204,10 @@ export function diagnosisSuggestionFromLocalCatalogue(target = {}, error = {}) {
     // antes, para nao sobrar analise de uma geracao ao lado de hipoteses de
     // outra.
     analisePsicopatologica: "",
+    // Pela mesma razao: o catalogo casa termo com regra, nao confere criterio
+    // contra manual nenhum. Deixar os criterios da geracao anterior aqui seria
+    // pior do que nao ter -- fundamentacao de uma hipotese ao lado de outra.
+    diagnosticoAiCriterios: "",
     ragSourcesDiagnostico: [],
     treatmentStatus: `${fonte} indisponivel: ${error.message}`,
     aiStatus: encontrou

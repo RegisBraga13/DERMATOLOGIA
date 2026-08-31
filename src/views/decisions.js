@@ -1,5 +1,6 @@
 import { diagnosticAggravatingOptionLines, diagnosticComorbidityOptionLines, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSpecifierOptionLines, diagnosticSyndromicOptionLines, selectedAggravatingValues, selectedComorbidityValues, selectedDiagnosisText, selectedDiagnosisValues, selectedSpecifierValues, treatmentOptionLines } from "../clinical/diagnosis.js";
 import { buildEvolutionNarrative, normalizeEvolutionNarrative, outdatedEvolutionText, requestedExamsText, returnEvolutionContainsIdentity, shouldRefreshEvolutionNarrative } from "../clinical/narrative.js";
+import { CRITERION_SEPARATOR } from "../clinical/aiDiagnosisResult.js";
 import { arrayValue, normalizeText } from "../clinical/textFormat.js";
 import { doctorDiagnosisOptions } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js";
@@ -42,7 +43,7 @@ export function diagnosisModule(form) {
     <textarea hidden name="diagnosticoAiComorbidades">${escapeHtml(comorbidityOptions.join("\n"))}</textarea>
     <textarea hidden name="diagnosticoAiAgravantes">${escapeHtml(aggravatingOptions.join("\n"))}</textarea>
     ${diagnosisCategory("Sindrômico", syndromicOptions, selectedValues, "Sinais e sintomas inespecíficos, presentes em vários transtornos. Norteia a conduta imediata — alívio do sofrimento, controle de risco — mesmo antes de saber a causa ou o nome definitivo do quadro.")}
-    ${diagnosisCategory("Nosológico", nosologicalOptions, selectedValues, "Base do tratamento principal e do seguimento. Linguagem universal entre profissionais — CID-11 e DSM-5-TR —, sustenta atestados, laudos e direitos previdenciários, e é quem recebe os especificadores.")}
+    ${diagnosisCategory("Nosológico", nosologicalOptions, selectedValues, "Base do tratamento principal e do seguimento. Linguagem universal entre profissionais — CID-11 e DSM-5-TR —, sustenta atestados, laudos e direitos previdenciários, e é quem recebe os especificadores.", false, diagnosticCriteriaByOption(form))}
     ${checklistGroup({
       label: "Especificadores", campo: "especificadorSelecionado",
       options: specifierOptions, selecionados: selectedSpecifiers,
@@ -79,16 +80,44 @@ export function diagnosisModule(form) {
 // etiologico por ultimo, a raiz, que pede acompanhamento longitudinal.
 // Invertido em 31/08/2026 por decisao do medico. E o core do programa -- nao
 // reordenar sem decisao medica.
-function diagnosisCategory(label, options, selectedValues, papel = "", compacto = false) {
+function diagnosisCategory(label, options, selectedValues, papel = "", compacto = false, criterios = new Map()) {
   const total = options.length
     ? `${options.length} ${options.length === 1 ? "hipótese" : "hipóteses"}`
     : "sem hipóteses";
   return `<div class="diagnosis-group${compacto ? " diagnosis-group-compact" : ""}"><h4>${label} — ${total}</h4>
       ${papel ? `<p class="diagnosis-role">${escapeHtml(papel)}</p>` : ""}
       <div class="diagnosis-options">
-        ${options.length ? diagnosisOptionCheckboxes(options, selectedValues) : `<p class="diagnosis-empty">O registro atual não sustenta hipótese nesta categoria. Veja <strong>Hipóteses do médico</strong>.</p>`}
+        ${options.length ? diagnosisOptionCheckboxes(options, selectedValues, criterios) : `<p class="diagnosis-empty">O registro atual não sustenta hipótese nesta categoria. Veja <strong>Hipóteses do médico</strong>.</p>`}
       </div>
     </div>`;
+}
+
+// Os criterios da hipotese, conferidos um a um contra este paciente. So a camada
+// nosologica os tem: sindrome e conjunto de sinais, sem lista operacional, e
+// etiologia e causa, nao entidade.
+//
+// Dobrado por padrao. Aberto, cada hipotese ocuparia meia tela de texto antes
+// de ele conseguir comparar as hipoteses entre si -- e comparar e o que se faz
+// aqui. O resumo na aba ja da a leitura rapida: quantos preenchidos, e o que
+// ficou sem poder avaliar, que e o que ele vai perguntar no retorno.
+function criterionList(linhas) {
+  if (!linhas.length) return "";
+  const conta = status => linhas.filter(item => item.status === status).length;
+  const preenchidos = conta("preenchido");
+  const naoAvaliaveis = conta("nao avaliavel");
+  const resumo = [
+    `${preenchidos} de ${linhas.length} preenchido${preenchidos === 1 ? "" : "s"}`,
+    naoAvaliaveis ? `${naoAvaliaveis} sem poder avaliar` : ""
+  ].filter(Boolean).join(", ");
+  return `<details class="diagnosis-criteria">
+    <summary>Critérios — ${escapeHtml(resumo)}</summary>
+    <ul>${linhas.map(item => `
+      <li class="criterion-${item.status.replace(/\s+/g, "-")}">
+        <strong>${escapeHtml(item.criterion)}</strong>
+        <span class="criterion-status">${escapeHtml(item.status)}</span>
+        <span class="criterion-evidence">${escapeHtml(item.evidence)}</span>
+      </li>`).join("")}</ul>
+  </details>`;
 }
 
 // Grupo proprio, e nao mais uma "categoria": especificador nao e hipotese, e
@@ -117,17 +146,40 @@ function checklistGroup({ label, campo, options, selecionados, vazio, papel = ""
   </div>`;
 }
 
-function diagnosisOptionCheckboxes(options, selectedValues) {
+function diagnosisOptionCheckboxes(options, selectedValues, criterios = new Map()) {
   // Comparacao sem acento: os nomes do catalogo foram acentuados, e um
   // prontuario salvo antes disso guarda "Sindrome Ansiosa". Comparando literal,
   // a marcacao do medico sumia da tela sem sumir do registro.
   const marcados = new Set(selectedValues.map(normalizeText));
-  return options.map(option => `
-    <label class="diagnosis-option">
-      <input type="checkbox" name="diagnosticoSelecionado" value="${escapeAttr(option)}" ${marcados.has(normalizeText(option)) ? "checked" : ""} />
-      <span>${escapeHtml(option)}</span>
-    </label>
-  `).join("");
+  return options.map(option => {
+    // Os criterios ficam FORA do <label>: dentro dele, clicar para abrir a lista
+    // marcaria a caixa de selecao, e ele assinalaria a hipotese so por querer
+    // conferir por que ela foi proposta.
+    const lista = criterionList(criterios.get(normalizeText(option)) || []);
+    return `<div class="diagnosis-option-block">
+      <label class="diagnosis-option">
+        <input type="checkbox" name="diagnosticoSelecionado" value="${escapeAttr(option)}" ${marcados.has(normalizeText(option)) ? "checked" : ""} />
+        <span>${escapeHtml(option)}</span>
+      </label>
+      ${lista}
+    </div>`;
+  }).join("");
+}
+
+// As linhas de criterio chegam como texto, uma por linha, chaveadas pela mesma
+// linha que rotula a hipotese. Chave normalizada pela mesma razao das caixas de
+// selecao: prontuario salvo antes de um rotulo mudar continua casando.
+export function diagnosticCriteriaByOption(form = {}) {
+  const mapa = new Map();
+  String(form.diagnosticoAiCriterios || "").split("\n").forEach(linha => {
+    const partes = linha.split(CRITERION_SEPARATOR).map(parte => parte.trim());
+    if (partes.length !== 4 || partes.some(parte => !parte)) return;
+    const [hipotese, criterion, status, evidence] = partes;
+    const chave = normalizeText(hipotese);
+    if (!mapa.has(chave)) mapa.set(chave, []);
+    mapa.get(chave).push({ criterion, status, evidence });
+  });
+  return mapa;
 }
 
 function diagnosisAiStatusText(message = "") {

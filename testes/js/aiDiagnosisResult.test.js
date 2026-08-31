@@ -9,6 +9,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { doctorDiagnosisOptions } from "../../src/clinical/vocabulary.js";
+import { normalizeText } from "../../src/clinical/textFormat.js";
+import { diagnosticCriteriaByOption } from "../../src/views/decisions.js";
 import {
   countLabel,
   diagnosisSuggestionFromAi,
@@ -309,5 +311,57 @@ describe("o refino nao apaga a escolha do medico", () => {
       target: { diagnosticoSelecionado: [HIPOTESE] }, sources: [], mode: "rag", codeWarnings: []
     });
     assert.deepEqual(r.diagnosticoSelecionado, []);
+  });
+});
+
+// Os criterios entraram em 31/08/2026 porque a medicao dele mostrou que o
+// esquema, e nao a recuperacao, era o gargalo: com nome e dois codigos como
+// unicos campos, o livro nao tinha onde falar e os dois modos convergiam.
+describe("criterios da hipotese nosologica", () => {
+  const hipotese = {
+    name: "Transtorno bipolar tipo I, episódio maníaco",
+    cid11: "6A60.1",
+    dsm5tr: "F31.2",
+    criteria: [
+      { criterion: "Critério A: humor elevado por pelo menos 1 semana", status: "preenchido", evidence: "há três semanas, energia de sobra" },
+      { criterion: "Critério C: exclusão de causa por substância", status: "nao avaliavel", evidence: "falta toxicológico de urina" }
+    ]
+  };
+
+  it("cada criterio viaja chaveado pela linha que rotula a hipotese", () => {
+    const s = diagnosisSuggestionFromAi({ result: { nosological_options: [hipotese] } });
+    const linhas = s.diagnosticoAiCriterios.split("\n");
+    assert.equal(linhas.length, 2);
+    assert.ok(linhas.every(linha => linha.startsWith(s.diagnosticoAiNosologico)));
+    assert.ok(linhas[1].includes("nao avaliavel"));
+  });
+
+  it("a tela reencontra os criterios pela hipotese", () => {
+    const s = diagnosisSuggestionFromAi({ result: { nosological_options: [hipotese] } });
+    const mapa = diagnosticCriteriaByOption(s);
+    const encontrados = mapa.get(normalizeText(s.diagnosticoAiNosologico));
+    assert.equal(encontrados.length, 2);
+    assert.equal(encontrados[0].status, "preenchido");
+    assert.equal(encontrados[1].evidence, "falta toxicológico de urina");
+  });
+
+  // A hipotese que a deduplicacao derruba nao pode deixar criterio orfao na
+  // tela: ele apareceria sob a hipotese errada ou sob nenhuma.
+  it("hipotese descartada pela deduplicacao nao deixa criterio para tras", () => {
+    const s = diagnosisSuggestionFromAi({
+      result: {
+        nosological_options: [hipotese],
+        syndromic_options: [{ name: "Transtorno bipolar tipo I, episódio maníaco", cid11: "", dsm5tr: "" }]
+      }
+    });
+    const mapa = diagnosticCriteriaByOption(s);
+    const orfaos = [...mapa.keys()].filter(chave => chave !== normalizeText(s.diagnosticoAiNosologico));
+    assert.deepEqual(orfaos, []);
+  });
+
+  it("hipotese sem criterio nao inventa linha", () => {
+    const s = diagnosisSuggestionFromAi({ result: { nosological_options: [{ ...hipotese, criteria: [] }] } });
+    assert.equal(s.diagnosticoAiCriterios, "");
+    assert.equal(diagnosticCriteriaByOption(s).size, 0);
   });
 });

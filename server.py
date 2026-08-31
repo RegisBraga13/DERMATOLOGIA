@@ -365,6 +365,20 @@ SCHEMAS = {
                     "required": ["name", "cid11", "dsm5tr"],
                 },
             },
+            # A camada nosologica e a unica que carrega CRITERIOS, desde
+            # 31/08/2026. As outras duas nao os tem: sindrome e conjunto de
+            # sinais, sem lista operacional, e etiologia e causa, nao entidade.
+            #
+            # Entrou por uma medicao dele. Rodando o MESMO caso nos dois modos --
+            # IA Nuvem e RAG --, seis dos sete campos voltaram identicos: mesmo
+            # nome, mesmos codigos, mesmos especificadores, mesmas comorbidades.
+            # So a etiologia divergiu, que e o unico campo sem lista fechada.
+            # A causa nao era a recuperacao: era o esquema. Os campos eram nome e
+            # dois codigos, e o DSM-5-TR podia dizer "o criterio B exige tres dos
+            # sete e este paciente preenche sete" sem ter ONDE escrever isso. Com
+            # o livro sem lugar para falar, ter livro e nao ter livro dava no
+            # mesmo -- e a fundamentacao, que e o que sustenta laudo e pericia,
+            # nao chegava a tela.
             "nosological_options": {
                 "type": "array",
                 "minItems": 0,
@@ -376,8 +390,35 @@ SCHEMAS = {
                         "name": {"type": "string"},
                         "cid11": {"type": "string"},
                         "dsm5tr": {"type": "string"},
+                        "criteria": {
+                            "type": "array",
+                            "minItems": 0,
+                            "maxItems": 10,
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": False,
+                                "properties": {
+                                    # O criterio como o manual o enuncia, e nao
+                                    # parafraseado: e o que se confere.
+                                    "criterion": {"type": "string"},
+                                    # Lista fechada. "Nao avaliavel" nao e
+                                    # fracasso: e a informacao mais util que a
+                                    # tela pode dar, porque diz o que perguntar
+                                    # no retorno.
+                                    "status": {
+                                        "type": "string",
+                                        "enum": ["preenchido", "nao preenchido", "nao avaliavel"],
+                                    },
+                                    # O fato deste paciente que preenche o
+                                    # criterio -- ou, quando nao avaliavel, o que
+                                    # falta perguntar.
+                                    "evidence": {"type": "string"},
+                                },
+                                "required": ["criterion", "status", "evidence"],
+                            },
+                        },
                     },
-                    "required": ["name", "cid11", "dsm5tr"],
+                    "required": ["name", "cid11", "dsm5tr", "criteria"],
                 },
             },
             "etiological_options": {
@@ -941,6 +982,23 @@ def validate_result(kind, result):
                 for option in options:
                     option["cid11"] = ""
                     option["dsm5tr"] = ""
+            # Criterio incompleto e descartado, e nao fatal — mesma regra da
+            # analise psicopatologica. Criterio sem a evidencia deste paciente e
+            # copia do manual: informa o que o DSM exige e nao diz se ESTE caso
+            # preenche, que e a unica pergunta que a tela faz.
+            if group == "nosological_options":
+                for option in options:
+                    criterios = option.get("criteria")
+                    criterios = criterios if isinstance(criterios, list) else []
+                    inteiros = [c for c in criterios[:10]
+                                if isinstance(c, dict)
+                                and all(isinstance(c.get(k), str) and c[k].strip()
+                                        for k in ("criterion", "status", "evidence"))
+                                and c["status"].strip() in {"preenchido", "nao preenchido", "nao avaliavel"}]
+                    if len(inteiros) != len(criterios):
+                        logger.warning("nosological_options: %d criterio(s) incompleto(s) descartado(s)",
+                                       len(criterios) - len(inteiros))
+                    option["criteria"] = inteiros
         # Mesmo criterio dos grupos acima: teto, nao piso; entrada sem nome e
         # descartada em vez de derrubar a resposta. "applies_to" vazio nao
         # descarta — o especificador ainda serve ao medico, que sabe a qual

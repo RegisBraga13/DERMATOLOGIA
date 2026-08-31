@@ -2663,3 +2663,42 @@ textarea:focus-visible {
   .appendix-symptom-results li { grid-template-columns: minmax(0, 1fr); }
   .appendix-symptom-results li button { justify-self: start; }
 }
+
+/* Os criterios da hipotese nosologica. Dobrados por padrao: abertos, cada
+   hipotese ocuparia meia tela antes de dar para comparar uma com a outra, e
+   comparar e o que se faz nesta tela. */
+.diagnosis-option-block { display: grid; gap: 6px; }
+
+.diagnosis-criteria {
+  margin: 0 0 4px 34px;
+  border-left: 2px solid var(--line);
+  padding-left: 12px;
+}
+
+.diagnosis-criteria summary {
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--muted);
+  padding: 4px 0;
+}
+
+.diagnosis-criteria ul { list-style: none; margin: 6px 0 8px; padding: 0; display: grid; gap: 8px; }
+.diagnosis-criteria li { display: grid; gap: 2px; font-size: 14px; line-height: 1.45; }
+.diagnosis-criteria strong { font-weight: 600; }
+.diagnosis-criteria .criterion-evidence { color: var(--muted); }
+
+.diagnosis-criteria .criterion-status {
+  justify-self: start;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+}
+
+/* Tres estados, tres leituras. O "nao avaliavel" e o que mais importa destacar:
+   ele nao e falha da resposta, e a lista do que perguntar no retorno. */
+.criterion-preenchido .criterion-status { color: var(--primary-2); }
+.criterion-nao-preenchido .criterion-status { color: var(--muted); }
+.criterion-nao-avaliavel .criterion-status { color: #a8641f; }

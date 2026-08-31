@@ -272,6 +272,18 @@ function validateClinicalAiPayload(kind, result, text = "") {
         if (!option?.name) throw new Error("Opcao diagnostica sem nome.");
       });
     });
+    // Criterio incompleto e descartado, e nao derruba a hipotese: mesma regra da
+    // analise psicopatologica e do servidor. Criterio sem a evidencia deste
+    // paciente e copia do manual — diz o que o DSM exige e nao diz se ESTE caso
+    // preenche, que e a unica pergunta que a tela faz. Validado nos dois lados
+    // porque a tela tambem recebe resposta pelo caminho de texto plano, que nao
+    // passa pelo schema; por la a hipotese chega sem criterio, e a tela diz isso.
+    result.nosological_options.forEach(option => {
+      option.criteria = (Array.isArray(option.criteria) ? option.criteria : [])
+        .filter(item => ["criterion", "status", "evidence"].every(key => typeof item?.[key] === "string" && item[key].trim())
+          && CRITERION_STATUS.includes(item.status.trim()))
+        .slice(0, 10);
+    });
   }
   if (kind === "treatment") {
     // Nivel sem justificativa e descartado, e nao fatal: indicar leito sem
@@ -436,6 +448,11 @@ function clinicalAiTextFromResult(kind, result) {
   return "";
 }
 
+// Lista fechada, igual no cliente, no servidor e no prompt. "nao avaliavel" nao
+// e fracasso da IA: e a informacao que diz o que perguntar no retorno, e vale
+// mais do que um "preenchido" assumido em cima do que ninguem registrou.
+export const CRITERION_STATUS = ["preenchido", "nao preenchido", "nao avaliavel"];
+
 export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = null, isReturn = false, scope = null) {
   const taskByKind = {
     anamnesis: [
@@ -492,6 +509,16 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       // perguntas clinicas diferentes. Escrever isso no prompt e o que impede
       // a IA de devolver a mesma entidade tres vezes com nomes trocados.
       "A camada NOSOLOGICA identifica a entidade nos manuais oficiais. E a base do tratamento principal, do seguimento continuo, do atestado e do laudo, e e ela que recebe os especificadores.",
+      // O campo que faltava, medido no caso Wagner: rodando os dois modos, seis
+      // dos sete campos vieram identicos, porque nome e codigo e tudo que o
+      // esquema aceitava. Com criterio, o livro passa a ter onde falar -- e a
+      // fundamentacao, que e o que sustenta laudo e pericia, chega a tela.
+      "Para CADA hipotese nosologica preencha 'criteria': os criterios diagnosticos daquela entidade, conferidos um a um contra ESTE paciente. E o que separa nomear de fundamentar, e e o que sustenta laudo, atestado e pericia.",
+      "Em 'criterion' escreva o criterio como o manual o enuncia, com a letra ou o numero quando houver e o limiar quando houver — 'Criterio A: humor anormalmente elevado, expansivo ou irritavel, por pelo menos 1 semana'. Nao parafraseie ate virar sintoma solto: o que se confere e a regra.",
+      "Em 'status' use exatamente 'preenchido', 'nao preenchido' ou 'nao avaliavel'. 'nao avaliavel' quando o registro nao permite decidir — e resposta legitima e util, porque diz o que perguntar; assumir preenchido o que nao foi registrado e o erro grave desta etapa.",
+      "Em 'evidence' va ao FATO deste paciente que preenche o criterio, com as palavras do registro — 'dorme cerca de duas horas por noite ha tres semanas e acorda com energia de sobra'. Quando o status for 'nao avaliavel', escreva o que falta perguntar. Nunca repita o enunciado do criterio como se fosse evidencia.",
+      "Confira os criterios contra a literatura recuperada, e nao de memoria: numero de sintomas exigido, duracao minima, prejuizo funcional e criterios de exclusao. Quando os manuais divergirem entre si — a CID-11 e o DSM-5-TR nem sempre exigem o mesmo —, diga qual voce esta conferindo.",
+      "Nao proponha hipotese nosologica cujos criterios o registro contradiz. Hipotese com criterio decisivo NAO PREENCHIDO so entra se for diferencial que voce quer deixar registrado, e entao isso tem de estar visivel nos proprios criterios.",
       "Comece pela ANALISE PSICOPATOLOGICA, e so depois nomeie as hipoteses: e ela o raciocinio que as sustenta. Para cada dominio, escreva o achado e, entre parenteses, a EVIDENCIA — o trecho do registro que o sustenta, o mais literal possivel. 'Anedonia severa (parou de sair, de cozinhar e de atender o telefone)'. Achado que voce nao conseguir ancorar num trecho do registro NAO ENTRA: sem evidencia e afirmacao, e este prontuario nao afirma o que nao foi registrado.",
       // O exame psiquico e preenchido por termo tecnico marcado em lista. Sem a
       // regra abaixo, o trecho "mais literal" do registro para o dominio humor e
