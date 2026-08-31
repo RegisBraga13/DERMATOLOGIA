@@ -106,3 +106,32 @@ describe("a evolucao pergunta pelo seguimento, nao pelo paciente", () => {
     assert.ok(consulta.includes("troca de farmaco"));
   });
 });
+
+// A ficha do medicamento pergunta por um NOME PROPRIO, e a consulta tem de ser
+// dominada por ele. Medido em 31/08/2026: com a consulta descritiva antiga,
+// "Clozapina" recuperava 8 trechos e NENHUM citava clozapina -- o livro tem o
+// capitulo dela. So o nome levou para 8 de 8.
+describe("a consulta do medicamento e o nome, e nada mais", () => {
+  const caso = {
+    medicationGeneric: "Clozapina",
+    diagnosticoSelecionado: ["Esquizofrenia refrataria"],
+    queixa: "vozes que nao pararam com dois antipsicoticos",
+    pensamentoConteudo: ["Delírio persecutório"]
+  };
+
+  it("nao carrega prosa descritiva, que afoga o nome no embedding", () => {
+    const consulta = buildRagQuery("medication", caso);
+    assert.equal(consulta, "Clozapina");
+  });
+
+  it("nao carrega o contexto clinico do caso junto", () => {
+    const consulta = buildRagQuery("medication", caso).toLowerCase();
+    assert.ok(!consulta.includes("esquizofrenia"));
+    assert.ok(!consulta.includes("vozes"));
+    assert.ok(!consulta.includes("persecut"));
+  });
+
+  it("sem farmaco digitado a consulta e vazia", () => {
+    assert.equal(buildRagQuery("medication", {}), "");
+  });
+});

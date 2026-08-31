@@ -173,7 +173,30 @@ export function buildRagQuery(kind, form = {}) {
     const propostas = firstPassTreatmentLines(form).join("; ");
     return `Revisao critica da conduta proposta: ${propostas || diagnosis}. Adequacao da escolha, dose, titulacao, contraindicacao, interacao e alternativa de primeira linha para ${diagnosis}. Dados clinicos: ${symptoms}`.slice(0, 4000);
   }
-  if (kind === "medication") return `Psicofarmacologia de ${form.medicationGeneric || ""}: dose inicial, titulacao, dose alvo, efeitos colaterais, contraindicacoes e interacoes. Contexto clinico: ${diagnosis}; ${symptoms}`.slice(0, 4000);
+  // O NOME, E SO O NOME. A licao ja estava escrita quinze linhas abaixo, sobre o
+  // BIPPTIPS, e nao tinha sido aplicada aqui: descrever o que se quer do capitulo
+  // dilui o token que localiza o capitulo. "Dose inicial, titulacao, dose alvo,
+  // efeitos colaterais, contraindicacoes e interacoes" e a forma de QUALQUER
+  // pagina de bula, e afogava o nome do farmaco; o contexto clinico do caso, que
+  // vinha concatenado no fim, afogava o resto.
+  //
+  // Medido em 31/08/2026, contando trechos que CITAM o farmaco perguntado:
+  //
+  //                    consulta de producao      so o nome
+  //     Clozapina .......... 0 de 8 ............ 8 de 8
+  //     Olanzapina ......... 1 de 8 ............ 8 de 8
+  //     Risperidona ........ 2 de 8 ............ 8 de 8
+  //     Litio .............. 1 de 8 ............ 2 de 2
+  //     Clonazepam ......... 1 de 8 ............ 7 de 8
+  //     Losartana .......... 0 de 8 ............ 0 de 1
+  //
+  // Clozapina em ZERO e o caso que diz tudo: o Guia de Prescricao tem o capitulo
+  // dela, e a busca devolvia oito trechos de outros farmacos com relevancia alta.
+  // A ficha saia do livro certo falando do farmaco errado.
+  //
+  // A losartana continua em zero, que e a resposta certa de um acervo de
+  // psiquiatria sobre um anti-hipertensivo -- e o que faz a busca cair para a web.
+  if (kind === "medication") return String(form.medicationGeneric || "").trim().slice(0, 4000);
   // A revisao da ficha pergunta pelo que a primeira passada AFIRMOU sobre o
   // farmaco — a dose que ela escreveu, a titulacao, o efeito que ela citou —,
   // e nao pelo farmaco em geral. E o que faz o segundo livro conferir a ficha
@@ -526,7 +549,15 @@ export function buildWebQuery(kind, form = {}) {
   const farmaco = String(form.medicationGeneric || "").trim();
   const sintoma = String(form.appendixSymptom || "").trim();
   if (kind === "medication" || kind === "medication_review") {
-    return farmaco ? `${farmaco}: bula vigente, dose, titulacao, dose maxima, contraindicacao, interacao, alerta regulatorio` : "";
+    // "bula profissional ANVISA" nomeado na consulta, e nao so no contrato do
+    // servidor: o Bulario Eletronico da ANVISA e a fonte oficial do que esta
+    // aprovado NO BRASIL, e e ele que traz a apresentacao e a indicacao que
+    // valem para uma receita daqui. Sem isso a busca voltava por DailyMed e EMA
+    // -- corretas, mas americana e europeia, com apresentacao que nao existe na
+    // farmacia. O bulario em si e uma pagina que carrega por JavaScript e
+    // nenhum buscador le; os PDFs de bula por tras dela sao indexados, e sao o
+    // que a busca alcanca.
+    return farmaco ? `${farmaco}: bula profissional ANVISA, dose, titulacao, dose maxima, contraindicacao, interacao, alerta regulatorio` : "";
   }
   if (kind === "medication_tips") return "";
   if (kind === "symptomatic") {
