@@ -1371,7 +1371,24 @@ async function generateMedicationFromClinicalData(element, kind = "medication") 
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result, sources, webSources, mode } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), context.target?.pharmaAiMode || "rag", buildRagQuery(kind, context.target), buildWebQuery(kind, context.target));
+    const { result, sources, webSources, mode } = await requestClinicalAi(
+      kind,
+      buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn),
+      context.target?.pharmaAiMode || "rag",
+      buildRagQuery(kind, context.target),
+      buildWebQuery(kind, context.target),
+      // O acervo e de psiquiatria. Se o trecho recuperado nao cita o farmaco
+      // perguntado, ele nao sustenta a ficha -- e o servidor vai a web, que e
+      // quem sabe de losartana, metformina e omeprazol.
+      context.target?.medicationGeneric || "");
+    // O acervo nao tinha o farmaco e o servidor foi a web. A CAIXA DE FONTES ja
+    // conta isso -- e o painel muda para "Pesquisado na web" --, mas o seletor
+    // nao pode virar junto: ele guarda a ESCOLHA dele, e nao o que aconteceu
+    // nesta chamada. Gravando o modo devolvido, uma consulta a losartana deixava
+    // o radio em IA Nuvem, e o proximo farmaco -- psiquiatrico, com livro no
+    // acervo -- sairia da web sem ninguem ter pedido.
+    const escolhido = revisao ? "rag" : (context.target?.pharmaAiMode || "rag");
+    const caiuParaWeb = escolhido === "rag" && mode === "current";
     suggestion = {
       medicationNameText: result.medication || target.medicationGeneric,
       medicationClassMechanism: result.class_and_mechanism || "",
@@ -1388,16 +1405,18 @@ async function generateMedicationFromClinicalData(element, kind = "medication") 
       medicationPresentation: "",
       medicationSafety: "",
       medicationBestUse: "",
-      medicationStatus: revisao
-        ? "Ficha refinada pela fonte especializada. Revise com bula vigente."
-        : "Medicamento preenchido nos campos essenciais. Revise com bula vigente.",
+      medicationStatus: caiuParaWeb
+        ? "Nenhum livro do acervo traz esse farmaco — a ficha foi pesquisada na web. Revise com bula vigente."
+        : (revisao
+          ? "Ficha refinada pela fonte especializada. Revise com bula vigente."
+          : "Medicamento preenchido nos campos essenciais. Revise com bula vigente."),
       medicationOnlineStatus: revisao
         ? "Ficha revisada pela fonte especializada. Revise com bula brasileira e dados do paciente."
         : "Resposta de medicamento gerada pela IA real. Revise com bula brasileira e dados do paciente.",
       medicationTips: await fetchMedicationTips(context, target),
       aiStatus: revisao ? "Ficha refinada pela fonte especializada. Revise antes de salvar." : "Resposta gerada pela IA real. Revise antes de salvar.",
       ragSourcesMedicamento: sourcesOfMode(mode, sources, webSources),
-      pharmaAiMode: mode
+      pharmaAiMode: escolhido
     };
   } catch (error) {
     const wasRag = (target?.pharmaAiMode || "rag") === "rag";
@@ -1480,7 +1499,11 @@ async function fetchMedicationTips(context, target) {
       // Sempre RAG: reproduzir uma secao de um livro so faz sentido com o livro
       // na mao. No modo "IA atual" nao ha secao nenhuma para reproduzir.
       "rag",
-      buildRagQuery("medication_tips", context.target)
+      buildRagQuery("medication_tips", context.target),
+      "",
+      // Sem o farmaco no trecho nao ha BIPP TIPS dele. Antes, um farmaco fora do
+      // acervo devolvia a secao de OUTRO farmaco, com o nome certo no titulo.
+      context.target?.medicationGeneric || ""
     );
     return (result.tips || []).join("\n\n");
   } catch {

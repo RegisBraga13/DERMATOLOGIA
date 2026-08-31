@@ -1319,6 +1319,41 @@ def normalize_name(value):
     return re.sub(r"[^a-z0-9]+", " ", texto).strip()
 
 
+def sources_mentioning(sources, term):
+    """Trechos que realmente citam o termo pedido.
+
+    A BUSCA VETORIAL SEMPRE RESPONDE. Ela devolve os k vizinhos mais proximos da
+    consulta, e nao os trechos que contem a palavra -- entao perguntar por
+    losartana ao acervo de psiquiatria trazia OITO trechos com relevancia 0,90,
+    nenhum deles citando losartana. O primeiro falava de estimulantes: tremor,
+    taquicardia, psicose. A consulta "dose, efeito colateral, interacao" casa com
+    qualquer capitulo de bula, e o nome do farmaco pesa pouco no embedding.
+
+    Na tela isso saia como "Consultado: Stahl -- Guia, 8 trechos recuperados"
+    debaixo de uma ficha de losartana: procedencia falsa, que e o pior defeito
+    possivel justamente na caixa cuja funcao e dizer de onde veio a resposta.
+
+    Vale so para a ficha do medicamento, onde a resposta E SOBRE um nome
+    proprio. No diagnostico e no tratamento a pergunta e sobre um quadro, e o
+    livro pode sustenta-la sem repetir nenhuma palavra da consulta.
+    """
+    alvo = normalize_name(term)
+    if not alvo:
+        return list(sources)
+    # A primeira palavra basta e cobre mais: "Losartana potassica" aparece no
+    # livro como "losartana", e "Acido valproico" como "valproico" tambem. So a
+    # partir de quatro letras, para "t3" ou "cbd" nao casarem dentro de outra
+    # palavra qualquer.
+    radicais = [alvo] + [parte for parte in alvo.split() if len(parte) >= 4]
+    return [item for item in sources
+            if any(radical in normalize_name(item.get("excerpt", "")) for radical in radicais)]
+
+
+# Etapas cuja resposta e sobre um farmaco nomeado, e onde por isso o trecho
+# recuperado tem de citar esse farmaco.
+KINDS_REQUIRING_MENTION = {"medication", "medication_review", "medication_tips"}
+
+
 def resolve_dsm_code(cid11_code, crosswalk):
     """Deriva o codigo do DSM-5-TR a partir do da CID-11, pelo mapa da OMS.
 
@@ -1801,12 +1836,36 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                     extras = [f for f in search_rag_sources(rag_query, api_key, kind, escopos=garantidos)
                               if (f["file_id"], f["excerpt"]) not in vistos]
                     sources = sources + extras[:RAG_ALWAYS_MAX_RESULTS]
+                # O acervo e de psiquiatria. Quando o medico pergunta por um
+                # farmaco que nao e dele -- losartana, metformina, omeprazol, o
+                # que o paciente ja toma --, o livro nao tem, mas a busca
+                # responde assim mesmo. Aqui se confere se responde SOBRE ELE.
+                exigido = str(payload.get("ragMustMention") or "").strip()[:120]
+                if exigido and kind in KINDS_REQUIRING_MENTION:
+                    citando = sources_mentioning(sources, exigido)
+                    if len(citando) != len(sources):
+                        logger.warning("%s: %d de %d trecho(s) nao citam %r",
+                                       kind, len(sources) - len(citando), len(sources), exigido)
+                    sources = citando
                 if not sources:
-                    self.send_json(422, {
-                        "error": "A base RAG nao encontrou evidencia suficientemente relevante para responder com seguranca.",
-                        "code": "rag_insufficient_evidence",
-                    })
-                    return
+                    # Nao ter o farmaco no acervo NAO e falha: e a resposta certa
+                    # de uma biblioteca de psiquiatria sobre um anti-hipertensivo.
+                    # Cair no catalogo local de 27 regras aqui nao ajudaria -- ele
+                    # tambem so conhece psicofarmaco. Quem sabe de losartana e a
+                    # web, entao a pergunta vai para la e a tela passa a dizer
+                    # "pesquisado na web", com as paginas citadas. O modo muda
+                    # junto com a fonte: procedencia que nao acompanha a resposta
+                    # e o defeito que esta linha existe para nao repetir.
+                    if web_query:
+                        web_findings = search_web_sources(web_query, api_key)
+                    if web_findings:
+                        mode = "current"
+                    else:
+                        self.send_json(422, {
+                            "error": "A base RAG nao encontrou evidencia suficientemente relevante para responder com seguranca.",
+                            "code": "rag_insufficient_evidence",
+                        })
+                        return
 
             request_body = {
                 "model": os.environ.get("OPENAI_MODEL", DEFAULT_MODEL),

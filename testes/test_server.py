@@ -697,3 +697,45 @@ class BookChapterLookupTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class SourcesMentioningTests(unittest.TestCase):
+    """A busca vetorial sempre responde; nem sempre responde sobre o que se pediu.
+
+    Medido em 31/08/2026 contra o acervo real: 'Losartana' recuperou 8 trechos
+    com relevancia ate 0,906, e ZERO citavam losartana -- o primeiro falava de
+    estimulantes. A tela mostrava 'Consultado: Stahl -- Guia' debaixo da ficha.
+    """
+
+    def trecho(self, texto):
+        return {"file_id": "f", "filename": "livro.pdf", "score": 0.9,
+                "excerpt": texto, "attributes": {}}
+
+    def test_descarta_trecho_que_nao_cita_o_farmaco(self):
+        fontes = [self.trecho("tremor, taquicardia, hipertensao e arritmias"),
+                  self.trecho("Losartana 50 mg/dia, antagonista do receptor AT1")]
+        restantes = server.sources_mentioning(fontes, "Losartana")
+        self.assertEqual(len(restantes), 1)
+        self.assertIn("AT1", restantes[0]["excerpt"])
+
+    def test_acervo_sem_o_farmaco_devolve_nada(self):
+        fontes = [self.trecho("efeitos colaterais de antipsicoticos atipicos")]
+        self.assertEqual(server.sources_mentioning(fontes, "Metformina"), [])
+
+    def test_casa_sem_acento_e_sem_caixa(self):
+        fontes = [self.trecho("O ACIDO VALPROICO exige hemograma e transaminases")]
+        self.assertEqual(len(server.sources_mentioning(fontes, "Ácido valproico")), 1)
+
+    def test_casa_pelo_radical_quando_o_nome_vem_composto(self):
+        fontes = [self.trecho("A losartana reduz a pressao arterial")]
+        self.assertEqual(len(server.sources_mentioning(fontes, "Losartana potassica")), 1)
+
+    def test_sem_termo_nao_filtra_nada(self):
+        fontes = [self.trecho("qualquer coisa"), self.trecho("outra coisa")]
+        self.assertEqual(len(server.sources_mentioning(fontes, "")), 2)
+
+    def test_so_a_ficha_do_medicamento_exige_citacao(self):
+        """Diagnostico e tratamento perguntam por um QUADRO, e o livro pode
+        sustentar a resposta sem repetir uma palavra da consulta."""
+        self.assertEqual(server.KINDS_REQUIRING_MENTION,
+                         {"medication", "medication_review", "medication_tips"})

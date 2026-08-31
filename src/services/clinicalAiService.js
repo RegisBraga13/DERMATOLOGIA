@@ -28,11 +28,16 @@ export function localRefinementPlan(form = {}) {
   };
 }
 
-export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery = "", webQuery = "") {
+export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery = "", webQuery = "", ragMustMention = "") {
   const response = await fetch("/api/clinical-ai", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ kind, prompt, mode: mode === "rag" ? "rag" : "current", ragQuery, webQuery })
+    // ragMustMention: o nome que o trecho recuperado TEM de citar para valer
+    // como fonte. So a ficha do medicamento usa, porque so ali a resposta e
+    // sobre um nome proprio -- e so ali a busca vetorial conseguia devolver oito
+    // trechos de psiquiatria com relevancia alta para uma pergunta sobre
+    // losartana, sem que nenhum falasse dela.
+    body: JSON.stringify({ kind, prompt, mode: mode === "rag" ? "rag" : "current", ragQuery, webQuery, ragMustMention })
   });
   let data = {};
   try {
