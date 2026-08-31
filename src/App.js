@@ -378,7 +378,7 @@ function consultationPageBody(form, patient) {
 }
 
 function returnPageBody(form, patient, previous) {
-  if (returnPage === "evolucao-retorno") return clinicalPage("Avaliacao de evolucao", returnAssessmentBody(form), "return");
+  if (returnPage === "evolucao-retorno") return clinicalPage("Avaliacao de evolucao", returnAssessmentBody(form, previous), "return");
   if (returnPage === "diagnostico") return clinicalPage("Diagnostico e diferenciais", diagnosisModule(form), "return");
   if (returnPage === "tratamento") return clinicalPage("Tratamento e orientacoes", treatmentModule(form), "return");
   if (returnPage === "medicamentos") return clinicalPage("Medicamentos", medicationBody(form), "return", false);

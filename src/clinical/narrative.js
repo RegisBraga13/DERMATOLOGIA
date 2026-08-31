@@ -368,9 +368,44 @@ export function returnStoryText(form, previous) {
     form.adesaoOutro ? `Como nota adicional sobre a adesão, registra-se ${lowerFirst(stripFinalPeriod(form.adesaoOutro))}.` : "",
     adverseEffects ? `Em relação aos efeitos colaterais, refere ${lowerFirst(adverseEffects)}.` : "",
     functionalityAndEvents ? `Na funcionalidade e nos eventos relevantes, registra-se ${lowerFirst(functionalityAndEvents)}.` : (form.funcionalidade || joinValues(form.eventos) ? `Na funcionalidade e nos eventos relevantes, registra-se ${lowerFirst([form.funcionalidade, joinValues(form.eventos)].filter(Boolean).join(", "))}.` : ""),
-    form.observacoesRetorno ? `Como informação complementar previamente registrada, consta ${lowerFirst(stripFinalPeriod(form.observacoesRetorno))}.` : ""
+    form.observacoesRetorno ? `Como informação complementar previamente registrada, consta ${lowerFirst(stripFinalPeriod(form.observacoesRetorno))}.` : "",
+    // O bloco do caso, desde 31/08/2026. As linhas acima que leem sonoRetorno e
+    // humorAnsiedadeRetorno ficam onde estao: os controles sairam da tela, mas
+    // retorno ja gravado continua com os campos, e apaga-los aqui mudaria o
+    // texto de um prontuario fechado.
+    ...previousCaseSentences(form)
   ].filter(Boolean);
   return professionalClinicalTerms(parts.join(" "));
+}
+
+// As respostas sobre o atendimento anterior, cada uma com o rotulo que viajou
+// no campo oculto ao lado. Sem o rotulo a frase sairia "quanto a hipotese 1,
+// remissao parcial" -- e a lista muda de um retorno para o outro, entao o
+// indice nao ancora nada.
+function previousCaseAnswers(form, prefix) {
+  const respostas = [];
+  for (let index = 0; index < 12; index += 1) {
+    const rotulo = String(form[`${prefix}_${index}Rotulo`] || "").trim();
+    const valor = arrayValue(form[`${prefix}_${index}`])[0] || "";
+    if (rotulo && valor) respostas.push({ rotulo, valor });
+  }
+  return respostas;
+}
+
+function previousCaseSentences(form) {
+  const frase = (respostas, molde) => respostas.length
+    ? molde(respostas.map(item => `${stripFinalPeriod(item.rotulo)}, ${lowerFirst(item.valor)}`).join("; "))
+    : "";
+  return [
+    frase(previousCaseAnswers(form, "retornoHipotese"),
+      texto => `Quanto às hipóteses do atendimento anterior: ${texto}.`),
+    frase(previousCaseAnswers(form, "retornoCriterio"),
+      texto => `Dos critérios que haviam ficado sem avaliação: ${texto}.`),
+    frase(previousCaseAnswers(form, "retornoFarmaco"),
+      texto => `Sobre os medicamentos prescritos: ${texto}.`),
+    frase(previousCaseAnswers(form, "retornoAlvo"),
+      texto => `Quanto aos sintomas-alvo: ${texto}.`)
+  ];
 }
 
 function returnMoodAndAnxietySentence(value = "") {

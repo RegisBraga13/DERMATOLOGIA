@@ -2702,3 +2702,20 @@ textarea:focus-visible {
 .criterion-preenchido .criterion-status { color: var(--primary-2); }
 .criterion-nao-preenchido .criterion-status { color: var(--muted); }
 .criterion-nao-avaliavel .criterion-status { color: #a8641f; }
+
+/* O bloco do caso na avaliacao de evolucao: nasce do atendimento anterior, e
+   por isso vem depois da espinha fixa e visualmente separado dela. */
+.return-case-blocks { display: grid; gap: 16px; margin-top: 18px; }
+
+.return-case-section {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 14px 16px;
+}
+
+.return-case-section h4 { margin: 0; }
+.return-case-section .field-hint { margin: 4px 0 12px; }
+.return-case-item { display: grid; gap: 6px; padding: 8px 0; }
+.return-case-item + .return-case-item { border-top: 1px solid var(--line); }
+.return-case-item strong { font-size: 15px; line-height: 1.45; font-weight: 600; }
