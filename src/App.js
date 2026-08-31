@@ -1055,7 +1055,7 @@ async function generateDiagnosisFromClinicalData(element, kind = "diagnosis") {
   try {
     const context = clinicalAiContext(scope);
     const { result, sources, mode, codeWarnings } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), revisao ? "rag" : context.target?.aiMode, buildRagQuery(kind, context.target));
-    suggestion = diagnosisSuggestionFromAi({ result, target, sources, mode, codeWarnings });
+    suggestion = diagnosisSuggestionFromAi({ result, target, sources, mode, codeWarnings, revisao });
     if (revisao) suggestion.aiStatus = `Refinado pela fonte especializada. ${suggestion.aiStatus}`;
   } catch (error) {
     suggestion = diagnosisSuggestionFromLocalCatalogue(target, error);

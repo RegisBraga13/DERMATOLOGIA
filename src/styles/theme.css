@@ -644,6 +644,10 @@ details[open] summary:after { content: "-"; }
   padding: 14px;
   margin-bottom: 14px;
 }
+/* Gerar e Refinar centralizados sob os dois cartoes de fonte, por decisao dele
+   (31/08/2026): os botoes agem sobre a fonte escolhida acima, e alinhados a
+   esquerda pareciam pertencer so ao cartao da esquerda. */
+.diagnosis-ai-panel > .actions { justify-content: center; }
 
 .summary-section { margin-top: 14px; }
 .summary-section h4 { margin: 0 0 9px; font-size: 21px; }

@@ -276,3 +276,38 @@ describe("analise psicopatologica", () => {
     assert.deepEqual(resultado.diagnosticoSelecionado, []);
   });
 });
+
+// O Refinar so libera depois que o medico assinala (31/08/2026). Se a revisao
+// devolvesse a tela sem marcacao, ela apagaria exatamente a escolha que
+// habilitou o botao -- e o medico teria de reassinalar tudo a cada refino.
+describe("o refino nao apaga a escolha do medico", () => {
+  const HIPOTESE = "Transtorno depressivo maior - CID-11: 6A70.4 - DSM-5-TR: F32.3";
+  const resposta = nomes => ({
+    nosological_options: nomes.map(nome => ({ name: nome, cid11: "6A70.4", dsm5tr: "F32.3" })),
+    syndromic_options: [], etiological_options: [], specifier_options: [],
+    comorbidity_options: [], aggravating_options: [], psychopathological_analysis: []
+  });
+  const refinar = (result, marcadas) => diagnosisSuggestionFromAi({
+    result, target: { diagnosticoSelecionado: marcadas }, sources: [], mode: "rag", codeWarnings: [], revisao: true
+  });
+
+  it("a hipotese que sobrevive a revisao continua marcada", () => {
+    const r = refinar(resposta(["Transtorno depressivo maior"]), [HIPOTESE]);
+    assert.deepEqual(r.diagnosticoSelecionado, [HIPOTESE]);
+    assert.match(r.aiStatus, /continua marcada/);
+  });
+
+  it("a hipotese que a revisao descartou sai da marcacao, e isso e dito", () => {
+    const r = refinar(resposta(["Transtorno bipolar tipo I"]), [HIPOTESE]);
+    assert.deepEqual(r.diagnosticoSelecionado, []);
+    assert.match(r.aiStatus, /não foi mantida|nao foi mantida/);
+  });
+
+  it("gerar de novo, fora do refino, continua devolvendo a tela sem marcacao", () => {
+    const r = diagnosisSuggestionFromAi({
+      result: resposta(["Transtorno depressivo maior"]),
+      target: { diagnosticoSelecionado: [HIPOTESE] }, sources: [], mode: "rag", codeWarnings: []
+    });
+    assert.deepEqual(r.diagnosticoSelecionado, []);
+  });
+});

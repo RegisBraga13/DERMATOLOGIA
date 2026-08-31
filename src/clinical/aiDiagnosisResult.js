@@ -1,4 +1,4 @@
-import { buildDiagnosticSuggestion, doctorSelectedOptions, formatDiagnosticOption } from "./diagnosis.js";
+import { buildDiagnosticSuggestion, doctorSelectedOptions, formatDiagnosticOption, selectedDiagnosisValues } from "./diagnosis.js";
 import { normalizeText, stripFinalPeriod } from "./textFormat.js";
 
 // Transformacao do que a IA devolve no que o formulario guarda. Estava dentro
@@ -13,7 +13,7 @@ export function countLabel(total, singular, plural = `${singular}s`) {
   return `${total} ${total === 1 ? singular : plural}`;
 }
 
-export function diagnosisSuggestionFromAi({ result = {}, target = {}, sources = [], mode = "", codeWarnings = [] }) {
+export function diagnosisSuggestionFromAi({ result = {}, target = {}, sources = [], mode = "", codeWarnings = [], revisao = false }) {
   // Sem completar as vagas que sobram: se a IA propos duas sindromicas,
   // mostra duas. Antes o catalogo local enchia o resto das tres categorias
   // com o mesmo punhado de entidades nosologicas, o que fazia uma nosologia
@@ -84,6 +84,18 @@ export function diagnosisSuggestionFromAi({ result = {}, target = {}, sources = 
     })
     .filter((linha, index, lista) => lista.indexOf(linha) === index)
     .slice(0, 8);
+  // Marcacao do medico que sobreviveu a revisao: so continua marcado o que a
+  // segunda passada ainda propoe. Fora do refino nao ha o que preservar — uma
+  // geracao nova troca a lista inteira.
+  const propostas = new Set([...nosologicalOptions, ...syndromicOptions, ...etiologicalOptions].map(normalizeText));
+  const doctorSet = new Set(selectedDoctorOptions);
+  const marcadasAntes = revisao
+    ? selectedDiagnosisValues(target || {}).filter(valor => !doctorSet.has(valor))
+    : [];
+  const marcadasMantidas = marcadasAntes.filter(valor => propostas.has(normalizeText(valor)));
+  const marcadasPerdidas = marcadasAntes.length - marcadasMantidas.length;
+  const marcadasFinais = [...selectedDoctorOptions, ...marcadasMantidas];
+
   return {
     analisePsicopatologica: analysis.join("\n"),
     diagnosticoAiSindromico: syndromicOptions.join("\n"),
@@ -99,8 +111,15 @@ export function diagnosisSuggestionFromAi({ result = {}, target = {}, sources = 
     // A IA propoe, nao assinala: so as hipoteses do proprio medico seguem
     // marcadas. Assinalar por ele inverteria o onus — passaria a ser preciso
     // descartar o que nao se quer, em vez de escolher o que se quer.
-    diagnosticoSelecionado: selectedDoctorOptions,
-    diagnosticoManual: selectedDoctorOptions.join("\n"),
+    //
+    // No REFINO e diferente. Desde 31/08/2026 o Refinar so libera depois que o
+    // medico assinala — e o refino devolvia a tela com nada marcado, apagando
+    // exatamente a escolha que acabara de habilitar o botao. Aqui a marcacao
+    // dele sobrevive quando a hipotese sobrevive: a segunda passada revisa a
+    // escolha, nao a anula. O que a revisao tirou da lista sai da marcacao
+    // tambem, e isso e dito na tela.
+    diagnosticoSelecionado: marcadasFinais,
+    diagnosticoManual: marcadasFinais.join("\n"),
     diferenciais: "",
     ragSourcesDiagnostico: sources,
     aiMode: mode,
@@ -109,6 +128,8 @@ export function diagnosisSuggestionFromAi({ result = {}, target = {}, sources = 
         ? `Análise psicopatológica: ${countLabel(analysis.length, "domínio", "domínios")}, cada um com a evidência do registro.`
         : "",
       `Propostas para você assinalar: ${countLabel(nosologicalOptions.length, "nosológica")}, ${countLabel(syndromicOptions.length, "sindrômica")} e ${countLabel(etiologicalOptions.length, "etiológica")}. As hipóteses do médico foram mantidas.`,
+      marcadasMantidas.length ? `${countLabel(marcadasMantidas.length, "hipótese que você assinalou continua", "hipóteses que você assinalou continuam")} marcada(s).` : "",
+      marcadasPerdidas ? `${countLabel(marcadasPerdidas, "hipótese que você assinalou não foi", "hipóteses que você assinalou não foram")} mantida(s) pela revisão, e saiu(ram) da marcação.` : "",
       specifierOptions.length ? `${countLabel(specifierOptions.length, "especificador", "especificadores")} proposto(s).` : "",
       comorbidityOptions.length ? `${countLabel(comorbidityOptions.length, "comorbidade")} proposta(s).` : "",
       aggravatingOptions.length ? `${countLabel(aggravatingOptions.length, "fator agravante", "fatores agravantes")} proposto(s).` : "",
