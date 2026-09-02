@@ -61,7 +61,12 @@ def parse_args():
         "--escopo",
         required=True,
         choices=("psicopatologia", "entrevista", "sindromes", "criterios", "terapeutica",
-                 "tratado", "prescricao", "psicofarmacologia"),
+                 "tratado", "prescricao", "psicofarmacologia",
+                 # Populacao, e nao assunto: um tratado de psiquiatria da
+                 # infancia e outro genero de livro, e nao o mesmo livro lido
+                 # por outro leitor. Estes dois nao substituem os gerais --
+                 # entram POR CIMA deles quando o paciente e daquele grupo.
+                 "infantojuvenil", "saude-mulher"),
         help="Genero do livro; RAG_SCOPE_BY_KIND decide que etapas o recuperam")
     return parser.parse_args()
 

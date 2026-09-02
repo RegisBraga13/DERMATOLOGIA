@@ -1067,6 +1067,31 @@ RAG_ALWAYS_SCOPE_BY_KIND = {
 # checklist, que e o oposto do que este programa faz.
 RAG_ALWAYS_MAX_RESULTS = 4
 
+# ESCOPOS QUE O PACIENTE ABRE, e nao a etapa.
+#
+# Os outros escopos sao propriedade do LIVRO cruzada com a ETAPA -- o guia de
+# prescricao responde no Tratamento, a psicopatologia na Anamnese. Estes dois
+# dependem de quem esta na cadeira: um tratado de psiquiatria da infancia nao
+# tem o que dizer sobre um paciente de 50 anos, e teria tudo a dizer sobre um de
+# 9. Por isso quem os pede e o cliente, que sabe a data de nascimento e o sexo.
+#
+# Entram como a busca garantida do criterio: POR CIMA da busca geral, com vaga
+# propria e poucos trechos. O geral continua respondendo -- um adolescente com
+# depressao ainda precisa do que os livros de sempre dizem sobre depressao.
+#
+# Lista fechada porque o valor vem do cliente: `escopo` e filtro de busca, e
+# valor arbitrario vindo de fora nao entra em filtro.
+RAG_PATIENT_SCOPES = {"infantojuvenil", "saude-mulher"}
+
+# As etapas que ganham o reforco. Fora daqui o escopo do paciente e ignorado: na
+# ficha de um farmaco, o que se quer e a bula do farmaco, e nao o capitulo de
+# infancia; nos BIPP TIPS, a secao nomeada do livro.
+KINDS_ACCEPTING_PATIENT_SCOPE = {
+    "anamnesis", "refinement", "refinement_scope",
+    "diagnosis", "diagnosis_review",
+    "treatment", "treatment_review", "symptomatic", "return_plan",
+}
+
 
 def search_rag_sources(query, api_key, kind="", escopos=None):
     vector_store_id = os.environ.get("OPENAI_RAG_VECTOR_STORE_ID", "").strip()
@@ -1935,6 +1960,13 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             if mode == "rag":
                 sources = search_rag_sources(rag_query, api_key, kind)
                 garantidos = RAG_ALWAYS_SCOPE_BY_KIND.get(kind)
+                # O reforco do paciente soma ao da etapa: um adolescente no
+                # Diagnostico recebe os dois -- o criterio e o livro da faixa.
+                if kind in KINDS_ACCEPTING_PATIENT_SCOPE:
+                    do_paciente = tuple(e for e in (payload.get("ragPatientScopes") or [])
+                                        if isinstance(e, str) and e in RAG_PATIENT_SCOPES)
+                    if do_paciente:
+                        garantidos = tuple(garantidos or ()) + do_paciente
                 if garantidos:
                     # Deduplicado por trecho: o mesmo pedaco de livro nao entra
                     # duas vezes no contexto so por ter vindo das duas buscas.

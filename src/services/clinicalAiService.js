@@ -29,7 +29,7 @@ export function localRefinementPlan(form = {}) {
   };
 }
 
-export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery = "", webQuery = "", ragMustMention = "") {
+export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery = "", webQuery = "", ragMustMention = "", ragPatientScopes = []) {
   const response = await fetch("/api/clinical-ai", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -38,7 +38,7 @@ export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery
     // sobre um nome proprio -- e so ali a busca vetorial conseguia devolver oito
     // trechos de psiquiatria com relevancia alta para uma pergunta sobre
     // losartana, sem que nenhum falasse dela.
-    body: JSON.stringify({ kind, prompt, mode: mode === "rag" ? "rag" : "current", ragQuery, webQuery, ragMustMention })
+    body: JSON.stringify({ kind, prompt, mode: mode === "rag" ? "rag" : "current", ragQuery, webQuery, ragMustMention, ragPatientScopes })
   });
   let data = {};
   try {

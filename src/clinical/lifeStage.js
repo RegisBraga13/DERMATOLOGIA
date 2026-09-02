@@ -144,3 +144,21 @@ export function lifeStagePromptText(patient = {}) {
     ...reprodutivo
   ].join("\n");
 }
+
+// OS ESCOPOS DE RAG QUE ESTE PACIENTE ABRE.
+//
+// Vao no pedido de busca e o servidor os usa como reforco, por cima da busca
+// geral -- nunca no lugar dela. Um adolescente com depressao continua
+// precisando do que os livros de sempre dizem sobre depressao; o que falta e o
+// que so o livro da faixa diz, e que hoje perde a disputa por trecho contra
+// cinco tratados de adulto.
+//
+// A lista e a mesma no servidor (RAG_PATIENT_SCOPES), que so aceita estes dois:
+// escopo e filtro de busca, e valor vindo do cliente nao entra em filtro sem
+// conferencia.
+export function ragPatientScopes(patient = {}) {
+  const escopos = [];
+  if (needsCaregiverHistory(patient)) escopos.push("infantojuvenil");
+  if (needsReproductiveHistory(patient)) escopos.push("saude-mulher");
+  return escopos;
+}

@@ -20,7 +20,7 @@ import { clinicalSummaryGroups, clinicalSummaryPage } from "./views/clinicalSumm
 import { aiModeSelector, diagnosisModule, evolutionBody, ragSourcesView, returnPlanModule, returnPlanSettled, treatmentModule } from "./views/decisions.js";
 import { consultationAccessPanel, mentalExamBody, missingReturnAssessment, neurologicExamBody, recordReturnAction, returnAssessmentBody } from "./views/exams.js";
 import { caregiverHistoryCard, reproductiveHistoryCard } from "./views/lifeStageBlocks.js";
-import { lifeStageOf, needsCaregiverHistory, needsReproductiveHistory } from "./clinical/lifeStage.js";
+import { lifeStageOf, needsCaregiverHistory, needsReproductiveHistory, ragPatientScopes } from "./clinical/lifeStage.js";
 import { bookChapterView, medicationReferenceCard } from "./views/medication.js";
 
 const app = document.querySelector("#app");
@@ -1221,7 +1221,7 @@ async function generateDiagnosisFromClinicalData(element, kind = "diagnosis") {
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result, sources, webSources, mode, codeWarnings } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), revisao ? "rag" : context.target?.aiMode, buildRagQuery(kind, context.target), buildWebQuery(kind, context.target));
+    const { result, sources, webSources, mode, codeWarnings } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), revisao ? "rag" : context.target?.aiMode, buildRagQuery(kind, context.target), buildWebQuery(kind, context.target), "", ragPatientScopes(context.patient));
     // A procedencia da resposta e a do modo que respondeu: trechos do acervo no
     // RAG, paginas da web na Nuvem. So um dos dois vem preenchido por chamada.
     suggestion = diagnosisSuggestionFromAi({ result, target, sources: sourcesOfMode(mode, sources, webSources), mode, codeWarnings, revisao });
@@ -1251,7 +1251,7 @@ async function generateTreatmentFromClinicalData(element, kind = "treatment") {
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result, sources, webSources, mode } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), revisao ? "rag" : (context.target?.pharmaAiMode || "rag"), buildRagQuery(kind, context.target), buildWebQuery(kind, context.target));
+    const { result, sources, webSources, mode } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), revisao ? "rag" : (context.target?.pharmaAiMode || "rag"), buildRagQuery(kind, context.target), buildWebQuery(kind, context.target), "", ragPatientScopes(context.patient));
     const medicationOptions = result.medication_options.map(formatMedicationTreatmentOption);
     const approachOptions = result.non_pharmacological_options.map(formatNonPharmacologicalOption);
     suggestion = {
@@ -1311,7 +1311,7 @@ async function generateReturnPlanFromClinicalData(element) {
       "return_plan",
       buildClinicalAiPrompt("return_plan", context.target, context.patient, context.previous, context.isReturn),
       context.target?.returnPlanAiMode || "rag",
-      buildRagQuery("return_plan", context.target), buildWebQuery("return_plan", context.target));
+      buildRagQuery("return_plan", context.target), buildWebQuery("return_plan", context.target), "", ragPatientScopes(context.patient));
     const medicacao = returnPlanMedicationLines(result);
     const conduta = (result.conduct_options || []).map(item => String(item || "").trim()).filter(Boolean);
     gravar({
@@ -1403,7 +1403,7 @@ async function generateAppendixSymptomConduct(element) {
       "symptomatic",
       buildClinicalAiPrompt("symptomatic", sombra, context.patient, context.previous, context.isReturn),
       context.target?.symptomaticAiMode || "rag",
-      buildRagQuery("symptomatic", sombra), buildWebQuery("symptomatic", sombra));
+      buildRagQuery("symptomatic", sombra), buildWebQuery("symptomatic", sombra), "", ragPatientScopes(context.patient));
     const linhas = targetSymptomConductLines(result);
     gravar({
       appendixSymptomConducts: linhas.join("\n"),
@@ -1697,7 +1697,7 @@ async function processAnamnesisTranscriptSilently(transcript = "", options = {})
   const baselineRevision = clinicalDraftRevision;
   const context = clinicalAiContext("consultation");
   const anamnesisTarget = { ...context.target, qphda: cleanTranscript };
-  const { result } = await requestClinicalAi("anamnesis", buildClinicalAiPrompt("anamnesis", anamnesisTarget, context.patient), "rag", buildRagQuery("anamnesis", anamnesisTarget));
+  const { result } = await requestClinicalAi("anamnesis", buildClinicalAiPrompt("anamnesis", anamnesisTarget, context.patient), "rag", buildRagQuery("anamnesis", anamnesisTarget), "", "", ragPatientScopes(context.patient));
   if (sequence !== anamnesisProcessingSequence || view !== "consultation" || baselineRevision !== clinicalDraftRevision) return;
   applyAnamnesisAiResult(result, cleanTranscript);
   if (options.preserveFocus) syncAnamnesisControlsFromDraft();
@@ -1750,7 +1750,7 @@ async function prepareRefinementFromClinicalData() {
       "refinement",
       buildClinicalAiPrompt("refinement", context.target, context.patient, null, false, scope),
       "rag",
-      buildRagQuery("refinement", context.target)
+      buildRagQuery("refinement", context.target), "", "", ragPatientScopes(context.patient)
     ));
   } catch {
     result = localRefinementPlan(context.target);
