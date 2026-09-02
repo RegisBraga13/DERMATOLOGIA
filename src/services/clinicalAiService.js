@@ -1,5 +1,6 @@
 import { diagnosticAggravatingOptionLines, diagnosticComorbidityOptionLines, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSpecifierOptionLines, diagnosticSyndromicOptionLines, formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharmacologicalOption, normalizeDiagnosticOptions, parseTreatmentResponse, selectedAggravatingValues, selectedComorbidityValues, selectedDiagnosisValues, selectedSpecifierValues, treatmentOptionLines } from "../clinical/diagnosis.js";
 import { careLevelOptions as CARE_LEVELS } from "../data/careLevels.js";
+import { lifeStagePromptText } from "../clinical/lifeStage.js";
 import { anamnesisText, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, patientIdentificationText, professionalSelectedTreatmentItems, refinementAnswersText, requestedExamsText, returnStoryText, treatmentDiagnosisText } from "../clinical/narrative.js";
 import { arrayValue, cleanClinicalLine, compactText, formatClinicalList, joinValues, mentalExamKeys, normalizeText, stripFinalPeriod } from "../clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, MENTAL_EXAM_AI_FIELDS, MENTAL_EXAM_NORMAL } from "../clinical/vocabulary.js";
@@ -621,7 +622,9 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "Interprete respostas curtas como sim, nao, as vezes e nao sei em conjunto com a pergunta imediatamente anterior.",
       "Quando houver correcao ou contradicao, a declaracao cronologicamente mais recente substitui a anterior. Preserve rigorosamente a diferenca entre quadro atual, episodio passado, antecedente familiar e hipotese apenas investigada.",
       "Organize a anamnese por queixa principal, cronologia e curso, sintomas nucleares e associados, polaridade depressiva/maníaca, ansiedade/pânico, sono, apetite, psicose, risco suicida, substâncias, causas médicas, antecedentes, funcionamento e fatores de proteção.",
+      "Leia o sintoma na forma que ele tem NAQUELA idade: irritabilidade, recusa escolar e queixa somatica sao apresentacao depressiva na crianca; queixa cognitiva e apatia sao apresentacao depressiva no idoso. Nao exija a forma adulta do sintoma para reconhece-lo.",
       "Diferencie sintoma negado, sintoma presente e domínio não investigado; campo vazio significa dado não informado e nunca normalidade.",
+      "A cobertura muda com a faixa etaria informada em DADOS DO PACIENTE: cubra os dominios que aquela idade exige e nao force os que ela nao comporta. Numa crianca, escola, desenvolvimento e quem relata; num idoso, cognicao, quedas, polifarmacia e deficit sensorial; em mulher em idade fertil, ciclo, gestacao e amamentacao.",
       "Preencha queixa principal, HDA e campos estruturados da anamnese sem perder a narrativa temporal, intensidade, frequência, duração, gatilhos, fatores de melhora/piora e prejuízo funcional.",
       "Nao diagnostique, nao sugira tratamento e nao acrescente observacoes ao usuario.",
       `Nos campos de selecao, use exclusivamente estes rotulos canonicos: ${JSON.stringify(Object.fromEntries(Object.entries(ANAMNESIS_AI_FIELDS).map(([key, [, options]]) => [key, options])))}`
@@ -638,6 +641,7 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "Inclua o bloco quando o caso levanta o assunto que ele cobre, mesmo que so para descartar. Deixe de fora o que o caso nao toca."
     ],
     refinement: [
+      "Puxe as perguntas que a FAIXA ETARIA deste paciente exige e que ainda nao foram feitas — o que falta perguntar a uma crianca, a um adolescente ou a um idoso nao e o mesmo. Em mulher em idade fertil, ciclo menstrual, gestacao, puerperio, amamentacao e contracepcao sao lacuna quando ausentes.",
       "Analise a anamnese revisada, o exame psiquico revisado e o exame fisico registrado.",
       // O motor antigo mandava a IA CRIAR as perguntas. Elas saiam boas, mas
       // sem procedencia: nao dava para conferir de onde vinham nem saber o que
@@ -651,6 +655,9 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "Nao gere diagnostico nem tratamento."
     ],
     diagnosis: [
+      "A IDADE DE INICIO E CRITERIO, e nao contexto. Pese cada hipotese contra a faixa etaria: transtornos do neurodesenvolvimento comecam na infancia e nao surgem na vida adulta; esquizofrenia e transtorno bipolar tem inicio tipico da adolescencia ao adulto jovem; PRIMEIRO episodio de psicose, mania ou depressao grave no idoso e, ate prova em contrario, secundario a condicao medica, a medicamento ou a substancia — e a hipotese etiologica passa a ser obrigatoria.",
+      "Hipotese incompativel com a idade so entra se o registro trouxer o que a sustente, e o motivo tem de aparecer na justificativa. Nao proponha transtorno de personalidade a partir de crise recente em adolescente ou adulto jovem: exige padrao ja estavel.",
+      "Em mulher em idade fertil, considere no diferencial e nos especificadores o que depende do eixo reprodutivo: transtorno disforico pre-menstrual, inicio no periparto, e quadro do climaterio.",
       // Pedido dele, 28/08/2026: "Os diagnosticos devem ter o DSM-5-TR e CID-11
       // como pressupostos basicos -- eles sao o padrao ouro." Os dois entraram
       // no acervo nesse dia, no genero "criterios", e esta etapa os le. Ate
@@ -707,6 +714,8 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "Comorbidade e agravante sem apoio no registro nao entram. Lista vazia e resposta legitima nos dois grupos.",
     ],
     treatment: [
+      "A faixa etaria muda a prescricao antes da dose. No idoso, comece com metade da dose do adulto, suba mais devagar, e evite benzodiazepinico e anticolinergico pelo risco de queda e de piora cognitiva. Em crianca e adolescente, so farmaco com indicacao para a idade, e antidepressivo com vigilancia de ativacao e de ideacao suicida nas primeiras semanas.",
+      "Gestacao e amamentacao mudam a ESCOLHA do farmaco, e nao apenas a dose. Havendo gestacao, puerperio ou amamentacao no registro, a opcao proposta tem de ser compativel com isso, e a justificativa tem de dizer por que. Sendo mulher em idade fertil sem esse dado registrado, sinalize a necessidade de confirmar antes de prescrever teratogeno conhecido.",
       // Primeira instrucao da etapa, e nao a ultima: onde tratar decide-se antes
       // de com o que tratar. Num caso de depressao psicotica com recusa
       // alimentar, perda de 11 kg e ideacao suicida, a resposta trazia
@@ -900,6 +909,9 @@ function clinicalEvolutionPromptData(form = {}, patient = {}, previous = null, i
 function clinicalPromptData(form = {}, patient = {}, previous = null, isReturn = false) {
   return [
     `Identificacao: ${patientIdentificationText(patient, true)}`,
+    // A idade em linha PROPRIA, e com o que ela implica. Na identificacao ela
+    // ficava ao lado do estado civil e da ocupacao, lida como cadastro.
+    lifeStagePromptText(patient),
     `Tipo de atendimento: ${isReturn ? "retorno" : "consulta inicial/nova consulta"}.`,
     previous ? `Registro anterior: ${new Date(previous.createdAt || Date.now()).toLocaleDateString("pt-BR")} - ${stripFinalPeriod(normalizeEvolutionNarrative(previous.evolution) || anamnesisText(previous) || previous.observacoesRetorno || "")}.` : "",
     `QP/HDA: ${stripFinalPeriod(anamnesisText(form)) || "nao informado"}.`,
@@ -915,6 +927,14 @@ function clinicalPromptData(form = {}, patient = {}, previous = null, isReturn =
     `Risco suicida: ${joinValues(form.riscoSuicidioIndicadores) || choiceSummary(form, ["riscoSuicidioIdeacao", "riscoSuicidioPlanejamento", "riscoSuicidioMeios", "riscoSuicidioTentativasPrevias"]) || "nao informado"}.`,
     `O que impede a acao hoje: ${stripFinalPeriod(form.riscoSuicidioRazoesViver || "") || "nao informado"}.`,
     `Razoes para viver: ${stripFinalPeriod(form.riscoSuicidioRazoesParaViver || "") || "nao informado"}.`,
+    // Os dois blocos condicionais da anamnese. So aparecem na tela para quem os
+    // comporta, e por isso podem faltar aqui sem que isso signifique lacuna.
+    joinWithOutro(form.cicloReprodutivo, form.cicloReprodutivoOutro) || joinWithOutro(form.sintomasCiclo, form.sintomasCicloOutro) || form.historiaReprodutiva
+      ? `Saude reprodutiva: ${[joinWithOutro(form.cicloReprodutivo, form.cicloReprodutivoOutro), joinWithOutro(form.sintomasCiclo, form.sintomasCicloOutro), stripFinalPeriod(form.historiaReprodutiva || "")].filter(Boolean).join("; ")}.`
+      : "",
+    joinWithOutro(form.informante, form.informanteOutro) || joinWithOutro(form.escolaridadeContexto, form.escolaridadeContextoOutro) || form.desenvolvimento
+      ? `Contexto de crianca/adolescente: quem relata ${joinWithOutro(form.informante, form.informanteOutro) || "nao informado"}; escola ${joinWithOutro(form.escolaridadeContexto, form.escolaridadeContextoOutro) || "nao informado"}; desenvolvimento ${stripFinalPeriod(form.desenvolvimento || "") || "nao informado"}.`
+      : "",
     `Antecedentes psiquiatricos: ${joinWithOutro(form.psiPrevios, form.psiPreviosOutro) || "nao informado"}.`,
     `Tratamentos previos: ${joinWithOutro(form.tratamentos, form.tratamentosOutro) || "nao informado"}.`,
     `Antecedentes medicos: ${joinWithOutro(form.medicos, form.medicosOutro) || "nao informado"}.`,

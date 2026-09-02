@@ -1216,15 +1216,39 @@ details[open] summary:after { content: "-"; }
 
 
 
+/* A busca subiu para cima do prontuario em 02/09/2026, e deixou de ser coluna.
+   Ela ocupava 45% da largura de forma permanente para desenhar um campo de
+   texto, e o que sobrava tinha de caber o registro inteiro. Com o caso em duas
+   colunas, essa largura passou a ser o que falta. */
 .record-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
 
 .timeline {
   display: grid;
   gap: 10px;
+}
+
+/* O caso: consulta a esquerda, retorno a direita, decisao dele em 02/09/2026.
+   As duas colunas se alinham pelo topo e crescem juntas -- o que se compara e o
+   inicio de cada uma, e nao o rodape. */
+.timeline-case {
+  display: grid;
+  gap: 10px;
+}
+
+.timeline-case.paired {
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+}
+
+/* Coluna unica quando nao ha largura para duas: lado a lado espremido lê pior
+   do que empilhado, e a ordem empilhada continua sendo consulta e depois
+   retorno. */
+@media (max-width: 900px) {
+  .timeline-case.paired { grid-template-columns: 1fr; }
 }
 
 .timeline-item {

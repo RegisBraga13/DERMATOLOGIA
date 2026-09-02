@@ -19,6 +19,7 @@ import { clipboardIcon, folderIcon, homeIcon, lockIcon, personIcon, repeatIcon, 
 import { clinicalSummaryGroups, clinicalSummaryPage } from "./views/clinicalSummary.js";
 import { aiModeSelector, diagnosisModule, evolutionBody, ragSourcesView, returnPlanModule, returnPlanSettled, treatmentModule } from "./views/decisions.js";
 import { consultationAccessPanel, mentalExamBody, missingReturnAssessment, neurologicExamBody, recordReturnAction, returnAssessmentBody } from "./views/exams.js";
+import { caregiverHistoryCard, reproductiveHistoryCard } from "./views/lifeStageBlocks.js";
 import { bookChapterView, medicationReferenceCard } from "./views/medication.js";
 
 const app = document.querySelector("#app");
@@ -362,6 +363,8 @@ function consultationPageBody(form, patient) {
       ${textarea("medicos", "Antecedentes medicos", joinValues(form.medicos), "", 2)}
       ${chips("familiares", "Antecedentes familiares", optionGroups.familiares, form.familiares, form)}
     </div>
+    ${caregiverHistoryCard(form, patient)}
+    ${reproductiveHistoryCard(form, patient)}
     ${chips("fatores", "Fatores desencadeantes e de piora", optionGroups.fatores, form.fatores, form)}
     ${chips("fatoresMelhora", "Fatores de melhora", optionGroups.fatoresMelhora, form.fatoresMelhora, form)}
     ${chips("impacto", "Impacto funcional", optionGroups.impacto, form.impacto, form)}
@@ -543,16 +546,53 @@ function medicalRecord() {
   `;
 }
 
+// O prontuario passa a mostrar o CASO, e nao a pilha de registros.
+//
+// A lista era plana e ordenada por data, o que punha o retorno acima da consulta
+// que ele comenta: lia-se o caso de tras para frente. Consulta e retorno agora
+// ficam lado a lado, na ordem em que se le -- o que foi decidido a esquerda, o
+// que aconteceu depois a direita.
+//
+// O par existe porque o programa garante UM retorno por consulta (ver
+// startNewReturn). Sem essa garantia isto seria uma arvore, e arvore de
+// prontuario nao cabe em duas colunas.
+function recordCases(entries) {
+  const retornoDe = new Map();
+  entries.filter(entry => entry.type === "return" && entry.previousEntryId)
+    .forEach(entry => retornoDe.set(entry.previousEntryId, entry));
+  const idsPresentes = new Set(entries.map(entry => entry.id));
+  const casos = entries
+    .filter(entry => entry.type !== "return")
+    .map(consulta => ({ consulta, retorno: retornoDe.get(consulta.id) || null }));
+  // Retorno cuja consulta nao esta na lista -- filtrada pela busca, ou apagada
+  // do prontuario -- aparece sozinho. Registro clinico nao some por falta de par.
+  entries
+    .filter(entry => entry.type === "return" && !idsPresentes.has(entry.previousEntryId))
+    .forEach(retorno => casos.push({ consulta: null, retorno }));
+  const quando = caso => Math.max(
+    caso.consulta ? entryTimestamp(caso.consulta) : 0,
+    caso.retorno ? entryTimestamp(caso.retorno) : 0
+  );
+  return casos.sort((a, b) => quando(b) - quando(a));
+}
+
 function recordTimeline(entries) {
   if (!entries.length) return `<div class="warning">Nenhum registro encontrado para os filtros atuais.</div>`;
-  return entries.map(entry => `
+  return recordCases(entries).map(caso => {
+    const cartoes = [caso.consulta, caso.retorno].filter(Boolean).map(recordEntryCard).join("");
+    return `<section class="timeline-case${caso.consulta && caso.retorno ? " paired" : ""}">${cartoes}</section>`;
+  }).join("");
+}
+
+function recordEntryCard(entry) {
+  return `
     <article class="timeline-item">
       <h4>${escapeHtml(entry.label)} - ${new Date(entry.createdAt).toLocaleString("pt-BR")}</h4>
       <p>${escapeHtml(recordReportText(entry))}</p>
       <div class="actions">
         <button class="secondary" data-action="pdf-entry" data-id="${entry.id}" data-type="${entry.type}">Exportar PDF</button>
       </div>
-    </article>`).join("");
+    </article>`;
 }
 
 function exitPanel() {
