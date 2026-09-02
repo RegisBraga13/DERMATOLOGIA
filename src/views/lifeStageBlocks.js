@@ -8,9 +8,11 @@
 // A condicao vem da identificacao do PACIENTE, e nao do atendimento: e o
 // cadastro que sabe a data de nascimento e o sexo. Sem data de nascimento, os
 // dois blocos ficam fora — nao ha o que deduzir de um campo em branco.
-import { needsCaregiverHistory, needsReproductiveHistory, lifeStageOf } from "../clinical/lifeStage.js";
+import { PREGNANCY_ANSWERS, gestationalAge, gestationalAgeText, lifeStageOf, mayBePregnant, needsCaregiverHistory, needsReproductiveHistory } from "../clinical/lifeStage.js";
+import { arrayValue } from "../clinical/textFormat.js";
 import { optionGroups } from "../data/examOptions.js";
-import { chips, textarea } from "../ui/controls.js";
+import { chips, field, singleChoiceWithNotes, textarea } from "../ui/controls.js";
+import { escapeHtml } from "../ui/html.js";
 
 // Saude reprodutiva. O recorte e a fisiologia — ciclo, gestacao, lactacao,
 // climaterio —, que e o que muda diagnostico e prescricao: TDPM exige ciclo,
@@ -22,9 +24,45 @@ export function reproductiveHistoryCard(form = {}, patient = {}) {
     <div class="clinical-card">
       <h4>Saúde reprodutiva</h4>
       <p class="field-hint">Muda o diagnóstico e restringe a prescrição. Campo em branco significa não investigado.</p>
+      ${pregnancyBlock(form, patient)}
       ${chips("cicloReprodutivo", "Situação atual", optionGroups.cicloReprodutivo, form.cicloReprodutivo, form)}
       ${chips("sintomasCiclo", "Relação dos sintomas com o ciclo", optionGroups.sintomasCiclo, form.sintomasCiclo, form)}
       ${textarea("historiaReprodutiva", "Gestações, puerpério e uso de contraceptivo", form.historiaReprodutiva, "", 2)}
+    </div>`;
+}
+
+// A GRAVIDEZ SE PERGUNTA EM TRES RESPOSTAS, e cada uma leva a um lugar --
+// desenho dele, 02/09/2026. Duas sao conclusivas e uma nao e:
+//
+//   Sim, com certeza  -> calcular a idade gestacional (muda o que se pode dar,
+//                        e o trimestre muda de novo)
+//   Nao, com certeza  -> encerra o assunto
+//   Nao sabe          -> pedir beta-hCG antes de prescrever
+//
+// "Nao sabe" nao e campo em branco, e o achado mais importante dos tres: e o
+// estado em que a prescricao fica suspensa. Um checkbox "gestante" nao
+// distingue as duas ausencias -- quem sabe que nao esta, e quem nao sabe.
+function pregnancyBlock(form = {}, patient = {}) {
+  if (!mayBePregnant(patient)) return "";
+  const resposta = arrayValue(form.gravidez)[0] || "";
+  const ig = gestationalAgeText(form.gravidezDum);
+  const dpp = gestationalAge(form.gravidezDum)?.dpp || "";
+  return `
+    <div class="pregnancy-block">
+      ${singleChoiceWithNotes("gravidez", "Gestação", PREGNANCY_ANSWERS, form.gravidez)}
+      ${resposta === "Sim, com certeza" ? `
+        <div class="pregnancy-followup">
+          ${field("gravidezDum", "Primeiro dia da última menstruação", form.gravidezDum || "", "date")}
+          ${ig
+            ? `<p class="pregnancy-age"><strong>${escapeHtml(ig)}</strong> de idade gestacional${dpp ? ` · provável parto em ${escapeHtml(dpp)}` : ""}</p>`
+            : `<p class="field-hint">${form.gravidezDum ? "Data fora do intervalo de uma gestação. Confira." : "A idade gestacional é calculada a partir desta data."}</p>`}
+        </div>
+      ` : ""}
+      ${resposta === "Não sabe" ? `
+        <div class="pregnancy-followup warning">
+          Solicitar teste de gravidez (beta-hCG) antes de prescrever.
+        </div>
+      ` : ""}
     </div>`;
 }
 

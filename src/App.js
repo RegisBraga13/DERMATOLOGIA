@@ -20,6 +20,7 @@ import { clinicalSummaryGroups, clinicalSummaryPage } from "./views/clinicalSumm
 import { aiModeSelector, diagnosisModule, evolutionBody, ragSourcesView, returnPlanModule, returnPlanSettled, treatmentModule } from "./views/decisions.js";
 import { consultationAccessPanel, mentalExamBody, missingReturnAssessment, neurologicExamBody, recordReturnAction, returnAssessmentBody } from "./views/exams.js";
 import { caregiverHistoryCard, reproductiveHistoryCard } from "./views/lifeStageBlocks.js";
+import { lifeStageOf, needsCaregiverHistory, needsReproductiveHistory } from "./clinical/lifeStage.js";
 import { bookChapterView, medicationReferenceCard } from "./views/medication.js";
 
 const app = document.querySelector("#app");
@@ -888,6 +889,9 @@ function bindAutoDraft() {
         render();
         return;
       }
+      // A resposta da gestacao abre o campo seguinte -- data da DUM, ou o aviso
+      // do beta-hCG. Sem redesenhar, a pergunta que ela levanta nao aparece.
+      if (event.target?.name === "gravidez") { render(); return; }
       if (event.target?.matches?.("input[type='checkbox'][value='Outro'], select")) render();
     });
   });
@@ -1700,6 +1704,14 @@ async function processAnamnesisTranscriptSilently(transcript = "", options = {})
   else render();
 }
 
+function mandatoryRefinementBlocks(patient = {}) {
+  const blocos = [];
+  if (needsCaregiverHistory(patient)) blocos.push("crianca_adolescente");
+  if (lifeStageOf(patient)?.id === "idoso") blocos.push("idoso");
+  if (needsReproductiveHistory(patient)) blocos.push("saude_reprodutiva");
+  return blocos;
+}
+
 async function prepareRefinementFromClinicalData() {
   const context = clinicalAiContext("consultation");
   let result;
@@ -1724,6 +1736,15 @@ async function prepareRefinementFromClinicalData() {
         "current"
       );
       scope = escopo.result?.blocks || null;
+      // OS BLOCOS DA FAIXA ENTRAM POR FORA DA ESCOLHA DA IA.
+      //
+      // O resto do escopo ela escolhe, e escolhe bem. Estes tres nao: se a
+      // cobertura de crianca, de idoso e de saude reprodutiva dependesse de a
+      // IA lembrar de pedir o bloco, ela seria boa na maioria das vezes -- e a
+      // minoria e justamente onde o dado muda a prescricao. Sao forcados pela
+      // identificacao do paciente, que e fato, e nao juizo.
+      const obrigatorios = mandatoryRefinementBlocks(context.patient);
+      if (obrigatorios.length) scope = [...new Set([...(scope || []), ...obrigatorios])];
     }
     ({ result } = await requestClinicalAi(
       "refinement",

@@ -1,7 +1,7 @@
 export const optionGroups = {
   sexo: ["Masculino", "Feminino", "Intersexo"],
   // Blocos que so aparecem para parte dos pacientes (ver views/lifeStageBlocks).
-  cicloReprodutivo: ["Ciclos regulares", "Ciclos irregulares", "Gestante", "Puerperio", "Amamentando", "Contraceptivo hormonal", "Climaterio", "Menopausa", "Outro"],
+  cicloReprodutivo: ["Ciclos regulares", "Ciclos irregulares", "Puerperio", "Amamentando", "Contraceptivo hormonal", "Climaterio", "Menopausa", "Outro"],
   sintomasCiclo: ["Sem relacao com o ciclo", "Piora na semana pre-menstrual", "Piora na menstruacao", "Iniciou na gestacao", "Iniciou no puerperio", "Iniciou no climaterio", "Outro"],
   informante: ["A propria pessoa", "Mae", "Pai", "Outro responsavel", "Escola", "Outro"],
   escolaridadeContexto: ["Rendimento adequado", "Queda de rendimento", "Recusa escolar", "Repetencia", "Dificuldade de aprendizagem", "Conflito com colegas ou bullying", "Fora da escola", "Outro"],

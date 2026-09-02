@@ -2858,3 +2858,25 @@ textarea:focus-visible {
 }
 
 .medication-briefing dd { margin: 3px 0 0; font-size: 16px; line-height: 1.4; }
+
+/* A gestacao e a unica resposta da anamnese que pode suspender uma prescricao,
+   e por isso o desdobramento dela fica visivelmente preso a pergunta: recuado,
+   com um fio a esquerda, para que nao se leia como campo solto. */
+.pregnancy-block {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.pregnancy-followup {
+  display: grid;
+  gap: 6px;
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 2px solid var(--primary-2);
+}
+
+.pregnancy-age {
+  margin: 0;
+  color: var(--text);
+}

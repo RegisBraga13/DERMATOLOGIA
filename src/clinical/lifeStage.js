@@ -85,6 +85,43 @@ export function needsReproductiveHistory(patient = {}) {
   return String(patient.sexo || "").trim().toLowerCase() === "feminino";
 }
 
+// A pergunta da gravidez tem teto, e o cartao nao. Aos 78 anos nao se pergunta
+// gestacao, mas climaterio e menopausa continuam sendo historia relevante --
+// por isso sao duas condicoes, e nao uma.
+export function mayBePregnant(patient = {}) {
+  const idade = patientAge(patient);
+  return needsReproductiveHistory(patient) && idade !== null && idade <= 55;
+}
+
+export const PREGNANCY_ANSWERS = ["Sim, com certeza", "Não, com certeza", "Não sabe"];
+
+// Idade gestacional pela DUM, contada como se conta na clinica: semanas
+// completas desde o primeiro dia da ultima menstruacao, mais os dias que
+// sobram. A DPP e a regra de Naegele -- DUM + 280 dias.
+//
+// Data futura ou alem de 44 semanas nao devolve conta nenhuma: DUM digitada
+// errada e comum, e uma idade gestacional impossivel na tela e pior do que
+// nenhuma, porque parece calculada.
+export function gestationalAge(dumValue) {
+  if (!dumValue) return null;
+  const dum = new Date(`${dumValue}T00:00:00`);
+  if (Number.isNaN(dum.getTime())) return null;
+  const dias = Math.floor((Date.now() - dum.getTime()) / 86400000);
+  if (dias < 0 || dias > 308) return null;
+  const dpp = new Date(dum.getTime() + 280 * 86400000);
+  return {
+    semanas: Math.floor(dias / 7),
+    dias: dias % 7,
+    dpp: dpp.toLocaleDateString("pt-BR")
+  };
+}
+
+export function gestationalAgeText(dumValue) {
+  const ig = gestationalAge(dumValue);
+  if (!ig) return "";
+  return `${ig.semanas} semana${ig.semanas === 1 ? "" : "s"}${ig.dias ? ` e ${ig.dias} dia${ig.dias === 1 ? "" : "s"}` : ""}`;
+}
+
 export function needsCaregiverHistory(patient = {}) {
   const faixa = lifeStageOf(patient);
   return faixa?.id === "crianca" || faixa?.id === "adolescente";

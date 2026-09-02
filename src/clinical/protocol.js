@@ -12,7 +12,17 @@
 // O arquivo e gerado por scripts/build_protocol.py a partir do projeto
 // vizinho, que continua sendo a fabrica.
 
+import { lifeStageBlocksWithIds } from "../data/protocol/lifeStageQuestions.js";
+
 let protocolo = null;
+
+// Os blocos por faixa etaria entram no MESMO catalogo, e nao ao lado dele: a IA
+// escolhe por id de uma lista so, o resolvedor confere de uma lista so, e a
+// tela nao precisa saber que ha duas origens. O que os distingue e o campo
+// `origem`, que fica visivel em cada pergunta.
+function todosOsBlocos() {
+  return [...(protocolo?.blocos || []), ...lifeStageBlocksWithIds()];
+}
 
 export async function loadProtocol() {
   if (protocolo) return protocolo;
@@ -27,7 +37,7 @@ export function protocolLoaded() {
 }
 
 function flatten(lista) {
-  return (protocolo?.blocos || []).flatMap(bloco =>
+  return todosOsBlocos().flatMap(bloco =>
     (bloco[lista] || []).map(item => ({ ...item, campo: bloco.campo })));
 }
 
@@ -76,7 +86,7 @@ export function protocolItemById(id = "") {
  * nao quem decide.
  */
 export function protocolBlocksText(limiteAchados = 6) {
-  return (protocolo?.blocos || []).map(bloco => {
+  return todosOsBlocos().map(bloco => {
     const cobre = (bloco.achados || [])
       .slice(0, limiteAchados)
       .map(achado => achado.achado)

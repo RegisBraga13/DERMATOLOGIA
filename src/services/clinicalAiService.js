@@ -1,6 +1,6 @@
 import { diagnosticAggravatingOptionLines, diagnosticComorbidityOptionLines, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSpecifierOptionLines, diagnosticSyndromicOptionLines, formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharmacologicalOption, normalizeDiagnosticOptions, parseTreatmentResponse, selectedAggravatingValues, selectedComorbidityValues, selectedDiagnosisValues, selectedSpecifierValues, treatmentOptionLines } from "../clinical/diagnosis.js";
 import { careLevelOptions as CARE_LEVELS } from "../data/careLevels.js";
-import { lifeStagePromptText } from "../clinical/lifeStage.js";
+import { gestationalAgeText, lifeStagePromptText } from "../clinical/lifeStage.js";
 import { anamnesisText, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, patientIdentificationText, professionalSelectedTreatmentItems, refinementAnswersText, requestedExamsText, returnStoryText, treatmentDiagnosisText } from "../clinical/narrative.js";
 import { arrayValue, cleanClinicalLine, compactText, formatClinicalList, joinValues, mentalExamKeys, normalizeText, stripFinalPeriod } from "../clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, MENTAL_EXAM_AI_FIELDS, MENTAL_EXAM_NORMAL } from "../clinical/vocabulary.js";
@@ -642,6 +642,7 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
     ],
     refinement: [
       "Puxe as perguntas que a FAIXA ETARIA deste paciente exige e que ainda nao foram feitas — o que falta perguntar a uma crianca, a um adolescente ou a um idoso nao e o mesmo. Em mulher em idade fertil, ciclo menstrual, gestacao, puerperio, amamentacao e contracepcao sao lacuna quando ausentes.",
+      "Havendo no catalogo um bloco de faixa (crianca_adolescente, idoso, saude_reprodutiva), ele entrou porque a identificacao do paciente o exige: escolha PELO MENOS uma pergunta dele, e mais de uma se o caso pedir. Bloco de faixa presente e ignorado e falha de cobertura, e nao economia.",
       "Analise a anamnese revisada, o exame psiquico revisado e o exame fisico registrado.",
       // O motor antigo mandava a IA CRIAR as perguntas. Elas saiam boas, mas
       // sem procedencia: nao dava para conferir de onde vinham nem saber o que
@@ -929,6 +930,10 @@ function clinicalPromptData(form = {}, patient = {}, previous = null, isReturn =
     `Razoes para viver: ${stripFinalPeriod(form.riscoSuicidioRazoesParaViver || "") || "nao informado"}.`,
     // Os dois blocos condicionais da anamnese. So aparecem na tela para quem os
     // comporta, e por isso podem faltar aqui sem que isso signifique lacuna.
+    // A gestacao vem em linha propria, antes do resto: e a unica resposta desta
+    // tela que pode suspender uma prescricao. "Nao sabe" e afirmacao, e nao
+    // lacuna -- por isso e dita, e nao omitida.
+    pregnancyPromptLine(form),
     joinWithOutro(form.cicloReprodutivo, form.cicloReprodutivoOutro) || joinWithOutro(form.sintomasCiclo, form.sintomasCicloOutro) || form.historiaReprodutiva
       ? `Saude reprodutiva: ${[joinWithOutro(form.cicloReprodutivo, form.cicloReprodutivoOutro), joinWithOutro(form.sintomasCiclo, form.sintomasCicloOutro), stripFinalPeriod(form.historiaReprodutiva || "")].filter(Boolean).join("; ")}.`
       : "",
@@ -965,6 +970,19 @@ function clinicalPromptData(form = {}, patient = {}, previous = null, isReturn =
     `Conduta medica: ${stripFinalPeriod(form.condutaMedica || "") || "nao informado"}.`,
     isReturn ? `Dados de retorno: ${stripFinalPeriod(returnStoryText(form, previous)) || "nao informado"}.` : ""
   ].filter(Boolean).join("\n");
+}
+
+function pregnancyPromptLine(form = {}) {
+  const resposta = arrayValue(form.gravidez)[0] || "";
+  if (!resposta) return "";
+  if (resposta === "Sim, com certeza") {
+    const ig = gestationalAgeText(form.gravidezDum);
+    return `Gestacao: CONFIRMADA${ig ? `, idade gestacional de ${ig}` : ", idade gestacional nao calculada"}. A escolha do farmaco tem de ser compativel com a gestacao e com o trimestre, e a justificativa deve dizer por que.`;
+  }
+  if (resposta === "Não sabe") {
+    return "Gestacao: NAO SABE. Trate como possivel gestacao ate o beta-hCG: nao proponha teratogeno conhecido sem antes pedir o exame, e diga isso na conduta.";
+  }
+  return "Gestacao: descartada pela paciente.";
 }
 
 function choiceSummary(form, keys = []) {
