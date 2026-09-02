@@ -42,8 +42,8 @@ export function diagnosisModule(form) {
     <textarea hidden name="diagnosticoAiEspecificadores">${escapeHtml(specifierOptions.join("\n"))}</textarea>
     <textarea hidden name="diagnosticoAiComorbidades">${escapeHtml(comorbidityOptions.join("\n"))}</textarea>
     <textarea hidden name="diagnosticoAiAgravantes">${escapeHtml(aggravatingOptions.join("\n"))}</textarea>
-    ${diagnosisCategory("Sindrômico", syndromicOptions, selectedValues, "Sinais e sintomas inespecíficos, presentes em vários transtornos. Norteia a conduta imediata — alívio do sofrimento, controle de risco — mesmo antes de saber a causa ou o nome definitivo do quadro.")}
-    ${diagnosisCategory("Nosológico", nosologicalOptions, selectedValues, "Base do tratamento principal e do seguimento. Linguagem universal entre profissionais — CID-11 e DSM-5-TR —, sustenta atestados, laudos e direitos previdenciários, e é quem recebe os especificadores.", false, diagnosticCriteriaByOption(form))}
+    ${diagnosisCategory("Sindrômico", syndromicOptions, selectedValues)}
+    ${diagnosisCategory("Nosológico", nosologicalOptions, selectedValues, false, diagnosticCriteriaByOption(form))}
     ${checklistGroup({
       label: "Especificadores", campo: "especificadorSelecionado",
       options: specifierOptions, selecionados: selectedSpecifiers,
@@ -52,16 +52,14 @@ export function diagnosisModule(form) {
     ${checklistGroup({
       label: "Comorbidades", campo: "comorbidadeSelecionada", compacto: true,
       options: comorbidityOptions, selecionados: selectedComorbidities,
-      papel: "Entidade que coexiste com a hipótese principal, e não alternativa a ela. Leva código pelo mesmo motivo da camada nosológica: é entidade dos manuais.",
       vazio: "Nenhuma comorbidade proposta. Afirmar que duas entidades coexistem não se lê por correspondência de termo — vem da IA."
     })}
     ${checklistGroup({
       label: "Fatores agravantes", campo: "agravanteSelecionado", compacto: true,
       options: aggravatingOptions, selecionados: selectedAggravating,
-      papel: "Não são diagnóstico: são o que piora o curso, a resposta ao tratamento e o prognóstico — insônia crônica, uso nocivo de álcool, baixa adesão, conflito conjugal, doença clínica descompensada.",
       vazio: "Nenhum fator agravante proposto."
     })}
-    ${diagnosisCategory("Etiológico", etiologicalOptions, selectedValues, "A raiz do mal. Permite o tratamento causal e definitivo — tratar a tireoide em vez de medicar o sintoma —, evita erro grosseiro de manejo e previne recidiva. Pede acompanhamento multiprofissional e longitudinal.", true)}
+    ${diagnosisCategory("Etiológico", etiologicalOptions, selectedValues, true)}
     <div class="diagnosis-group diagnosis-group-compact diagnosis-doctor-group">
       <h4>Hipóteses do médico</h4>
       <div class="diagnosis-options">${diagnosisOptionCheckboxes(doctorDiagnosisOptions, selectedValues)}</div>
@@ -80,12 +78,11 @@ export function diagnosisModule(form) {
 // etiologico por ultimo, a raiz, que pede acompanhamento longitudinal.
 // Invertido em 31/08/2026 por decisao do medico. E o core do programa -- nao
 // reordenar sem decisao medica.
-function diagnosisCategory(label, options, selectedValues, papel = "", compacto = false, criterios = new Map()) {
+function diagnosisCategory(label, options, selectedValues, compacto = false, criterios = new Map()) {
   const total = options.length
     ? `${options.length} ${options.length === 1 ? "hipótese" : "hipóteses"}`
     : "sem hipóteses";
   return `<div class="diagnosis-group${compacto ? " diagnosis-group-compact" : ""}"><h4>${label} — ${total}</h4>
-      ${papel ? `<p class="diagnosis-role">${escapeHtml(papel)}</p>` : ""}
       <div class="diagnosis-options">
         ${options.length ? diagnosisOptionCheckboxes(options, selectedValues, criterios) : `<p class="diagnosis-empty">O registro atual não sustenta hipótese nesta categoria. Veja <strong>Hipóteses do médico</strong>.</p>`}
       </div>
@@ -130,11 +127,10 @@ function criterionList(linhas) {
 // diferencial; agravante nao e diagnostico nenhum, e o que piora curso,
 // resposta ao tratamento e prognostico. Sao tres coisas diferentes, e por isso
 // tres caixas, cada uma com o seu campo.
-function checklistGroup({ label, campo, options, selecionados, vazio, papel = "", compacto = false }) {
+function checklistGroup({ label, campo, options, selecionados, vazio, compacto = false }) {
   const marcados = new Set(selecionados.map(normalizeText));
   return `<div class="diagnosis-group${compacto ? " diagnosis-group-compact" : ""}">
     <h4>${label} — ${options.length ? `${options.length}` : "nenhum"}</h4>
-    ${papel ? `<p class="diagnosis-role">${escapeHtml(papel)}</p>` : ""}
     <div class="diagnosis-options">
       ${options.length ? options.map(option => `
         <label class="diagnosis-option">
@@ -203,8 +199,8 @@ export function refineButton(action, liberado) {
 export function aiModeSelector(value = "current", name = "aiMode") {
   return `<fieldset class="ai-mode-selector">
     <legend>Fonte da resposta</legend>
-    <label><input type="radio" name="${name}" value="current" ${value !== "rag" ? "checked" : ""} /><span>IA Nuvem</span><small>Pesquisa na web: bula vigente, alerta de agência, diretriz recente. Não lê os livros indexados</small></label>
-    <label><input type="radio" name="${name}" value="rag" ${value === "rag" ? "checked" : ""} /><span>RAG com literatura</span><small>Restringe a resposta às fontes indexadas (psicopatologia e psicofarmacologia)</small></label>
+    <label><input type="radio" name="${name}" value="current" ${value !== "rag" ? "checked" : ""} /><span>IA Nuvem</span></label>
+    <label><input type="radio" name="${name}" value="rag" ${value === "rag" ? "checked" : ""} /><span>RAG com literatura</span></label>
   </fieldset>`;
 }
 
@@ -484,7 +480,7 @@ export function careLevelView(form = {}) {
     return `<label class="diagnosis-option care-option${sugerido ? " care-suggested" : ""}">
       <input type="radio" name="nivelCuidado" value="${escapeAttr(nivel)}" ${escolhido === nivel ? "checked" : ""} />
       <span><strong>${escapeHtml(nivel)}</strong>${sugerido ? ' <em class="care-tag">sugerido</em>' : ""}
-      <small>${escapeHtml(careLevelNotes[nivel] || "")}</small></span>
+      ${careLevelNotes[nivel] ? `<small>${escapeHtml(careLevelNotes[nivel])}</small>` : ""}</span>
     </label>`;
   }).join("");
   // Aviso, e nao bloqueio: quem decide e ele, e um programa que se recusa a

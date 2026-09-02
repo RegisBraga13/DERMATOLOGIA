@@ -458,7 +458,7 @@ class CareLevelTests(unittest.TestCase):
         self.assertEqual(resultado["medication_options"], [])
 
     def test_the_three_admissions_are_the_ones_the_law_defines(self):
-        self.assertEqual(len(server.CARE_LEVELS), 7)
+        self.assertEqual(len(server.CARE_LEVELS), 5)
         internacoes = [n for n in server.CARE_LEVELS if n.startswith("Internação")]
         self.assertEqual(internacoes, ["Internação voluntária", "Internação involuntária", "Internação compulsória"])
 
@@ -488,9 +488,9 @@ class CareLevelTests(unittest.TestCase):
         nivel entra na revisao sem codigo proprio -- e a revisao substitui a tela
         inteira, incluindo ele."""
         self.assertIs(server.SCHEMAS["treatment_review"], server.SCHEMAS["treatment"])
-        resultado = self.tratamento(care_level={"level": "Hospital-dia", "justification": "suporte diurno"})
+        resultado = self.tratamento(care_level={"level": "Ambulatorial", "justification": "seguimento quinzenal"})
         server.validate_result("treatment_review", resultado)
-        self.assertEqual(resultado["care_level"]["level"], "Hospital-dia")
+        self.assertEqual(resultado["care_level"]["level"], "Ambulatorial")
 
 
 class PlainTextFromResultTests(unittest.TestCase):

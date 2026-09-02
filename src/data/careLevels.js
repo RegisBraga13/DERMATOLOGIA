@@ -9,6 +9,10 @@
 // escolher onde tratar inverte a ordem clinica. Num quadro de urgencia, errar
 // aqui e o erro que mata -- os outros se corrigem no retorno.
 //
+// Em 02/09/2026 sairam "Ambulatorial intensivo" e "Hospital-dia": nenhuma das
+// duas e via disponivel nesta pratica, e oferecer conduta que nao se executa e
+// pior do que nao oferecer nenhuma.
+//
 // LISTA FECHADA, e uma escolha so: nao se esta ao mesmo tempo em ambulatorio e
 // internado. Por isso a tela usa radio, e nao caixa de selecao como o resto do
 // programa.
@@ -18,24 +22,21 @@
 // consente, quem comunica e a quem se responde.
 export const careLevelOptions = [
   "Ambulatorial",
-  "Ambulatorial intensivo",
-  "Hospital-dia",
   "Internação voluntária",
   "Internação involuntária",
   "Internação compulsória",
   "Encaminhamento imediato a emergência"
 ];
 
-// O que a tela mostra embaixo de cada opcao. Internacao involuntaria e
-// compulsoria sao as duas que geram obrigacao legal, e a tela diz qual.
+// So as internacoes trazem nota, e a nota e a lei: o que muda entre as tres nao
+// e clinico, e juridico -- quem consente, quem comunica, a quem se responde --, e
+// isso nao se deduz do nome da modalidade. "Ambulatorial" e "Encaminhamento
+// imediato a emergencia" se explicam sozinhas, e glosar o obvio so afasta da
+// tela a linha que precisa ser lida.
 export const careLevelNotes = {
-  "Ambulatorial": "Seguimento em consultas agendadas.",
-  "Ambulatorial intensivo": "Consultas frequentes, com contato entre elas.",
-  "Hospital-dia": "Cuidado diurno estruturado, com retorno para casa.",
   "Internação voluntária": "Com consentimento escrito do paciente (Lei 10.216/2001, art. 6º, I).",
   "Internação involuntária": "Sem consentimento do paciente, a pedido de terceiro. Comunicação ao Ministério Público em 72 horas (Lei 10.216/2001, art. 8º, §1º).",
-  "Internação compulsória": "Determinada judicialmente (Lei 10.216/2001, art. 6º, III).",
-  "Encaminhamento imediato a emergência": "Risco atual que não comporta espera pela via ambulatorial."
+  "Internação compulsória": "Determinada judicialmente (Lei 10.216/2001, art. 6º, III)."
 };
 
 // Nivel que implica leito. Usado para exigir justificativa: privar alguem de

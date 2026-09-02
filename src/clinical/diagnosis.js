@@ -232,7 +232,7 @@ export function parseTreatmentResponse(text = "") {
     const parts = line.split(/\s*\|\s*/);
     return { approach: parts[0] || "", details: parts.slice(1).join(" | ") };
   });
-  // "Ambulatorial intensivo | consultas semanais ate reduzir o risco". Vem
+  // "Ambulatorial | consultas semanais ate reduzir o risco". Vem
   // antes das duas listas no texto plano pela mesma razao que vem antes na
   // tela: onde tratar decide-se antes de com o que tratar.
   const nivelMatch = clean.match(/N[IÍ]VEL DE CUIDADO:\s*([^\n]+)/i);

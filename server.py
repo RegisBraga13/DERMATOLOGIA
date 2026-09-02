@@ -25,8 +25,6 @@ VECTOR_STORE_API_URL = "https://api.openai.com/v1/vector_stores/{vector_store_id
 # 10.216/2001.
 CARE_LEVELS = [
     "Ambulatorial",
-    "Ambulatorial intensivo",
-    "Hospital-dia",
     "Internação voluntária",
     "Internação involuntária",
     "Internação compulsória",

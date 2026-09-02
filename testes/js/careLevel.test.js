@@ -17,15 +17,14 @@ import { careLevelView } from "../../src/views/decisions.js";
 import { professionalTreatmentText } from "../../src/clinical/narrative.js";
 
 describe("a lista e fechada e cada modalidade se explica", () => {
-  it("sao as 7 modalidades combinadas, sem sobra nem falta", () => {
-    assert.equal(careLevelOptions.length, 7);
-    assert.equal(new Set(careLevelOptions).size, 7);
+  it("sao as 5 modalidades combinadas, sem sobra nem falta", () => {
+    assert.equal(careLevelOptions.length, 5);
+    assert.equal(new Set(careLevelOptions).size, 5);
   });
 
-  it("toda modalidade tem a nota que a distingue na tela", () => {
-    for (const nivel of careLevelOptions) {
-      assert.ok(String(careLevelNotes[nivel] || "").trim(), `${nivel} sem nota`);
-    }
+  it("so as internacoes trazem nota, porque so nelas a diferenca e legal", () => {
+    const comNota = careLevelOptions.filter(nivel => String(careLevelNotes[nivel] || "").trim());
+    assert.deepEqual(comNota, careLevelOptions.filter(nivel => nivel.startsWith("Internação")));
   });
 
   it("as tres internacoes citam a lei que as define", () => {
@@ -56,7 +55,7 @@ describe("a IA propoe, o medico assinala", () => {
 
   it("a escolha e exclusiva: radio, e nao caixa de selecao", () => {
     const html = careLevelView(proposta);
-    assert.equal((html.match(/type="radio"/g) || []).length, 7);
+    assert.equal((html.match(/type="radio"/g) || []).length, 5);
     assert.doesNotMatch(html, /type="checkbox"/);
   });
 

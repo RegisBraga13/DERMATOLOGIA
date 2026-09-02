@@ -139,10 +139,10 @@ function topbar() {
 
 function dashboard() {
   const cards = [
-    ["patient", "Novo paciente", "Cadastre dados pessoais e de contato", "patient", "01"],
-    ["consult", "Nova consulta", "Conduza anamnese, exame e evolução", "consultation", "02"],
-    ["return", "Registrar retorno", "Acompanhe a resposta ao tratamento", "return", "03"],
-    ["record", "Prontuários", "Consulte o histórico clínico completo", "record", "04"]
+    ["patient", "Novo paciente", "patient", "01"],
+    ["consult", "Nova consulta", "consultation", "02"],
+    ["return", "Registrar retorno", "return", "03"],
+    ["record", "Prontuários", "record", "04"]
   ];
   const entries = (state.consultations?.length || 0) + (state.returns?.length || 0);
   return `<section class="dashboard">
@@ -159,10 +159,10 @@ function dashboard() {
       <div class="privacy-note">${lockIcon()}<span><strong>Privacidade em primeiro lugar</strong><small>Dados armazenados somente neste dispositivo</small></span></div>
     </div>
     <div class="quick-heading"><span>Acesso rápido</span><small>Selecione uma ação para começar</small></div>
-    <div class="dashboard-actions">${cards.map(([icon, title, desc, target, number]) => `
+    <div class="dashboard-actions">${cards.map(([icon, title, target, number]) => `
       <button class="dash-button" data-view="${target}">
         <span class="card-number">${number}</span><span class="dash-icon">${icons[icon]}</span>
-        <span class="dash-copy"><strong>${title}</strong><span>${desc}</span></span><span class="card-arrow">→</span>
+        <span class="dash-copy"><strong>${title}</strong></span><span class="card-arrow">→</span>
       </button>`).join("")}</div>
     <button class="session-exit" data-view="exit">${icons.exit}<span>Encerrar sessão</span></button>
   </section>`;
@@ -402,9 +402,9 @@ function refinementBody(form = {}) {
     return `
       <section class="refinement-section refinement-empty-state">
         <h4>Refinamento clínico</h4>
-        <p>O Refinamento usa o RAG com literatura para explorar lacunas clínicas, pontos essenciais e red flags a partir dos dados registrados.</p>
-        <p>${refinementGenerating ? "Preparando perguntas com a literatura..." : "Quando estiver pronto, acione o refinamento para iniciar esta etapa."}</p>
-        ${refinementGenerating ? "" : '<button class="primary" type="button" data-action="start-refinement">Iniciar refinamento</button>'}
+        ${refinementGenerating
+          ? "<p>Preparando perguntas com a literatura...</p>"
+          : '<button class="primary" type="button" data-action="start-refinement">Iniciar refinamento</button>'}
       </section>
     `;
   }
@@ -626,7 +626,6 @@ function anamnesisQuestionGuide() {
     .sort(([labelA], [labelB]) => itemOrder.indexOf(labelA) - itemOrder.indexOf(labelB));
 
   return `<div class="clinical-card anamnesis-guide">
-    <div class="online-status">Roteiro semiológico orientado por RAG: registre cronologia, polaridade do humor, sintomas associados, psicose, risco, substâncias, causas médicas, funcionamento e fatores de proteção. Os campos abaixo são pontos de apoio; a narrativa da consulta continua sendo a fonte principal.</div>
     <div class="guide-group">
       <div class="guide-items">
         ${orderedItems.map(([label, questions]) => `
