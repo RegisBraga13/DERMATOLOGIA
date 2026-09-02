@@ -89,9 +89,13 @@ export const consultationPages = [
   ["medicamentos", "Medicamentos"]
 ];
 
+// A segunda pagina do retorno era "Texto final", e o titulo dela dizia
+// "Evolucao do Retorno", e o botao dizia "Atualizar evolucao": tres nomes para
+// a mesma etapa, e a palavra "Evolucao" repetida na aba anterior, que e outra
+// coisa. Virou "Ajuste de conduta" em 02/09/2026, que e o que ela faz.
 export const returnPages = [
   ["evolucao-retorno", "Evolução"],
-  ["texto-retorno", "Texto final"]
+  ["texto-retorno", "Ajuste de conduta"]
 ];
 
 // As quatro saidas de "nenhum transtorno" carregam codigo pelo mesmo motivo da

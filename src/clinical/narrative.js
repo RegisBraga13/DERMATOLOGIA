@@ -89,10 +89,16 @@ export function buildEvolutionNarrative(form, patient = {}, previous = null, isR
 export function professionalTreatmentText(form = {}, isReturn = false) {
   const medications = professionalSelectedTreatmentItems(form.tratamentoMedicamentosSelecionados, form.tratamentoMedicamentoso);
   const approaches = professionalSelectedTreatmentItems(form.abordagensSelecionadas, form.abordagensTerapeuticas);
-  const returnMedicationActions = professionalListWithOther(
-    form.condutaMedicamentoRetorno,
-    form.condutaMedicamentoRetornoOutro
-  );
+  // O Ajuste de conduta do retorno, a partir de 02/09/2026. So o assinalado
+  // entra: proposta que a IA fez e o medico nao marcou nao existe para o
+  // prontuario. `condutaMedicamentoRetorno` continua sendo lido porque retorno
+  // gravado antes desta data guardou a conduta naquele campo, que saiu da tela.
+  const returnMedicationActions = professionalSelectedTreatmentItems(
+    form.ajusteMedicacaoSelecionada,
+    ""
+  ) || professionalListWithOther(form.condutaMedicamentoRetorno, form.condutaMedicamentoRetornoOutro);
+  const returnConductAdjustments = professionalSelectedTreatmentItems(form.ajusteCondutaSelecionada, "");
+  const returnAddition = professionalClinicalTerms(stripFinalPeriod(form.ajusteAcrescimo || ""));
   const targetSymptomConducts = professionalSelectedTreatmentItems(form.sintomasAlvoSelecionados, "");
   const physicianPlan = professionalClinicalTerms(stripFinalPeriod(form.condutaMedica || ""));
   const selectedExams = professionalClinicalTerms(requestedExamsText(form) || form.examesLaboratoriais || "");
@@ -109,6 +115,8 @@ export function professionalTreatmentText(form = {}, isReturn = false) {
     medications ? `O tratamento medicamentoso selecionado inclui ${lowerFirst(medications)}.` : "",
     approaches ? `Como medidas não farmacológicas, foram selecionadas ${lowerFirst(approaches)}.` : "",
     isReturn && returnMedicationActions ? `A conduta medicamentosa definida no retorno inclui ${lowerFirst(returnMedicationActions)}.` : "",
+    isReturn && returnConductAdjustments ? `Como ajustes de conduta, foram definidos ${lowerFirst(returnConductAdjustments)}.` : "",
+    isReturn && returnAddition ? `${returnAddition}.` : "",
     // O sintoma-alvo entra antes da conduta livre do medico: e a conduta que
     // nao espera o diagnostico fechar.
     targetSymptomConducts ? `Para os sintomas-alvo, foi definida a conduta de ${lowerFirst(targetSymptomConducts)}.` : "",

@@ -169,12 +169,21 @@ export function chips(name, labelText, options, values = [], form = null, otherK
     : `<label class="chip"><input type="checkbox" name="${name}" value="${escapeAttr(option)}" ${set.has(option) ? "checked" : ""}>${escapeHtml(optionDisplayLabel(option))}</label>`).join("")}</div></div>`;
 }
 
-export function singleChoiceWithNotes(name, labelText, options, value = "") {
+export function singleChoiceWithNotes(name, labelText, options, value = "", form = null) {
   const selectedValue = normalizedSingleChoiceValue(name, value);
+  const nota = form ? String(form[`${name}Outro`] || "") : "";
   return `<div>
     <label>${labelText}</label>
     <div class="chips">
-      ${options.map(option => `<label class="chip"><input type="radio" name="${name}" value="${escapeAttr(option)}" ${selectedValue === option ? "checked" : ""}>${escapeHtml(option)}</label>`).join("")}
+      ${options.map(option => {
+        const marcado = selectedValue === option ? "checked" : "";
+        const botao = `<label class="chip"><input type="radio" name="${name}" value="${escapeAttr(option)}" ${marcado}>${escapeHtml(option)}</label>`;
+        // O "Outro" carrega o campo de texto que a narrativa ja lia
+        // (`${name}Outro`) e que ate 02/09/2026 nao tinha onde ser escrito:
+        // o nome da funcao prometia a nota, e a nota nao existia na tela.
+        return option === "Outro" ? `<div class="chip-other">${botao}
+          <input class="chip-note" type="text" name="${name}Outro" value="${escapeAttr(nota)}" placeholder="Descreva" aria-label="Descreva o outro" /></div>` : botao;
+      }).join("")}
     </div>
   </div>`;
 }

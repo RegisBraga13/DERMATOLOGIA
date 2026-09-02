@@ -24,36 +24,39 @@
 // sintoma na busca do apendice, e esta lista sobrevive como SUGESTAO: o datalist
 // do campo. Curadoria dele, e continua util para lembrar; so nao fecha mais a
 // porta para o que ela nao previu.
+//
+// 02/09/2026: de trinta para dezenove, a pedido dele — "os sintomas mais
+// frequentes e relevantes, escolher com mais parcimonia". Sugestao longa
+// deixa de sugerir: rolar trinta linhas custa mais do que digitar. Sairam os
+// que se sobrepoem a um vizinho (lentificacao e apatia moram na anedonia,
+// labilidade na irritabilidade, logorreia no pensamento acelerado) e os que
+// so aparecem num quadro estreito (despersonalizacao, sobressalto,
+// hipervigilancia, restricao alimentar, culpa, choro). Nenhum foi proibido —
+// o campo e livre, e quem digitar recebe a mesma conduta de antes.
+//
+// Dois ficaram menos estreitos: a ideacao delirante perdeu o "persecutoria",
+// que escondia a de grandeza, e o deficit de atencao perdeu o "agudo".
+//
+// "Outro" saiu junto: era chip de lista fechada, e nao ha o que escolher
+// quando o campo ja aceita qualquer palavra.
 export const targetSymptomOptions = [
   "Insônia inicial ou de manutenção",
-  "Agitação psicomotora",
-  "Ideação suicida ativa ou passiva",
   "Ansiedade paroxística (pânico)",
+  "Ideação suicida ativa ou passiva",
+  "Agitação psicomotora",
   "Irritabilidade ou disforia",
-  "Ruminação obsessiva",
   "Anedonia",
-  "Compulsão alimentar",
-  "Lentificação psicomotora",
-  "Alucinações auditivas ou visuais",
-  "Ideação delirante persecutória",
-  "Déficit de atenção agudo",
-  "Impulsividade comportamental",
-  "Apatia e avolição profundas",
-  "Esquiva ou isolamento social",
-  "Labilidade afetiva",
-  "Hipervigilância",
+  "Astenia ou fadiga",
   "Sintomas somáticos",
-  "Despersonalização",
-  "Compulsões (rituais físicos)",
-  "Restrição alimentar severa",
-  "Choro incontrolável",
-  "Fuga de ideias ou pensamento acelerado",
-  "Craving (fissura)",
-  "Sentimento de culpa excessiva",
-  "Astenia ou fadiga crônica",
+  "Ruminação obsessiva",
+  "Compulsões (rituais)",
+  "Esquiva ou isolamento social",
+  "Impulsividade comportamental",
   "Automutilação",
-  "Logorreia",
-  "Distorção da imagem corporal",
-  "Sobressalto exagerado",
-  "Outro"
+  "Pensamento acelerado",
+  "Alucinações auditivas ou visuais",
+  "Ideação delirante",
+  "Craving (fissura)",
+  "Déficit de atenção",
+  "Compulsão alimentar"
 ];

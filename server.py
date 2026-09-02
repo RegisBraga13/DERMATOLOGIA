@@ -33,6 +33,18 @@ CARE_LEVELS = [
     "Encaminhamento imediato a emergência",
 ]
 
+# O que se pode decidir sobre um farmaco num retorno. Lista fechada de proposito:
+# aqui a resposta vira caixa de assinalar na tela, e "reavaliar posteriormente"
+# ou "considerar ajuste" nao sao condutas -- sao o adiamento delas.
+RETURN_MEDICATION_ACTIONS = [
+    "Manter dose",
+    "Aumentar dose",
+    "Diminuir dose",
+    "Trocar medicamento",
+    "Retirar",
+    "Acrescentar medicamento",
+]
+
 DEFAULT_MODEL = "gpt-4.1"
 
 # A ferramenta de busca na web da Responses API. Configuravel porque o nome do
@@ -91,8 +103,8 @@ MAX_PROMPT_CHARS = 160000
 MAX_OUTPUT_TOKENS = 2200
 MAX_AUDIO_BYTES = 30 * 1024 * 1024
 ALLOWED_KINDS = {"anamnesis", "mental_exam", "refinement_scope", "refinement", "diagnosis", "diagnosis_review",
-                 "treatment", "treatment_review", "symptomatic", "evolution", "medication", "medication_review",
-                 "medication_tips"}
+                 "treatment", "treatment_review", "symptomatic", "return_plan", "evolution", "medication",
+                 "medication_review", "medication_tips"}
 # A segunda passada do Diagnostico e do Tratamento nao e outra tarefa: e a
 # mesma, refeita por um revisor com outro livro na mao. Por isso reaproveita
 # schema, validacao e texto plano do "kind" que ela revisa — a tela recebe a
@@ -655,6 +667,53 @@ SCHEMAS = {
         },
         "required": ["markdown"],
     },
+    # O Ajuste de conduta do retorno, criado em 02/09/2026. A pagina anterior
+    # coleta O QUE O MEDICO VIU -- evolucao, adesao, efeitos, e como esta cada
+    # hipotese e cada farmaco do atendimento passado. Esta etapa faz a unica
+    # coisa que sobra: concluir o que decorre disso.
+    #
+    # A divisao e deliberada, e foi a condicao dele para a IA entrar aqui: ela
+    # nao propoe como o paciente evoluiu (so o medico viu), propoe o que fazer
+    # dado que evoluiu assim. Sugestao sobre campo em branco pareceria igual a
+    # sugestao sobre dado -- por isso a pagina anterior nao deixa avancar
+    # incompleta.
+    #
+    # `medication_actions` cobre TODOS os farmacos em uso, um por um. Manter e
+    # uma decisao, e nao a ausencia de uma: um retorno em que nada se decide
+    # sobre um farmaco prescrito e um retorno que esqueceu dele.
+    "return_plan": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "medication_actions": {
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 8,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "medication": {"type": "string"},
+                        "action": {"type": "string", "enum": RETURN_MEDICATION_ACTIONS},
+                        # O que muda na receita: "para 100 mg/dia", "retirar em
+                        # 4 semanas, 25 mg por semana". Vazio quando manter.
+                        "detail": {"type": "string"},
+                        "rationale": {"type": "string"},
+                    },
+                    "required": ["medication", "action", "detail", "rationale"],
+                },
+            },
+            # Conduta que nao e receita: exame, encaminhamento, psicoterapia,
+            # intervalo do proximo retorno, orientacao. Uma linha cada.
+            "conduct_options": {
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 6,
+                "items": {"type": "string"},
+            },
+        },
+        "required": ["medication_actions", "conduct_options"],
+    },
     # Refeita em 31/08/2026, ao ver a ficha da risperidona: tres campos de prosa
     # longa que reescreviam a bula. Palavras dele: "nao e essa enxurrada de
     # informacao que interessa -- isso ai tem na bula", e logo depois o formato
@@ -948,6 +1007,11 @@ RAG_SCOPE_BY_KIND = {
     # de tabela; o que se recupera aqui e criterio, e nao numero.
     "diagnosis": ("psicopatologia", "sindromes", "criterios"),
     "treatment": ("terapeutica",),
+    # O Ajuste de conduta le a mesma prateleira do Tratamento, e pela mesma
+    # razao: a pergunta e de conduta -- quanto tempo esperar por resposta,
+    # quando subir a dose, quando trocar, quando chamar de refratario. O que
+    # muda e que aqui ja existe um tratamento em curso e um resultado dele.
+    "return_plan": ("terapeutica",),
     # As duas revisoes leem o mesmo tratado porque o revisor e o mesmo. O que
     # separa revisar diagnostico de revisar tratamento e a pergunta e o contexto
     # do prompt, nao o corpus.
@@ -1277,6 +1341,27 @@ def validate_result(kind, result):
         if len(alvos_uteis) != len(alvos):
             logger.warning("sintomatico: %d conduta(s) incompleta(s) descartada(s)", len(alvos) - len(alvos_uteis))
         result["target_symptom_options"] = alvos_uteis
+    elif kind == "return_plan":
+        acoes = result.get("medication_actions")
+        if not isinstance(acoes, list):
+            raise ValueError("Ajuste de conduta fora do formato esperado.")
+        # Farmaco sem nome ou com acao fora da lista nao vira caixa de
+        # assinalar: viraria uma linha que o medico marca sem saber o que
+        # marcou. `detail` pode ser vazio -- manter dose nao muda receita.
+        uteis = [a for a in acoes
+                 if isinstance(a, dict)
+                 and isinstance(a.get("medication"), str) and a["medication"].strip()
+                 and a.get("action") in RETURN_MEDICATION_ACTIONS]
+        for a in uteis:
+            for campo in ("detail", "rationale"):
+                a[campo] = a[campo].strip() if isinstance(a.get(campo), str) else ""
+        if len(uteis) != len(acoes):
+            logger.warning("return_plan: %d acao(oes) descartada(s)", len(acoes) - len(uteis))
+        result["medication_actions"] = uteis
+        condutas = result.get("conduct_options")
+        if not isinstance(condutas, list):
+            raise ValueError("Ajuste de conduta fora do formato esperado.")
+        result["conduct_options"] = [c.strip() for c in condutas if isinstance(c, str) and c.strip()][:6]
     elif kind == "medication_tips":
         tips = result.get("tips")
         if not isinstance(tips, list) or not all(isinstance(item, str) for item in tips):
@@ -1636,6 +1721,17 @@ def plain_text_from_result(kind, result):
             return "\n".join(linhas)
         return "CONDUTA PARA OS SINTOMAS-ALVO:\n" + "\n".join(
             uma(item) for item in (result.get("target_symptom_options") or []))
+    if kind == "return_plan":
+        def acao(a):
+            partes = [a["medication"], a["action"]]
+            if a.get("detail"):
+                partes.append(a["detail"])
+            if a.get("rationale"):
+                partes.append(a["rationale"])
+            return " | ".join(partes)
+        farmacos = "\n".join(acao(a) for a in (result.get("medication_actions") or [])) or "nenhum"
+        condutas = "\n".join(result.get("conduct_options") or []) or "nenhuma"
+        return f"MEDICACAO:\n{farmacos}\n\nAJUSTES DE CONDUTA:\n{condutas}"
     if kind == "medication_tips":
         return "\n\n".join(result["tips"])
     if kind == "evolution":

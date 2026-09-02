@@ -17,8 +17,8 @@ import { escapeAttr, escapeHtml } from "./ui/html.js";
 import { createVoiceRecording } from "./ui/voiceRecording.js";
 import { clipboardIcon, folderIcon, homeIcon, lockIcon, personIcon, repeatIcon, themeIcon } from "./ui/icons.js";
 import { clinicalSummaryGroups, clinicalSummaryPage } from "./views/clinicalSummary.js";
-import { aiModeSelector, diagnosisModule, evolutionBody, ragSourcesView, refineButton, treatmentModule } from "./views/decisions.js";
-import { consultationAccessPanel, mentalExamBody, neurologicExamBody, recordReturnAction, returnAssessmentBody } from "./views/exams.js";
+import { aiModeSelector, diagnosisModule, evolutionBody, ragSourcesView, returnPlanModule, returnPlanSettled, treatmentModule } from "./views/decisions.js";
+import { consultationAccessPanel, mentalExamBody, missingReturnAssessment, neurologicExamBody, recordReturnAction, returnAssessmentBody } from "./views/exams.js";
 import { bookChapterView, medicationReferenceCard } from "./views/medication.js";
 
 const app = document.querySelector("#app");
@@ -382,7 +382,14 @@ function returnPageBody(form, patient, previous) {
   if (returnPage === "diagnostico") return clinicalPage("Diagnostico e diferenciais", diagnosisModule(form), "return");
   if (returnPage === "tratamento") return clinicalPage("Tratamento e orientacoes", treatmentModule(form), "return");
   if (returnPage === "medicamentos") return clinicalPage("Medicamentos", medicationBody(form), "return", false);
-  return clinicalPage("Evolucao do Retorno", evolutionBody(form, patient, previous, true), "return");
+  // A pagina junta as duas coisas na ordem em que se decide, e SO na ordem em
+  // que se decide: o texto nao abre junto, aparece depois do ajuste, ja com o
+  // ajuste dentro. Antes disso nao haveria o que escrever.
+  return clinicalPage("Ajuste de conduta",
+    returnPlanModule(form) + (returnPlanSettled(form)
+      ? evolutionBody(form, patient, previous, true)
+      : `<p class="diagnosis-empty">O texto da evolução aparece aqui depois que você assinalar a conduta acima.</p>`),
+    "return");
 }
 
 function refinementBody(form = {}) {
@@ -439,10 +446,6 @@ function medicationBody(form) {
   const sintomaBuscado = form.appendixSymptom || "";
   const hasInformation = Boolean(form.medicationNameText || form.medicationClassMechanism || form.medicationInitialDose
     || form.medicationPresentation || form.medicationSafety || form.medicationBestUse);
-  // Sem o nome: a ficha aparece com o nome preenchido pela busca local antes de
-  // a IA gerar coisa alguma, e ali nao ha primeira passada para revisar.
-  const hasAiInformation = Boolean(form.medicationClassMechanism || form.medicationInitialDose || form.medicationSideEffects
-    || form.medicationPresentation || form.medicationSafety || form.medicationBestUse);
   const condutas = appendixSymptomLines(form);
   return `
     <div class="medication-reference">
@@ -462,12 +465,12 @@ function medicationBody(form) {
         </div>
         <div id="medication-suggestions" class="medication-suggestions" role="listbox"></div>
         ${aiModeSelector(form.pharmaAiMode || "rag", "pharmaAiMode")}
+        <!-- So "Gerar". "Refinar" e "Capitulo do livro" sairam daqui em
+             02/09/2026: tres botoes numa consulta que e uma pergunta so. O
+             capitulo nao dependia do botao — carrega sozinho ao escolher o
+             farmaco, e agora fecha e reabre pelo proprio cabecalho dele. -->
         <div class="actions">
           <button class="primary" type="button" data-action="generate-medication-ai">Gerar</button>
-          ${refineButton("refine-medication-ai", hasAiInformation)}
-          <button class="secondary${form.medicationChapter ? " active" : ""}" type="button" data-action="toggle-book-chapter"
-            ${medicationName ? "" : "disabled"}
-            title="O capitulo deste farmaco como esta no livro, do nome ate o fim dos BIPP TIPS. Abre sozinho ao escolher o medicamento.">${form.medicationChapter ? "Ocultar o capítulo" : "Capítulo do livro"}</button>
         </div>
         ${form.medicationOnlineStatus ? `<p class="medication-source-status">${escapeHtml(form.medicationOnlineStatus)}</p>` : ""}
         ${ragSourcesView(form.ragSourcesMedicamento)}
@@ -484,7 +487,6 @@ function medicationBody(form) {
           <input id="appendix-symptom-lookup" name="appendixSymptom" value="${escapeAttr(sintomaBuscado)}"
             autocomplete="off" list="appendix-symptom-hints" aria-label="Sintoma a consultar" />
           <datalist id="appendix-symptom-hints">${targetSymptomOptions
-            .filter(item => item !== "Outro")
             .map(item => `<option value="${escapeAttr(item)}"></option>`).join("")}</datalist>
           <button class="medication-clear" type="button" data-action="clear-appendix-symptom" aria-label="Limpar pesquisa">×</button>
         </div>
@@ -836,6 +838,16 @@ function bindAutoDraft() {
         render();
         return;
       }
+      // Marcar a conduta do retorno faz o texto da evolucao aparecer logo
+      // abaixo, ja escrito com o que acabou de ser assinalado. Sem este
+      // desenho, a tela so mudaria na proxima acao que redesenhasse a pagina.
+      // "ajusteAcrescimo" entra por `change`, e nao por `input`: redesenhar a
+      // cada tecla tiraria o cursor de dentro do campo. Ao sair dele, o texto
+      // aparece.
+      if (["ajusteMedicacaoSelecionada", "ajusteCondutaSelecionada", "ajusteAcrescimo"].includes(event.target?.name)) {
+        render();
+        return;
+      }
       if (event.target?.matches?.("input[type='checkbox'][value='Outro'], select")) render();
     });
   });
@@ -952,10 +964,9 @@ function bindActions() {
       if (action === "refine-diagnosis") await generateDiagnosisFromClinicalData(element, "diagnosis_review");
       if (action === "generate-treatment") await generateTreatmentFromClinicalData(element);
       if (action === "refine-treatment") await generateTreatmentFromClinicalData(element, "treatment_review");
+      if (action === "generate-return-plan") await generateReturnPlanFromClinicalData(element);
       if (action === "generate-evolution") await generateEvolutionFromClinicalData(element);
       if (action === "generate-medication-ai") await generateMedicationFromClinicalData(element);
-      if (action === "refine-medication-ai") await generateMedicationFromClinicalData(element, "medication_review");
-      if (action === "toggle-book-chapter") await toggleBookChapter(element);
       if (action === "fill-medication-info") await fillMedicationInfo(element);
       if (action === "clear-medication-lookup") clearMedicationLookup();
       if (action === "set-anamnesis-mode") setAnamnesisInputMode(element.dataset.mode);
@@ -1046,6 +1057,17 @@ async function saveCurrentPageAndAdvance(element) {
   if (form) updateDraftFromForm(form);
   const scope = element.dataset.scope;
   const completedPage = currentPageForScope(scope);
+  // A Evolucao do retorno so libera a saida completa. Barra aqui, e nao no
+  // `required` do HTML, porque o botao nao submete o formulario e porque a
+  // mensagem precisa dizer QUAL linha falta -- num caso com quatro hipoteses e
+  // tres farmacos, "preencha os campos" nao ajuda ninguem.
+  if (scope === "return" && completedPage === "evolucao-retorno") {
+    const faltando = missingReturnAssessment(draft.return || {}, previousEntryForReturn(draft.return || {}, selectedPatientId));
+    if (faltando.length) {
+      alert(`Falta responder antes de avancar:\n\n- ${faltando.join("\n- ")}`);
+      return;
+    }
+  }
   saveClinicalRecord(scope);
   const nextPage = nextPageForScope(scope);
   // A pagina seguinte e liberada de qualquer jeito, inclusive no desvio: o
@@ -1222,6 +1244,69 @@ async function generateTreatmentFromClinicalData(element, kind = "treatment") {
   render();
 }
 
+
+// O Ajuste de conduta do retorno. So roda no retorno, e so depois da Evolucao:
+// o que a IA conclui aqui e conclusao SOBRE o que o medico marcou la, e a
+// pagina anterior nao deixa avancar incompleta justamente para que esta nao
+// receba buraco.
+async function generateReturnPlanFromClinicalData(element) {
+  const { scope, target } = syncedTarget(element);
+  const faltando = missingReturnAssessment(target || {}, previousEntryForReturn(target || {}, selectedPatientId));
+  if (faltando.length) {
+    return alert(`Complete a Evolucao antes de gerar o ajuste. Falta:\n\n- ${faltando.join("\n- ")}`);
+  }
+  const gravar = dados => {
+    if (scope === "return") draft.return = { ...(draft.return || {}), ...dados };
+    else draft.consultation = { ...(draft.consultation || {}), ...dados };
+  };
+  gravar({ returnPlanStatus: "Consultando a literatura de conduta..." });
+  render();
+  try {
+    const context = clinicalAiContext(scope);
+    const { result, sources, webSources, mode } = await requestClinicalAi(
+      "return_plan",
+      buildClinicalAiPrompt("return_plan", context.target, context.patient, context.previous, context.isReturn),
+      context.target?.returnPlanAiMode || "rag",
+      buildRagQuery("return_plan", context.target), buildWebQuery("return_plan", context.target));
+    const medicacao = returnPlanMedicationLines(result);
+    const conduta = (result.conduct_options || []).map(item => String(item || "").trim()).filter(Boolean);
+    gravar({
+      ajusteAiMedicacao: medicacao.join("\n"),
+      ajusteAiConduta: conduta.join("\n"),
+      // As escolhas anteriores sobrevivem a uma nova geracao, como no
+      // Diagnostico e no Tratamento: regerar nao pode apagar o que ele ja
+      // decidiu. As linhas que sumirem da nova proposta caem sozinhas, porque a
+      // caixa so existe enquanto a linha existir.
+      ajusteMedicacaoSelecionada: arrayValue(target?.ajusteMedicacaoSelecionada),
+      ajusteCondutaSelecionada: arrayValue(target?.ajusteCondutaSelecionada),
+      ragSourcesAjuste: sourcesOfMode(mode, sources, webSources),
+      returnPlanAiMode: mode,
+      returnPlanStatus: medicacao.length || conduta.length
+        ? `${countLabel(medicacao.length, "decisão de medicamento", "decisões de medicamento")} e ${countLabel(conduta.length, "ajuste de conduta", "ajustes de conduta")} para você assinalar. Nada entra no prontuário sem a sua marcação.`
+        : "A IA não propôs ajuste algum. Verifique se o atendimento anterior tem medicamento assinalado."
+    });
+  } catch (error) {
+    gravar({
+      ragSourcesAjuste: [],
+      returnPlanStatus: `${(target?.returnPlanAiMode || "rag") === "rag" ? "RAG" : "IA"} indisponivel: ${error.message}`
+    });
+  }
+  render();
+}
+
+// Uma linha por farmaco, e a linha carrega a decisao inteira: sem o "por que", a
+// caixa assinalada vira ordem sem motivo no prontuario, e o motivo e o que o
+// medico esta conferindo quando aceita ou recusa.
+function returnPlanMedicationLines(result = {}) {
+  return (result.medication_actions || []).flatMap(item => {
+    const farmaco = String(item?.medication || "").trim();
+    const acao = String(item?.action || "").trim();
+    if (!farmaco || !acao) return [];
+    const detalhe = String(item?.detail || "").trim();
+    const porque = String(item?.rationale || "").trim();
+    return [[`${farmaco} — ${acao}`, detalhe, porque].filter(Boolean).join(" | ")];
+  }).filter((linha, index, lista) => lista.indexOf(linha) === index);
+}
 
 // Cada linha e uma caixa de selecao independente: a conduta de manejo, a
 // primeira opcao medicamentosa e a segunda. Ele pode querer so a orientacao, so
@@ -1451,8 +1536,9 @@ async function generateMedicationFromClinicalData(element, kind = "medication") 
 // Custo zero e resposta imediata. E ele estava escondido atras de um botao,
 // enquanto o que abria por padrao era uma chamada de API parafraseando a bula.
 //
-// Agora o capitulo carrega sozinho ao escolher o farmaco. O botao continua, e
-// so fecha e reabre.
+// Agora o capitulo carrega sozinho ao escolher o farmaco. O botao que fechava
+// e reabria saiu em 02/09/2026: o proprio cabecalho do capitulo faz isso, num
+// <details>, e a barra de acoes voltou a ter um botao so.
 async function loadBookChapter(scope, nome) {
   const aplica = dados => {
     if (scope === "return") draft.return = { ...(draft.return || {}), ...dados };
@@ -1470,18 +1556,6 @@ async function loadBookChapter(scope, nome) {
   } catch (error) {
     aplica({ medicationChapter: null, medicationChapterStatus: `Capitulo indisponivel: ${error.message}` });
   }
-}
-
-async function toggleBookChapter(element) {
-  const { scope, target } = syncedTarget(element);
-  if (target?.medicationChapter) {
-    if (scope === "return") draft.return = { ...(draft.return || {}), medicationChapter: null, medicationChapterStatus: "" };
-    else draft.consultation = { ...(draft.consultation || {}), medicationChapter: null, medicationChapterStatus: "" };
-    return render();
-  }
-  const nome = (target?.medicationGeneric || target?.medicationNameText || "").trim();
-  if (!nome) return alert("Escolha o medicamento antes de mostrar o capitulo.");
-  await loadBookChapter(scope, nome);
 }
 
 // Os BIPP TIPS sao uma secao da Psicofarmacologia: Da Teoria a Clinica (2025),

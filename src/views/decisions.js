@@ -341,6 +341,76 @@ function treatmentOptionCheckboxes(name, options, selectedValues) {
   `).join("");
 }
 
+// A segunda pagina do retorno, criada em 02/09/2026. Ordem da tela e a ordem da
+// decisao: primeiro a medicacao, depois o resto da conduta, depois o que o
+// medico acrescenta, e so entao o texto.
+//
+// A medicacao vem primeiro por exigencia dele -- "sempre tem que ser
+// contemporizada". Nenhum farmaco em uso sai do retorno sem decisao, nem que a
+// decisao seja manter: retorno que nao diz nada sobre um farmaco prescrito e
+// retorno que esqueceu dele.
+//
+// As caixas nascem DESMARCADAS. A pagina anterior e observacao do medico e nao
+// deixa avancar incompleta; esta e inferencia da IA sobre aquilo, e vai errar
+// alguma. Caixa ja marcada e mais facil de deixar passar do que campo vazio --
+// o custo de errar aqui e uma receita.
+export function returnPlanModule(form) {
+  const medicacao = treatmentOptionLines(form.ajusteAiMedicacao);
+  const conduta = treatmentOptionLines(form.ajusteAiConduta);
+  const gerado = medicacao.length || conduta.length;
+  return `
+    <div class="diagnosis-ai-panel">
+      ${aiModeSelector(form.returnPlanAiMode || "rag", "returnPlanAiMode")}
+      <div class="actions">
+        <button class="primary" type="button" data-action="generate-return-plan">Gerar</button>
+      </div>
+      ${form.returnPlanStatus ? `<p class="online-status">${escapeHtml(form.returnPlanStatus)}</p>` : ""}
+      ${ragSourcesView(form.ragSourcesAjuste)}
+    </div>
+    <div class="treatment-card-grid">
+      <div class="treatment-card">
+        <h4>Medicação</h4>
+        <textarea hidden name="ajusteAiMedicacao">${escapeHtml(medicacao.join("\n"))}</textarea>
+        <div class="diagnosis-options">
+          ${medicacao.length
+            ? treatmentOptionCheckboxes("ajusteMedicacaoSelecionada", medicacao, arrayValue(form.ajusteMedicacaoSelecionada))
+            : `<p class="diagnosis-empty">${gerado ? "Nenhum medicamento em uso no atendimento anterior." : "As decisões por medicamento aparecerão após a geração."}</p>`}
+        </div>
+      </div>
+      <div class="treatment-card">
+        <h4>Ajustes de conduta</h4>
+        <textarea hidden name="ajusteAiConduta">${escapeHtml(conduta.join("\n"))}</textarea>
+        <div class="diagnosis-options">
+          ${conduta.length
+            ? treatmentOptionCheckboxes("ajusteCondutaSelecionada", conduta, arrayValue(form.ajusteCondutaSelecionada))
+            : `<p class="diagnosis-empty">${gerado ? "Nenhum ajuste além da medicação." : "Os ajustes aparecerão após a geração."}</p>`}
+        </div>
+      </div>
+      <div class="treatment-card physician-adjustments">
+        <h4>Acrescentar</h4>
+        <p class="field-hint">O que a IA não viu. Entra no prontuário do mesmo jeito que o assinalado acima.</p>
+        ${textarea("ajusteAcrescimo", "", form.ajusteAcrescimo, "", 3)}
+      </div>
+    </div>
+  `;
+}
+
+// O texto da evolucao so existe depois do ajuste, e nao ao lado dele.
+//
+// A ordem e dele, e e a ordem da consulta: salva a Evolucao, cai no Ajuste de
+// conduta sem texto nenhum, ajusta, e SO ENTAO o texto aparece -- ja com o que
+// foi ajustado dentro. Ate 02/09/2026 o texto abria junto com a pagina, escrito
+// antes de existir a decisao que ele deveria registrar: quem lesse, leria a
+// evolucao de um retorno em que nada tinha sido decidido ainda.
+//
+// Escrever no "Acrescentar" tambem conta como ajuste: e a saida para o caso em
+// que a IA nao propos nada de util e a conduta e toda dele.
+export function returnPlanSettled(form = {}) {
+  return arrayValue(form.ajusteMedicacaoSelecionada).length > 0
+    || arrayValue(form.ajusteCondutaSelecionada).length > 0
+    || Boolean(String(form.ajusteAcrescimo || "").trim());
+}
+
 export function evolutionBody(form, patient, previous = null, isReturn = false) {
   const evolution = outdatedEvolutionText(form.evolution)
     || shouldRefreshEvolutionNarrative(form.evolution)

@@ -110,13 +110,21 @@ export function calculateAge(dateValue) {
 export function normalizedSingleChoiceValue(name, value) {
   const selected = arrayValue(value)[0] || "";
   const aliases = {
+    // O vocabulario da evolucao mudou em 02/09/2026 para "Inalterado / Melhora
+    // parcial / Melhora / Piora / Outro". Retorno gravado antes disso continua
+    // abrindo com a opcao certa marcada, por estes apelidos.
     evolucaoClinicaRetorno: {
-      "Remissao ou melhora": "Melhora clínica",
-      "Melhora clinica": "Melhora clínica",
-      Estavel: "Estabilidade clínica",
-      "Estabilidade clinica": "Estabilidade clínica",
-      Piora: "Piora clínica",
-      "Piora clinica": "Piora clínica"
+      "Remissao ou melhora": "Melhora",
+      "Melhora clinica": "Melhora",
+      "Melhora clínica": "Melhora",
+      Estavel: "Inalterado",
+      "Estabilidade clinica": "Inalterado",
+      "Estabilidade clínica": "Inalterado",
+      "Piora clinica": "Piora",
+      "Piora clínica": "Piora",
+      // "Novos sintomas" nao vira nenhuma das cinco: sintoma novo nao e grau de
+      // melhora. Cai em "Outro", onde o texto do retorno antigo ja o descrevia.
+      "Novos sintomas": "Outro"
     },
     sonoRetorno: {
       Insonia: "Insônia",

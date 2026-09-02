@@ -317,7 +317,72 @@ details[open] summary:after { content: "-"; }
   font-size: 16px;
 }
 
-.chip input { width: auto; min-height: auto; accent-color: var(--primary-2); }
+/* O chip tem a mesma cara com radio ou com caixa de marcar, decisao dele em
+   02/09/2026: "alguns sao botao radio e outros caixinhas -- ficou feio". Numa
+   pagina como a Evolucao do retorno, onde as duas formas se alternam bloco a
+   bloco, a mistura de bolinha e quadradinho lia como desalinho, e nao como
+   informacao.
+   O que separa os dois continua inteiro, e no lugar certo: e comportamento, nao
+   desenho. Marcar um radio solta o irmao; marcar uma caixa nao. Quem opera
+   aprende isso no primeiro clique, e nao pela forma do simbolo. */
+.chip input {
+  width: auto;
+  min-height: auto;
+  accent-color: var(--primary-2);
+}
+
+/* Radio e caixa desenhados do zero, identicos. O controle nativo do radio e
+   redondo por decreto do sistema e nao aceita virar quadrado; a unica forma de
+   igualar os dois e desligar o desenho nativo (`appearance: none`) e pintar a
+   marca aqui. */
+.chip input[type="radio"],
+.chip input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 1.5px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  display: inline-grid;
+  place-content: center;
+  cursor: pointer;
+}
+
+.chip input[type="radio"]:checked,
+.chip input[type="checkbox"]:checked {
+  border-color: var(--primary-2);
+  background: var(--primary-2);
+}
+
+/* O tique: dois lados de uma caixa, girados. Desenhado em vez de tipografado
+   porque glifo de check muda de forma e de peso conforme a fonte instalada. */
+.chip input[type="radio"]:checked::after,
+.chip input[type="checkbox"]:checked::after {
+  content: "";
+  width: 4px;
+  height: 8px;
+  margin-top: -2px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.chip input[type="radio"]:focus-visible,
+.chip input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Estado marcado tambem no chip inteiro: numa tela cheia deles, 18px nao
+   carregam sozinhos a leitura do que esta selecionado. */
+@supports selector(:has(*)) {
+  .chip:has(input:checked) {
+    border-color: var(--primary-2);
+  }
+}
 
 .actions {
   display: flex;
@@ -1066,10 +1131,23 @@ details[open] summary:after { content: "-"; }
   max-width: 72ch;
 }
 
-.book-chapter header {
+/* O cabecalho e o controle: clicar nele fecha o capitulo. Dai o cursor e o
+   triangulo do <details>, alinhado com a primeira linha do titulo. */
+.book-chapter > summary {
   border-bottom: 1px solid var(--line);
   padding-bottom: 12px;
   margin-bottom: 18px;
+  cursor: pointer;
+  list-style-position: outside;
+}
+
+.book-chapter > summary::marker {
+  color: var(--muted);
+}
+
+.book-chapter > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .book-chapter h3 {
@@ -2533,7 +2611,9 @@ textarea:focus-visible {
 }
 
 @supports selector(:has(*)) {
-  .chip-other:not(:has(input[type="checkbox"]:checked)) .chip-note { display: none; }
+  /* Radio entrou junto em 02/09/2026: o "Outro" das escalas de evolucao e
+     escolha unica, e o seletor so olhava caixa de marcar. */
+  .chip-other:not(:has(input:checked)) .chip-note { display: none; }
 }
 
 .sync-status.sync-failed,

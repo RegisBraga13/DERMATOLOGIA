@@ -96,13 +96,16 @@ export function bookChapterView(form) {
   const capitulo = form.medicationChapter;
   if (!Array.isArray(capitulo?.blocos) || !capitulo.blocos.length) return "";
   const corpo = capitulo.blocos.filter(bloco => bloco.t !== "titulo").map(chapterBlock).join("");
-  return `<section class="book-chapter">
-    <header>
+  // O cabecalho e o proprio botao de fechar: <details> guarda o aberto/fechado
+  // no elemento, sem estado no rascunho e sem um terceiro botao na barra de
+  // acoes. Abre por padrao, que e o motivo de o capitulo carregar sozinho.
+  return `<details class="book-chapter" open>
+    <summary>
       <h3>${escapeHtml(capitulo.nome)}</h3>
       <p class="medication-bipp-source">${escapeHtml(capitulo.livro)} — capítulo integral, sem as referências</p>
-    </header>
+    </summary>
     ${corpo}
-  </section>`;
+  </details>`;
 }
 
 // O tipo do bloco vem do script que recortou o livro, e nao e adivinhado aqui:

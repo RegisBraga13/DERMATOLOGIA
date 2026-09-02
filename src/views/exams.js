@@ -1,5 +1,6 @@
 import { CRITERION_SEPARATOR } from "../clinical/aiDiagnosisResult.js";
-import { arrayValue } from "../clinical/textFormat.js";
+import { diagnosticEtiologicalOptionLines } from "../clinical/diagnosis.js";
+import { arrayValue, normalizeText } from "../clinical/textFormat.js";
 import { optionGroups } from "../data/examOptions.js";
 import { chips, singleChoiceWithNotes, textarea } from "../ui/controls.js";
 import { escapeAttr, escapeHtml } from "../ui/html.js";
@@ -43,13 +44,24 @@ export function recordReturnAction(label) {
 //
 // Nada disso chama a IA: e derivacao do que ja esta gravado. Sem custo, sem
 // espera, e igual toda vez.
+// Um vocabulario so para tudo que mede evolucao, decisao dele em 02/09/2026.
+// A pagina tinha tres escalas para a mesma pergunta -- "melhora clinica /
+// estabilidade / piora / novos sintomas" no topo, "remissao / remissao parcial
+// / mantida / piora / descartada / nao avaliada" nas hipoteses, "resolvido /
+// melhorou / igual / piorou" nos sintomas-alvo. Tres jeitos de dizer melhora,
+// e nenhum comparavel com o outro na hora de ler o retorno seguinte.
+//
+// "Descartada" e "Nao avaliada" sairam junto: a lista do que ficou por
+// perguntar nao vem daqui, vem dos criterios do diagnostico anterior, no bloco
+// logo abaixo.
+export const EVOLUCAO_OPCOES = ["Inalterado", "Melhora parcial", "Melhora", "Piora", "Outro"];
+
 export function returnAssessmentBody(form, previous = null) {
   return `
-    ${singleChoiceWithNotes("evolucaoClinicaRetorno", "Evolucao clinica", ["Melhora clínica", "Estabilidade clínica", "Piora clínica", "Novos sintomas"], form.evolucaoClinicaRetorno)}
+    ${singleChoiceWithNotes("evolucaoClinicaRetorno", "Evolucao clinica", EVOLUCAO_OPCOES, form.evolucaoClinicaRetorno, form)}
     ${singleChoiceWithNotes("adesao", "Adesao ao tratamento", ["Adequada", "Parcial ou irregular", "Não iniciou ou interrompeu"], form.adesao)}
     ${chips("efeitos", "Efeitos colaterais", ["Nenhum", "Sedacao ou sonolencia", "Sintomas gastrointestinais", "Alteracao de peso ou metabolica", "Efeitos motores", "Disfuncao sexual", "Outro"], form.efeitos, form)}
-    ${chips("funcionalidadeEventosRetorno", "Funcionalidade e eventos relevantes", ["Nenhum", "Prejuizo funcional", "Conflito, estressor ou luto", "Urgencia ou internacao", "Risco ou autoagressao", "Outro"], form.funcionalidadeEventosRetorno, form)}
-    ${chips("condutaMedicamentoRetorno", "Medicamento", ["Manter dose", "Aumentar dose", "Diminuir dose", "Retirar", "Trocar medicamento", "Acrescentar medicamento", "Outro"], form.condutaMedicamentoRetorno, form)}
+    ${chips("funcionalidadeEventosRetorno", "Funcionalidade e eventos relevantes", ["Nenhum", "Prejuizo funcional", "Conflito, estressor ou luto", "Urgencia ou internacao", "Outro"], form.funcionalidadeEventosRetorno, form)}
     ${previousCaseBlocks(form, previous)}
   `;
 }
@@ -65,10 +77,80 @@ function previousCaseRow(prefix, index, rotulo, opcoes, form) {
   return `<article class="return-case-item">
     <strong>${escapeHtml(rotulo)}</strong>
     <input type="hidden" name="${name}Rotulo" value="${escapeAttr(rotulo)}" />
-    <div class="chips">${opcoes.map(opcao => `
-      <label class="chip"><input type="radio" name="${name}" value="${escapeAttr(opcao)}" ${selecionado === opcao ? "checked" : ""}>${escapeHtml(opcao)}</label>
-    `).join("")}</div>
+    <div class="chips">${opcoes.map(opcao => opcao === "Outro"
+      ? radioOther(name, opcao, form[`${name}Outro`] || "", selecionado === opcao)
+      : `<label class="chip"><input type="radio" name="${name}" value="${escapeAttr(opcao)}" ${selecionado === opcao ? "checked" : ""}>${escapeHtml(opcao)}</label>`
+    ).join("")}</div>
   </article>`;
+}
+
+// "Outro" sem onde escrever nao e opcao, e uma pergunta sem resposta. Mesmo
+// arranjo dos chips de multipla escolha: o campo mora ao lado e so aparece com
+// a opcao marcada.
+function radioOther(name, opcao, valor = "", marcado = false) {
+  return `<div class="chip-other">
+    <label class="chip"><input type="radio" name="${name}" value="${escapeAttr(opcao)}" ${marcado ? "checked" : ""}>${escapeHtml(opcao)}</label>
+    <input class="chip-note" type="text" name="${name}Outro" value="${escapeAttr(valor)}" placeholder="Descreva" aria-label="Descreva o outro" />
+  </div>`;
+}
+
+// AS HIPOTESES QUE EVOLUEM, e nao todas as que ele assinalou.
+//
+// A camada etiologica fica de fora. "Vulnerabilidade genetica para transtornos
+// do humor" chegou ao retorno pedindo melhora, piora ou inalterado -- e ela nao
+// e nenhuma das tres: nao evolui, nao muda, e nao ha o que responder ali. As
+// tres camadas respondem a perguntas diferentes, e so duas delas respondem "como
+// esta hoje": a nosologica diz QUAL entidade, a sindromica QUAL agrupamento --
+// as duas descrevem o quadro, e quadro melhora ou piora. A etiologica diz POR
+// QUE, e uma causa nao remite entre uma consulta e outra.
+//
+// O casamento e pelo nome da entidade porque a linha guardada carrega os codigos
+// e a etiologica declarada guarda a mesma entidade com outra formatacao.
+export function returnHypothesisLabels(previous = {}) {
+  const etiologicas = new Set(diagnosticEtiologicalOptionLines(previous)
+    .map(linha => normalizeText(entityName(linha))));
+  return arrayValue(previous.diagnosticoSelecionado)
+    .filter(item => !etiologicas.has(normalizeText(entityName(item))));
+}
+
+function entityName(linha = "") {
+  return String(linha).split(/\s+-\s+(?:CID-11|DSM-5-TR):/)[0].trim();
+}
+
+// Nada em branco sai da Evolucao, decisao dele em 02/09/2026: "garanta que eu
+// nao saia da pagina, exceto tudo marcado".
+//
+// Nao e rigor de formulario, e o que a pagina seguinte precisa. O Ajuste de
+// conduta deduz o estado de cada hipotese e o destino de cada farmaco a partir
+// DAQUI; campo em branco vira lacuna que a IA preenche por conta, e proposta
+// construida sobre buraco parece igual a proposta construida sobre dado.
+//
+// A lista de perguntas nasce da mesma fonte que desenha a tela -- os blocos do
+// caso vem do atendimento anterior e mudam a cada retorno, entao uma lista fixa
+// de campos obrigatorios estaria errada no primeiro paciente com quatro
+// hipoteses.
+export function missingReturnAssessment(form = {}, previous = null) {
+  const respondido = campo => arrayValue(form[campo]).filter(Boolean).length > 0;
+  const semNota = campo => arrayValue(form[campo]).includes("Outro")
+    && !String(form[`${campo}Outro`] || "").trim();
+  const faltando = [];
+  const exige = (campo, rotulo) => {
+    if (!respondido(campo)) faltando.push(rotulo);
+    else if (semNota(campo)) faltando.push(`${rotulo} — descreva o "Outro"`);
+  };
+  exige("evolucaoClinicaRetorno", "Evolução clínica");
+  exige("adesao", "Adesão ao tratamento");
+  exige("efeitos", "Efeitos colaterais");
+  exige("funcionalidadeEventosRetorno", "Funcionalidade e eventos relevantes");
+  if (!previous) return faltando;
+  const linhas = [
+    ["retornoHipotese", returnHypothesisLabels(previous)],
+    ["retornoCriterio", pendingCriteriaFromPrevious(previous)],
+    ["retornoFarmaco", arrayValue(previous.tratamentoMedicamentosSelecionados)],
+    ["retornoAlvo", arrayValue(previous.sintomasAlvoSelecionados)]
+  ];
+  linhas.forEach(([prefixo, itens]) => itens.forEach((rotulo, index) => exige(`${prefixo}_${index}`, rotulo)));
+  return faltando;
 }
 
 function previousCaseSection(titulo, ajuda, itens) {
@@ -82,7 +164,7 @@ function previousCaseSection(titulo, ajuda, itens) {
 
 function previousCaseBlocks(form, previous) {
   if (!previous) return "";
-  const hipoteses = arrayValue(previous.diagnosticoSelecionado);
+  const hipoteses = returnHypothesisLabels(previous);
   const farmacos = arrayValue(previous.tratamentoMedicamentosSelecionados);
   const alvos = arrayValue(previous.sintomasAlvoSelecionados);
   // O retorno do investimento dos criterios: o que ficou "nao avaliavel" no
@@ -93,7 +175,7 @@ function previousCaseBlocks(form, previous) {
     previousCaseSection("Hipóteses do atendimento anterior",
       "Como está cada hipótese que você assinalou da última vez.",
       hipoteses.map((item, index) => previousCaseRow("retornoHipotese", index, item,
-        ["Remissão", "Remissão parcial", "Mantida", "Piora", "Descartada", "Não avaliada"], form))),
+        EVOLUCAO_OPCOES, form))),
     previousCaseSection("Critérios que ficaram sem poder avaliar",
       "Ficaram pendentes na última avaliação. São o que investigar hoje.",
       pendentes.map((item, index) => previousCaseRow("retornoCriterio", index, item,
@@ -105,7 +187,7 @@ function previousCaseBlocks(form, previous) {
     previousCaseSection("Sintomas-alvo",
       "O manejo imediato que você levou para o tratamento.",
       alvos.map((item, index) => previousCaseRow("retornoAlvo", index, item,
-        ["Resolvido", "Melhorou", "Igual", "Piorou"], form)))
+        EVOLUCAO_OPCOES, form)))
   ].filter(Boolean);
   if (!blocos.length) return "";
   return `<div class="return-case-blocks">${blocos.join("")}</div>`;

@@ -109,6 +109,13 @@ export function buildRagQuery(kind, form = {}) {
   // manejo dele agora, entao a literatura recuperada precisa cobri-lo. Sem esta
   // linha, a busca so falava do diagnostico e o alvo chegava a IA sem fonte.
   const alvos = joinValues(arrayValue(form.sintomasResiduais));
+  // O retorno pergunta o que o Tratamento nao pergunta: nao "com o que tratar",
+  // mas "o tratamento em curso esta funcionando, e o que se faz agora". Por isso
+  // a busca leva os farmacos em uso e a evolucao observada, e nao so a hipotese.
+  if (kind === "return_plan") {
+    const emUso = joinValues(arrayValue(form.tratamentoMedicamentosSelecionados)) || stripFinalPeriod(form.tratamentoMedicamentoso || "");
+    return `Conduta no seguimento de ${diagnosis} em uso de ${emUso || "tratamento nao informado"}: tempo esperado de resposta, quando aumentar dose, quando trocar, quando retirar, manejo de efeito adverso e de adesao irregular. Evolucao observada: ${symptoms}`.slice(0, 4000);
+  }
   if (kind === "treatment") return `Diretrizes e tratamento de ${diagnosis}. Dados clinicos relevantes: ${symptoms}`.slice(0, 4000);
   // A busca do sintoma-alvo pergunta por manejo, nao por diretriz de doenca, e
   // vai contra a biblioteca marcada "sintomatico". O diagnostico entra so como
@@ -362,6 +369,19 @@ function validateClinicalAiPayload(kind, result, text = "") {
       }))
       .slice(0, 6);
   }
+  if (kind === "return_plan") {
+    if (!Array.isArray(result.medication_actions)) throw new Error("Ajuste de conduta fora do formato esperado.");
+    if (!Array.isArray(result.conduct_options)) throw new Error("Ajuste de conduta fora do formato esperado.");
+    const texto = (valor) => typeof valor === "string" ? valor.trim() : "";
+    // Farmaco sem nome ou sem acao nao vira caixa de assinalar: seria uma linha
+    // que o medico marca sem saber o que marcou. `detail` pode faltar -- manter
+    // dose nao muda receita.
+    result.medication_actions = result.medication_actions
+      .filter(item => texto(item?.medication) && texto(item?.action))
+      .map(item => ({ ...item, detail: texto(item.detail), rationale: texto(item.rationale) }))
+      .slice(0, 8);
+    result.conduct_options = result.conduct_options.map(texto).filter(Boolean).slice(0, 6);
+  }
   if (kind === "medication_tips") {
     if (!Array.isArray(result.tips)) throw new Error("BIPP TIPS fora do formato esperado.");
     result.tips = result.tips.map(item => String(item || "").trim()).filter(Boolean).slice(0, 8);
@@ -567,6 +587,15 @@ export function buildWebQuery(kind, form = {}) {
   if (kind === "treatment" || kind === "treatment_review") {
     return unicos ? `Tratamento e diretriz atual para: ${unicos}. Primeira linha, dose, monitorizacao` : "";
   }
+  // Mesmo cerco das outras etapas: so vocabulario fechado -- nome de doenca e
+  // nome de farmaco, que estao impressos em qualquer manual. O que o medico
+  // observou hoje nao vai para a web.
+  if (kind === "return_plan") {
+    const farmacos = arrayValue(form.tratamentoMedicamentosSelecionados)
+      .map(item => String(item || "").split(" - ")[0].trim()).filter(Boolean).slice(0, 6);
+    if (!unicos && !farmacos.length) return "";
+    return `Ajuste de tratamento em ${unicos || farmacos.join("; ")}${farmacos.length ? ` em uso de ${farmacos.join("; ")}` : ""}: resposta parcial, troca, aumento de dose, efeito adverso, tempo de espera`;
+  }
   // Vale o mesmo cerco das outras etapas: so vocabulario fechado. Diagnostico
   // assinalado e nome de farmaco sao palavras que estao impressas em qualquer
   // manual -- o que NAO vai e o estado deste paciente hoje, que so existe neste
@@ -735,6 +764,27 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "A conduta do sintoma-alvo pode coincidir com o tratamento ja definido para a hipotese nosologica. Quando coincidir, diga isso na propria conduta em vez de repetir a prescricao: quem decide se marca ou nao e o medico.",
       "Nao repita o tratamento de fundo do transtorno. O que se pede aqui e o alivio do sintoma — o que fazer hoje, antes de a medicacao de manutencao fazer efeito.",
       "Sinalize necessidade de verificacao medica de contraindicações, interacoes e monitorizacao quando pertinente."
+    ],
+    // O Ajuste de conduta do retorno. A regra que organiza tudo aqui: o medico
+    // ja disse o que viu na pagina anterior, e a pagina anterior nao deixa
+    // avancar incompleta. Entao esta etapa nao tem o que adivinhar -- e nao
+    // pode: reescrever a evolucao que ele marcou seria trocar observacao por
+    // suposicao, com a mesma cara na tela.
+    return_plan: [
+      "Esta e a etapa de AJUSTE DE CONDUTA de um retorno. O medico ja avaliou o paciente e registrou o que viu: evolucao clinica, adesao, efeitos colaterais, funcionalidade, e o estado de cada hipotese, de cada farmaco e de cada sintoma-alvo do atendimento anterior. Tudo isso esta no registro abaixo.",
+      "Voce NAO reavalia e NAO reinterpreta esses achados: eles sao observacao do medico, e valem como fato. Sua tarefa e uma so — dizer o que decorre deles.",
+      "Em 'medication_actions' entre com UMA acao para CADA medicamento que o paciente esta em uso, sem excecao. Um farmaco prescrito que nao aparece na lista e um farmaco esquecido no retorno.",
+      "'medication' repete o nome do farmaco como esta no registro. 'action' e exatamente um destes: Manter dose, Aumentar dose, Diminuir dose, Trocar medicamento, Retirar, Acrescentar medicamento.",
+      "Manter dose e uma decisao, e a decisao certa quando o quadro melhora com a dose atual e sem efeito limitante. Nao evite 'Manter dose' por parecer pouco.",
+      "'detail' diz o que muda na receita, em numero: 'para 100 mg/dia', 'reduzir 25 mg por semana ate suspender', 'trocar por escitalopram 10 mg/dia'. Em Manter dose, 'detail' fica vazio.",
+      "'rationale' e UMA frase curta ligando a acao ao que o medico registrou: qual achado dele sustenta esta decisao. Sem repetir a acao e sem prosa.",
+      "Adesao irregular muda a leitura: dose que nao foi tomada nao falhou, e subir dose de remedio que o paciente nao toma e erro. Diga isso no 'rationale' quando for o caso.",
+      "Efeito colateral registrado tem de aparecer em alguma acao — reduzir, trocar, dividir a tomada, manter e monitorar. Efeito que o medico anotou e a conduta ignora e a falha mais grave desta etapa.",
+      "Respeite o tempo de resposta da classe: nao troque antidepressivo por falta de resposta antes do prazo que a literatura recuperada estabelece. Quando o prazo ainda nao passou, mantenha e diga no 'rationale' quanto tempo ainda se espera.",
+      "Em 'conduct_options' vao ate 6 ajustes que NAO sao receita: exame a pedir, encaminhamento, psicoterapia, orientacao ao paciente, intervalo ate o proximo retorno, monitorizacao. Uma linha cada, direta, sem verbo de enfeite e sem justificativa dentro da linha.",
+      "Nada de 'reavaliar em consulta', 'considerar ajuste' ou 'acompanhar evolucao' — isso e adiar a conduta, nao a conduta. Se nao ha o que propor, devolva a lista vazia.",
+      "Cada linha e uma caixa que o medico marca ou nao: escreva uma por decisao, nunca duas coisas na mesma linha.",
+      "Sucinto e objetivo. Sem introducao, sem fechamento, sem repetir o que ja esta no registro."
     ],
     evolution: [
       "Redija uma evolucao medica narrativa-descritiva, formal, tecnica, cientifica, objetiva e concisa.",
@@ -963,6 +1013,17 @@ function promptResponseFormat(kind) {
       "  1a opcao: Farmaco | Dose inicial: ... | Progressao: ... | Interacao: ...",
       "  2a opcao: idem, quando a literatura sustentar alternativa",
       "(uma entrada por sintoma assinalado; sem opcao medicamentosa quando o sintoma nao tiver tratamento farmacologico)"
+    ].join("\n");
+  }
+  if (kind === "return_plan") {
+    return [
+      "MEDICACAO:",
+      "Farmaco | Acao | O que muda na receita | Por que, em uma frase",
+      "(uma linha por farmaco em uso, sem excecao; Acao e uma de: Manter dose, Aumentar dose, Diminuir dose, Trocar medicamento, Retirar, Acrescentar medicamento)",
+      "",
+      "AJUSTES DE CONDUTA:",
+      "Uma decisao por linha, sem justificativa dentro da linha",
+      "(ate 6; lista vazia quando nao houver o que propor)"
     ].join("\n");
   }
   if (kind === "medication_tips") {
