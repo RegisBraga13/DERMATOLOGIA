@@ -44,6 +44,8 @@ ele quiser — e agora muda em um lugar so, sem tocar em nada na nuvem.
 | `tratado` | Tratado de Psiquiatria da ABP; Kaplan e Sadock, Compendio, 11a ed. |
 | `prescricao` | Stahl, Guia de Prescricao |
 | `psicofarmacologia` | Psicofarmacologia: Da Teoria a Clinica (2025) |
+| `infantojuvenil` | Psiquiatria da Infancia e Adolescencia (HCFMUSP, 2a ed. 2023) |
+| `saude-mulher` | Transtornos Psiquiatricos na Mulher (Artmed, 2023) |
 
 Dentro de um genero, mais livro e estritamente melhor. A busca devolve os **8
 melhores trechos no total**, e nao 8 por livro: somar um livro nao tira vaga de
@@ -72,6 +74,35 @@ Etapa fora do mapa busca sem filtro.
 | Medicamento, **revisa** | `psicofarmacologia` |
 | Sintoma-Alvo | `psicofarmacologia` |
 | BIPP TIPS | `psicofarmacologia` |
+
+Os dois ultimos generos nao estao nesta tabela, e e de proposito: **quem os pede
+e o paciente, e nao a etapa.**
+
+## Escopos que o paciente abre
+
+Um tratado de psiquiatria da infancia nao tem o que dizer sobre um paciente de
+50 anos, e teria tudo a dizer sobre um de 9. Por isso `infantojuvenil` e
+`saude-mulher` sao enviados pelo cliente em `ragPatientScopes`, derivados da
+data de nascimento e do sexo, e conferidos no servidor contra `RAG_PATIENT_SCOPES`
+— escopo e filtro de busca, e valor vindo de fora nao entra em filtro sem
+conferencia. Valem nas etapas de `KINDS_ACCEPTING_PATIENT_SCOPE`; na ficha de um
+farmaco, por exemplo, o que se quer e a bula, e nao o capitulo de infancia.
+
+Entram **por cima** da busca geral, com vaga propria e poucos trechos, como ja
+fazia a busca garantida do criterio. Um adolescente com depressao continua
+recebendo o que os livros de sempre dizem sobre depressao; o que se acrescenta e
+o que so o livro da faixa diz, e que perderia a disputa por trecho contra cinco
+tratados de adulto.
+
+Medido em 02/09/2026 com o mesmo caso de humor deprimido em tres pacientes:
+
+| Paciente | Escopo aberto | Tratamento proposto |
+| --- | --- | --- |
+| Crianca, 9 anos | `infantojuvenil` | Fluoxetina **5 mg/dia**, titulacao pediatrica |
+| Mulher, 28 anos | `saude-mulher` | Sertralina 50 mg/dia |
+| Homem, 45 anos | nenhum | Sertralina 50 mg/dia |
+
+Sem o escopo, a crianca recebia a dose de adulto.
 
 ### Por que o Diagnostico le dois generos
 
