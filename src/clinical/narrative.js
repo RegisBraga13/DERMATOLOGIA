@@ -2,6 +2,7 @@ import { medications } from "../data/medications.js";
 import { selectedAggravatingValues, selectedComorbidityValues, selectedDiagnosisText, selectedSpecifierValues, treatmentOptionLines } from "./diagnosis.js";
 import { arrayValue, calculateAge, capitalizeFirst, cleanClinicalLine, clinicalPhrase, formatClinicalList, formatPlainList, joinValues, lowerFirst, mentalExamKeys, normalizedSingleChoiceValue, normalizeText, professionalClinicalTerms, professionalList, professionalListWithOther, stripFinalPeriod } from "./textFormat.js";
 import { EVOLUTION_REFRESH_PATTERNS, laboratoryExamRequestItems, RETURN_BOILERPLATE_PHRASES } from "./vocabulary.js";
+import { scalesNarrativeText } from "./scoring.js";
 
 // Especificador assinalado viaja colado a hipotese, porque e ele que muda a
 // conduta: depressao com sintomas psicoticos e depressao leve tem o mesmo
@@ -81,6 +82,9 @@ export function buildEvolutionNarrative(form, patient = {}, previous = null, isR
     structuredAnamnesis,
     antecedents,
     mentalFindings.length ? `No exame psíquico, apresenta ${formatPlainList(mentalFindings.map(professionalMentalFinding))}.` : "",
+    // Depois do exame e antes da hipotese: e onde a escala entra no raciocinio.
+    // No retorno, com o valor do atendimento anterior ao lado.
+    scalesNarrativeText(form, isReturn ? previous : null),
     diagnosis ? `Consideram-se as hipóteses diagnósticas assinaladas de ${stripFinalPeriod(diagnosis)}.` : "",
     treatment
   ].filter(Boolean).join("\n\n"));

@@ -1,4 +1,5 @@
 import { anamnesisText } from "../clinical/narrative.js";
+import { scaleSummaryRows } from "../clinical/scoring.js";
 import { arrayValue, calculateAge, joinValues, mentalExamKeys, normalizeText } from "../clinical/textFormat.js";
 import { anamnesisQuestionGroups, MENTAL_EXAM_NORMAL } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js";
@@ -98,6 +99,8 @@ export function clinicalSummaryGroups(form = {}, patient = {}) {
     { title: "Anamnese estruturada", rows: [...anamnesisRows, ...complementaryRows], layout: "full" },
     { title: "Exame psíquico", rows: mentalRows.map(row => ({ ...row, section: row.item })), layout: "area-record" },
     { title: "Exame físico", rows: physicalRows },
+    // Escala marcada e sem resposta nao aparece: foi aberta, nao aplicada.
+    { title: "Escalas aplicadas", rows: scaleSummaryRows(form), layout: "item-record" },
     { title: "Sintomas marginais e residuais", rows: residualRows },
     { title: "Refinamento clínico", rows: refinementRows, layout: "area-record" }
     // Exame fisico e Refinamento so tem linhas depois de preenchidos; sem o

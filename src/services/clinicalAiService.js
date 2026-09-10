@@ -5,6 +5,7 @@ import { anamnesisText, conciseAntecedentsText, conciseComplaintText, conciseDia
 import { arrayValue, cleanClinicalLine, compactText, formatClinicalList, joinValues, mentalExamKeys, normalizeText, stripFinalPeriod } from "../clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, MENTAL_EXAM_AI_FIELDS, MENTAL_EXAM_NORMAL } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js";
+import { scalesNarrativeText } from "../clinical/scoring.js";
 
 import { protocolBlocksText, protocolCatalogText, protocolItemById, protocolLoaded } from "../clinical/protocol.js";
 import { parseMedicationResponse } from "./medicationService.js";
@@ -899,6 +900,7 @@ function clinicalEvolutionPromptData(form = {}, patient = {}, previous = null, i
     `HDA: ${conciseHdaText(form, previous, isReturn)}.`,
     `Antecedentes: ${conciseAntecedentsText(form)}.`,
     `Exame psiquico: ${conciseMentalExamText(form)}.`,
+    `Escalas: ${stripFinalPeriod(scalesNarrativeText(form, previous).replace(/^Escalas aplicadas: /, "")) || "nenhuma aplicada"}.`,
     `HD/Hipoteses assinaladas: ${conciseDiagnosticText(form)}.`,
     `Tratamento medicamentoso selecionado: ${professionalSelectedTreatmentItems(form.tratamentoMedicamentosSelecionados, form.tratamentoMedicamentoso) || "nao informado"}.`,
     `Medidas nao farmacologicas selecionadas: ${professionalSelectedTreatmentItems(form.abordagensSelecionadas, form.abordagensTerapeuticas) || "nao informado"}.`,
@@ -949,6 +951,10 @@ function clinicalPromptData(form = {}, patient = {}, previous = null, isReturn =
     // O exame fisico nunca chegou aqui. No caso de teste, as cicatrizes de
     // autolesao em antebraco estavam registradas e o diagnostico nao as via.
     `Exame fisico: ${stripFinalPeriod(form.fisico || "") || "nao informado"}.`,
+    // Escalas padronizadas, com os alertas por item. Um item de suicidio
+    // positivo tem de chegar ao diagnostico e a conduta mesmo que a anamnese
+    // diga "nega ideacao" -- e justamente a divergencia que importa.
+    scalesNarrativeText(form, previous),
     // Registrado pelo medico na tela de Tratamento. Sem esta linha o campo
     // ficava so no prontuario e a IA seguia propondo conduta para o quadro
     // agudo — o mesmo circuito fechado do refinamento.

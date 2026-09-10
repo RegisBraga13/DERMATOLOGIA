@@ -86,7 +86,10 @@ export const consultationPages = [
   // prontuario registra. Uma etapa a menos, e o campo continua no registro.
   ["tratamento", "Tratamento"],
   ["evolucao", "História clínica"],
-  ["medicamentos", "Medicamentos"]
+  ["medicamentos", "Medicamentos"],
+  // Escalas entrou em 10/09/2026, apendice como Medicamentos: aplica-se quando
+  // o caso pede, em qualquer ponto do atendimento, e nao numa etapa fixa.
+  ["escalas", "Escalas"]
 ];
 
 // A segunda pagina do retorno era "Texto final", e o titulo dela dizia
@@ -99,7 +102,10 @@ export const consultationPages = [
 export const returnPages = [
   ["evolucao-retorno", "Evolução"],
   ["texto-retorno", "Ajuste de conduta"],
-  ["medicamentos", "Medicamentos"]
+  ["medicamentos", "Medicamentos"],
+  // No retorno as escalas sao onde se ve a mudanca: o resultado sai ao lado do
+  // da aplicacao anterior.
+  ["escalas", "Escalas"]
 ];
 
 // As quatro saidas de "nenhum transtorno" carregam codigo pelo mesmo motivo da

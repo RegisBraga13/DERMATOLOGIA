@@ -5,6 +5,8 @@ import { arrayValue, normalizeText } from "../clinical/textFormat.js";
 import { doctorDiagnosisOptions } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js";
 import { CARE_LEVELS_REQUIRING_JUSTIFICATION, careLevelNotes, careLevelOptions } from "../data/careLevels.js";
+import { scaleAcuteRisk } from "../clinical/scoring.js";
+import { monitoringFor } from "../data/monitoring.js";
 import { chips, textarea } from "../ui/controls.js";
 import { referenceFor } from "../data/references.js";
 import { escapeAttr, escapeHtml } from "../ui/html.js";
@@ -251,7 +253,23 @@ function webSourcesView(sources) {
     ].join("")}</ol></details>`;
 }
 
-export function treatmentModule(form) {
+// Monitorizacao dos farmacos assinalados, no cartao de Exames (dados em
+// data/monitoring.js). Aparece so com farmaco marcado, e o botao marca os
+// exames; nao marca sozinho, porque pedir exame e decisao do medico.
+function monitoringView(form, podeEngravidar) {
+  const blocos = monitoringFor(form.tratamentoMedicamentosSelecionados, { podeEngravidar });
+  if (!blocos.length) return "";
+  return `<div class="monitoring-block">
+    <p class="monitoring-title">Monitorização dos medicamentos assinalados</p>
+    <ul>${blocos.map(bloco => {
+      const exames = [...bloco.exames, ...bloco.extras];
+      return `<li><strong>${escapeHtml(bloco.rotulo)}</strong>: ${escapeHtml(bloco.nota)}${exames.length ? ` <span class="monitoring-exams">Exames: ${escapeHtml(exames.join(", "))}.</span>` : ""}</li>`;
+    }).join("")}</ul>
+    <button class="secondary" type="button" data-action="apply-monitoring-exams">Marcar estes exames</button>
+  </div>`;
+}
+
+export function treatmentModule(form, { podeEngravidar = false } = {}) {
   const examesText = requestedExamsText(form);
   const medicationOptions = treatmentOptionLines(form.tratamentoAiMedicamentos);
   const approachOptions = treatmentOptionLines(form.tratamentoAiAbordagens);
@@ -288,6 +306,7 @@ export function treatmentModule(form) {
         <h4>Exames solicitados</h4>
         ${chips("examesSolicitados", "", optionGroups.examesPsiquiatria, form.examesSolicitados, form)}
         <textarea hidden name="examesLaboratoriais">${escapeHtml(examesText)}</textarea>
+        ${monitoringView(form, podeEngravidar)}
       </div>
       ${targetSymptomCard(form)}
       <div class="treatment-card physician-adjustments">
@@ -363,6 +382,7 @@ export function returnPlanModule(form) {
       ${form.returnPlanStatus ? `<p class="online-status">${escapeHtml(form.returnPlanStatus)}</p>` : ""}
       ${ragSourcesView(form.ragSourcesAjuste)}
     </div>
+    ${riscoAgudoView(scaleAcuteRisk(form), "deste retorno", "O retorno não tem nível de cuidado próprio: se a conduta seguir ambulatorial, registre a razão em Acrescentar.")}
     <div class="treatment-card-grid">
       <div class="treatment-card">
         <h4>Medicação</h4>
@@ -487,17 +507,36 @@ export function careLevelView(form = {}) {
   // salvar no meio de uma urgencia atrapalha em vez de ajudar. Mas indicar leito
   // sem escrever por que e o que nao pode ficar calado no prontuario.
   const exigeJustificativa = CARE_LEVELS_REQUIRING_JUSTIFICATION.has(escolhido) && !justificativa;
+  // Risco agudo nas escalas desta consulta (ASQ, C-SSRS), desde 10/09/2026. Ate
+  // entao a C-SSRS podia dar "risco alto" e o ambulatorial ser marcado sem uma
+  // palavra. Aviso, pelo mesmo motivo do de cima: tratar em ambulatorio com esse
+  // resultado pode ser a decisao certa -- plano de seguranca, rede de apoio,
+  // retorno em dias --, mas a razao tem de estar escrita.
+  const riscoAgudo = scaleAcuteRisk(form);
+  const ambulatorialSemRazao = riscoAgudo.length > 0 && escolhido === "Ambulatorial" && !justificativa;
   return `<div class="clinical-card care-card">
     <h4>Nível de cuidado</h4>
     <p class="online-status">${proposto
       ? `Proposto pela literatura: <strong>${escapeHtml(proposto)}</strong>${justificativaIa ? ` — ${escapeHtml(justificativaIa)}` : ""}`
       : "A IA propõe uma modalidade após a geração. A escolha é sempre sua."}</p>
+    ${riscoAgudoView(riscoAgudo, "desta consulta")}
     <textarea hidden name="nivelCuidadoAi">${escapeHtml(proposto)}</textarea>
     <textarea hidden name="nivelCuidadoAiJustificativa">${escapeHtml(justificativaIa)}</textarea>
     <div class="care-levels">${opcoes}</div>
     ${exigeJustificativa
       ? `<p class="care-warning">Registre abaixo por que ${escapeHtml(escolhido.toLowerCase())} — a indicação de leito precisa da justificativa no prontuário.</p>`
       : ""}
+    ${ambulatorialSemRazao
+      ? `<p class="care-warning">Tratamento ambulatorial com risco agudo nas escalas: registre abaixo por que é seguro agora, qual o plano de segurança e quando é o retorno.</p>`
+      : ""}
     ${textarea("nivelCuidadoJustificativa", "Justificativa do médico", justificativa, "Por que este nível de cuidado, neste momento.", 2)}
   </div>`;
+}
+
+// O mesmo aviso nos dois lugares em que se decide a conduta: o Nivel de cuidado
+// da consulta e o Ajuste de conduta do retorno.
+function riscoAgudoView(riscos = [], onde = "desta consulta", complemento = "") {
+  if (!riscos.length) return "";
+  const lista = riscos.map(item => `${item.sigla}: ${item.rotulo.toLowerCase()}`).join("; ");
+  return `<p class="scale-alert care-scale-risk" role="alert">Risco agudo nas escalas ${escapeHtml(onde)}: ${escapeHtml(lista)}.${complemento ? ` ${escapeHtml(complemento)}` : ""}</p>`;
 }

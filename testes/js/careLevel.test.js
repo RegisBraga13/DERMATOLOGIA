@@ -13,7 +13,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { CARE_LEVELS_REQUIRING_JUSTIFICATION, careLevelNotes, careLevelOptions } from "../../src/data/careLevels.js";
-import { careLevelView } from "../../src/views/decisions.js";
+import { careLevelView, returnPlanModule } from "../../src/views/decisions.js";
 import { professionalTreatmentText } from "../../src/clinical/narrative.js";
 
 describe("a lista e fechada e cada modalidade se explica", () => {
@@ -106,5 +106,45 @@ describe("o nivel chega ao prontuario", () => {
   it("sem nivel escolhido, a conduta nao inventa frase", () => {
     const texto = professionalTreatmentText({ tratamentoMedicamentosSelecionados: ["Sertralina 50 mg/dia"] });
     assert.doesNotMatch(texto, /nível de cuidado/);
+  });
+});
+
+// Desde 10/09/2026 as escalas de suicidio entram aqui. C-SSRS com plano e
+// intencao, ou ASQ com pensamento de se matar agora, e ambulatorial marcado sem
+// uma palavra: era o que o programa deixava passar.
+describe("risco agudo nas escalas chega ao nivel de cuidado", () => {
+  const cssrsAlto = {
+    escalasAplicadas: ["cssrs"],
+    escala_cssrs_0: "0", escala_cssrs_1: "1", escala_cssrs_2: "0", escala_cssrs_3: "0", escala_cssrs_4: "1", escala_cssrs_5: "0"
+  };
+  const asqAgudo = {
+    escalasAplicadas: ["asq"],
+    escala_asq_0: "0", escala_asq_1: "0", escala_asq_2: "0", escala_asq_3: "1", escala_asq_4: "1"
+  };
+
+  it("o risco aparece antes da escolha, com a escala que o apontou", () => {
+    assert.match(careLevelView(cssrsAlto), /Risco agudo nas escalas desta consulta/);
+    assert.match(careLevelView(cssrsAlto), /C-SSRS: risco alto/);
+    assert.match(careLevelView(asqAgudo), /ASQ: triagem positiva, com risco agudo/);
+  });
+
+  it("ambulatorial sem justificativa dispara o aviso", () => {
+    assert.match(careLevelView({ ...cssrsAlto, nivelCuidado: "Ambulatorial" }), /Tratamento ambulatorial com risco agudo/);
+  });
+
+  it("com a razao escrita, o aviso some", () => {
+    const html = careLevelView({ ...cssrsAlto, nivelCuidado: "Ambulatorial", nivelCuidadoJustificativa: "plano de segurança com a família e retorno em 48 horas" });
+    assert.doesNotMatch(html, /care-warning/);
+  });
+
+  it("item 9 da PHQ-9 sozinho nao muda o nivel de cuidado: alerta na propria escala", () => {
+    const html = careLevelView({ escalasAplicadas: ["phq9"], escala_phq9_8: "1", nivelCuidado: "Ambulatorial" });
+    assert.doesNotMatch(html, /Risco agudo/);
+    assert.doesNotMatch(html, /care-warning/);
+  });
+
+  it("no retorno, o Ajuste de conduta mostra o mesmo risco", () => {
+    assert.match(returnPlanModule(cssrsAlto), /Risco agudo nas escalas deste retorno/);
+    assert.doesNotMatch(returnPlanModule({}), /Risco agudo/);
   });
 });

@@ -20,8 +20,13 @@ import { clinicalSummaryGroups, clinicalSummaryPage } from "./views/clinicalSumm
 import { aiModeSelector, diagnosisModule, evolutionBody, ragSourcesView, returnPlanModule, returnPlanSettled, treatmentModule } from "./views/decisions.js";
 import { consultationAccessPanel, mentalExamBody, missingReturnAssessment, neurologicExamBody, recordReturnAction, returnAssessmentBody } from "./views/exams.js";
 import { caregiverHistoryCard, reproductiveHistoryCard } from "./views/lifeStageBlocks.js";
-import { lifeStageOf, needsCaregiverHistory, needsReproductiveHistory, ragPatientScopes } from "./clinical/lifeStage.js";
+import { lifeStageOf, mayBePregnant, needsCaregiverHistory, needsReproductiveHistory, ragPatientScopes } from "./clinical/lifeStage.js";
 import { bookChapterView, medicationReferenceCard } from "./views/medication.js";
+import { scalesBody, scaleResultView, scaleTrendsView } from "./views/scales.js";
+import { suggestedScales } from "./clinical/scaleSuggestions.js";
+import { monitoringExamSelection, monitoringFor } from "./data/monitoring.js";
+import { previousScaleEntries, scaleFieldName, withoutUnappliedScaleAnswers } from "./clinical/scoring.js";
+import { scaleById } from "./data/scales.js";
 
 const app = document.querySelector("#app");
 let state = withoutBookChapters(loadState());
@@ -382,9 +387,10 @@ function consultationPageBody(form, patient) {
   if (consultationPage === "refinamento") return clinicalPage("", refinementBody(form), "consultation");
   if (consultationPage === "resumo") return clinicalPage("Resumo", clinicalSummaryPage(form, patient), "consultation");
   if (consultationPage === "diagnostico") return clinicalPage("Diagnostico e diferenciais", diagnosisModule(form), "consultation");
-  if (consultationPage === "tratamento") return clinicalPage("Tratamento e orientacoes", treatmentModule(form), "consultation");
+  if (consultationPage === "tratamento") return clinicalPage("Tratamento e orientacoes", treatmentModule(form, { podeEngravidar: mayBePregnant(patient) }), "consultation");
   if (consultationPage === "evolucao") return clinicalPage("Historia clinica", evolutionBody(form, patient), "consultation");
   if (consultationPage === "medicamentos") return clinicalPage("Medicamentos", medicationBody(form), "consultation");
+  if (consultationPage === "escalas") return clinicalPage("Escalas", scalesBody(form, scaleHistory(form), false, suggestedScales(form, patient)), "consultation");
   return clinicalPage("Historia clinica", evolutionBody(form, patient), "consultation");
 }
 
@@ -395,6 +401,9 @@ function returnPageBody(form, patient, previous) {
   // Medicamentos fica, agora com aba: e o apendice, e sem botao de salvar -- o
   // retorno so grava depois da Evolucao completa, no Ajuste de conduta.
   if (returnPage === "medicamentos") return clinicalPage("Medicamentos", medicationBody(form), "return", false);
+  // Escalas segue a mesma regra do apendice no retorno: sem botao proprio. A
+  // resposta fica no rascunho e grava junto com o retorno, no Ajuste de conduta.
+  if (returnPage === "escalas") return clinicalPage("Escalas", scalesBody(form, scaleHistory(form), true, suggestedScales(form, patient, { isReturn: true, previous })), "return", false);
   // A pagina junta as duas coisas na ordem em que se decide, e SO na ordem em
   // que se decide: o texto nao abre junto, aparece depois do ajuste, ja com o
   // ajuste dentro. Antes disso nao haveria o que escrever.
@@ -554,6 +563,7 @@ function medicalRecord() {
       <div>
         ${field("recordSearch", "Busca por palavra-chave, diagnostico, medicamento ou data", draft.recordQuery || "")}
       </div>
+      ${scaleTrendsView(patientEntries)}
       <div class="timeline" aria-live="polite">${recordTimeline(all)}</div>
     </div>
   `;
@@ -663,8 +673,9 @@ function currentPageForScope(scope) {
 // percorrida continua livre — o que se perdeu ali ja foi salvo.
 //
 // Medicamentos e a excecao, decidida por ele: e apendice de consulta, nao etapa
-// do atendimento, e precisa estar a mao a qualquer momento.
-const APPENDIX_PAGES = new Set(["medicamentos"]);
+// do atendimento, e precisa estar a mao a qualquer momento. Escalas, desde
+// 10/09/2026, pelo mesmo motivo.
+const APPENDIX_PAGES = new Set(["medicamentos", "escalas"]);
 
 function unlockedForScope(scope) {
   return scope === "consultation" ? consultationUnlocked : returnUnlocked;
@@ -884,6 +895,11 @@ function bindAutoDraft() {
         }
       }
       updateDraftFromForm(form);
+      // Marcar ou desmarcar escala muda a pagina (abre ou fecha o cartao).
+      // Responder um item muda so o resultado daquela escala: redesenha a caixa
+      // dela, e nao a pagina, para a rolagem nao sair do item.
+      if (event.target?.name === "escalasAplicadas") { render(); return; }
+      if (event.target?.dataset?.escala) { refreshScaleResult(event.target.dataset.escala); return; }
       recordAnamnesisDoctorOverride(event.target);
       if (event.target?.name === "examesSolicitados") {
         const hiddenExams = form.querySelector("textarea[name='examesLaboratoriais']");
@@ -1049,6 +1065,8 @@ function bindActions() {
       if (action === "set-anamnesis-mode") setAnamnesisInputMode(element.dataset.mode);
       if (action === "set-appendix-search") setAppendixSearchMode(element.dataset.mode);
       if (action === "clear-appendix-symptom") clearAppendixSymptom();
+      if (action === "clear-scale") clearScaleAnswers(element.dataset.escala);
+      if (action === "apply-monitoring-exams") applyMonitoringExams(element);
       if (action === "generate-appendix-symptom") await generateAppendixSymptomConduct(element);
       if (action === "adopt-appendix-conduct") adoptAppendixConduct(element.dataset.conduta || "");
       if (action === "clear-patient") { draft.patient = {}; render(); }
@@ -1100,6 +1118,54 @@ function clearAppendixSymptom() {
   const limpo = { appendixSymptom: "", appendixSymptomConducts: "", appendixSymptomStatus: "", ragSourcesSintomatico: [] };
   if (scope === "return") draft.return = { ...(draft.return || {}), ...limpo };
   else draft.consultation = { ...(draft.consultation || {}), ...limpo };
+  render();
+}
+
+// Os registros anteriores deste paciente, para a escala mostrar a aplicacao
+// anterior ao lado da de hoje. Na consulta e no retorno, o mesmo criterio: o
+// registro mais recente ANTES deste, e nao o mais recente de todos.
+function scaleHistory(current = {}) {
+  return previousScaleEntries(entriesForPatient(selectedPatientId), current);
+}
+
+function refreshScaleResult(id) {
+  const scale = scaleById(id);
+  const caixa = app.querySelector(`#resultado-${id}`);
+  if (!scale || !caixa) return;
+  const form = currentClinicalDraft();
+  caixa.outerHTML = scaleResultView(scale, form, scaleHistory(form));
+}
+
+// "Marcar estes exames", no cartao de Exames do Tratamento. Soma aos exames ja
+// marcados, nunca tira; o que nao tem opcao propria (neutrofilos, troponina)
+// vai para o "Outro", que e marcado junto para o campo aparecer na tela.
+function applyMonitoringExams(element) {
+  const formulario = element.closest("form");
+  if (formulario) updateDraftFromForm(formulario);
+  const alvo = { ...(draft.consultation || {}) };
+  const blocos = monitoringFor(alvo.tratamentoMedicamentosSelecionados, { podeEngravidar: mayBePregnant(getPatient() || {}) });
+  const { opcoes, extras } = monitoringExamSelection(blocos);
+  const marcados = new Set(arrayValue(alvo.examesSolicitados));
+  opcoes.forEach(opcao => marcados.add(opcao));
+  const outros = String(alvo.examesSolicitadosOutro || "").split(/\s*,\s*/).filter(Boolean);
+  const novos = extras.filter(extra => !outros.some(outro => normalizeText(outro) === normalizeText(extra)));
+  if (novos.length || outros.length) marcados.add("Outro");
+  alvo.examesSolicitados = [...marcados];
+  alvo.examesSolicitadosOutro = [...outros, ...novos].join(", ");
+  alvo.examesLaboratoriais = requestedExamsText(alvo);
+  draft.consultation = alvo;
+  render();
+}
+
+// Radio nao se desmarca clicando de novo. Sem isto, a pergunta condicional
+// respondida por engano (a 5 da ASQ, o plano da C-SSRS) ficaria no registro.
+function clearScaleAnswers(id) {
+  const scale = scaleById(id);
+  if (!scale) return;
+  const scope = view === "return" ? "return" : "consultation";
+  const alvo = { ...(draft[scope] || {}) };
+  scale.itens.forEach((_, index) => { delete alvo[scaleFieldName(scale, index)]; });
+  draft[scope] = alvo;
   render();
 }
 
@@ -1882,7 +1948,7 @@ function withoutBookChapters(current = {}) {
 }
 
 function sanitizeConsultationRecord(data = {}) {
-  const clean = withoutScreenOnlyFields(data);
+  const clean = withoutUnappliedScaleAnswers(withoutScreenOnlyFields(data));
   clean.diagnosticoManual = arrayValue(clean.diagnosticoSelecionado).join("\n");
   clean.tratamentoMedicamentoso = arrayValue(clean.tratamentoMedicamentosSelecionados).join("\n");
   clean.abordagensTerapeuticas = arrayValue(clean.abordagensSelecionadas).join("\n");

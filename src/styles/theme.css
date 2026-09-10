@@ -2622,3 +2622,107 @@ textarea:focus-visible {
   margin: 0;
   color: var(--text);
 }
+
+/* Escalas (10/09/2026). O cartao de cada escala segue o bloco do caso na
+   Evolucao: superficie simples, borda fina. O que chama a atencao e so o que
+   precisa -- o resultado, pela cor do nivel, e o alerta de item, em vermelho. */
+.scale-picker { margin-bottom: 16px; }
+.scale-catalogue { display: grid; gap: 4px; }
+.scale-domain { display: grid; grid-template-columns: minmax(150px, 190px) 1fr; gap: 10px; align-items: center; }
+.scale-domain > span { color: var(--muted); font-size: 14px; }
+.scale-domain .chips { margin: 4px 0; }
+
+.scale-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+.scale-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.scale-card-head h4 { margin: 0; font-size: 19px; }
+.scale-card-head h4 span { font-weight: 400; color: var(--muted); font-size: 15px; margin-left: 6px; }
+.scale-meta { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+.scale-instruction { margin: 12px 0 4px; line-height: 1.5; }
+
+.scale-items { margin: 8px 0 0; padding-left: 22px; display: grid; gap: 4px; }
+.scale-item { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.scale-item p { margin: 0 0 6px; line-height: 1.5; }
+.scale-item .chips { margin: 4px 0 2px; }
+.scale-item-unscored p { color: var(--muted); }
+.scale-condition { display: inline-block; margin-left: 6px; color: var(--muted); font-size: 13px; font-style: italic; }
+
+.scale-result { margin-top: 14px; display: grid; gap: 8px; }
+.scale-score {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--sage);
+  background: var(--surface-2);
+}
+.scale-score strong { font-size: 28px; font-variant-numeric: tabular-nums; }
+.scale-score span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.scale-score b { font-size: 17px; }
+.scale-score.nivel-1 { border-left-color: var(--primary-2); }
+.scale-score.nivel-2 { border-left-color: var(--amber); }
+.scale-score.nivel-3 { border-left-color: var(--danger); }
+.scale-band-note, .scale-subscales, .scale-change, .scale-pending { margin: 0; line-height: 1.5; }
+.scale-pending, .scale-change { color: var(--muted); }
+.scale-alert {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--line));
+  border-left: 4px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 9%, var(--surface));
+  line-height: 1.5;
+  font-weight: 600;
+}
+.scale-alert-conflict { font-weight: 400; }
+.scale-reference { margin: 12px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+
+@media (max-width: 720px) {
+  .scale-domain { grid-template-columns: 1fr; gap: 0; }
+  .scale-card-head { flex-direction: column; }
+}
+
+/* Risco agudo das escalas dentro do Nivel de cuidado e do Ajuste de conduta:
+   o mesmo desenho do alerta da escala, para ser reconhecido como o mesmo aviso. */
+.care-card .scale-alert,
+.care-scale-risk { margin: 10px 0; }
+
+/* Escalas sugeridas para o caso: destaque no chip, motivo por extenso acima. */
+.scale-suggestions { margin: 4px 0 12px; padding: 10px 12px; border-radius: var(--radius); border: 1px dashed color-mix(in srgb, var(--primary-2) 55%, var(--line)); }
+.scale-suggestions b { display: block; margin-bottom: 4px; font-size: 14px; }
+.scale-suggestions ul { margin: 0; padding-left: 18px; display: grid; gap: 2px; color: var(--muted); line-height: 1.45; }
+.scale-suggestions li strong { color: var(--text); }
+.chip.scale-suggested { border-style: dashed; border-color: var(--primary-2); }
+
+/* Evolucao das escalas no prontuario. */
+.scale-trends { margin: 4px 0 18px; }
+.scale-trends h3 { margin: 0 0 10px; }
+.scale-trend-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.scale-trend { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 12px 14px; }
+.scale-trend h4 { margin: 0 0 6px; font-size: 16px; }
+.scale-trend h4 span { font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; margin-left: 6px; }
+.scale-trend-chart { width: 100%; height: auto; display: block; overflow: visible; }
+.scale-trend-chart .trend-axis { stroke: var(--line); stroke-width: 1; }
+.scale-trend-chart .trend-cut { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 4; }
+.scale-trend-chart .trend-line { fill: none; stroke: var(--primary-2); stroke-width: 2; stroke-linejoin: round; }
+.scale-trend-chart .trend-dot { fill: var(--surface); stroke: var(--primary-2); stroke-width: 2; }
+.scale-trend-chart .trend-dot-last { fill: var(--primary-2); }
+.scale-trend-chart .trend-value { fill: var(--text); font-size: 11px; font-variant-numeric: tabular-nums; }
+.scale-trend-chart .trend-tick { fill: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.scale-trend-caption { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+.scale-trend-list { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 4px; }
+.scale-trend-list span { display: inline-block; min-width: 48px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Monitorizacao dos medicamentos assinalados, no cartao de Exames. */
+.monitoring-block { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.monitoring-title { margin: 0 0 6px; font-weight: 600; }
+.monitoring-block ul { margin: 0 0 10px; padding-left: 18px; display: grid; gap: 6px; line-height: 1.5; }
+.monitoring-exams { color: var(--muted); }
