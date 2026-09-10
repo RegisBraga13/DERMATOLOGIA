@@ -3,6 +3,7 @@ import { selectedAggravatingValues, selectedComorbidityValues, selectedDiagnosis
 import { arrayValue, calculateAge, capitalizeFirst, cleanClinicalLine, clinicalPhrase, formatClinicalList, formatPlainList, joinValues, lowerFirst, mentalExamKeys, normalizedSingleChoiceValue, normalizeText, professionalClinicalTerms, professionalList, professionalListWithOther, stripFinalPeriod } from "./textFormat.js";
 import { EVOLUTION_REFRESH_PATTERNS, laboratoryExamRequestItems, RETURN_BOILERPLATE_PHRASES } from "./vocabulary.js";
 import { scalesNarrativeText } from "./scoring.js";
+import { documentsNarrativeText } from "./documents.js";
 
 // Especificador assinalado viaja colado a hipotese, porque e ele que muda a
 // conduta: depressao com sintomas psicoticos e depressao leve tem o mesmo
@@ -86,7 +87,10 @@ export function buildEvolutionNarrative(form, patient = {}, previous = null, isR
     // No retorno, com o valor do atendimento anterior ao lado.
     scalesNarrativeText(form, isReturn ? previous : null),
     diagnosis ? `Consideram-se as hipóteses diagnósticas assinaladas de ${stripFinalPeriod(diagnosis)}.` : "",
-    treatment
+    treatment,
+    // O que saiu do consultorio com o paciente: atestado, relatorio,
+    // encaminhamento. O texto de cada um fica em documentosEmitidos.
+    documentsNarrativeText(form)
   ].filter(Boolean).join("\n\n"));
 }
 

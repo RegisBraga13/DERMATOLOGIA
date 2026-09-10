@@ -25,6 +25,8 @@ import { bookChapterView, medicationReferenceCard } from "./views/medication.js"
 import { scalesBody, scaleResultView, scaleTrendsView } from "./views/scales.js";
 import { suggestedScales } from "./clinical/scaleSuggestions.js";
 import { monitoringExamSelection, monitoringFor } from "./data/monitoring.js";
+import { buildDocumentText, documentDraftFields, documentType, doctorFromForm, issuedDocument, withoutDocumentDraftFields } from "./clinical/documents.js";
+import { documentsBody } from "./views/documents.js";
 import { previousScaleEntries, scaleFieldName, withoutUnappliedScaleAnswers } from "./clinical/scoring.js";
 import { scaleById } from "./data/scales.js";
 
@@ -391,6 +393,7 @@ function consultationPageBody(form, patient) {
   if (consultationPage === "evolucao") return clinicalPage("Historia clinica", evolutionBody(form, patient), "consultation");
   if (consultationPage === "medicamentos") return clinicalPage("Medicamentos", medicationBody(form), "consultation");
   if (consultationPage === "escalas") return clinicalPage("Escalas", scalesBody(form, scaleHistory(form), false, suggestedScales(form, patient)), "consultation");
+  if (consultationPage === "documentos") return clinicalPage("Documentos", documentsBody(form, documentViewOptions("consultation", form)), "consultation");
   return clinicalPage("Historia clinica", evolutionBody(form, patient), "consultation");
 }
 
@@ -404,6 +407,7 @@ function returnPageBody(form, patient, previous) {
   // Escalas segue a mesma regra do apendice no retorno: sem botao proprio. A
   // resposta fica no rascunho e grava junto com o retorno, no Ajuste de conduta.
   if (returnPage === "escalas") return clinicalPage("Escalas", scalesBody(form, scaleHistory(form), true, suggestedScales(form, patient, { isReturn: true, previous })), "return", false);
+  if (returnPage === "documentos") return clinicalPage("Documentos", documentsBody(form, documentViewOptions("return", form)), "return", false);
   // A pagina junta as duas coisas na ordem em que se decide, e SO na ordem em
   // que se decide: o texto nao abre junto, aparece depois do ajuste, ja com o
   // ajuste dentro. Antes disso nao haveria o que escrever.
@@ -675,7 +679,7 @@ function currentPageForScope(scope) {
 // Medicamentos e a excecao, decidida por ele: e apendice de consulta, nao etapa
 // do atendimento, e precisa estar a mao a qualquer momento. Escalas, desde
 // 10/09/2026, pelo mesmo motivo.
-const APPENDIX_PAGES = new Set(["medicamentos", "escalas"]);
+const APPENDIX_PAGES = new Set(["medicamentos", "escalas", "documentos"]);
 
 function unlockedForScope(scope) {
   return scope === "consultation" ? consultationUnlocked : returnUnlocked;
@@ -875,6 +879,12 @@ function bindAutoDraft() {
     form.addEventListener("input", event => {
       clinicalDraftRevision += 1;
       updateDraftFromForm(form);
+      // Texto do documento mexido a mao: a partir daqui, mudar dias ou destino
+      // nao o remonta por cima do que o medico escreveu.
+      if (event.target?.name === "documento_texto") {
+        const chave = form.id === "return-form" ? "return" : "consultation";
+        draft[chave] = { ...(draft[chave] || {}), documento_editado: "1" };
+      }
       if (form.id === "consult-form" && consultationPage === "anamnese" && ["queixa", "hdaManual", "medicos", "qphda"].includes(event.target?.name)) {
         const target = draft.consultation || defaultConsultation();
         target.anamnesisDoctorTextOverrides = { ...(target.anamnesisDoctorTextOverrides || {}), [event.target.name]: true };
@@ -900,6 +910,13 @@ function bindAutoDraft() {
       // dela, e nao a pagina, para a rolagem nao sair do item.
       if (event.target?.name === "escalasAplicadas") { render(); return; }
       if (event.target?.dataset?.escala) { refreshScaleResult(event.target.dataset.escala); return; }
+      // Documentos: trocar o tipo recomeca o texto; mudar um campo o remonta,
+      // se o medico ainda nao o editou a mao.
+      if (event.target?.name === "documento_tipo") { refreshDocumentText(currentScope(), true); return; }
+      if (/^(documento_|medico_)/.test(event.target?.name || "") && event.target.name !== "documento_texto") {
+        refreshDocumentText(currentScope());
+        return;
+      }
       recordAnamnesisDoctorOverride(event.target);
       if (event.target?.name === "examesSolicitados") {
         const hiddenExams = form.querySelector("textarea[name='examesLaboratoriais']");
@@ -1067,6 +1084,10 @@ function bindActions() {
       if (action === "clear-appendix-symptom") clearAppendixSymptom();
       if (action === "clear-scale") clearScaleAnswers(element.dataset.escala);
       if (action === "apply-monitoring-exams") applyMonitoringExams(element);
+      if (action === "generate-document") generateDocument(element);
+      if (action === "export-document") exportDocument(element);
+      if (action === "reexport-document") reexportDocument(element.dataset.indice);
+      if (action === "save-doctor") saveDoctorData(element);
       if (action === "generate-appendix-symptom") await generateAppendixSymptomConduct(element);
       if (action === "adopt-appendix-conduct") adoptAppendixConduct(element.dataset.conduta || "");
       if (action === "clear-patient") { draft.patient = {}; render(); }
@@ -1166,6 +1187,94 @@ function clearScaleAnswers(id) {
   const alvo = { ...(draft[scope] || {}) };
   scale.itens.forEach((_, index) => { delete alvo[scaleFieldName(scale, index)]; });
   draft[scope] = alvo;
+  render();
+}
+
+// Documentos (views/documents.js). O texto e montado do atendimento aberto; no
+// retorno, o diagnostico vem da consulta a que ele responde.
+function documentDoctor(form = {}) {
+  return { ...(state.doctor || {}), ...doctorFromForm(form) };
+}
+
+function documentTextFor(scope, form = {}) {
+  const isReturn = scope === "return";
+  return buildDocumentText(arrayValue(form.documento_tipo)[0], {
+    form,
+    patient: getPatient() || {},
+    doctor: documentDoctor(form),
+    history: previousScaleEntries(entriesForPatient(selectedPatientId), form),
+    previous: isReturn ? previousEntryForReturn(form, selectedPatientId) : null,
+    isReturn
+  });
+}
+
+function documentViewOptions(scope, form = {}) {
+  return { doctor: state.doctor || {}, textoGerado: documentTextFor(scope, form), isReturn: scope === "return" };
+}
+
+// Texto vazio no rascunho = a tela mostra o montado. Mudar um campo do
+// documento remonta o texto, a menos que o medico ja o tenha editado a mao --
+// ai so remonta pelo botao. Trocar o tipo sempre recomeca: o texto de um
+// atestado nao serve de relatorio.
+function refreshDocumentText(scope, trocouTipo = false) {
+  const alvo = { ...(draft[scope] || {}) };
+  if (trocouTipo || !alvo.documento_editado) {
+    alvo.documento_texto = "";
+    alvo.documento_editado = "";
+  }
+  alvo.documento_status = "";
+  draft[scope] = alvo;
+  render();
+}
+
+function currentScope() {
+  return view === "return" ? "return" : "consultation";
+}
+
+function generateDocument(element) {
+  const formulario = element.closest("form");
+  if (formulario) updateDraftFromForm(formulario);
+  refreshDocumentText(currentScope(), true);
+}
+
+// Exportar e emitir: o PDF sai, e o atendimento guarda o que foi entregue --
+// tipo, resumo, data e o texto exato, para exportar de novo sem remontar.
+function exportDocument(element) {
+  const formulario = element.closest("form");
+  if (formulario) updateDraftFromForm(formulario);
+  const scope = currentScope();
+  const alvo = { ...(draft[scope] || {}) };
+  const tipo = documentType(arrayValue(alvo.documento_tipo)[0]);
+  const texto = String(alvo.documento_texto || "").trim() || documentTextFor(scope, alvo);
+  const paciente = getPatient() || {};
+  const data = new Date().toLocaleDateString("pt-BR").replaceAll("/", "-");
+  exportTextAsPdf(tipo.titulo, texto, `${paciente.nome || "Paciente"} - ${tipo.titulo} - ${data}`, { rodape: "" });
+  alvo.documentosEmitidos = [...(Array.isArray(alvo.documentosEmitidos) ? alvo.documentosEmitidos : []), issuedDocument(tipo.id, alvo, texto)];
+  alvo.documento_status = scope === "return"
+    ? `${tipo.titulo}: PDF gerado. Entra no retorno quando você salvar, no Ajuste de conduta.`
+    : `${tipo.titulo}: PDF gerado. Entra na consulta quando você salvar.`;
+  draft[scope] = alvo;
+  render();
+}
+
+function reexportDocument(indice) {
+  const item = (draft[currentScope()]?.documentosEmitidos || [])[Number(indice)];
+  if (!item) return;
+  const paciente = getPatient() || {};
+  const data = new Date(item.emitidoEm || Date.now()).toLocaleDateString("pt-BR").replaceAll("/", "-");
+  exportTextAsPdf(item.titulo, item.texto, `${paciente.nome || "Paciente"} - ${item.titulo} - ${data}`, { rodape: "" });
+}
+
+// Os dados de assinatura sao do medico, nao do atendimento: vao para
+// state.doctor, que sincroniza com a conta como o resto do estado.
+function saveDoctorData(element) {
+  const formulario = element.closest("form");
+  if (formulario) updateDraftFromForm(formulario);
+  const scope = currentScope();
+  state.doctor = { ...(state.doctor || {}), ...doctorFromForm(draft[scope] || {}) };
+  persist();
+  refreshDocumentText(scope);
+  draft[scope] = { ...draft[scope], documento_status: "Dados do médico salvos." };
   render();
 }
 
@@ -1929,14 +2038,17 @@ function screenOnlyFields(entry = {}) {
   ["medicationChapter", "medicationChapterStatus"].forEach(campo => {
     if (entry && Object.hasOwn(entry, campo)) campos[campo] = entry[campo];
   });
-  return campos;
+  // Os campos de tela dos Documentos (documento_*, medico_*) seguem a mesma
+  // regra desde 10/09/2026: continuam na tela depois de salvar, e nao vao para
+  // o registro. Do documento, o prontuario guarda so documentosEmitidos.
+  return { ...campos, ...documentDraftFields(entry) };
 }
 
 function withoutScreenOnlyFields(entry = {}) {
   const clean = { ...entry };
   delete clean.medicationChapter;
   delete clean.medicationChapterStatus;
-  return clean;
+  return withoutDocumentDraftFields(clean);
 }
 
 function withoutBookChapters(current = {}) {

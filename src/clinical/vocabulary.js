@@ -89,7 +89,10 @@ export const consultationPages = [
   ["medicamentos", "Medicamentos"],
   // Escalas entrou em 10/09/2026, apendice como Medicamentos: aplica-se quando
   // o caso pede, em qualquer ponto do atendimento, e nao numa etapa fixa.
-  ["escalas", "Escalas"]
+  ["escalas", "Escalas"],
+  // Documentos, tambem apendice (10/09/2026): atestado, declaracao, relatorio
+  // e encaminhamento saem do que ja esta registrado no atendimento.
+  ["documentos", "Documentos"]
 ];
 
 // A segunda pagina do retorno era "Texto final", e o titulo dela dizia
@@ -105,7 +108,8 @@ export const returnPages = [
   ["medicamentos", "Medicamentos"],
   // No retorno as escalas sao onde se ve a mudanca: o resultado sai ao lado do
   // da aplicacao anterior.
-  ["escalas", "Escalas"]
+  ["escalas", "Escalas"],
+  ["documentos", "Documentos"]
 ];
 
 // As quatro saidas de "nenhum transtorno" carregam codigo pelo mesmo motivo da

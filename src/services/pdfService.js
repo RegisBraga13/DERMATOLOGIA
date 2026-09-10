@@ -1,6 +1,10 @@
-export function exportTextAsPdf(title, text, filename = "") {
+// `rodape`: o texto fixo do rodape. O padrao ("Revisao medica obrigatoria")
+// serve ao resumo e a evolucao, que sao material de trabalho; num atestado ou
+// num encaminhamento, que o paciente leva para fora, ele nao cabe -- ali o
+// rodape e so a pagina.
+export function exportTextAsPdf(title, text, filename = "", { rodape } = {}) {
   const safeTitle = String(title || "Documento clínico").trim();
-  const pdfBytes = buildPdf(safeTitle, String(text || ""));
+  const pdfBytes = buildPdf(safeTitle, String(text || ""), rodape);
   const blob = new Blob([pdfBytes], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -13,7 +17,7 @@ export function exportTextAsPdf(title, text, filename = "") {
   window.setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
-function buildPdf(title, text) {
+function buildPdf(title, text, rodape) {
   const pageWidth = 595;
   const pageHeight = 842;
   const margin = 50;
@@ -57,7 +61,9 @@ function buildPdf(title, text) {
       "BT",
       "/F1 8 Tf",
       `${margin} 34 Td`,
-      `(Documento gerado pelo Regis Braga Psiquiatria. Revisao medica obrigatoria. Pagina ${index + 1} de ${pages.length}.) Tj`,
+      rodape === undefined
+        ? `(Documento gerado pelo Regis Braga Psiquiatria. Revisao medica obrigatoria. Pagina ${index + 1} de ${pages.length}.) Tj`
+        : `(${escapePdfString(`${rodape ? `${rodape} ` : ""}Página ${index + 1} de ${pages.length}`)}) Tj`,
       "ET"
     );
 

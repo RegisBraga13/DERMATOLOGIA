@@ -2726,3 +2726,15 @@ textarea:focus-visible {
 .monitoring-title { margin: 0 0 6px; font-weight: 600; }
 .monitoring-block ul { margin: 0 0 10px; padding-left: 18px; display: grid; gap: 6px; line-height: 1.5; }
 .monitoring-exams { color: var(--muted); }
+
+/* Documentos (10/09/2026): tipo e campos em cima, texto editavel embaixo. */
+.document-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px 14px; margin: 10px 0; }
+.document-recommendations { grid-column: 1 / -1; }
+.document-consent { margin: 4px 0 8px; }
+.document-editor textarea { width: 100%; min-height: 320px; line-height: 1.55; }
+.document-editor .actions { margin-top: 10px; }
+.documents-issued ul { margin: 0 0 6px; padding: 0; list-style: none; display: grid; gap: 6px; }
+.documents-issued li { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.doctor-card summary { cursor: pointer; }
+.doctor-card[open] summary { margin-bottom: 8px; }
+.document-picker, .document-editor, .documents-issued, .doctor-card { margin-bottom: 14px; }
