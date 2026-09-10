@@ -11,7 +11,7 @@ import { buildClinicalAiPrompt, buildRagQuery, buildWebQuery, canonicalAiSelecti
 import { buildMedicationAutofill, localMedicationSuggestions } from "./services/medicationService.js";
 import { exportTextAsPdf } from "./services/pdfService.js";
 import { loadState, mergeStates, saveState, uid } from "./services/storageService.js";
-import { currentSession, pullState, pushState, signIn } from "./services/supabaseService.js";
+import { currentSession, pullState, pushState, signIn, signOut } from "./services/supabaseService.js";
 import { anamnesisStructuredFields, chips, field, selectField, summaryColumns, textarea, voiceTextarea } from "./ui/controls.js";
 import { escapeAttr, escapeHtml } from "./ui/html.js";
 import { createVoiceRecording } from "./ui/voiceRecording.js";
@@ -24,7 +24,7 @@ import { lifeStageOf, needsCaregiverHistory, needsReproductiveHistory, ragPatien
 import { bookChapterView, medicationReferenceCard } from "./views/medication.js";
 
 const app = document.querySelector("#app");
-let state = loadState();
+let state = withoutBookChapters(loadState());
 let view = "dashboard";
 let medicationLookupTimer = null;
 let selectedPatientId = state.patients[0]?.id || "";
@@ -68,21 +68,28 @@ const icons = {
 
 currentSession().then(async session => {
   authSession = session;
-  if (authSession) {
-    try {
-      const remoteState = await pullState();
-      if (remoteState) {
-        // Une, nao substitui: o que foi escrito enquanto a sincronizacao
-        // estava fora precisa sobreviver ao proximo carregamento.
-        state = mergeStates(state, remoteState);
-        storageError = saveState(state);
-        selectedPatientId = state.patients?.[0]?.id || "";
-        pushState(state).catch(error => { syncError = error.message; });
-      }
-    } catch (error) { syncError = error.message; }
-  }
+  if (authSession) await syncAfterLogin();
   render();
 });
+
+// Une o que esta neste aparelho com o que esta na conta. Roda ao abrir o app
+// com sessao e, desde 10/09/2026, tambem logo depois de entrar: antes so rodava
+// ao abrir, entao quem saia e entrava de novo -- ou entrava pela primeira vez
+// num aparelho -- via apenas a copia local ate recarregar a pagina.
+async function syncAfterLogin() {
+  syncError = "";
+  try {
+    const remoteState = await pullState();
+    if (remoteState) {
+      // Une, nao substitui: o que foi escrito enquanto a sincronizacao
+      // estava fora precisa sobreviver ao proximo carregamento.
+      state = withoutBookChapters(mergeStates(state, remoteState));
+      storageError = saveState(state);
+      selectedPatientId = state.patients?.[0]?.id || "";
+      pushState(state).catch(error => { syncError = error.message; });
+    }
+  } catch (error) { syncError = error.message; }
+}
 
 function render() {
   document.body.classList.toggle("light", state.theme === "light");
@@ -112,7 +119,7 @@ function bindAuthEvents() {
     event.preventDefault();
     const form = event.currentTarget;
     authError = "";
-    try { authSession = await signIn(form.email.value.trim(), form.password.value); render(); }
+    try { authSession = await signIn(form.email.value.trim(), form.password.value); await syncAfterLogin(); render(); }
     catch (error) { authError = error.message; render(); }
   });
 }
@@ -156,7 +163,7 @@ function dashboard() {
     <div class="dashboard-metrics">
       <div><span>Pacientes cadastrados</span><strong>${String(state.patients?.length || 0).padStart(2, "0")}</strong></div>
       <div><span>Registros clínicos</span><strong>${String(entries).padStart(2, "0")}</strong></div>
-      <div class="privacy-note">${lockIcon()}<span><strong>Privacidade em primeiro lugar</strong><small>Dados armazenados somente neste dispositivo</small></span></div>
+      <div class="privacy-note">${lockIcon()}<span><strong>Privacidade em primeiro lugar</strong><small>${syncError ? "Salvo neste aparelho. A cópia da sua conta está pendente." : "Salvo neste aparelho e na sua conta, sob o seu login."}</small></span></div>
     </div>
     <div class="quick-heading"><span>Acesso rápido</span><small>Selecione uma ação para começar</small></div>
     <div class="dashboard-actions">${cards.map(([icon, title, target, number]) => `
@@ -377,14 +384,16 @@ function consultationPageBody(form, patient) {
   if (consultationPage === "diagnostico") return clinicalPage("Diagnostico e diferenciais", diagnosisModule(form), "consultation");
   if (consultationPage === "tratamento") return clinicalPage("Tratamento e orientacoes", treatmentModule(form), "consultation");
   if (consultationPage === "evolucao") return clinicalPage("Historia clinica", evolutionBody(form, patient), "consultation");
-  if (consultationPage === "medicamentos") return clinicalPage("Medicamentos", medicationBody(form), "consultation", false);
+  if (consultationPage === "medicamentos") return clinicalPage("Medicamentos", medicationBody(form), "consultation");
   return clinicalPage("Historia clinica", evolutionBody(form, patient), "consultation");
 }
 
 function returnPageBody(form, patient, previous) {
   if (returnPage === "evolucao-retorno") return clinicalPage("Avaliacao de evolucao", returnAssessmentBody(form, previous), "return");
-  if (returnPage === "diagnostico") return clinicalPage("Diagnostico e diferenciais", diagnosisModule(form), "return");
-  if (returnPage === "tratamento") return clinicalPage("Tratamento e orientacoes", treatmentModule(form), "return");
+  // Diagnostico e Tratamento tinham ramo aqui sem aba que levasse a eles: o
+  // retorno tem duas etapas, e a conduta dele e o Ajuste. Sairam em 10/09/2026.
+  // Medicamentos fica, agora com aba: e o apendice, e sem botao de salvar -- o
+  // retorno so grava depois da Evolucao completa, no Ajuste de conduta.
   if (returnPage === "medicamentos") return clinicalPage("Medicamentos", medicationBody(form), "return", false);
   // A pagina junta as duas coisas na ordem em que se decide, e SO na ordem em
   // que se decide: o texto nao abre junto, aparece depois do ajuste, ja com o
@@ -451,6 +460,9 @@ function medicationBody(form) {
   const hasInformation = Boolean(form.medicationNameText || form.medicationClassMechanism || form.medicationInitialDose
     || form.medicationPresentation || form.medicationSafety || form.medicationBestUse);
   const condutas = appendixSymptomLines(form);
+  // Para onde a conduta adotada vai. Na consulta, o Tratamento; no retorno, que
+  // nao tem Tratamento, o Ajuste de conduta (ver adoptAppendixConduct).
+  const destinoConduta = view === "return" ? "Ajuste de conduta" : "Tratamento";
   return `
     <div class="medication-reference">
       <header class="medication-reference-head">
@@ -504,12 +516,12 @@ function medicationBody(form) {
         ${condutas.length ? `
           <section class="appendix-symptom-results">
             <h4>Manejo de ${escapeHtml(sintomaBuscado)}</h4>
-            <p class="field-hint">Consulta, não prontuário. O que você levar para o Tratamento é o que fica registrado.</p>
+            <p class="field-hint">Consulta, não prontuário. O que você levar para o ${destinoConduta} é o que fica registrado.</p>
             <ul>${condutas.map(linha => `
               <li>
                 <span>${escapeHtml(linha)}</span>
                 <button class="secondary" type="button" data-action="adopt-appendix-conduct" data-conduta="${escapeAttr(linha)}"
-                  title="Leva esta conduta para o Tratamento, onde ela entra no prontuario.">Levar para o Tratamento</button>
+                  title="Leva esta conduta para o ${destinoConduta}, onde ela entra no prontuario.">Levar para o ${destinoConduta}</button>
               </li>`).join("")}</ul>
           </section>
         ` : ""}
@@ -599,8 +611,8 @@ function recordEntryCard(entry) {
 function exitPanel() {
   return `
     <div class="panel-title"><div><h2>Sair do Sistema</h2></div></div>
-    <div class="warning">Antes de sair, revise se ha evolucoes em edicao. O sistema tenta salvar automaticamente ao submeter formularios, mas dados sensiveis exigem backend seguro em producao.</div>
-    <div class="actions"><button class="danger" data-action="confirm-exit">Sair do Sistema</button><button class="secondary" data-action="dashboard">Cancelar</button></div>
+    <div class="warning">Sair encerra a sua sessão neste navegador e volta à tela de entrada. Salve antes o que estiver em edição: o que não foi salvo se perde. O que já foi salvo continua neste aparelho e na sua conta.</div>
+    <div class="actions"><button class="danger" data-action="exit-now">Encerrar sessão</button><button class="secondary" data-action="dashboard">Cancelar</button></div>
   `;
 }
 
@@ -678,11 +690,16 @@ function pageIsReachable(scope, key) {
   return index >= 0 && index < unlockedForScope(scope);
 }
 
+// O apendice nao e etapa: "Salvar e avancar" nunca leva a ele. Ate 10/09/2026
+// levava -- a Historia clinica, ultima etapa da consulta, "avancava" para
+// Medicamentos, e a consulta terminava numa pagina sem botao de salvar. Pelo
+// fluxo, so o desvio do Tratamento chega ao apendice (medicationDetour).
 function nextPageForScope(scope) {
   const pages = pagesForScope(scope);
   const current = currentPageForScope(scope);
   const index = pages.findIndex(([key]) => key === current);
-  return index >= 0 ? pages[index + 1]?.[0] || "" : "";
+  if (index < 0) return "";
+  return pages.slice(index + 1).find(([key]) => !APPENDIX_PAGES.has(key))?.[0] || "";
 }
 
 function pageStepActions(scope) {
@@ -697,9 +714,13 @@ function pageStepActions(scope) {
       <button class="primary" type="button" data-action="save-next-page" data-scope="return">Salvar e avançar</button>
     </div>`;
   }
+  // Salvar sem avancar, nas duas. A consulta so gravava por "Salvar e avancar",
+  // e por isso a ultima etapa e o apendice nao tinham como gravar: a conduta
+  // trazida de Medicamentos ficava so no rascunho. Onde nao ha para onde
+  // avancar, salvar e a acao principal da pagina.
   return `<div class="actions page-actions">
     ${nextPage ? `<button class="primary" type="button" data-action="save-next-page" data-scope="${scope}">Salvar e avancar</button>` : ""}
-    ${scope === "return" ? `<button class="secondary" type="submit">${recordLabel}</button>` : ""}
+    <button class="${nextPage ? "secondary" : "primary"}" type="submit">${recordLabel}</button>
   </div>`;
 }
 
@@ -952,8 +973,21 @@ function bindPatientForm() {
 function bindConsultForm() {
   const form = app.querySelector("#consult-form");
   if (!form) return;
+  // Com o botao de salvar em toda pagina, Enter num campo de uma linha -- a
+  // busca do medicamento, o "Descreva" de um Outro -- submeteria o formulario e
+  // gravaria a consulta no meio da digitacao. Salvar e clique.
+  form.addEventListener("keydown", event => {
+    const campo = event.target;
+    if (event.key !== "Enter" || campo?.tagName !== "INPUT") return;
+    if (campo.type === "submit" || campo.type === "button") return;
+    event.preventDefault();
+  });
   form.addEventListener("submit", event => {
     event.preventDefault();
+    if (voiceRecording.isBusy()) {
+      alert("Encerre a gravação e aguarde a transcrição antes de salvar.");
+      return;
+    }
     updateDraftFromForm(form);
     saveClinicalRecord("consultation");
     render();
@@ -1028,9 +1062,8 @@ function bindActions() {
       if (action === "pdf-entry") pdfEntry(element.dataset.id, element.dataset.type);
       if (action === "pdf-summary") pdfClinicalSummary();
       if (action === "delete-entry") deleteEntry(element.dataset.id, element.dataset.type);
-      if (action === "confirm-exit") showExitModal();
       if (action === "close-modal") { modal = null; render(); }
-      if (action === "exit-now") { modal = null; view = "dashboard"; render(); }
+      if (action === "exit-now") await endSession();
     }
   });
 }
@@ -1152,7 +1185,7 @@ function saveClinicalRecord(scope) {
     data.updatedAt = now;
     data.createdAt = data.createdAt || now;
     upsert("consultations", data);
-    draft.consultation = structuredClone(data);
+    draft.consultation = { ...structuredClone(data), ...screenOnlyFields(draft.consultation) };
     persist();
     return data;
   }
@@ -1177,7 +1210,7 @@ function saveClinicalRecord(scope) {
     data.updatedAt = now;
     data.createdAt = data.createdAt || now;
     upsert("returns", data);
-    draft.return = structuredClone(data);
+    draft.return = { ...structuredClone(data), ...screenOnlyFields(draft.return) };
     persist();
     return data;
   }
@@ -1428,6 +1461,21 @@ function adoptAppendixConduct(conduta) {
   if (!linha) return;
   const scope = view === "return" ? "return" : "consultation";
   const target = (scope === "return" ? draft.return : draft.consultation) || {};
+  // No retorno, que nao tem Tratamento, a conduta vai para o Ajuste de conduta,
+  // em "Acrescentar". Nao para as caixas da IA: um novo "Gerar" reescreve
+  // aquela lista, e a linha adotada sumiria junto. "Acrescentar" e o campo
+  // dele, que a IA nao toca, e entra no prontuario como o assinalado.
+  if (scope === "return") {
+    const atual = String(target.ajusteAcrescimo || "").trim();
+    const jaEsta = atual.split("\n").some(item => normalizeText(item) === normalizeText(linha));
+    draft.return = {
+      ...(draft.return || {}),
+      ajusteAcrescimo: jaEsta ? atual : [atual, linha].filter(Boolean).join("\n"),
+      appendixSymptomStatus: `"${linha}" foi para o Ajuste de conduta, em Acrescentar.`
+    };
+    render();
+    return;
+  }
   const sintoma = String(target.appendixSymptom || "").trim();
   const propostas = treatmentOptionLines(target.tratamentoAiSintomasAlvo);
   const marcadas = arrayValue(target.sintomasAlvoSelecionados);
@@ -1480,18 +1528,15 @@ async function generateEvolutionFromClinicalData(element) {
   render();
 }
 
-async function generateMedicationFromClinicalData(element, kind = "medication") {
+// Uma passada so. O "Refinar" da ficha saiu da tela em 02/09/2026, por decisao
+// dele -- tres botoes numa consulta que e uma pergunta so --, e o ramo de
+// revisao que tinha ficado aqui nao era mais chamado por nada. A etapa
+// `medication_review` continua no servidor, com schema, escopo e testes, para o
+// dia em que o botao voltar.
+async function generateMedicationFromClinicalData(element) {
   const { scope, target } = syncedTarget(element);
   if (!target?.medicationGeneric?.trim()) return alert("Digite o nome do medicamento antes de consultar a IA.");
-  const revisao = kind === "medication_review";
-  // A ficha tem campos que nao vem da IA — mecanismo, monitorizacao,
-  // populacoes especiais, preenchidos pela busca local/online. Por isso o teste
-  // olha so o que a primeira passada da IA escreve: sem isso, "Refinar" ficaria
-  // habilitado sobre uma ficha que a IA nunca gerou.
-  if (revisao && !target?.medicationInitialDose && !target?.medicationClassMechanism && !target?.medicationSideEffects) {
-    return alert("Gere a ficha antes de refinar: o refinamento revisa a primeira passada, nao a substitui.");
-  }
-  const aviso = revisao ? "Refinando a ficha com a fonte especializada..." : "Consultando IA real para medicamento...";
+  const aviso = "Consultando IA real para medicamento...";
   setClinicalAiStatus(scope, aviso);
   if (scope === "return") draft.return = { ...(draft.return || {}), medicationStatus: aviso };
   else draft.consultation = { ...(draft.consultation || {}), medicationStatus: aviso };
@@ -1500,11 +1545,11 @@ async function generateMedicationFromClinicalData(element, kind = "medication") 
   try {
     const context = clinicalAiContext(scope);
     const { result, sources, webSources, mode } = await requestClinicalAi(
-      kind,
-      buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn),
+      "medication",
+      buildClinicalAiPrompt("medication", context.target, context.patient, context.previous, context.isReturn),
       context.target?.pharmaAiMode || "rag",
-      buildRagQuery(kind, context.target),
-      buildWebQuery(kind, context.target),
+      buildRagQuery("medication", context.target),
+      buildWebQuery("medication", context.target),
       // O acervo e de psiquiatria. Se o trecho recuperado nao cita o farmaco
       // perguntado, ele nao sustenta a ficha -- e o servidor vai a web, que e
       // quem sabe de losartana, metformina e omeprazol.
@@ -1515,7 +1560,7 @@ async function generateMedicationFromClinicalData(element, kind = "medication") 
     // nesta chamada. Gravando o modo devolvido, uma consulta a losartana deixava
     // o radio em IA Nuvem, e o proximo farmaco -- psiquiatrico, com livro no
     // acervo -- sairia da web sem ninguem ter pedido.
-    const escolhido = revisao ? "rag" : (context.target?.pharmaAiMode || "rag");
+    const escolhido = context.target?.pharmaAiMode || "rag";
     const caiuParaWeb = escolhido === "rag" && mode === "current";
     suggestion = {
       medicationNameText: result.medication || target.medicationGeneric,
@@ -1535,14 +1580,10 @@ async function generateMedicationFromClinicalData(element, kind = "medication") 
       medicationBestUse: "",
       medicationStatus: caiuParaWeb
         ? "Nenhum livro do acervo traz esse farmaco — a ficha foi pesquisada na web. Revise com bula vigente."
-        : (revisao
-          ? "Ficha refinada pela fonte especializada. Revise com bula vigente."
-          : "Medicamento preenchido nos campos essenciais. Revise com bula vigente."),
-      medicationOnlineStatus: revisao
-        ? "Ficha revisada pela fonte especializada. Revise com bula brasileira e dados do paciente."
-        : "Resposta de medicamento gerada pela IA real. Revise com bula brasileira e dados do paciente.",
+        : "Medicamento preenchido nos campos essenciais. Revise com bula vigente.",
+      medicationOnlineStatus: "Resposta de medicamento gerada pela IA real. Revise com bula brasileira e dados do paciente.",
       medicationTips: await fetchMedicationTips(context, target),
-      aiStatus: revisao ? "Ficha refinada pela fonte especializada. Revise antes de salvar." : "Resposta gerada pela IA real. Revise antes de salvar.",
+      aiStatus: "Resposta gerada pela IA real. Revise antes de salvar.",
       ragSourcesMedicamento: sourcesOfMode(mode, sources, webSources),
       pharmaAiMode: escolhido
     };
@@ -1812,8 +1853,36 @@ function updateDraftFromForm(form) {
   }
 }
 
+// O capitulo do livro e tela, e nao registro: 13 a 30 mil caracteres de obra
+// licenciada por farmaco. Ate 10/09/2026 ele ia junto com a consulta para o
+// localStorage e para o Supabase -- o rascunho carregava o capitulo, e salvar
+// gravava o rascunho inteiro. Agora sai do registro ao salvar e ao carregar; o
+// segundo limpa o que ja tinha sido gravado antes. Na tela ele continua.
+function screenOnlyFields(entry = {}) {
+  const campos = {};
+  ["medicationChapter", "medicationChapterStatus"].forEach(campo => {
+    if (entry && Object.hasOwn(entry, campo)) campos[campo] = entry[campo];
+  });
+  return campos;
+}
+
+function withoutScreenOnlyFields(entry = {}) {
+  const clean = { ...entry };
+  delete clean.medicationChapter;
+  delete clean.medicationChapterStatus;
+  return clean;
+}
+
+function withoutBookChapters(current = {}) {
+  return {
+    ...current,
+    consultations: (current.consultations || []).map(withoutScreenOnlyFields),
+    returns: (current.returns || []).map(withoutScreenOnlyFields)
+  };
+}
+
 function sanitizeConsultationRecord(data = {}) {
-  const clean = { ...data };
+  const clean = withoutScreenOnlyFields(data);
   clean.diagnosticoManual = arrayValue(clean.diagnosticoSelecionado).join("\n");
   clean.tratamentoMedicamentoso = arrayValue(clean.tratamentoMedicamentosSelecionados).join("\n");
   clean.abordagensTerapeuticas = arrayValue(clean.abordagensSelecionadas).join("\n");
@@ -2070,8 +2139,29 @@ function findEntry(id, type) {
   return (type === "consultation" ? state.consultations : state.returns).find(item => item.id === id);
 }
 
-function showExitModal() {
-  modal = `<div class="modal-backdrop"><div class="modal"><h2>Deseja realmente sair do sistema?</h2><p>Dados ja salvos permanecem neste navegador. Revise campos em edicao antes de sair.</p><div class="actions"><button class="secondary" data-action="close-modal">Cancelar</button><button class="danger" data-action="exit-now">Sair</button></div></div></div>`;
+// Sair encerra a sessao, desde 10/09/2026. Antes o botao so voltava ao Inicio:
+// a sessao do Supabase continuava aberta, e quem sentasse depois no mesmo
+// navegador entrava direto no prontuario. A pagina Sair ja e a confirmacao --
+// o modal que vinha depois dela pedia a mesma coisa pela segunda vez.
+async function endSession() {
+  if (voiceRecording.isBusy()) {
+    alert("Encerre a gravação e aguarde a transcrição antes de sair.");
+    return;
+  }
+  modal = null;
+  // Sem await: signOut() tira a sessao local na hora, e o aviso ao Supabase
+  // termina sozinho. A tela de entrada nao espera a rede.
+  signOut().catch(() => {});
+  authSession = null;
+  authError = "";
+  syncError = "";
+  draft = {};
+  view = "dashboard";
+  consultationPage = "anamnese";
+  returnPage = "evolucao-retorno";
+  consultationUnlocked = 1;
+  returnUnlocked = 1;
+  pendingViewAfterPatient = "";
   render();
 }
 

@@ -93,9 +93,13 @@ export const consultationPages = [
 // "Evolucao do Retorno", e o botao dizia "Atualizar evolucao": tres nomes para
 // a mesma etapa, e a palavra "Evolucao" repetida na aba anterior, que e outra
 // coisa. Virou "Ajuste de conduta" em 02/09/2026, que e o que ela faz.
+// Medicamentos entrou no retorno em 10/09/2026, como na consulta: apendice, e
+// nao etapa. O Ajuste de conduta decide sobre farmaco em uso, e a ficha e o
+// capitulo do livro faziam falta justamente ali.
 export const returnPages = [
   ["evolucao-retorno", "Evolução"],
-  ["texto-retorno", "Ajuste de conduta"]
+  ["texto-retorno", "Ajuste de conduta"],
+  ["medicamentos", "Medicamentos"]
 ];
 
 // As quatro saidas de "nenhum transtorno" carregam codigo pelo mesmo motivo da

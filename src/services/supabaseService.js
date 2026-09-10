@@ -22,6 +22,29 @@ export async function signIn(email, password) {
   return result;
 }
 
+// Encerra a sessao dos dois lados. O Supabase e avisado para invalidar o
+// refresh_token; se nao responder -- rede fora, token ja vencido --, a sessao
+// local sai assim mesmo: quem clicou em Sair nao pode continuar entrado.
+//
+// A sessao local sai ANTES do primeiro await, ainda na chamada: quem chama nao
+// precisa esperar a rede para mostrar a tela de entrada, e uma resposta lenta do
+// Supabase nao deixa o medico parado na pagina Sair achando que nada aconteceu.
+export async function signOut() {
+  let session = null;
+  try { session = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); } catch { session = null; }
+  sessionStorage.removeItem(SESSION_KEY);
+  const settings = await config();
+  if (!session?.access_token || !settings?.url) return;
+  try {
+    await fetch(`${settings.url}/auth/v1/logout`, {
+      method: "POST",
+      headers: { apikey: settings.key, Authorization: `Bearer ${session.access_token}` }
+    });
+  } catch {
+    // A sessao local ja saiu; o token remoto vence sozinho em cerca de uma hora.
+  }
+}
+
 // O access_token do Supabase dura cerca de uma hora. Sem renovacao, uma
 // consulta iniciada de manha e salva depois do almoco ia para o localStorage e
 // nunca subia: cada tentativa voltava 401 e o erro morria numa variavel que so

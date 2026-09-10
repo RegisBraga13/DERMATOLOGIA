@@ -98,7 +98,15 @@ export function professionalTreatmentText(form = {}, isReturn = false) {
     ""
   ) || professionalListWithOther(form.condutaMedicamentoRetorno, form.condutaMedicamentoRetornoOutro);
   const returnConductAdjustments = professionalSelectedTreatmentItems(form.ajusteCondutaSelecionada, "");
-  const returnAddition = professionalClinicalTerms(stripFinalPeriod(form.ajusteAcrescimo || ""));
+  // Uma linha por conduta no campo, uma frase no prontuario. As linhas chegam
+  // assim quando ele traz manejo do apendice Medicamentos, que separa dose e
+  // progressao com " | ", como no Tratamento.
+  const returnAddition = professionalClinicalTerms(String(form.ajusteAcrescimo || "")
+    .replace(/\s*\|\s*/g, ", ")
+    .split(/\s*\n+\s*/)
+    .map(linha => stripFinalPeriod(linha.trim()))
+    .filter(Boolean)
+    .join("; "));
   const targetSymptomConducts = professionalSelectedTreatmentItems(form.sintomasAlvoSelecionados, "");
   const physicianPlan = professionalClinicalTerms(stripFinalPeriod(form.condutaMedica || ""));
   const selectedExams = professionalClinicalTerms(requestedExamsText(form) || form.examesLaboratoriais || "");

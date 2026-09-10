@@ -1,8 +1,8 @@
 # Biblioteca RAG de psiquiatria
 
-O aplicativo preserva o modo `IA atual` e oferece uma biblioteca RAG de psiquiatria: **14 arquivos, 14 titulos,
-um genero e um leitor para cada**. Os PDFs nao devem ser adicionados ao Git. Somente materiais licenciados ou autorizados devem
-ser indexados.
+Cada etapa de IA responde por um de dois modos, escolhido na tela: `IA Nuvem`, que pesquisa na web, e
+`RAG com literatura`, que le a biblioteca de psiquiatria: **18 arquivos, 18 titulos, um genero para cada**. Os
+PDFs nao devem ser adicionados ao Git. Somente materiais licenciados ou autorizados devem ser indexados.
 
 ## Preparacao
 
@@ -44,6 +44,7 @@ ele quiser — e agora muda em um lugar so, sem tocar em nada na nuvem.
 | `tratado` | Tratado de Psiquiatria da ABP; Kaplan e Sadock, Compendio, 11a ed. |
 | `prescricao` | Stahl, Guia de Prescricao |
 | `psicofarmacologia` | Psicofarmacologia: Da Teoria a Clinica (2025) |
+| `criterios` | DSM-5-TR (portugues); CID-11 |
 | `infantojuvenil` | Psiquiatria da Infancia e Adolescencia (HCFMUSP, 2a ed. 2023) |
 | `saude-mulher` | Transtornos Psiquiatricos na Mulher (Artmed, 2023) |
 
@@ -66,14 +67,20 @@ Etapa fora do mapa busca sem filtro.
 | Etapa | Genero(s) |
 | --- | --- |
 | Anamnese, Refinamento | `psicopatologia` + `entrevista` |
-| Diagnostico, **gera** | `psicopatologia` + `sindromes` |
+| Diagnostico, **gera** | `psicopatologia` + `sindromes` + `criterios`, e ate 4 trechos de `criterios` em busca garantida |
 | Diagnostico, **revisa** | `tratado` |
 | Tratamento, **gera** | `terapeutica` |
 | Tratamento, **revisa** | `tratado` |
-| Medicamento, **gera** | `prescricao` |
-| Medicamento, **revisa** | `psicofarmacologia` |
+| Ajuste de conduta (retorno) | `terapeutica` |
+| Historia clinica e evolucao do retorno | `terapeutica` + `tratado` |
+| Medicamento | `prescricao` |
 | Sintoma-Alvo | `psicofarmacologia` |
 | BIPP TIPS | `psicofarmacologia` |
+
+A primeira etapa do Refinamento (`refinement_scope`) esta no mapa, mas roda na
+IA Nuvem sem busca: escolhe blocos de uma lista que vai no proprio prompt. A
+revisao da ficha (`medication_review`, `psicofarmacologia`) tambem esta, e nao
+tem botao na tela — ver abaixo.
 
 Os dois ultimos generos nao estao nesta tabela, e e de proposito: **quem os pede
 e o paciente, e nao a etapa.**
@@ -104,7 +111,7 @@ Medido em 02/09/2026 com o mesmo caso de humor deprimido em tres pacientes:
 
 Sem o escopo, a crianca recebia a dose de adulto.
 
-### Por que o Diagnostico le dois generos
+### Por que o Diagnostico le mais de um genero
 
 Nomear a sindrome exige os dois lados: o **fenomeno** e a **entidade**.
 Dalgalarrondo e Cheniaux descrevem o quadro pelo fenomeno — Cotard, catatonia,
@@ -121,7 +128,14 @@ quando cinco competiam no mesmo embedding, era **psicofarmacologia disputando co
 psicopatologia**: perguntas diferentes, resposta borrada. Livros do MESMO genero
 se reforcam. O numero nunca foi o problema; a mistura de genero era.
 
-## Duas passadas no Diagnostico, no Tratamento e no Medicamento
+O terceiro lado entrou em 28/08/2026: `criterios`, com o DSM-5-TR e a CID-11.
+Fenomeno e entidade nao trazem o criterio operacional — "cinco dos nove sintomas
+por duas semanas" — nem a lista de especificadores. Na primeira medicao os dois
+livros perderam todas as vagas para os de psicopatologia, que usam o mesmo
+vocabulario da consulta; por isso o criterio tem busca propria, com ate 4
+trechos garantidos (`RAG_ALWAYS_SCOPE_BY_KIND`), somada a busca geral.
+
+## Duas passadas no Diagnostico e no Tratamento
 
 A primeira passada e o botao **Gerar**: propoe, o medico assinala. A segunda e o
 botao **Refinar**, e e opcional — sem clique, o registro fica como a primeira
@@ -134,9 +148,13 @@ revisao nao repetir sai do prontuario.
 O geral propoe, o medico assinala, e o especializado entra depois para revisar,
 em vez de competir com o geral na hora de propor.
 
-No Medicamento a revisao pesa mais do que nas outras duas: o que se confere e
-dose, titulacao, teto, contraindicacao e interacao, onde errar chega na receita.
-Num teste com ficha errada de proposito — 400 mg/dia de sertralina, incremento a
+O Medicamento teve segunda passada ate 02/09/2026. O botao **Refinar** da ficha
+saiu por decisao dele — tres botoes numa consulta que e uma pergunta so —, e
+desde 10/09/2026 o `App.js` nao tem mais o ramo de revisao. A etapa
+`medication_review` continua no servidor, com schema, escopo e testes, sem porta
+na tela. Se voltar, e onde a revisao mais pesa: o que se confere e dose,
+titulacao, teto, contraindicacao e interacao, onde errar chega na receita. Num
+teste com ficha errada de proposito — 400 mg/dia de sertralina, incremento a
 cada 3 dias, "sem interacoes relevantes" —, a revisao devolveu teto de 200
 mg/dia, incremento semanal, e IMAO e pimozida como contraindicacoes.
 
@@ -208,8 +226,8 @@ a tela nao teria como dizer isso ao medico.
 
 ## Capitulo do livro na tela (nao e RAG)
 
-O botao **Mostrar tudo**, na pagina Medicamentos, abre o capitulo daquele
-farmaco como esta no livro: do nome com a bolinha ate o fim dos BIPP TIPS, sem
+Ao escolher o farmaco, a pagina Medicamentos abre sozinha o capitulo dele como
+esta no livro: do nome com a bolinha ate o fim dos BIPP TIPS, sem
 as referencias. Recorte definido pelo Dr. Regis — e como ele le o livro na
 consulta.
 
@@ -249,7 +267,9 @@ diagramacao — que o navegador nao ve.
 
 O texto do capitulo nao entra no prontuario salvo: sao 13 a 30 mil caracteres de
 obra licenciada por farmaco, e o registro do paciente nao e lugar de guardar
-copia de livro. Fica so enquanto a tela esta aberta.
+copia de livro. Fica so enquanto a tela esta aberta. Ate 10/09/2026 isso era so
+intencao: o capitulo ia junto com o rascunho ao salvar. Hoje o `App.js` o tira
+do registro ao salvar e ao carregar.
 
 ## Codigos diagnosticos (nao e RAG)
 
