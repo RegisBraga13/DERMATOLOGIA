@@ -59,7 +59,12 @@ function mergeById(local = [], remote = []) {
     if (!entry) return;
     if (!entry.id) { semId.push(entry); return; }
     const atual = byId.get(entry.id);
-    if (!atual || entryStamp(entry) >= entryStamp(atual)) byId.set(entry.id, entry);
+    if (!atual) { byId.set(entry.id, entry); return; }
+    // Exclusao definitiva nao volta, nem diante de uma edicao mais recente
+    // feita em outro aparelho antes de ele saber da exclusao.
+    if (atual.excluidoEm && !entry.excluidoEm) return;
+    if (entry.excluidoEm && !atual.excluidoEm) { byId.set(entry.id, entry); return; }
+    if (entryStamp(entry) >= entryStamp(atual)) byId.set(entry.id, entry);
   });
   return [...byId.values(), ...semId];
 }
@@ -71,14 +76,81 @@ function mergeById(local = [], remote = []) {
 // apagar tudo o que tinha sido escrito nesse intervalo, sem aviso nenhum. Uma
 // consulta inteira sumia.
 //
-// A uniao e por id, ficando a versao mais recente de cada registro. O preco e
-// que exclusao feita num aparelho nao se propaga para o outro: o registro
-// reaparece na proxima uniao. E o lado certo para errar — registro repetido o
-// medico apaga de novo, registro perdido nao volta.
+// A uniao e por id, ficando a versao mais recente de cada registro. Ate
+// 11/09/2026 a exclusao nao se propagava: o registro apagado num aparelho
+// voltava pela copia do outro. Agora nada sai do estado -- arquivar e
+// excluir sao marcas (arquivadoEm, excluidoEm) com updatedAt novo, e a marca
+// viaja como qualquer outra edicao.
 export function mergeStates(local = {}, remote = {}) {
   const merged = { ...remote, ...local };
   ["patients", "consultations", "returns"].forEach(key => {
     merged[key] = mergeById(local[key], remote[key]);
   });
   return merged;
+}
+
+// ARQUIVAR, E NAO APAGAR, desde 11/09/2026.
+//
+// "Excluir paciente" apagava o cadastro e todos os registros, sem volta -- e a
+// Lei 13.787/2018 manda guardar o prontuario por 20 anos a partir do ultimo
+// registro. Arquivado, o paciente sai das listas e continua guardado, aqui e
+// na conta; restaurar o devolve inteiro.
+//
+// A exclusao definitiva continua existindo, a partir do arquivo: o conteudo
+// sai, e fica so a marca (id, excluidoEm, updatedAt), que e o que impede a
+// copia de outro aparelho de devolver o registro na proxima uniao.
+export function isActive(entry) {
+  return Boolean(entry) && !entry.arquivadoEm && !entry.excluidoEm;
+}
+
+export function isArchived(entry) {
+  return Boolean(entry?.arquivadoEm) && !entry.excluidoEm;
+}
+
+function mapPatient(state, patientId, change) {
+  return { ...state, patients: (state.patients || []).map(item => (item.id === patientId ? change(item) : item)) };
+}
+
+// Os registros do paciente arquivado ficam como estao: saem das telas porque o
+// paciente saiu, e voltam junto com ele.
+export function archivePatient(state = {}, patientId, agora = new Date().toISOString()) {
+  return mapPatient(state, patientId, item => ({ ...item, arquivadoEm: agora, updatedAt: agora }));
+}
+
+export function restorePatient(state = {}, patientId, agora = new Date().toISOString()) {
+  return mapPatient(state, patientId, ({ arquivadoEm, ...item }) => ({ ...item, updatedAt: agora }));
+}
+
+function tombstone(entry, agora) {
+  return {
+    id: entry.id,
+    ...(entry.patientId ? { patientId: entry.patientId } : {}),
+    ...(entry.type ? { type: entry.type } : {}),
+    excluidoEm: agora,
+    updatedAt: agora
+  };
+}
+
+export function purgePatient(state = {}, patientId, agora = new Date().toISOString()) {
+  const doPaciente = entry => (entry?.patientId === patientId ? tombstone(entry, agora) : entry);
+  return {
+    ...mapPatient(state, patientId, item => tombstone(item, agora)),
+    consultations: (state.consultations || []).map(doPaciente),
+    returns: (state.returns || []).map(doPaciente)
+  };
+}
+
+export function archiveEntry(state = {}, collection, id, agora = new Date().toISOString()) {
+  return {
+    ...state,
+    [collection]: (state[collection] || []).map(item => (item.id === id ? { ...item, arquivadoEm: agora, updatedAt: agora } : item))
+  };
+}
+
+// Assinatura barata do estado: muda quando entra, sai ou muda um registro. E o
+// que diz se a copia da conta trouxe algo novo e a tela precisa ser redesenhada.
+export function stateSignature(state = {}) {
+  return ["patients", "consultations", "returns"]
+    .map(key => (state[key] || []).map(entry => `${entry?.id}:${entry?.updatedAt || entry?.createdAt || ""}`).join(","))
+    .join("|");
 }

@@ -86,30 +86,46 @@ async function authorized(path, options = {}, allowRetry = true) {
   return response;
 }
 
-export async function pullState() {
+// SINCRONIZA JUNTANDO, E NAO SOBRESCREVENDO, desde 11/09/2026.
+//
+// Antes cada gravacao subia o estado inteiro deste aparelho por cima da copia
+// da conta, e a copia so era lida no login. Com dois aparelhos abertos, o
+// ultimo a gravar apagava da conta o que o outro tinha criado -- ficava so no
+// aparelho dele, ate o proximo login.
+//
+// Agora le a copia, junta com `merge` e grava com uma condicao: o PATCH so vale
+// se updated_at ainda for o que foi lido. Se outro aparelho gravou no meio,
+// nenhuma linha muda, e a volta recomeca com a copia nova. Devolve o estado
+// juntado, que e o que a conta passou a guardar; null sem sessao.
+export async function syncState(local, merge, tentativas = 3) {
   const session = await currentSession();
   if (!session?.user?.id) return null;
-  const response = await authorized(`/rest/v1/prontuarios?select=id,payload&owner_id=eq.${encodeURIComponent(session.user.id)}&limit=1`);
-  if (!response) return null;
-  if (!response.ok) throw new Error("Não foi possível carregar os prontuários do Supabase.");
-  const rows = await response.json();
-  return rows[0]?.payload || null;
-}
-
-export async function pushState(payload) {
-  const session = await currentSession();
-  if (!session?.user?.id) return false;
   const ownerId = session.user.id;
-  const lookup = await authorized(`/rest/v1/prontuarios?select=id&owner_id=eq.${encodeURIComponent(ownerId)}&limit=1`);
-  if (!lookup) return false;
-  if (!lookup.ok) throw new Error("Não foi possível salvar no Supabase.");
-  const rows = await lookup.json();
-  const path = rows[0]?.id ? `/rest/v1/prontuarios?id=eq.${rows[0].id}` : "/rest/v1/prontuarios";
-  const response = await authorized(path, {
-    method: rows[0]?.id ? "PATCH" : "POST",
-    headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
-    body: JSON.stringify({ owner_id: ownerId, payload, updated_at: new Date().toISOString() })
-  });
-  if (!response?.ok) throw new Error("Não foi possível salvar no Supabase.");
-  return true;
+  for (let vez = 0; vez < tentativas; vez += 1) {
+    const leitura = await authorized(`/rest/v1/prontuarios?select=id,payload,updated_at&owner_id=eq.${encodeURIComponent(ownerId)}&limit=1`);
+    if (!leitura) return null;
+    if (!leitura.ok) throw new Error("Não foi possível ler os prontuários do Supabase.");
+    const [linha] = await leitura.json();
+    const juntos = linha?.payload ? merge(local, linha.payload) : local;
+    const corpo = JSON.stringify({ owner_id: ownerId, payload: juntos, updated_at: new Date().toISOString() });
+    if (!linha) {
+      const criada = await authorized("/rest/v1/prontuarios", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: corpo
+      });
+      if (!criada?.ok) throw new Error("Não foi possível salvar no Supabase.");
+      return juntos;
+    }
+    const lida = linha.updated_at ? `eq.${encodeURIComponent(linha.updated_at)}` : "is.null";
+    const escrita = await authorized(`/rest/v1/prontuarios?id=eq.${encodeURIComponent(linha.id)}&updated_at=${lida}&select=id`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Prefer: "return=representation" },
+      body: corpo
+    });
+    if (!escrita?.ok) throw new Error("Não foi possível salvar no Supabase.");
+    const alteradas = await escrita.json();
+    if (Array.isArray(alteradas) && alteradas.length) return juntos;
+  }
+  throw new Error("Outro aparelho gravou ao mesmo tempo; a cópia da conta será atualizada na próxima gravação.");
 }

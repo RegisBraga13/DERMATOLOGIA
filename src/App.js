@@ -10,8 +10,8 @@ import { fetchCep } from "./services/cepService.js";
 import { buildClinicalAiPrompt, buildRagQuery, buildWebQuery, canonicalAiSelections, localRefinementPlan, requestClinicalAi } from "./services/clinicalAiService.js";
 import { buildMedicationAutofill, localMedicationSuggestions } from "./services/medicationService.js";
 import { exportTextAsPdf } from "./services/pdfService.js";
-import { loadState, mergeStates, saveState, uid } from "./services/storageService.js";
-import { currentSession, pullState, pushState, signIn, signOut } from "./services/supabaseService.js";
+import { archiveEntry, archivePatient, isActive, isArchived, loadState, mergeStates, purgePatient, restorePatient, saveState, stateSignature, uid } from "./services/storageService.js";
+import { currentSession, signIn, signOut, syncState } from "./services/supabaseService.js";
 import { anamnesisStructuredFields, chips, field, selectField, summaryColumns, textarea, voiceTextarea } from "./ui/controls.js";
 import { escapeAttr, escapeHtml } from "./ui/html.js";
 import { createVoiceRecording } from "./ui/voiceRecording.js";
@@ -34,7 +34,10 @@ const app = document.querySelector("#app");
 let state = withoutBookChapters(loadState());
 let view = "dashboard";
 let medicationLookupTimer = null;
-let selectedPatientId = state.patients[0]?.id || "";
+let selectedPatientId = firstActivePatientId();
+// Uma sincronizacao por vez: gravacoes seguidas entram na fila, e cada uma le a
+// copia que a anterior deixou, em vez de disputarem a mesma linha.
+let syncChain = Promise.resolve();
 let draft = {};
 let consultationPage = "anamnese";
 let returnPage = "evolucao-retorno";
@@ -86,14 +89,14 @@ currentSession().then(async session => {
 async function syncAfterLogin() {
   syncError = "";
   try {
-    const remoteState = await pullState();
-    if (remoteState) {
-      // Une, nao substitui: o que foi escrito enquanto a sincronizacao
-      // estava fora precisa sobreviver ao proximo carregamento.
-      state = withoutBookChapters(mergeStates(state, remoteState));
+    // Une, nao substitui: o que foi escrito enquanto a sincronizacao estava
+    // fora precisa sobreviver ao proximo carregamento. syncState le, junta e
+    // devolve a copia que a conta passou a guardar.
+    const daConta = await syncState(state, mergeStates);
+    if (daConta) {
+      state = withoutBookChapters(mergeStates(state, daConta));
       storageError = saveState(state);
-      selectedPatientId = state.patients?.[0]?.id || "";
-      pushState(state).catch(error => { syncError = error.message; });
+      selectedPatientId = firstActivePatientId();
     }
   } catch (error) { syncError = error.message; }
 }
@@ -158,7 +161,9 @@ function dashboard() {
     ["return", "Registrar retorno", "return", "03"],
     ["record", "Prontuários", "record", "04"]
   ];
-  const entries = (state.consultations?.length || 0) + (state.returns?.length || 0);
+  const ativos = new Set((state.patients || []).filter(isActive).map(patient => patient.id));
+  const entries = [...(state.consultations || []), ...(state.returns || [])]
+    .filter(entry => isActive(entry) && ativos.has(entry.patientId)).length;
   return `<section class="dashboard">
       <div class="dashboard-intro">
       <div class="intro-copy">
@@ -168,7 +173,7 @@ function dashboard() {
       <div class="today"><span>HOJE</span><strong>${new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long" }).format(new Date())}</strong></div>
     </div>
     <div class="dashboard-metrics">
-      <div><span>Pacientes cadastrados</span><strong>${String(state.patients?.length || 0).padStart(2, "0")}</strong></div>
+      <div><span>Pacientes cadastrados</span><strong>${String(ativos.size).padStart(2, "0")}</strong></div>
       <div><span>Registros clínicos</span><strong>${String(entries).padStart(2, "0")}</strong></div>
       <div class="privacy-note">${lockIcon()}<span><strong>Privacidade em primeiro lugar</strong><small>${syncError ? "Salvo neste aparelho. A cópia da sua conta está pendente." : "Salvo neste aparelho e na sua conta, sob o seu login."}</small></span></div>
     </div>
@@ -246,10 +251,29 @@ function patientForm() {
       </div>
       <div class="actions">
         <button class="primary" type="submit">Salvar Paciente</button>
-        ${patient.id ? `<button class="danger" type="button" data-action="delete-patient">Excluir paciente</button>` : ""}
+        ${patient.id ? `<button class="danger" type="button" data-action="delete-patient">Arquivar paciente</button>` : ""}
       </div>
     </form>
+    ${archivedPatientsPanel()}
   `;
+}
+
+// Os arquivados moram aqui, na pagina do paciente: e onde se arquiva, e e onde
+// se procura quem sumiu da lista.
+function archivedPatientsPanel() {
+  const arquivados = (state.patients || []).filter(isArchived);
+  if (!arquivados.length) return "";
+  return `<details class="clinical-card archived-patients">
+    <summary>Pacientes arquivados (${arquivados.length})</summary>
+    <p class="field-hint">Arquivado sai das listas e continua guardado, neste aparelho e na sua conta. A exclusão definitiva apaga o prontuário em todos os aparelhos e não tem volta.</p>
+    ${arquivados.map(patient => `<article class="timeline-item">
+      <h4>${escapeHtml(patient.nome || "Sem nome")} — arquivado em ${new Date(patient.arquivadoEm).toLocaleDateString("pt-BR")}</h4>
+      <div class="actions">
+        <button class="secondary" type="button" data-action="restore-patient" data-id="${escapeAttr(patient.id)}">Restaurar</button>
+        <button class="danger" type="button" data-action="purge-patient" data-id="${escapeAttr(patient.id)}">Excluir definitivamente</button>
+      </div>
+    </article>`).join("")}
+  </details>`;
 }
 
 function patientSelector(action = "select-patient") {
@@ -257,7 +281,7 @@ function patientSelector(action = "select-patient") {
     <label>Paciente
       <select data-action="${action}">
         <option value="">Selecionar paciente</option>
-        ${state.patients.map(patient => `<option value="${patient.id}" ${selectedPatientId === patient.id ? "selected" : ""}>${escapeHtml(patient.nome || "Sem nome")}</option>`).join("")}
+        ${state.patients.filter(isActive).map(patient => `<option value="${patient.id}" ${selectedPatientId === patient.id ? "selected" : ""}>${escapeHtml(patient.nome || "Sem nome")}</option>`).join("")}
       </select>
     </label>
   `;
@@ -605,17 +629,26 @@ function medicalRecord() {
 // startNewReturn). Sem essa garantia isto seria uma arvore, e arvore de
 // prontuario nao cabe em duas colunas.
 function recordCases(entries) {
-  const retornoDe = new Map();
+  // Uma lista por consulta, e nao um retorno so. Dois aparelhos sem conexao
+  // podem criar cada um o seu retorno para a mesma consulta, e a uniao guarda
+  // os dois; com um Map de um valor, o segundo sobrescrevia o primeiro e um
+  // retorno sumia do prontuario. O mais recente faz par; os outros vao sozinhos.
+  const retornosDe = new Map();
   entries.filter(entry => entry.type === "return" && entry.previousEntryId)
-    .forEach(entry => retornoDe.set(entry.previousEntryId, entry));
-  const idsPresentes = new Set(entries.map(entry => entry.id));
+    .forEach(entry => retornosDe.set(entry.previousEntryId, [...(retornosDe.get(entry.previousEntryId) || []), entry]));
+  const pareados = new Set();
   const casos = entries
     .filter(entry => entry.type !== "return")
-    .map(consulta => ({ consulta, retorno: retornoDe.get(consulta.id) || null }));
-  // Retorno cuja consulta nao esta na lista -- filtrada pela busca, ou apagada
-  // do prontuario -- aparece sozinho. Registro clinico nao some por falta de par.
+    .map(consulta => {
+      const retorno = retornosDe.get(consulta.id)?.[0] || null;
+      if (retorno) pareados.add(retorno);
+      return { consulta, retorno };
+    });
+  // Retorno sem par -- a consulta filtrada pela busca, arquivada, ou ja pareada
+  // com outro retorno -- aparece sozinho. Registro clinico nao some por falta
+  // de par.
   entries
-    .filter(entry => entry.type === "return" && !idsPresentes.has(entry.previousEntryId))
+    .filter(entry => entry.type === "return" && !pareados.has(entry))
     .forEach(retorno => casos.push({ consulta: null, retorno }));
   const quando = caso => Math.max(
     caso.consulta ? entryTimestamp(caso.consulta) : 0,
@@ -1121,6 +1154,8 @@ function bindActions() {
       if (action === "adopt-appendix-conduct") adoptAppendixConduct(element.dataset.conduta || "");
       if (action === "clear-patient") { draft.patient = {}; render(); }
       if (action === "delete-patient") deletePatient();
+      if (action === "restore-patient") restoreArchivedPatient(element.dataset.id);
+      if (action === "purge-patient") purgeArchivedPatient(element.dataset.id);
       if (action === "voice") voiceRecording.startVoice(element.dataset.target, element);
       if (action === "edit-current-patient") { view = "patient"; draft.patient = structuredClone(getPatient()); render(); }
       if (action === "edit-entry") editEntry(element.dataset.id, element.dataset.type);
@@ -1415,6 +1450,7 @@ function saveClinicalRecord(scope) {
       entry.patientId === selectedPatientId
       && entry.previousEntryId === data.previousEntryId
       && entry.id !== data.id
+      && isActive(entry)
     );
     if (linkedReturn) {
       data.id = linkedReturn.id;
@@ -2151,7 +2187,7 @@ function returnCandidates() {
     consultations,
     pendingConsultation: consultations.find(consultation =>
       !state.returns.some(entry =>
-        entry.patientId === selectedPatientId && entry.previousEntryId === consultation.id
+        entry.patientId === selectedPatientId && entry.previousEntryId === consultation.id && isActive(entry)
       )
     )
   };
@@ -2184,25 +2220,32 @@ function startNewReturn() {
   render();
 }
 
+// Arquivado e excluido nao aparecem em tela nenhuma: as listas passam todas por
+// aqui.
 function getPatient() {
-  return state.patients.find(patient => patient.id === selectedPatientId);
+  const patient = state.patients.find(item => item.id === selectedPatientId);
+  return isActive(patient) ? patient : undefined;
+}
+
+function firstActivePatientId() {
+  return (state.patients || []).find(isActive)?.id || "";
 }
 
 function entriesForPatient(patientId) {
   return state.consultations.concat(state.returns)
-    .filter(entry => entry.patientId === patientId)
+    .filter(entry => entry.patientId === patientId && isActive(entry))
     .sort(compareEntriesNewestFirst);
 }
 
 function consultationsForPatient(patientId) {
   return state.consultations
-    .filter(entry => entry.patientId === patientId)
+    .filter(entry => entry.patientId === patientId && isActive(entry))
     .sort(compareEntriesNewestFirst);
 }
 
 function returnsForPatient(patientId) {
   return state.returns
-    .filter(entry => entry.patientId === patientId)
+    .filter(entry => entry.patientId === patientId && isActive(entry))
     .sort(compareEntriesNewestFirst);
 }
 
@@ -2224,9 +2267,17 @@ function recordSearchText(entry) {
   return searchText;
 }
 
+// A consulta a que o retorno responde, mesmo arquivada. Sem ela -- excluida de
+// vez --, nao ha anterior: ate 11/09/2026 caia na consulta mais recente do
+// paciente, que podia ser POSTERIOR ao retorno, e a historia dizia "retorna
+// apos registro previo de" uma data errada. O palpite so vale para retorno
+// sem consulta registrada, que e o rascunho antigo.
 function previousEntryForReturn(form = {}, patientId = selectedPatientId) {
-  const consultations = consultationsForPatient(patientId);
-  return consultations.find(entry => entry.id === form.previousEntryId) || consultations[0] || latestEntry(patientId);
+  if (form.previousEntryId) {
+    const propria = state.consultations.find(entry => entry.id === form.previousEntryId);
+    return propria && !propria.excluidoEm ? propria : null;
+  }
+  return consultationsForPatient(patientId)[0] || latestEntry(patientId);
 }
 
 function latestEntry(patientId) {
@@ -2247,12 +2298,37 @@ function persist() {
   const erroLocal = saveState(state);
   if (erroLocal !== storageError) { storageError = erroLocal; render(); }
   if (!authSession) return;
-  // O localStorage ja gravou; o que falta e avisar quando a copia remota nao
-  // acompanhou. Antes o erro ia para authError, que so aparece na tela de
-  // login — na pratica, silencio.
-  pushState(state)
-    .then(() => { if (syncError) { syncError = ""; render(); } })
-    .catch(error => { syncError = error.message; render(); });
+  syncWithAccount();
+}
+
+// O localStorage ja gravou; o que falta e avisar quando a copia remota nao
+// acompanhou. Antes o erro ia para authError, que so aparece na tela de
+// login — na pratica, silencio.
+function syncWithAccount() {
+  syncChain = syncChain.then(async () => {
+    try {
+      const daConta = await syncState(state, mergeStates);
+      if (daConta) absorbAccountState(daConta);
+      if (syncError) { syncError = ""; render(); }
+    } catch (error) {
+      syncError = error.message;
+      render();
+    }
+  });
+  return syncChain;
+}
+
+// O que a conta devolveu pode trazer o que outro aparelho gravou. Junta de
+// novo com o estado de agora -- o medico pode ter salvo algo durante a ida a
+// rede -- e so redesenha se chegou coisa nova, para nao tirar o cursor do
+// campo a cada gravacao.
+function absorbAccountState(daConta) {
+  const antes = stateSignature(state);
+  state = withoutBookChapters(mergeStates(state, daConta));
+  if (stateSignature(state) === antes) return;
+  storageError = saveState(state);
+  if (!getPatient()) selectedPatientId = firstActivePatientId();
+  render();
 }
 
 function pdfEntry(id, type) {
@@ -2340,24 +2416,48 @@ function editEntry(id, type) {
   render();
 }
 
+// Sem botao na tela hoje; arquiva, como o paciente, se voltar a ter.
 function deleteEntry(id, type) {
-  if (!confirm("Excluir este registro do prontuario?")) return;
-  const collection = type === "consultation" ? "consultations" : "returns";
-  state[collection] = state[collection].filter(item => item.id !== id);
+  if (!confirm("Arquivar este registro? Ele sai do prontuário e continua guardado.")) return;
+  state = archiveEntry(state, type === "consultation" ? "consultations" : "returns", id);
   persist();
   render();
 }
 
 function deletePatient() {
   const patient = getPatient();
-  if (!patient || !confirm("Excluir paciente e todos os registros vinculados?")) return;
-  state.patients = state.patients.filter(item => item.id !== patient.id);
-  state.consultations = state.consultations.filter(item => item.patientId !== patient.id);
-  state.returns = state.returns.filter(item => item.patientId !== patient.id);
-  selectedPatientId = state.patients[0]?.id || "";
+  if (!patient || !confirm(`Arquivar ${patient.nome || "este paciente"}? Ele sai das listas e fica em "Pacientes arquivados", na página Paciente, de onde pode ser restaurado com todos os registros.`)) return;
+  state = archivePatient(state, patient.id);
+  selectedPatientId = firstActivePatientId();
   draft.patient = {};
   persist();
   view = "dashboard";
+  render();
+}
+
+function restoreArchivedPatient(id) {
+  state = restorePatient(state, id);
+  selectedPatientId = id;
+  draft.patient = structuredClone(getPatient() || {});
+  persist();
+  render();
+}
+
+// Duas travas, porque e a unica acao do programa que nao tem volta: o aviso da
+// lei e o nome do paciente digitado.
+function purgeArchivedPatient(id) {
+  const patient = state.patients.find(item => item.id === id);
+  if (!isArchived(patient)) return;
+  const nome = patient.nome || "Sem nome";
+  if (!confirm(`Excluir definitivamente o prontuário de ${nome}? Cadastro, consultas e retornos serão apagados neste aparelho, na sua conta e nos outros aparelhos na próxima sincronização. Não há como desfazer.\n\nA Lei 13.787/2018 manda guardar o prontuário por 20 anos a partir do último registro.`)) return;
+  const digitado = prompt(`Para confirmar, digite o nome do paciente: ${nome}`);
+  if (normalizeText(digitado || "").trim() !== normalizeText(nome).trim()) {
+    alert("O nome não confere. Nada foi excluído.");
+    return;
+  }
+  state = purgePatient(state, id);
+  if (selectedPatientId === id) selectedPatientId = firstActivePatientId();
+  persist();
   render();
 }
 
