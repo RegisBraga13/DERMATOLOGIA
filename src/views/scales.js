@@ -90,7 +90,7 @@ export function scaleResultView(scale, form = {}, history = []) {
           <b>${escapeHtml(result.faixa?.rotulo || "")}</b>
         </div>
         ${result.faixa?.descricao ? `<p class="scale-band-note">${escapeHtml(result.faixa.descricao)}</p>` : ""}
-        ${result.subescalas.length ? `<p class="scale-subscales">${result.subescalas.map(sub => `${escapeHtml(sub.nome)}: <b>${sub.total}</b>`).join(" · ")}</p>` : ""}`;
+        ${result.subescalas.length ? `<p class="scale-subscales">${result.subescalas.map(sub => `${escapeHtml(sub.nome)}: <b>${sub.total}</b>${sub.faixa ? ` (${escapeHtml(sub.faixa.rotulo.toLowerCase())})` : ""}`).join(" · ")}</p>` : ""}`;
   const mudanca = anterior ? `<p class="scale-change">${escapeHtml(scaleChangeText(scale, result, anterior))}</p>` : "";
   return `<div class="scale-result" id="resultado-${escapeAttr(scale.id)}" aria-live="polite">
     ${alertas}${conflito}${corpo}${mudanca}

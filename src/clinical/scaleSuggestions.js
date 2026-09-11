@@ -46,6 +46,13 @@ export function suggestedScales(form = {}, patient = {}, { isReturn = false, pre
   if (temOpcao(anamnese, "psiPrevios", ["TOC"])) sugerir("ybocs", "TOC entre os diagnósticos prévios");
 
   const idade = patientAge(patient);
+  const menor = idade !== null && idade < 18;
+  // TDAH: ASRS no adulto, SNAP-IV na crianca e no adolescente. Sem idade
+  // registrada, fica a do adulto, que e o paciente habitual do consultorio.
+  if (temOpcao(anamnese, "psiPrevios", ["TDAH"])) sugerir(menor ? "snap4" : "asrs18", "TDAH entre os diagnósticos prévios");
+  if (menor && temOpcao(anamnese, "escolaridadeContexto", ["Queda de rendimento", "Dificuldade de aprendizagem"])) {
+    sugerir("snap4", "queixa escolar registrada");
+  }
   if (idade !== null && idade >= 60) sugerir("gds15", "60 anos ou mais");
   if (arrayValue(anamnese.gravidez)[0] === "Sim, com certeza") sugerir("epds", "gestação");
   if (temOpcao(anamnese, "cicloReprodutivo", ["Puerperio", "Amamentando"])) sugerir("epds", "pós-parto ou amamentação");

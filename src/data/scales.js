@@ -74,6 +74,7 @@ export const SCALE_DOMAINS = [
   "Ansiedade",
   "Risco de suicídio",
   "Obsessivo-compulsivo",
+  "TDAH",
   "Substâncias",
   "Rastreio geral",
   "Impressão clínica global"
@@ -675,7 +676,273 @@ const cgiI = {
   referencia: "Guy W. ECDEU Assessment Manual for Psychopharmacology. Rockville: NIMH; 1976. Domínio público."
 };
 
-export const scales = [phq9, gad7, mdq, epds, gds15, asq, cssrs, ybocs, audit, srq20, cgiS, cgiI];
+// Segunda leva do catalogo, revisada em 10/09/2026: DASS-21, ASRS-18, SNAP-IV
+// e SBQ-R. No catalogo as quatro estavam com tercos genericos; a ASRS ainda
+// trazia, na ultima pergunta, tres opcoes que eram o resto do formulario da
+// pagina de origem ("— Selecionar —Feminino Masculino...", valendo 6, 7 e 8).
+
+const APLICOU_DASS = [
+  { rotulo: "Não se aplicou de maneira alguma", valor: 0 },
+  { rotulo: "Aplicou-se em algum grau, ou por pouco tempo", valor: 1 },
+  { rotulo: "Aplicou-se em grau considerável, ou por boa parte do tempo", valor: 2 },
+  { rotulo: "Aplicou-se muito, ou na maior parte do tempo", valor: 3 }
+];
+
+const DASS_SUBESCALAS = {
+  "Depressão": [2, 4, 9, 12, 15, 16, 20],
+  "Ansiedade": [1, 3, 6, 8, 14, 18, 19],
+  "Estresse": [0, 5, 7, 10, 11, 13, 17]
+};
+
+// Limites dos autores, ja na escala da versao de 42 itens (a soma de cada
+// subescala da DASS-21 e multiplicada por 2 antes de comparar).
+const gravidadeDass = ([normal, leve, moderada, grave]) => [
+  { min: 0, max: normal, rotulo: "Normal", nivel: 0 },
+  { min: normal + 1, max: leve, rotulo: "Leve", nivel: 1 },
+  { min: leve + 1, max: moderada, rotulo: "Moderada", nivel: 2 },
+  { min: moderada + 1, max: grave, rotulo: "Grave", nivel: 3 },
+  { min: grave + 1, max: 42, rotulo: "Extremamente grave", nivel: 3 }
+];
+
+const DASS_FAIXAS = {
+  "Depressão": gravidadeDass([9, 13, 20, 27]),
+  "Ansiedade": gravidadeDass([7, 9, 14, 19]),
+  "Estresse": gravidadeDass([14, 18, 25, 33])
+};
+
+const dass21 = {
+  id: "dass21",
+  sigla: "DASS-21",
+  nome: "Escalas de Depressão, Ansiedade e Estresse",
+  dominio: "Rastreio geral",
+  aplicacao: "Autoaplicável",
+  periodo: "Última semana",
+  instrucao: "Leia cada afirmação e marque o quanto ela se aplicou a você durante a última semana.",
+  opcoes: APLICOU_DASS,
+  // O total geral nao tem ponto de corte: o resultado sao as tres subescalas.
+  semTotal: true,
+  itens: [
+    { texto: "Achei difícil me acalmar." },
+    { texto: "Senti minha boca seca." },
+    { texto: "Não consegui vivenciar nenhum sentimento positivo." },
+    { texto: "Tive dificuldade em respirar em alguns momentos (respiração ofegante, falta de ar, sem ter feito esforço físico)." },
+    { texto: "Achei difícil ter iniciativa para fazer as coisas." },
+    { texto: "Tive a tendência de reagir de forma exagerada às situações." },
+    { texto: "Senti tremores (por exemplo, nas mãos)." },
+    { texto: "Senti que estava sempre nervoso(a)." },
+    { texto: "Preocupei-me com situações em que eu pudesse entrar em pânico e parecer ridículo(a)." },
+    { texto: "Senti que não tinha nada a desejar." },
+    { texto: "Senti-me agitado(a)." },
+    { texto: "Achei difícil relaxar." },
+    { texto: "Senti-me depressivo(a) e sem ânimo." },
+    { texto: "Fui intolerante com as coisas que me impediam de continuar o que eu estava fazendo." },
+    { texto: "Senti que ia entrar em pânico." },
+    { texto: "Não consegui me entusiasmar com nada." },
+    { texto: "Senti que não tinha valor como pessoa." },
+    { texto: "Senti que estava um pouco emotivo(a) ou sensível demais." },
+    { texto: "Senti meu coração alterado mesmo sem ter feito esforço físico (aumento da frequência, palpitações)." },
+    { texto: "Senti medo sem motivo." },
+    { texto: "Senti que a vida não tinha sentido." }
+  ],
+  subescalas: DASS_SUBESCALAS,
+  subescalaFator: 2,
+  subescalaFaixas: DASS_FAIXAS,
+  classificar: respostas => {
+    const partes = Object.entries(DASS_SUBESCALAS).map(([nome, indices]) => {
+      const valor = indices.reduce((soma, indice) => soma + (respostas[indice] ?? 0), 0) * 2;
+      return { nome, faixa: DASS_FAIXAS[nome].find(faixa => valor >= faixa.min && valor <= faixa.max) };
+    });
+    return {
+      rotulo: partes.map(parte => `${parte.nome}: ${parte.faixa.rotulo.toLowerCase()}`).join(" · "),
+      nivel: Math.max(...partes.map(parte => parte.faixa.nivel))
+    };
+  },
+  observacao: "Cada subescala é somada e multiplicada por 2, para usar os pontos de corte da versão de 42 itens.",
+  referencia: "Lovibond SH, Lovibond PF. Manual for the Depression Anxiety Stress Scales. 2ª ed. Sydney: Psychology Foundation; 1995. Validação brasileira: Vignola RCB, Tucci AM. J Affect Disord. 2014;155:104-9. Domínio público."
+};
+
+const FREQUENCIA_ASRS = [
+  { rotulo: "Nunca", valor: 0 },
+  { rotulo: "Raramente", valor: 1 },
+  { rotulo: "Às vezes", valor: 2 },
+  { rotulo: "Frequentemente", valor: 3 },
+  { rotulo: "Muito frequentemente", valor: 4 }
+];
+
+// Parte A da ASRS v1.1: as seis perguntas da triagem e o limiar de cada uma.
+// Nas tres primeiras (detalhes finais, organizacao, compromissos) conta a
+// partir de "As vezes"; nas outras tres (adiar, mexer maos e pes, "motor
+// ligado"), a partir de "Frequentemente". Os indices sao os desta lista, que
+// segue a ordem do DSM (desatencao, depois hiperatividade/impulsividade).
+const ASRS_PARTE_A = [
+  { item: 3, min: 2 }, { item: 4, min: 2 }, { item: 8, min: 2 },
+  { item: 5, min: 3 }, { item: 9, min: 3 }, { item: 13, min: 3 }
+];
+const PARTE_A = "Parte A da triagem.";
+
+const asrs18 = {
+  id: "asrs18",
+  sigla: "ASRS-18",
+  nome: "Escala de Autorrelato de TDAH no Adulto, versão 1.1",
+  dominio: "TDAH",
+  aplicacao: "Autoaplicável",
+  periodo: "Últimos 6 meses",
+  populacao: "18 anos ou mais",
+  instrucao: "Marque com que frequência cada situação aconteceu nos últimos 6 meses. As seis perguntas marcadas como Parte A são as da triagem.",
+  opcoes: FREQUENCIA_ASRS,
+  semTotal: true,
+  itens: [
+    { texto: "Com que frequência você comete erros por falta de atenção quando tem de trabalhar num projeto chato ou difícil?" },
+    { texto: "Com que frequência você tem dificuldade para manter a atenção quando está fazendo algo chato ou repetitivo?" },
+    { texto: "Com que frequência você tem dificuldade para se concentrar no que as pessoas dizem, mesmo quando elas estão falando diretamente com você?" },
+    { texto: "Com que frequência você tem dificuldade para acabar os detalhes finais de um projeto, depois de já ter feito as partes mais difíceis?", condicao: PARTE_A },
+    { texto: "Com que frequência você tem dificuldade para pôr as coisas em ordem quando precisa fazer uma tarefa que exige organização?", condicao: PARTE_A },
+    { texto: "Quando você tem uma tarefa que exige muita concentração, com que frequência você evita ou adia o início?", condicao: PARTE_A },
+    { texto: "Com que frequência você coloca as coisas fora do lugar ou tem dificuldade de encontrá-las em casa ou no trabalho?" },
+    { texto: "Com que frequência você se distrai com atividades ou barulho à sua volta?" },
+    { texto: "Com que frequência você tem dificuldade para lembrar de compromissos ou obrigações?", condicao: PARTE_A },
+    { texto: "Com que frequência você fica se mexendo na cadeira ou balançando as mãos ou os pés quando precisa ficar sentado(a) por muito tempo?", condicao: PARTE_A },
+    { texto: "Com que frequência você se levanta da cadeira em reuniões ou em outras situações em que deveria ficar sentado(a)?" },
+    { texto: "Com que frequência você se sente inquieto(a) ou agitado(a)?" },
+    { texto: "Com que frequência você tem dificuldade para sossegar e relaxar quando tem tempo livre?" },
+    { texto: "Com que frequência você se sente ativo(a) demais e compelido(a) a fazer coisas, como se estivesse “com um motor ligado”?", condicao: PARTE_A },
+    { texto: "Com que frequência você se pega falando demais em situações sociais?" },
+    { texto: "Numa conversa, com que frequência você termina as frases das pessoas antes delas?" },
+    { texto: "Com que frequência você tem dificuldade para esperar a sua vez quando isso é necessário?" },
+    { texto: "Com que frequência você interrompe os outros quando eles estão ocupados?" }
+  ],
+  subescalas: {
+    "Desatenção": intervalo(0, 8),
+    "Hiperatividade/impulsividade": intervalo(9, 17)
+  },
+  classificar: respostas => {
+    const positivos = ASRS_PARTE_A.filter(({ item, min }) => (respostas[item] ?? -1) >= min).length;
+    const frequentes = (inicio, fim) => intervalo(inicio, fim).filter(indice => (respostas[indice] ?? 0) >= 3).length;
+    const detalhe = `Parte A: ${positivos} de 6 no limiar. Frequentes ou muito frequentes: desatenção ${frequentes(0, 8)} de 9; hiperatividade/impulsividade ${frequentes(9, 17)} de 9.`;
+    return positivos >= 4
+      ? { rotulo: "Triagem positiva na Parte A", nivel: 2, descricao: `${detalhe} Quatro ou mais na Parte A: sintomas muito compatíveis com TDAH no adulto. Confirmar pela entrevista e pela história desde a infância.` }
+      : { rotulo: "Triagem negativa na Parte A", nivel: 0, descricao: detalhe };
+  },
+  referencia: "Kessler RC, Adler L, Ames M, et al. Psychol Med. 2005;35(2):245-56. Versão brasileira: Mattos P et al. Rev Psiquiatr Clín. 2006;33(4):188-94. Organização Mundial da Saúde, uso livre."
+};
+
+const INTENSIDADE_SNAP = [
+  { rotulo: "Nem um pouco", valor: 0 },
+  { rotulo: "Só um pouco", valor: 1 },
+  { rotulo: "Bastante", valor: 2 },
+  { rotulo: "Demais", valor: 3 }
+];
+
+// SNAP-IV nao se soma: conta-se quantos sintomas foram marcados como
+// "bastante" ou "demais". Seis ou mais entre os nove de cada dominio indicam
+// mais sintomas do que o esperado -- e so isso, sem o informante da escola e
+// sem a entrevista.
+const snap4 = {
+  id: "snap4",
+  sigla: "SNAP-IV",
+  nome: "Escala SNAP-IV, versão MTA",
+  dominio: "TDAH",
+  aplicacao: "Pais ou professores",
+  periodo: "Comportamento habitual",
+  populacao: "Crianças e adolescentes",
+  instrucao: "Para cada item, marque o quanto ele descreve a criança ou o adolescente. O ideal é ter uma aplicação respondida pelos pais e outra pela escola.",
+  opcoes: INTENSIDADE_SNAP,
+  semTotal: true,
+  itens: [
+    { texto: "Não consegue prestar muita atenção a detalhes ou comete erros por descuido nos trabalhos da escola ou em tarefas." },
+    { texto: "Tem dificuldade de manter a atenção em tarefas ou atividades de lazer." },
+    { texto: "Parece não estar ouvindo quando se fala diretamente com ele(a)." },
+    { texto: "Não segue instruções até o fim e não termina deveres da escola, tarefas ou obrigações." },
+    { texto: "Tem dificuldade para organizar tarefas e atividades." },
+    { texto: "Evita, não gosta ou não se envolve em tarefas que exigem esforço mental prolongado." },
+    { texto: "Perde coisas necessárias para as atividades (brinquedos, deveres da escola, lápis, livros)." },
+    { texto: "Distrai-se com estímulos externos." },
+    { texto: "É esquecido(a) em atividades do dia a dia." },
+    { texto: "Mexe com as mãos ou os pés, ou se remexe na cadeira." },
+    { texto: "Sai do lugar na sala de aula ou em outras situações em que se espera que fique sentado(a)." },
+    { texto: "Corre de um lado para o outro ou sobe demais nas coisas em situações em que isso é inapropriado." },
+    { texto: "Tem dificuldade em brincar ou em se envolver em atividades de lazer de forma calma." },
+    { texto: "Não para, ou frequentemente está “a mil por hora”." },
+    { texto: "Fala em excesso." },
+    { texto: "Responde às perguntas de forma precipitada, antes de elas terem sido terminadas." },
+    { texto: "Tem dificuldade de esperar a sua vez." },
+    { texto: "Interrompe os outros ou se intromete (nas conversas, nos jogos)." }
+  ],
+  subescalas: {
+    "Desatenção": intervalo(0, 8),
+    "Hiperatividade/impulsividade": intervalo(9, 17)
+  },
+  classificar: respostas => {
+    const marcados = (inicio, fim) => intervalo(inicio, fim).filter(indice => (respostas[indice] ?? 0) >= 2).length;
+    const desatencao = marcados(0, 8);
+    const hiperatividade = marcados(9, 17);
+    const descricao = `${desatencao} de 9 sintomas de desatenção e ${hiperatividade} de 9 de hiperatividade/impulsividade marcados como “bastante” ou “demais”. Precisa ser confirmado por mais de um informante e pela entrevista.`;
+    if (desatencao >= 6 && hiperatividade >= 6) return { rotulo: "Desatenção e hiperatividade/impulsividade acima do esperado", nivel: 2, descricao };
+    if (desatencao >= 6) return { rotulo: "Desatenção acima do esperado", nivel: 2, descricao };
+    if (hiperatividade >= 6) return { rotulo: "Hiperatividade/impulsividade acima do esperado", nivel: 2, descricao };
+    return { rotulo: "Abaixo do esperado para TDAH", nivel: 0, descricao };
+  },
+  referencia: "Swanson JM et al. SNAP-IV. Versão brasileira: Mattos P, Serra-Pinheiro MA, Rohde LA, Pinto D. Rev Psiquiatr RS. 2006;28(3):290-7."
+};
+
+// SBQ-R, com a pontuacao de Osman (2001): a pergunta 3 vai de 1 a 3, e a 4, de
+// 0 a 6. Onde o original separa "querendo" e "sem querer morrer" com o mesmo
+// valor, as opcoes foram juntadas: duas respostas com o mesmo valor nao se
+// distinguem na tela.
+const sbqr = {
+  id: "sbqr",
+  sigla: "SBQ-R",
+  nome: "Questionário de Comportamentos Suicidas, revisado",
+  dominio: "Risco de suicídio",
+  aplicacao: "Autoaplicável ou entrevista",
+  periodo: "Toda a vida e último ano",
+  itens: [
+    { texto: "Você já pensou em se matar ou já tentou se matar?", opcoes: [
+      { rotulo: "Nunca", valor: 1 },
+      { rotulo: "Foi só um pensamento passageiro", valor: 2 },
+      { rotulo: "Já tive um plano para me matar, pelo menos uma vez, mas não tentei", valor: 3 },
+      { rotulo: "Já tentei me matar", valor: 4 }
+    ] },
+    { texto: "Com que frequência você pensou em se matar no último ano?", opcoes: [
+      { rotulo: "Nunca", valor: 1 },
+      { rotulo: "Raramente (1 vez)", valor: 2 },
+      { rotulo: "Às vezes (2 vezes)", valor: 3 },
+      { rotulo: "Frequentemente (3 a 4 vezes)", valor: 4 },
+      { rotulo: "Muito frequentemente (5 vezes ou mais)", valor: 5 }
+    ] },
+    { texto: "Você já disse a alguém que ia se matar, ou que talvez fizesse isso?", opcoes: [
+      { rotulo: "Não", valor: 1 },
+      { rotulo: "Sim, uma vez", valor: 2 },
+      { rotulo: "Sim, mais de uma vez", valor: 3 }
+    ] },
+    { texto: "Qual é a chance de você tentar se matar algum dia?", opcoes: [
+      { rotulo: "Nunca", valor: 0 },
+      { rotulo: "Nenhuma chance", valor: 1 },
+      { rotulo: "Bem improvável", valor: 2 },
+      { rotulo: "Improvável", valor: 3 },
+      { rotulo: "Provável", valor: 4 },
+      { rotulo: "Bem provável", valor: 5 },
+      { rotulo: "Muito provável", valor: 6 }
+    ] }
+  ],
+  faixas: [
+    { min: 3, max: 6, rotulo: "Abaixo do ponto de corte", nivel: 0 },
+    { min: 7, max: 18, rotulo: "Acima do ponto de corte", nivel: 2, descricao: "7 ou mais na população geral; em pacientes psiquiátricos internados, o ponto de corte é 8. Avaliar o risco atual." }
+  ],
+  alertas: [
+    {
+      itens: [0], min: 3, tipo: "suicidio",
+      texto: "SBQ-R: plano ou tentativa de suicídio ao longo da vida. Avaliar o risco atual."
+    },
+    {
+      itens: [3], min: 4, tipo: "suicidio",
+      texto: "SBQ-R: considera provável tentar se matar. Avaliar o risco agudo nesta consulta (C-SSRS ou ASQ)."
+    }
+  ],
+  referencia: "Osman A, Bagge CL, Gutierrez PM, et al. Assessment. 2001;8(4):443-54."
+};
+
+export const scales = [phq9, gad7, mdq, epds, gds15, dass21, asq, cssrs, sbqr, ybocs, asrs18, snap4, audit, srq20, cgiS, cgiI];
 
 export function scaleById(id) {
   return scales.find(scale => scale.id === id);

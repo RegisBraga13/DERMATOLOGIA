@@ -42,7 +42,10 @@ describe("o catalogo de escalas", () => {
   it("toda escala somada tem faixas que cobrem do zero ao maximo, sem buraco", () => {
     for (const scale of scales.filter(item => !item.classificar)) {
       const { max } = scaleResult(scale, {});
-      for (let total = 0; total <= max; total += 1) {
+      // Do menor total possivel: a SBQ-R vai de 3 a 18, a CGI de 1 a 7.
+      const min = scale.itens.filter(item => !item.fora)
+        .reduce((soma, item) => soma + Math.min(...(item.opcoes || scale.opcoes).map(opcao => opcao.valor)), 0);
+      for (let total = min; total <= max; total += 1) {
         const faixa = scale.faixas.find(item => total >= item.min && total <= item.max);
         if (scale.id.startsWith("cgi") && total === 0) continue;
         assert.ok(faixa, `${scale.sigla} sem faixa para ${total}`);

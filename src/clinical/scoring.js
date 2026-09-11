@@ -57,10 +57,14 @@ export function scoreScale(scale, respostas = []) {
   // A faixa so com a escala completa: um PHQ-9 com tres itens respondidos daria
   // "sintomas minimos" e seria lido como resultado.
   const faixa = completa ? (scale.classificar ? scale.classificar(respostas, total) : bandFor(scale.faixas, total)) : null;
-  const subescalas = Object.entries(scale.subescalas || {}).map(([nome, indices]) => ({
-    nome,
-    total: indices.reduce((soma, index) => soma + (respostas[index] ?? 0), 0)
-  }));
+  // Subescala com ponto de corte proprio (DASS-21): a soma pode ser
+  // multiplicada (`subescalaFator`) e classificada (`subescalaFaixas`).
+  const subescalas = Object.entries(scale.subescalas || {}).map(([nome, indices]) => {
+    const soma = indices.reduce((acumulado, index) => acumulado + (respostas[index] ?? 0), 0);
+    const total = soma * (scale.subescalaFator || 1);
+    const faixa = scale.subescalaFaixas?.[nome] ? bandFor(scale.subescalaFaixas[nome], total) : null;
+    return { nome, total, faixa };
+  });
   // O alerta, ao contrario, nao espera: dispara pela resposta do item.
   const alertas = (scale.alertas || []).filter(alerta => alertFires(alerta, respostas));
   const respondidas = respostas.filter(valor => valor !== undefined).length;
@@ -203,7 +207,7 @@ export function scaleSummaryRows(form = {}) {
     item: `${scale.sigla} · ${scale.nome}`,
     value: [
       scaleSummaryLine(scale, result).slice(scale.sigla.length).trim(),
-      ...result.subescalas.map(sub => `${sub.nome}: ${sub.total}`),
+      ...result.subescalas.map(sub => `${sub.nome}: ${sub.total}${sub.faixa ? ` (${sub.faixa.rotulo.toLowerCase()})` : ""}`),
       ...result.alertas.map(alerta => `Alerta: ${stripFinalPeriod(alerta.texto)}.`)
     ].filter(Boolean).join(" · ")
   }));
