@@ -19,6 +19,64 @@ import {
 
 const nomes = texto => String(texto || "").split("\n").filter(Boolean).map(linha => linha.split(" - ")[0]);
 
+// Sem prejuizo funcional nem curso registrados, so o NOME da entidade libera a
+// camada nosologica -- e o nome casava por pedaco de palavra ate 11/09/2026.
+describe("o nome da entidade casa palavra inteira", () => {
+  const TAG = "Transtorno de Ansiedade Generalizada";
+
+  it("'estagio' nao nomeia TAG", () => {
+    const resultado = buildDiagnosticSuggestion({ qphda: "Ansiedade desde o inicio do estagio." });
+    assert.ok(!nomes(resultado.diagnosticoAiNosologico).includes(TAG));
+  });
+
+  it("'tagarela' tambem nao", () => {
+    const resultado = buildDiagnosticSuggestion({ qphda: "Ansiedade. Paciente tagarela na entrevista." });
+    assert.ok(!nomes(resultado.diagnosticoAiNosologico).includes(TAG));
+  });
+
+  it("a sigla TAG escrita pelo medico nomeia", () => {
+    const resultado = buildDiagnosticSuggestion({ qphda: "Ansiedade. Diagnostico previo de TAG." });
+    assert.ok(nomes(resultado.diagnosticoAiNosologico).includes(TAG));
+  });
+
+  it("o plural continua nomeando", () => {
+    const resultado = buildDiagnosticSuggestion({ qphda: "Historia de psicoses, com alucinacao." });
+    assert.ok(nomes(resultado.diagnosticoAiNosologico).includes("Transtorno Psicótico Primário ou Secundário"));
+  });
+});
+
+// "dependencia de" trocado por vicio e adicao, a pedido dele em 11/09/2026.
+describe("nome do transtorno por uso de substancias", () => {
+  const USO = "Transtorno por Uso de Substâncias";
+  const propoe = qphda => nomes(buildDiagnosticSuggestion({ qphda }).diagnosticoAiNosologico).includes(USO);
+
+  it("'dependencia de cuidados' nao nomeia mais", () => {
+    assert.equal(propoe("Uso de alcool nos fins de semana. Dependência de cuidados da filha."), false);
+  });
+
+  it("vicio nomeia", () => {
+    assert.equal(propoe("Vício em cocaína há dois anos."), true);
+  });
+
+  it("adicao nomeia", () => {
+    assert.equal(propoe("Adição à cocaína desde a adolescência."), true);
+  });
+
+  it("uso abusivo nomeia, com de, do ou da", () => {
+    assert.equal(propoe("Uso abusivo de álcool nos fins de semana."), true);
+    assert.equal(propoe("Uso abusivo do crack há um ano."), true);
+  });
+
+  it("uso abusivo negado nao nomeia", () => {
+    assert.equal(propoe("Humor deprimido. Nega uso abusivo de álcool."), false);
+  });
+
+  it("adicao no sentido de acrescimo nao nomeia", () => {
+    assert.equal(propoe("Uso social de alcool. Adição de lítio ao tratamento."), false);
+    assert.equal(propoe("Uso social de alcool. Em adição ao antidepressivo, psicoterapia."), false);
+  });
+});
+
 describe("negacao da anamnese", () => {
   it("nao propoe Induzido por Substancia para quem nega uso", () => {
     const resultado = buildDiagnosticSuggestion({

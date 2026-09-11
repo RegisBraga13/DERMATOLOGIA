@@ -1,6 +1,7 @@
 import { CRITERION_SEPARATOR } from "../clinical/aiDiagnosisResult.js";
 import { diagnosticEtiologicalOptionLines } from "../clinical/diagnosis.js";
 import { arrayValue, normalizeText } from "../clinical/textFormat.js";
+import { MENTAL_EXAM_KEYS, MENTAL_EXAM_NORMAL_OPTIONS } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js";
 import { chips, singleChoiceWithNotes, textarea } from "../ui/controls.js";
 import { escapeAttr, escapeHtml } from "../ui/html.js";
@@ -215,9 +216,25 @@ export function mentalExamBody(form) {
     ["linguagem", "Linguagem"], ["humor", "Humor (Estado Basal)"], ["afeto", "Afeto (Resposta)"],
     ["psicomotricidade", "Psicomotricidade"], ["vontade", "Vontade"], ["juizoCritico", "Juizo Critico (Insight)"]
   ];
-  return groups.map(([key, label]) => `
-    ${chips(key, label, optionGroups[key], form[key], form)}
-  `).join("");
+  return `
+    <div class="actions">
+      <button class="secondary" type="button" data-action="mental-exam-normal">Marcar "sem alteração" nos domínios em branco</button>
+    </div>
+    <p class="field-hint">Domínio em branco consta como não registrado no resumo e fica fora da história clínica.</p>
+    ${groups.map(([key, label]) => chips(key, label, optionGroups[key], form[key], form)).join("")}
+  `;
+}
+
+// O que o botao "sem alteracao" marca: a normalidade de cada dominio que esta
+// em branco. Dominio com achado -- marcado ou escrito no "Outro" -- fica como
+// esta: o botao nunca troca achado por normalidade.
+export function mentalExamNormalFill(form = {}) {
+  const preenchido = {};
+  MENTAL_EXAM_KEYS.forEach(key => {
+    const temAchado = arrayValue(form[key]).filter(Boolean).length > 0 || String(form[`${key}Outro`] || "").trim();
+    if (!temAchado) preenchido[key] = [...(MENTAL_EXAM_NORMAL_OPTIONS[key] || [])];
+  });
+  return preenchido;
 }
 
 export function neurologicExamBody(form) {

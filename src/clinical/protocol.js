@@ -56,11 +56,24 @@ export function protocolMandatory() {
   return flatten("obrigatorio");
 }
 
+// Indice por id, montado uma vez para cada protocolo carregado. Antes cada
+// consulta achatava os ~750 itens de novo e procurava um a um -- e o
+// refinamento consulta um id por pergunta, sinal e lacuna. Id repetido fica com
+// o primeiro, como fazia o find().
+let indicePorId = null;
+let indiceMontadoPara;
+
 /** Devolve o item do protocolo pelo id, seja pergunta, obrigatorio ou sinal. */
 export function protocolItemById(id = "") {
   if (!id) return null;
-  return [...protocolQuestions(), ...protocolMandatory(), ...protocolAlerts()]
-    .find(item => item.id === id) || null;
+  if (!indicePorId || indiceMontadoPara !== protocolo) {
+    indicePorId = new Map();
+    [...protocolQuestions(), ...protocolMandatory(), ...protocolAlerts()].forEach(item => {
+      if (item.id && !indicePorId.has(item.id)) indicePorId.set(item.id, item);
+    });
+    indiceMontadoPara = protocolo;
+  }
+  return indicePorId.get(id) || null;
 }
 
 // O catalogo que vai ao prompt, uma linha por item. Mandar os objetos

@@ -1,9 +1,9 @@
 import { countLabel, diagnosisSuggestionFromAi, diagnosisSuggestionFromLocalCatalogue } from "./clinical/aiDiagnosisResult.js";
 import { diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, formatMedicationTreatmentOption, formatNonPharmacologicalOption, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
-import { anamnesisText, buildEvolutionNarrative, normalizeEvolutionNarrative, outdatedEvolutionText, removeReturnBoilerplate, requestedExamsText, returnEvolutionContainsIdentity, shouldRefreshEvolutionNarrative, treatmentDiagnosisText } from "./clinical/narrative.js";
+import { anamnesisText, buildEvolutionNarrative, evolutionNeedsRebuild, normalizeEvolutionNarrative, removeReturnBoilerplate, requestedExamsText, treatmentDiagnosisText } from "./clinical/narrative.js";
 import { loadProtocol, protocolLoaded } from "./clinical/protocol.js";
 import { arrayValue, joinValues, lowerFirst, normalizeText, stripFinalPeriod } from "./clinical/textFormat.js";
-import { ANAMNESIS_AI_FIELDS, anamnesisQuestionGroups, pagesForScope } from "./clinical/vocabulary.js";
+import { ANAMNESIS_AI_FIELDS, anamnesisQuestionGroups, pagesForScope, TELECONSULTA_CONSENTIMENTO } from "./clinical/vocabulary.js";
 import { optionGroups } from "./data/examOptions.js";
 import { targetSymptomOptions } from "./data/targetSymptoms.js";
 import { fetchCep } from "./services/cepService.js";
@@ -18,7 +18,7 @@ import { createVoiceRecording } from "./ui/voiceRecording.js";
 import { clipboardIcon, folderIcon, homeIcon, lockIcon, personIcon, repeatIcon, themeIcon } from "./ui/icons.js";
 import { clinicalSummaryGroups, clinicalSummaryPage } from "./views/clinicalSummary.js";
 import { aiModeSelector, diagnosisModule, evolutionBody, ragSourcesView, returnPlanModule, returnPlanSettled, treatmentModule } from "./views/decisions.js";
-import { consultationAccessPanel, mentalExamBody, missingReturnAssessment, neurologicExamBody, recordReturnAction, returnAssessmentBody } from "./views/exams.js";
+import { consultationAccessPanel, mentalExamBody, mentalExamNormalFill, missingReturnAssessment, neurologicExamBody, recordReturnAction, returnAssessmentBody } from "./views/exams.js";
 import { caregiverHistoryCard, reproductiveHistoryCard } from "./views/lifeStageBlocks.js";
 import { lifeStageOf, mayBePregnant, needsCaregiverHistory, needsReproductiveHistory, ragPatientScopes } from "./clinical/lifeStage.js";
 import { bookChapterView, medicationReferenceCard } from "./views/medication.js";
@@ -277,9 +277,7 @@ function consultationForm() {
     <form id="consult-form">
       ${isSavedEntry ? recordReturnAction("Consulta anterior aberta para revisao") : ""}
       ${consultationAccessPanel(consultations, form)}
-      <div class="clinical-card consultation-mode-card">
-        ${selectField("consultationMode", "Modalidade da consulta", ["IN_PERSON", "TELECONSULTATION", "HYBRID"], form.consultationMode || "IN_PERSON")}
-      </div>
+      ${consultationModeCard(form)}
       ${formPageTabs("consultation")}
       ${consultationPageBody(form, patient)}
     </form>
@@ -307,10 +305,24 @@ function returnForm() {
     </div>
     <form id="return-form">
       ${returnRecordAccessPanel(form, patient.id)}
+      ${consultationModeCard(form)}
       ${formPageTabs("return")}
       ${returnPageBody(form, patient, previous)}
     </form>
   `;
+}
+
+// Modalidade, na consulta e no retorno desde 11/09/2026 -- o retorno e onde a
+// teleconsulta mais acontece. A distancia, a Res. CFM 2.314/2022 pede o
+// consentimento do paciente registrado; o local onde ele esta e o dado que se
+// precisa para encaminhar a uma emergencia no meio do atendimento.
+function consultationModeCard(form = {}) {
+  const remoto = ["TELECONSULTATION", "HYBRID"].includes(form.consultationMode);
+  return `<div class="clinical-card consultation-mode-card">
+    ${selectField("consultationMode", "Modalidade da consulta", ["IN_PERSON", "TELECONSULTATION", "HYBRID"], form.consultationMode || "IN_PERSON")}
+    ${remoto ? `${chips("teleconsultaConsentimento", "Consentimento", [TELECONSULTA_CONSENTIMENTO], form.teleconsultaConsentimento)}
+    ${field("teleconsultaLocalPaciente", "Onde o paciente está durante o atendimento (cidade/UF)", form.teleconsultaLocalPaciente || "")}` : ""}
+  </div>`;
 }
 
 function returnRecordAccessPanel(form, patientId) {
@@ -441,7 +453,16 @@ function refinementBody(form = {}) {
     const selected = arrayValue(form[name])[0] || "";
     return `<article class="refinement-item"><strong>${escapeHtml(item.topic || "")}</strong><p>${escapeHtml(item.reason || "")}</p><div class="chips">${options.map(option => `<label class="chip"><input type="radio" name="${name}" value="${escapeAttr(option)}" ${selected === option ? "checked" : ""}>${escapeHtml(option)}</label>`).join("")}</div></article>`;
   }).join("")}</section>`;
+  // De onde vieram as perguntas, desde 11/09/2026. O roteiro local e fixo --
+  // quatro perguntas de ansiedade, iguais para qualquer paciente -- e entrava
+  // na tela com a mesma cara das que saem do protocolo dos livros.
+  const origem = plan.origem === "local"
+    ? `<div class="warning">A IA não respondeu. Estas perguntas são um roteiro fixo de contingência, iguais para qualquer paciente: não saíram do protocolo de entrevista nem da literatura.</div>`
+    : plan.origem === "ia"
+      ? `<p class="online-status">O protocolo de entrevista não carregou: as perguntas abaixo foram propostas pela IA, sem a lista fechada dos livros.</p>`
+      : "";
   return `
+    ${origem}
     <section class="refinement-section refinement-questions-section"><h4>Perguntas de refinamento</h4>${questionBlocks}</section>
     ${decisionBlock("Red flags", plan.red_flags, "refinementRedFlag", ["Confirmada", "Negada", "Nao avaliada"])}
     ${decisionBlock("Observacoes", plan.observations, "refinementObservation", ["Pertinente", "Nao pertinente", "Reavaliar"])}
@@ -885,6 +906,13 @@ function bindAutoDraft() {
         const chave = form.id === "return-form" ? "return" : "consultation";
         draft[chave] = { ...(draft[chave] || {}), documento_editado: "1" };
       }
+      // A historia clinica passa a ser do medico quando ele escreve NELA. Antes
+      // bastava a pagina estar aberta: qualquer tecla em qualquer campo marcava
+      // o texto do modelo como dele, e ele nunca mais era remontado.
+      if (event.target?.name === "evolution") {
+        const chave = form.id === "return-form" ? "return" : "consultation";
+        draft[chave] = { ...(draft[chave] || {}), evolutionAutoGenerated: false, evolucaoOrigem: "medico" };
+      }
       if (form.id === "consult-form" && consultationPage === "anamnese" && ["queixa", "hdaManual", "medicos", "qphda"].includes(event.target?.name)) {
         const target = draft.consultation || defaultConsultation();
         target.anamnesisDoctorTextOverrides = { ...(target.anamnesisDoctorTextOverrides || {}), [event.target.name]: true };
@@ -1084,6 +1112,7 @@ function bindActions() {
       if (action === "clear-appendix-symptom") clearAppendixSymptom();
       if (action === "clear-scale") clearScaleAnswers(element.dataset.escala);
       if (action === "apply-monitoring-exams") applyMonitoringExams(element);
+      if (action === "mental-exam-normal") markMentalExamNormal(element);
       if (action === "generate-document") generateDocument(element);
       if (action === "export-document") exportDocument(element);
       if (action === "reexport-document") reexportDocument(element.dataset.indice);
@@ -1180,6 +1209,16 @@ function applyMonitoringExams(element) {
 
 // Radio nao se desmarca clicando de novo. Sem isto, a pergunta condicional
 // respondida por engano (a 5 da ASQ, o plano da C-SSRS) ficaria no registro.
+// "Sem alteracao" nos dominios do exame psiquico que estao em branco. O que ja
+// foi marcado fica como esta: o botao nunca troca achado por normalidade.
+function markMentalExamNormal(element) {
+  const formulario = element.closest("form");
+  if (formulario) updateDraftFromForm(formulario);
+  const chave = currentScope();
+  draft[chave] = { ...(draft[chave] || {}), ...mentalExamNormalFill(draft[chave] || {}) };
+  render();
+}
+
 function clearScaleAnswers(id) {
   const scale = scaleById(id);
   if (!scale) return;
@@ -1352,9 +1391,10 @@ function saveClinicalRecord(scope) {
   if (scope === "consultation") {
     const data = sanitizeConsultationRecord({ ...(draft.consultation || defaultConsultation()), patientId: selectedPatientId, type: "consultation" });
     data.evolution = normalizeEvolutionNarrative(data.evolution);
-    if (!data.evolution || data.evolutionAutoGenerated || outdatedEvolutionText(data.evolution) || shouldRefreshEvolutionNarrative(data.evolution)) {
+    if (evolutionNeedsRebuild(data, getPatient() || {})) {
       data.evolution = buildEvolutionNarrative(data, getPatient() || {});
       data.evolutionAutoGenerated = true;
+      data.evolucaoOrigem = "local";
     }
     if (!data.id) data.id = uid("consultation");
     data.updatedAt = now;
@@ -1367,6 +1407,10 @@ function saveClinicalRecord(scope) {
   if (scope === "return") {
     const previous = previousEntryForReturn(draft.return || {}, selectedPatientId);
     const data = sanitizeConsultationRecord({ ...(draft.return || defaultReturn()), patientId: selectedPatientId, type: "return", previousEntryId: draft.return?.previousEntryId || previous?.id || "" });
+    data.evolution = normalizeEvolutionNarrative(data.evolution);
+    // Decidido antes de herdar o id do retorno ja gravado: e o rascunho que diz
+    // se o texto e do modelo ou do medico.
+    const refazer = evolutionNeedsRebuild(data, getPatient() || {});
     const linkedReturn = state.returns.find(entry =>
       entry.patientId === selectedPatientId
       && entry.previousEntryId === data.previousEntryId
@@ -1376,10 +1420,10 @@ function saveClinicalRecord(scope) {
       data.id = linkedReturn.id;
       data.createdAt = linkedReturn.createdAt;
     }
-    data.evolution = normalizeEvolutionNarrative(data.evolution);
-    if (!data.evolution || data.evolutionAutoGenerated || outdatedEvolutionText(data.evolution) || shouldRefreshEvolutionNarrative(data.evolution)) {
+    if (refazer) {
       data.evolution = buildEvolutionNarrative(data, getPatient() || {}, previous, true);
       data.evolutionAutoGenerated = true;
+      data.evolucaoOrigem = "local";
     }
     if (!data.id) data.id = uid("return");
     data.updatedAt = now;
@@ -1684,6 +1728,11 @@ async function generateEvolutionFromClinicalData(element) {
     const text = normalizeEvolutionNarrative(result.markdown);
     suggestion = {
       evolution: text,
+      // Texto da IA que ele revisa: nao pode ser trocado pelo modelo local ao
+      // salvar -- ficaria a procedencia do RAG ao lado de um texto que nao
+      // saiu dela.
+      evolutionAutoGenerated: false,
+      evolucaoOrigem: mode === "rag" ? "rag" : "nuvem",
       ragSourcesEvolucao: sourcesOfMode(mode, sources, webSources),
       evolutionAiMode: mode,
       aiStatus: "Evolução gerada pela IA real. Revise antes de salvar.",
@@ -1692,6 +1741,8 @@ async function generateEvolutionFromClinicalData(element) {
     const context = clinicalAiContext(scope);
     suggestion = {
       evolution: buildEvolutionNarrative(target || {}, context.patient, context.previous, context.isReturn),
+      evolutionAutoGenerated: true,
+      evolucaoOrigem: "local",
       // A narrativa local nao consultou fonte nenhuma. Deixar na tela o painel
       // da geracao anterior faria o texto local herdar a procedencia dela.
       ragSourcesEvolucao: [],
@@ -1967,8 +2018,9 @@ async function prepareRefinementFromClinicalData() {
       "rag",
       buildRagQuery("refinement", context.target), "", "", ragPatientScopes(context.patient)
     ));
+    result = { ...result, origem: protocolLoaded() ? "protocolo" : "ia" };
   } catch {
-    result = localRefinementPlan(context.target);
+    result = { ...localRefinementPlan(context.target), origem: "local" };
   }
   draft.consultation = { ...(draft.consultation || {}), refinementPlan: result, refinementPreparedAt: new Date().toISOString() };
 }
@@ -2023,7 +2075,8 @@ function updateDraftFromForm(form) {
   if (chave) {
     const data = formToObject(form);
     data.examesLaboratoriais = requestedExamsText(data);
-    if ("evolution" in data) data.evolutionAutoGenerated = false;
+    // A marca de texto do medico nao nasce aqui: ver o `input` da evolucao em
+    // bindAutoDraft.
     draft[chave] = { ...(draft[chave] || {}), ...data };
   }
 }
@@ -2236,12 +2289,7 @@ function recordReportText(entry = {}) {
   const previous = entry.type === "return"
     ? previousEntryForReturn(entry, entry.patientId)
     : null;
-  const shouldRebuild = shouldRefreshEvolutionNarrative(entry.evolution)
-    || (entry.evolutionAutoGenerated && entry.type !== "return")
-    || (entry.type === "return" && (
-      entry.evolutionAutoGenerated
-      || returnEvolutionContainsIdentity(entry.evolution, patient)
-    ));
+  const shouldRebuild = Boolean(entry.evolution) && evolutionNeedsRebuild(entry, patient);
   const storedEvolution = shouldRebuild
     ? buildEvolutionNarrative(entry, patient, previous, entry.type === "return")
     : entry.evolution;

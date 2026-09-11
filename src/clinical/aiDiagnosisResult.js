@@ -145,6 +145,9 @@ export function diagnosisSuggestionFromAi({ result = {}, target = {}, sources = 
     diferenciais: "",
     ragSourcesDiagnostico: sources,
     aiMode: mode,
+    // Gravado no registro, desde 11/09/2026: o aiStatus diz isso na tela, mas
+    // some na proxima geracao. aiMode nao serve -- e o seletor do modo.
+    diagnosticoOrigem: mode === "rag" ? "rag" : "nuvem",
     aiStatus: [
       analysis.length
         ? `Análise psicopatológica: ${countLabel(analysis.length, "domínio", "domínios")}, cada um com a evidência do registro.`
@@ -209,6 +212,7 @@ export function diagnosisSuggestionFromLocalCatalogue(target = {}, error = {}) {
     // pior do que nao ter -- fundamentacao de uma hipotese ao lado de outra.
     diagnosticoAiCriterios: "",
     ragSourcesDiagnostico: [],
+    diagnosticoOrigem: "local",
     treatmentStatus: `${fonte} indisponivel: ${error.message}`,
     aiStatus: encontrou
       ? `${fonte} indisponível (${error.message}). As hipóteses abaixo vêm do catálogo local, por correspondência de termos do registro — contingência, não substituto da literatura indexada.`

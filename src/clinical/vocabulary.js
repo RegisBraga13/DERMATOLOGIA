@@ -351,6 +351,50 @@ export const MENTAL_EXAM_NORMAL = {
   juizoCritico: "Preservado"
 };
 
+// As mesmas normalidades, com a grafia EXATA dos chips da tela. O mapa acima
+// escreve "Consciente/orientado" e "Sem alteração", e a tela tem "Consciente",
+// "Orientado" e "Sem alteracao": marcar por ele deixaria o chip desmarcado.
+//
+// Desde 11/09/2026 dominio em branco e dominio nao examinado, e nao normal.
+// "Sem alteracao" passou a ser achado que se marca -- um a um ou pelo botao do
+// Exame psiquico, que usa esta lista.
+export const MENTAL_EXAM_NORMAL_OPTIONS = Object.freeze({
+  aparencia: ["Adequada"],
+  consciencia: ["Consciente", "Orientado"],
+  atencao: ["Vigil"],
+  memoria: ["Preservada"],
+  sensopercepcao: ["Sem alteracao"],
+  pensamentoCursoForma: ["Adequado"],
+  pensamentoConteudo: ["Adequado"],
+  linguagem: ["Adequada"],
+  humor: ["Eutimia (normal)"],
+  afeto: ["Preservado"],
+  psicomotricidade: ["Sem alteracao"],
+  vontade: ["Normal"],
+  juizoCritico: ["Preservado"]
+});
+
+// O nome do dominio como entra na frase "sem alterações em ...".
+export const MENTAL_EXAM_DOMAIN_NAMES = Object.freeze({
+  aparencia: "aparência",
+  consciencia: "consciência e orientação",
+  atencao: "atenção",
+  memoria: "memória",
+  sensopercepcao: "sensopercepção",
+  pensamentoCursoForma: "curso e forma do pensamento",
+  pensamentoConteudo: "conteúdo do pensamento",
+  linguagem: "linguagem",
+  humor: "humor",
+  afeto: "afeto",
+  psicomotricidade: "psicomotricidade",
+  vontade: "vontade",
+  juizoCritico: "juízo crítico"
+});
+
+// Teleconsulta (Res. CFM 2.314/2022): o atendimento a distancia se registra no
+// prontuario, com o consentimento do paciente.
+export const TELECONSULTA_CONSENTIMENTO = "Paciente consentiu com o atendimento por telemedicina";
+
 // Aparencia e psicomotricidade sairam daqui: sao observacao visual, e a IA as
 // preenchia a partir do audio, onde nao ha o que observar. Ficam do medico.
 // Consciencia ja estava de fora pelo mesmo motivo.

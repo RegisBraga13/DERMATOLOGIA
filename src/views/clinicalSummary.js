@@ -1,7 +1,7 @@
 import { anamnesisText } from "../clinical/narrative.js";
 import { scaleSummaryRows } from "../clinical/scoring.js";
 import { arrayValue, calculateAge, joinValues, mentalExamKeys, normalizeText } from "../clinical/textFormat.js";
-import { anamnesisQuestionGroups, MENTAL_EXAM_NORMAL } from "../clinical/vocabulary.js";
+import { anamnesisQuestionGroups } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js";
 import { formatSummaryDate, section, summaryGroupedOptionRow, summaryTable, summaryTextRow } from "../ui/controls.js";
 
@@ -61,10 +61,14 @@ export function clinicalSummaryGroups(form = {}, patient = {}) {
     linguagem: "Linguagem", humor: "Humor", afeto: "Afeto",
     psicomotricidade: "Psicomotricidade", vontade: "Vontade", juizoCritico: "Juízo crítico"
   };
-  // Dominio nao marcado consta como normal, mesma decisao do exame fisico.
+  // Dominio nao marcado consta como NAO REGISTRADO, desde 11/09/2026. Ate ali
+  // constava como normal, e o PDF afirmava "Eutimia (normal)" sobre um humor
+  // que ninguem examinou. Normal agora e achado marcado -- um a um, ou pelo
+  // botao "sem alteracao" do Exame psiquico. A linha continua na tabela: um
+  // dominio em branco tambem e informacao.
   const mentalRows = mentalExamKeys().map(key => {
     const row = summaryGroupedOptionRow("Exame psíquico", mentalLabels[key] || key, key, optionGroups[key] || [], form, `${key}Outro`);
-    return row.value ? row : { ...row, value: MENTAL_EXAM_NORMAL[key] || "Sem alteração" };
+    return row.value ? row : { ...row, value: "Não registrado" };
   });
   // Sem achado registrado, a secao sumia inteira do resumo: um prontuario sem
   // exame fisico e um com exame fisico normal ficavam identicos. Por decisao do

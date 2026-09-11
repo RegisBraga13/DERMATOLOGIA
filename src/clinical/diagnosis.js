@@ -153,8 +153,21 @@ function stripNegated(text = "") {
 // O medico nomeou a entidade no proprio registro — "TDAH", "esquizofrenia",
 // "bipolar". Nomeada, ela dispensa a marca: quem esta afirmando o transtorno
 // e ele, nao a regra.
+//
+// Nome inteiro, e nao pedaco de palavra, desde 11/09/2026: "tag" casava dentro
+// de "estagio", "contagio" e "tagarela", e o nome liberava a hipotese de TAG
+// sem a marca do transtorno. O plural continua valendo -- "psicoses",
+// "bipolares". Os termos de sintoma (`terms`) seguem casando por pedaco, de
+// proposito: "ansios" e "expansiv" sao radicais.
 function namesEntity(rule = {}, text = "") {
-  return (rule.nomeia || []).some(term => text.includes(term));
+  const semExcecoes = (rule.naoNomeia || [])
+    .reduce((texto, termo) => texto.replace(wholeTermPattern(termo, "g"), " "), text);
+  return (rule.nomeia || []).some(term => wholeTermPattern(term).test(semExcecoes));
+}
+
+function wholeTermPattern(term = "", flags = "") {
+  const escapado = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?:^|[^a-z0-9])${escapado}(?:e?s)?(?![a-z0-9])`, flags);
 }
 
 export function buildDiagnosticSuggestion(form) {
@@ -330,7 +343,14 @@ function diagnosticRules() {
       categoria: "nosologico",
       cid11: "6C40-6C4Z - Transtornos por uso de substancias",
       dsm5tr: "F10.20/F19.20 - Dependencia de alcool ou de outra substancia",
-      nomeia: ["transtorno por uso", "dependencia quimica", "alcoolismo", "dependencia de"],
+      // "dependencia de" saiu em 11/09/2026, por decisao dele: nomeava o
+      // transtorno em "dependencia de cuidados". No lugar, vicio, adicao e uso
+      // abusivo -- este sem o "de", para valer tambem "uso abusivo do crack".
+      nomeia: ["transtorno por uso", "dependencia quimica", "alcoolismo", "vicio", "adicao", "uso abusivo"],
+      // "Adicao" tambem e acrescimo -- "adicao de litio", "em adicao ao
+      // tratamento" --, e acrescimo de farmaco e redacao de rotina na
+      // potencializacao. Esses usos saem do texto antes de conferir o nome.
+      naoNomeia: ["em adicao", "adicao de"],
       terms: ["alcool", "cannabis", "cocaina", "crack", "opioides", "benzodiazepinicos", "substancias"],
       differential: "transtornos primarios do humor, ansiedade, psicose induzida por substancias e abstinencia/intoxicacao."
     },
