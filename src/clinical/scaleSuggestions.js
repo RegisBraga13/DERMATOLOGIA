@@ -21,6 +21,15 @@ function temOpcao(form, campo, opcoes) {
   return arrayValue(form[campo]).some(valor => procuradas.includes(normalizeText(valor)));
 }
 
+export function ageInMonths(nascimento, hoje = new Date()) {
+  if (!nascimento) return null;
+  const inicio = new Date(`${nascimento}T00:00:00`);
+  if (Number.isNaN(inicio.getTime())) return null;
+  let meses = (hoje.getFullYear() - inicio.getFullYear()) * 12 + hoje.getMonth() - inicio.getMonth();
+  if (hoje.getDate() < inicio.getDate()) meses -= 1;
+  return meses >= 0 ? meses : null;
+}
+
 export function suggestedScales(form = {}, patient = {}, { isReturn = false, previous = null } = {}) {
   const sugestoes = new Map();
   const sugerir = (id, motivo) => {
@@ -53,6 +62,10 @@ export function suggestedScales(form = {}, patient = {}, { isReturn = false, pre
   if (menor && temOpcao(anamnese, "escolaridadeContexto", ["Queda de rendimento", "Dificuldade de aprendizagem"])) {
     sugerir("snap4", "queixa escolar registrada");
   }
+  // M-CHAT-R/F: a janela da triagem de autismo e de 16 a 30 meses, e a idade
+  // em anos nao a enxerga.
+  const meses = ageInMonths(patient.nascimento);
+  if (meses !== null && meses >= 16 && meses <= 30) sugerir("mchat", "16 a 30 meses, idade da triagem de autismo");
   if (idade !== null && idade >= 60) sugerir("gds15", "60 anos ou mais");
   if (arrayValue(anamnese.gravidez)[0] === "Sim, com certeza") sugerir("epds", "gestação");
   if (temOpcao(anamnese, "cicloReprodutivo", ["Puerperio", "Amamentando"])) sugerir("epds", "pós-parto ou amamentação");

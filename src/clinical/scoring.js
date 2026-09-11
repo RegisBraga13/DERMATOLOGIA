@@ -125,8 +125,13 @@ export function previousScaleResult(scale, entries = []) {
   return null;
 }
 
+// A CARS tem meia nota: 29.5 sai "29,5", como se escreve no prontuario.
+export function formatScore(valor) {
+  return String(valor).replace(".", ",");
+}
+
 function scoreText(scale, result) {
-  return scale.semTotal ? "" : `${result.total}/${result.max}`;
+  return scale.semTotal ? "" : `${formatScore(result.total)}/${result.max}`;
 }
 
 function bandText(result) {
@@ -179,7 +184,7 @@ export function scaleChangeText(scale, result, anterior, agora = Date.now()) {
     ? [scoreText(scale, anterior.result), anterior.result.faixa?.rotulo].filter(Boolean).join(", ")
     : "incompleta";
   const diferenca = !scale.semTotal && result.completa && anterior.result.completa ? result.total - anterior.result.total : null;
-  const variacao = diferenca === null ? "" : diferenca === 0 ? " · sem mudança no total" : ` · ${diferenca > 0 ? "+" : "−"}${Math.abs(diferenca)} ${Math.abs(diferenca) === 1 ? "ponto" : "pontos"}`;
+  const variacao = diferenca === null ? "" : diferenca === 0 ? " · sem mudança no total" : ` · ${diferenca > 0 ? "+" : "−"}${formatScore(Math.abs(diferenca))} ${Math.abs(diferenca) < 2 ? "ponto" : "pontos"}`;
   const situacao = scaleChangeStatus(scale, result, anterior, agora);
   return `Aplicação anterior${quando}: ${antes}${variacao}${situacao ? ` · ${situacao.rotulo}` : ""}.`;
 }

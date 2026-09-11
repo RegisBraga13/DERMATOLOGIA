@@ -1,4 +1,4 @@
-import { appliedScales, deniesSuicidalIdeation, optionsFor, previousScaleResult, scaleAnswers, scaleChangeText, scaleFieldName, scaleResult, scoreScale } from "../clinical/scoring.js";
+import { appliedScales, deniesSuicidalIdeation, formatScore, optionsFor, previousScaleResult, scaleAnswers, scaleChangeText, scaleFieldName, scaleResult, scoreScale } from "../clinical/scoring.js";
 import { arrayValue } from "../clinical/textFormat.js";
 import { SCALE_DOMAINS, scales } from "../data/scales.js";
 import { escapeAttr, escapeHtml } from "../ui/html.js";
@@ -86,7 +86,7 @@ export function scaleResultView(scale, form = {}, history = []) {
     : !result.completa
       ? `<p class="scale-pending">${faltam === 1 ? "Falta 1 resposta" : `Faltam ${faltam} respostas`} para o resultado.</p>`
       : `<div class="scale-score nivel-${result.faixa?.nivel ?? 0}">
-          ${scale.semTotal ? "" : `<strong>${result.total}</strong><span>de ${result.max}</span>`}
+          ${scale.semTotal ? "" : `<strong>${formatScore(result.total)}</strong><span>de ${result.max}</span>`}
           <b>${escapeHtml(result.faixa?.rotulo || "")}</b>
         </div>
         ${result.faixa?.descricao ? `<p class="scale-band-note">${escapeHtml(result.faixa.descricao)}</p>` : ""}
@@ -128,7 +128,7 @@ function shortDate(value) {
 
 function trendView({ scale, pontos }) {
   const ultimo = pontos[pontos.length - 1];
-  const legenda = `${pontos.map(ponto => scale.semTotal && !scale.id.startsWith("cgi") ? ponto.faixa : ponto.total).join(" → ")}`;
+  const legenda = `${pontos.map(ponto => scale.semTotal && !scale.id.startsWith("cgi") ? ponto.faixa : formatScore(ponto.total)).join(" → ")}`;
   // ASQ e C-SSRS nao tem numero que se possa pôr em eixo: a classificacao e a
   // informacao. Viram lista, na ordem do tempo.
   if (scale.semTotal && !scale.id.startsWith("cgi")) {
@@ -164,8 +164,8 @@ function trendView({ scale, pontos }) {
       <text class="trend-tick" x="${L - 6}" y="${y(minimo) + 4}" text-anchor="end">${minimo}</text>
       <polyline class="trend-line" points="${coordenadas.map(([cx, cy]) => `${cx.toFixed(1)},${cy.toFixed(1)}`).join(" ")}"></polyline>
       ${coordenadas.map(([cx, cy], indice) => `
-        <circle class="trend-dot${indice === coordenadas.length - 1 ? " trend-dot-last" : ""}" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${indice === coordenadas.length - 1 ? 4.5 : 3.5}"><title>${escapeHtml(`${pontos[indice].registro} · ${shortDate(pontos[indice].quando)}: ${pontos[indice].total} (${pontos[indice].faixa})`)}</title></circle>
-        <text class="trend-value" x="${cx.toFixed(1)}" y="${Math.max(cy - 8, 11).toFixed(1)}" text-anchor="middle">${pontos[indice].total}</text>
+        <circle class="trend-dot${indice === coordenadas.length - 1 ? " trend-dot-last" : ""}" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${indice === coordenadas.length - 1 ? 4.5 : 3.5}"><title>${escapeHtml(`${pontos[indice].registro} · ${shortDate(pontos[indice].quando)}: ${formatScore(pontos[indice].total)} (${pontos[indice].faixa})`)}</title></circle>
+        <text class="trend-value" x="${cx.toFixed(1)}" y="${Math.max(cy - 8, 11).toFixed(1)}" text-anchor="middle">${formatScore(pontos[indice].total)}</text>
         ${mostrarData(indice) ? `<text class="trend-tick" x="${cx.toFixed(1)}" y="${H - B + 16}" text-anchor="${indice === 0 && pontos.length > 1 ? "start" : indice === coordenadas.length - 1 && pontos.length > 1 ? "end" : "middle"}">${escapeHtml(shortDate(pontos[indice].quando))}</text>` : ""}`).join("")}
     </svg>
     <p class="scale-trend-caption">Última: ${escapeHtml(ultimo.faixa)}</p>

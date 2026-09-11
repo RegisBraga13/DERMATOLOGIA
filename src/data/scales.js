@@ -75,6 +75,7 @@ export const SCALE_DOMAINS = [
   "Risco de suicídio",
   "Obsessivo-compulsivo",
   "TDAH",
+  "Autismo",
   "Substâncias",
   "Rastreio geral",
   "Impressão clínica global"
@@ -942,7 +943,249 @@ const sbqr = {
   referencia: "Osman A, Bagge CL, Gutierrez PM, et al. Assessment. 2001;8(4):443-54."
 };
 
-export const scales = [phq9, gad7, mdq, epds, gds15, dass21, asq, cssrs, sbqr, ybocs, asrs18, snap4, audit, srq20, cgiS, cgiI];
+// Autismo, decidido com o Dr. Regis em 11/09/2026: RAADS-R no adulto, M-CHAT-R/F
+// na crianca pequena e CARS aplicada pelo medico. A escala infantil de 12 itens
+// do catalogo ficou de fora: nao corresponde a nenhum instrumento validado.
+
+// RAADS-R. No catalogo a pontuacao estava invertida em todos os itens --
+// "verdadeiro agora e quando era jovem" valia 0 --, a pergunta 80 trazia as
+// opcoes-resto de formulario, e a 69 dizia "ser eu mesmo" onde o original diz
+// "ficar sozinho". A redacao dos demais itens e a do catalogo, revista.
+const RAADS_RESPOSTAS = [
+  "Verdadeiro agora e quando eu era jovem",
+  "Verdadeiro só agora",
+  "Verdadeiro só antes dos 16 anos",
+  "Nunca foi verdadeiro"
+];
+const RAADS_SINTOMA = RAADS_RESPOSTAS.map((rotulo, indice) => ({ rotulo, valor: 3 - indice }));
+const RAADS_NORMATIVO = RAADS_RESPOSTAS.map((rotulo, indice) => ({ rotulo, valor: indice }));
+// Numeracao do original (1 a 80): os 17 itens em que a resposta tipica e
+// "verdadeiro" pontuam ao contrario.
+const RAADS_NORMATIVOS = new Set([1, 6, 11, 18, 23, 26, 33, 37, 43, 47, 48, 53, 58, 62, 68, 72, 77]);
+const doOriginal = numeros => numeros.map(numero => numero - 1);
+
+const RAADS_FRASES = [
+  "Sou uma pessoa simpática.",
+  "Sempre uso frases de filmes e de TV nas conversas.",
+  "Sempre me surpreendo quando os outros me dizem que fui rude.",
+  "Às vezes falo alto ou baixo demais, sem perceber.",
+  "Frequentemente não sei como reagir nas situações sociais.",
+  "Consigo “me pôr no lugar do outro”.",
+  "Para mim é difícil entender o que algumas frases significam, como “você é a menina dos meus olhos”.",
+  "Só gosto de falar com pessoas que tenham os mesmos interesses que os meus.",
+  "Foco mais nos detalhes do que na ideia geral.",
+  "Sempre noto a sensação da comida na boca; isso é mais importante do que o próprio gosto.",
+  "Tenho saudades dos meus melhores amigos ou da minha família quando ficamos separados por muito tempo.",
+  "Às vezes ofendo os outros por dizer o que penso, mesmo sem querer.",
+  "Gosto de pensar e de falar só sobre algumas poucas coisas que me interessam.",
+  "Prefiro ir a um restaurante sozinho(a) a ir com alguém que eu conheço.",
+  "Não consigo imaginar como seria estar na pele de outra pessoa.",
+  "Já me disseram que sou desajeitado(a) ou descoordenado(a).",
+  "As pessoas me acham estranho(a) ou diferente.",
+  "Percebo quando meus amigos precisam ser confortados.",
+  "Sou muito sensível ao toque das roupas; a sensação delas no corpo é mais importante do que o modelo.",
+  "Gosto de copiar o jeito de falar e de agir de certas pessoas; isso me ajuda a parecer mais normal.",
+  "Falar com mais de uma pessoa ao mesmo tempo pode ser muito intimidante para mim.",
+  "Tenho de “agir como se fosse normal” para agradar aos outros e fazer com que gostem de mim.",
+  "Conhecer pessoas costuma ser fácil para mim.",
+  "Quando alguém me interrompe enquanto falo de algo que me interessa muito, fico extremamente confuso(a).",
+  "É difícil para mim entender o que as outras pessoas estão sentindo quando falam.",
+  "Gosto de conversar com várias pessoas ao mesmo tempo, como à mesa num jantar, na escola ou no trabalho.",
+  "Levo as coisas muito ao pé da letra e acabo não entendendo o que as pessoas estão querendo dizer.",
+  "É muito difícil para mim perceber quando as pessoas estão envergonhadas ou com inveja.",
+  "Algumas texturas que não incomodam os outros são totalmente agressivas ao meu toque.",
+  "Fico extremamente aborrecido(a) quando o jeito como costumo fazer as coisas muda de repente.",
+  "Nunca quis nem precisei do que as outras pessoas chamam de “relacionamento íntimo”.",
+  "É muito difícil para mim começar ou terminar uma conversa.",
+  "Falo num ritmo normal.",
+  "O mesmo som, cor ou textura pode mudar de repente de muito delicado para muito grosseiro.",
+  "A frase “estou virado no avesso” me deixa desconfortável.",
+  "Às vezes o som de uma palavra ou um barulho agudo chega a doer nos meus ouvidos.",
+  "Sou uma pessoa compreensiva.",
+  "Não me conecto com personagens de filmes e não consigo sentir o que eles sentem.",
+  "Não consigo perceber se alguém está me paquerando.",
+  "Consigo ver na mente, com detalhes exatos, as coisas que me interessam.",
+  "Faço listas das coisas que me interessam, mesmo que não tenham uso prático (estatísticas de esportes, fatos históricos, datas).",
+  "Quando meus sentidos ficam sobrecarregados, tenho de me isolar para que eles “se desliguem”.",
+  "Gosto de conversar sobre as coisas com meus amigos.",
+  "Não sei dizer se alguém está interessado ou entediado com o que estou falando.",
+  "Pode ser difícil para mim ler o rosto, as mãos e o corpo de quem está falando comigo.",
+  "A mesma coisa (uma roupa, uma temperatura) pode parecer bem diferente para mim em ocasiões diferentes.",
+  "Fico muito à vontade em encontros e ocasiões sociais.",
+  "Tento ajudar o máximo possível quando as pessoas me contam seus problemas pessoais.",
+  "Já me disseram que tenho uma voz incomum (monótona, infantil ou estridente).",
+  "Às vezes um assunto fica “emperrado” na minha cabeça e tenho de falar sobre ele, mesmo que ninguém esteja interessado.",
+  "Faço certos movimentos repetitivos com as mãos (agitá-las, girar pauzinhos ou fios, mexer coisas diante dos olhos).",
+  "Nunca me interessei pelo que a maioria das pessoas acha interessante.",
+  "Sou considerado(a) uma pessoa compassiva.",
+  "Quando lido com pessoas, sigo uma lista de regras específicas que me ajudam a parecer normal.",
+  "É muito difícil para mim trabalhar em grupo ou fazer parte de um grupo.",
+  "Quando falo com alguém, é difícil mudar de assunto; se a outra pessoa muda, fico muito aborrecido(a) e confuso(a).",
+  "Às vezes tapo os ouvidos para bloquear barulhos que doem (aspirador de pó, gente que fala demais ou alto demais).",
+  "Consigo conversar e bater papo com as pessoas.",
+  "Às vezes, coisas que deveriam doer não doem (quando me machuco ou queimo a mão no forno, por exemplo).",
+  "Quando estou conversando, acho difícil saber quando é a minha vez de falar e quando é a de ouvir.",
+  "Quem me conhece me considera uma pessoa solitária.",
+  "Costumo falar num tom de voz normal.",
+  "Gosto que as coisas sejam feitas exatamente do mesmo jeito todos os dias, e até pequenas mudanças na rotina me chateiam.",
+  "Fazer amigos e socializar é um mistério para mim.",
+  "Quando estou estressado(a), girar ou balançar numa cadeira me acalma.",
+  "A frase “ele faz tudo de barriga” não faz sentido para mim.",
+  "Num lugar com muitos cheiros, texturas, barulhos ou luzes fortes, fico ansioso(a) ou com medo.",
+  "Percebo quando alguém diz uma coisa querendo dizer outra.",
+  "Gosto de ficar sozinho(a) o máximo possível.",
+  "Guardo os pensamentos na memória como em fichas de arquivo e pego os que preciso procurando na “pilha” (ou por algum outro método só meu).",
+  "O mesmo som às vezes me parece muito alto e às vezes muito baixo, mesmo sabendo que o volume não mudou.",
+  "Gosto de passar o tempo comendo e conversando com a família e os amigos.",
+  "Não tolero coisas de que não gosto (cheiros, texturas, sons ou cores).",
+  "Não gosto de ser abraçado(a) ou segurado(a).",
+  "Quando vou a algum lugar, tenho de seguir uma rotina conhecida, ou posso ficar muito confuso(a) e aborrecido(a).",
+  "É difícil descobrir o que os outros esperam de mim.",
+  "Gosto de ter amigos próximos.",
+  "As pessoas me dizem que sou detalhista demais.",
+  "Sempre me dizem que faço perguntas constrangedoras.",
+  "Costumo apontar os erros dos outros."
+];
+
+const raadsr = {
+  id: "raadsr",
+  sigla: "RAADS-R",
+  nome: "Escala Diagnóstica de Autismo e Asperger de Ritvo, revisada",
+  dominio: "Autismo",
+  aplicacao: "Autoaplicável, com o médico presente",
+  periodo: "Agora e antes dos 16 anos",
+  populacao: "Adultos",
+  instrucao: "Para cada frase, marque se ela vale para você agora e também valia quando era jovem, se vale só agora, se valia só antes dos 16 anos, ou se nunca valeu. Na validação, o médico ficava junto para esclarecer dúvidas.",
+  itens: RAADS_FRASES.map((texto, indice) => ({
+    texto,
+    opcoes: RAADS_NORMATIVOS.has(indice + 1) ? RAADS_NORMATIVO : RAADS_SINTOMA
+  })),
+  subescalas: {
+    "Relação social": doOriginal([1, 3, 5, 6, 8, 11, 12, 14, 17, 18, 20, 21, 22, 23, 25, 26, 28, 31, 37, 38, 39, 43, 44, 45, 47, 48, 53, 54, 55, 60, 61, 64, 68, 69, 72, 76, 77, 79, 80]),
+    "Interesses restritos": doOriginal([9, 13, 24, 30, 32, 40, 41, 50, 52, 56, 63, 70, 75, 78]),
+    "Linguagem": doOriginal([2, 7, 15, 27, 35, 58, 66]),
+    "Sensório-motor": doOriginal([4, 10, 16, 19, 29, 33, 34, 36, 42, 46, 49, 51, 57, 59, 62, 65, 67, 71, 73, 74])
+  },
+  // 65 e o corte da validacao original (sensibilidade de 97%). Em servico de
+  // saude mental, porem, mais da metade dos pacientes sem autismo passa de 65;
+  // Brugha (2020) achou 120 melhor nessa populacao, que e a do consultorio.
+  faixas: [
+    { min: 0, max: 64, rotulo: "Abaixo do ponto de corte", nivel: 0 },
+    { min: 65, max: 119, rotulo: "Acima do ponto de corte original", nivel: 1, descricao: "Em serviços de saúde mental, 65 tem especificidade baixa: ansiedade, depressão e traços de personalidade também elevam o total. Confirmar com avaliação diagnóstica e história do desenvolvimento." },
+    { min: 120, max: 240, rotulo: "Acima do ponto de corte para saúde mental", nivel: 2, descricao: "Acima de 120, o corte proposto para pacientes de serviços de saúde mental. Indica avaliação diagnóstica de autismo, que continua sendo clínica." }
+  ],
+  observacao: "Rastreio, e não diagnóstico. As subescalas mostram onde o total se concentra; não têm ponto de corte próprio validado.",
+  referencia: "Ritvo RA, Ritvo ER, Guthrie D, et al. J Autism Dev Disord. 2011;41(8):1076-89. Corte em saúde mental: Brugha T, Tyrer F, Leaver A, et al. Int J Methods Psychiatr Res. 2020;29(1):e1814."
+};
+
+// M-CHAT-R/F. A resposta que pontua e "Nao", menos nas perguntas 2, 5 e 12,
+// em que e "Sim". De 3 a 7 pontos a triagem so se fecha depois da Entrevista
+// de Seguimento, que o medico faz item a item; o resultado dela vai no ultimo
+// item, que nao entra na soma.
+const mchat = {
+  id: "mchat",
+  sigla: "M-CHAT-R/F",
+  nome: "Lista de Verificação Modificada para Autismo em Crianças Pequenas, revisada, com Entrevista de Seguimento",
+  dominio: "Autismo",
+  aplicacao: "Pais ou cuidadores; seguimento pelo médico",
+  periodo: "Comportamento habitual",
+  populacao: "16 a 30 meses",
+  instrucao: "Responda pensando em como a criança costuma se comportar. Se ela fez algo poucas vezes, mas não costuma fazer, responda “não”.",
+  itens: [
+    { texto: "Se você aponta para alguma coisa do outro lado do cômodo, a criança olha para o que você apontou? (Por exemplo, um brinquedo ou um animal.)", opcoes: PONTUA_NAO },
+    { texto: "Você já se perguntou se a criança pode ser surda?", opcoes: PONTUA_SIM },
+    { texto: "A criança brinca de faz de conta? (Por exemplo, finge beber num copo vazio, falar ao telefone ou dar comida a uma boneca.)", opcoes: PONTUA_NAO },
+    { texto: "A criança gosta de subir nas coisas? (Móveis, brinquedos do parquinho, escadas.)", opcoes: PONTUA_NAO },
+    { texto: "A criança faz movimentos incomuns com os dedos perto dos olhos?", opcoes: PONTUA_SIM },
+    { texto: "A criança aponta com um dedo para pedir alguma coisa ou pedir ajuda? (Por exemplo, um lanche ou um brinquedo fora do alcance.)", opcoes: PONTUA_NAO },
+    { texto: "A criança aponta com um dedo para mostrar a você algo interessante? (Por exemplo, um avião no céu ou um caminhão na rua.)", opcoes: PONTUA_NAO },
+    { texto: "A criança se interessa por outras crianças? (Observa, sorri para elas, vai até elas.)", opcoes: PONTUA_NAO },
+    { texto: "A criança traz ou levanta coisas para mostrar a você, só para compartilhar, e não para pedir ajuda? (Uma flor, um bicho de pelúcia, um carrinho.)", opcoes: PONTUA_NAO },
+    { texto: "A criança responde quando você a chama pelo nome? (Olha, fala, balbucia ou para o que está fazendo.)", opcoes: PONTUA_NAO },
+    { texto: "Quando você sorri para a criança, ela sorri de volta?", opcoes: PONTUA_NAO },
+    { texto: "A criança fica incomodada com barulhos do dia a dia? (Por exemplo, grita ou chora com o aspirador de pó ou com música alta.)", opcoes: PONTUA_SIM },
+    { texto: "A criança anda?", opcoes: PONTUA_NAO },
+    { texto: "A criança olha nos seus olhos quando você fala com ela, brinca com ela ou a veste?", opcoes: PONTUA_NAO },
+    { texto: "A criança tenta imitar o que você faz? (Dar tchau, bater palmas, repetir um barulho engraçado.)", opcoes: PONTUA_NAO },
+    { texto: "Se você vira a cabeça para olhar alguma coisa, a criança olha em volta para ver o que você está olhando?", opcoes: PONTUA_NAO },
+    { texto: "A criança tenta fazer você olhar para ela? (Olha esperando um elogio, ou diz “olha” ou “me vê”.)", opcoes: PONTUA_NAO },
+    { texto: "A criança entende quando você pede para ela fazer alguma coisa, sem apontar? (Por exemplo, “põe o livro na cadeira” ou “me traz o cobertor”.)", opcoes: PONTUA_NAO },
+    { texto: "Quando acontece algo novo, a criança olha para o seu rosto para ver como você reage? (Um barulho estranho, um brinquedo novo.)", opcoes: PONTUA_NAO },
+    { texto: "A criança gosta de atividades de movimento? (Ser balançada, pular nos seus joelhos.)", opcoes: PONTUA_NAO },
+    {
+      texto: "Entrevista de Seguimento: depois de repassar cada item que pontuou, quantos continuam positivos?",
+      opcoes: [
+        { rotulo: "Nenhum ou 1", valor: 0 },
+        { rotulo: "2 ou mais", valor: 1 }
+      ],
+      fora: true,
+      opcional: true,
+      condicao: "Só com 3 a 7 pontos, feita pelo médico. Não entra na soma."
+    }
+  ],
+  classificar: (respostas, total) => {
+    if (total >= 8) return { rotulo: "Risco alto", nivel: 3, descricao: "Encaminhar logo para avaliação diagnóstica e para intervenção precoce, sem esperar a Entrevista de Seguimento." };
+    if (total >= 3) {
+      if (respostas[20] === 1) return { rotulo: "Triagem positiva após o seguimento", nivel: 2, descricao: "Dois ou mais itens continuaram positivos. Encaminhar para avaliação diagnóstica e para intervenção precoce." };
+      if (respostas[20] === 0) return { rotulo: "Triagem negativa após o seguimento", nivel: 1, descricao: "Menos de dois itens continuaram positivos. Rastrear de novo nas próximas consultas; a preocupação dos pais continua valendo por si." };
+      return { rotulo: "Risco moderado", nivel: 2, descricao: "Fazer a Entrevista de Seguimento com os pais, item a item, e marcar o resultado na última pergunta." };
+    }
+    return { rotulo: "Baixo risco", nivel: 0, descricao: "Se a criança tem menos de 24 meses, repetir aos 24 meses." };
+  },
+  observacao: "Redação deste app, no sentido do original. A versão brasileira oficial (Losapio et al., 2022) e os fluxogramas da Entrevista de Seguimento estão em mchatscreen.com; para uso formal, prefira o texto oficial.",
+  referencia: "Robins DL, Casagrande K, Barton M, et al. Pediatrics. 2014;133(1):37-45. Versão brasileira: Losapio MF, Siquara GM, Lampreia C, Lázaro CP, Pondé MP. Rev Paul Pediatr. 2022;41:e2021262. © 2009 Robins, Fein e Barton; uso clínico livre."
+};
+
+// CARS: nota de 1 a 4, com meia nota, em cada um dos 15 dominios, dada pelo
+// medico que observa a crianca. As descricoes de cada nota sao do manual, que
+// tem direitos autorais; aqui ficam os dominios e a regra de soma.
+const NOTA_CARS = [
+  { rotulo: "1 · Normal para a idade", valor: 1 },
+  { rotulo: "1,5", valor: 1.5 },
+  { rotulo: "2 · Levemente anormal", valor: 2 },
+  { rotulo: "2,5", valor: 2.5 },
+  { rotulo: "3 · Moderadamente anormal", valor: 3 },
+  { rotulo: "3,5", valor: 3.5 },
+  { rotulo: "4 · Gravemente anormal", valor: 4 }
+];
+
+const cars = {
+  id: "cars",
+  sigla: "CARS",
+  nome: "Escala de Avaliação do Autismo na Infância",
+  dominio: "Autismo",
+  aplicacao: "Aplicada pelo médico, por observação",
+  periodo: "Observação e relato dos pais",
+  populacao: "A partir de 2 anos",
+  instrucao: "Pontue cada domínio comparando a criança com outra da mesma idade, pelas descrições do manual. Use a meia nota quando o comportamento fica entre duas descrições.",
+  opcoes: NOTA_CARS,
+  itens: [
+    { texto: "Relações pessoais" },
+    { texto: "Imitação" },
+    { texto: "Resposta emocional" },
+    { texto: "Uso do corpo" },
+    { texto: "Uso de objetos" },
+    { texto: "Resposta a mudanças" },
+    { texto: "Resposta visual" },
+    { texto: "Resposta auditiva" },
+    { texto: "Resposta e uso do paladar, do olfato e do tato" },
+    { texto: "Medo ou nervosismo" },
+    { texto: "Comunicação verbal" },
+    { texto: "Comunicação não verbal" },
+    { texto: "Nível de atividade" },
+    { texto: "Nível e consistência da resposta intelectual" },
+    { texto: "Impressão geral" }
+  ],
+  faixas: [
+    { min: 15, max: 29.5, rotulo: "Sem autismo", nivel: 0 },
+    { min: 30, max: 36.5, rotulo: "Autismo leve a moderado", nivel: 2 },
+    { min: 37, max: 60, rotulo: "Autismo grave", nivel: 3 }
+  ],
+  observacao: "O corte de 30 é o da criança. Em adolescentes e adultos, a literatura usa 28.",
+  referencia: "Schopler E, Reichler RJ, DeVellis RF, Daly K. J Autism Dev Disord. 1980;10(1):91-103. Versão brasileira: Pereira A, Riesgo RS, Wagner MB. J Pediatr (Rio J). 2008;84(6):487-94. Instrumento com direitos autorais; aplicar com o manual."
+};
+
+export const scales = [phq9, gad7, mdq, epds, gds15, dass21, asq, cssrs, sbqr, ybocs, asrs18, snap4, raadsr, mchat, cars, audit, srq20, cgiS, cgiI];
 
 export function scaleById(id) {
   return scales.find(scale => scale.id === id);
