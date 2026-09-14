@@ -10,6 +10,9 @@ rag_sources.local.json
 # Texto de livro extraido do PDF. Fora do Git pela mesma razao que os PDFs:
 # e o livro. Cada um gera o seu com scripts/build_book_chapters.py.
 book_chapters.local.json
+# Criterios diagnosticos recortados do DSM-5-TR. Mesmo motivo: e o livro.
+# Cada um gera o seu com scripts/build_dsm_criteria.py.
+dsm_criteria.local.json
 
 # Áudios de teste não entram no versionamento, mas os testes automatizados sim
 testes/*

@@ -739,3 +739,130 @@ class SourcesMentioningTests(unittest.TestCase):
         sustentar a resposta sem repetir uma palavra da consulta."""
         self.assertEqual(server.KINDS_REQUIRING_MENTION,
                          {"medication", "medication_review", "medication_tips"})
+
+
+# Indice pequeno, em memoria: o teste nao depende do livro, que fica fora do Git.
+INDICE_DSM = [
+    {"titulo": "Esquizofrenia", "codigo_titulo": "F20.9", "texto": "Critérios Diagnósticos F20.9\nA. Dois ou mais dos seguintes"},
+    {"titulo": "Transtorno Esquizofreniforme", "codigo_titulo": "F20.81", "texto": "Critérios Diagnósticos F20.81\nA. Dois ou mais"},
+    {"titulo": "Transtorno Bipolar Tipo I", "codigo_titulo": "", "texto": "Critérios Diagnósticos\nPara diagnosticar transtorno bipolar tipo I"},
+    {"titulo": "Transtorno Bipolar Tipo II", "codigo_titulo": "F31.81", "texto": "Critérios Diagnósticos F31.81\nPara diagnosticar tipo II"},
+    {"titulo": "Transtorno de Pânico", "codigo_titulo": "F41.0", "texto": "Critérios Diagnósticos F41.0\nA. Ataques de pânico recorrentes"},
+    {"titulo": "Agorafobia", "codigo_titulo": "F40.00", "texto": "Critérios Diagnósticos F40.00\nA. Medo ou ansiedade marcantes"},
+    {"titulo": "Transtorno Depressivo Maior", "codigo_titulo": "", "texto": "Critérios Diagnósticos\nA. Cinco (ou mais) dos seguintes"},
+    {"titulo": "Transtorno por Uso de Álcool", "codigo_titulo": "", "texto": "Critérios Diagnósticos\nA. Um padrão problemático de uso de álcool"},
+    {"titulo": "Abstinência de Álcool", "codigo_titulo": "", "texto": "Critérios Diagnósticos\nA. Cessação (ou redução) do uso pesado"},
+]
+
+
+def titulos(selecao):
+    return [s["titulo"] for s in server.dsm_criteria_sections(selecao, INDICE_DSM)]
+
+
+class DsmCriteriaLookupTests(unittest.TestCase):
+    """O Refinar anexa a secao de criterios do DSM-5-TR de cada hipotese
+    assinalada. A busca vetorial trazia essa secao em 2 de 10 casos."""
+
+    def test_rotulo_da_hipotese_chega_a_secao(self):
+        self.assertEqual(titulos(["Esquizofrenia - CID-11: 6A20 - DSM-5-TR: F20.9"]), ["Esquizofrenia"])
+
+    def test_esquizofrenia_nao_vira_esquizofreniforme(self):
+        """Prefixo comum nao basta: o titulo inteiro tem de estar no nome."""
+        self.assertEqual(titulos(["Esquizofrenia"]), ["Esquizofrenia"])
+
+    def test_tipo_i_nao_vira_tipo_ii(self):
+        self.assertEqual(titulos(["Transtorno bipolar tipo I, episódio maníaco atual - DSM-5-TR: F31.2"]),
+                         ["Transtorno Bipolar Tipo I"])
+
+    def test_secao_sem_codigo_no_titulo_chega_pelo_nome(self):
+        self.assertEqual(titulos(["Transtorno depressivo maior, episódio atual grave com sintomas psicóticos - DSM-5-TR: F32.3"]),
+                         ["Transtorno Depressivo Maior"])
+
+    def test_duas_entidades_no_mesmo_nome_trazem_as_duas_secoes(self):
+        self.assertEqual(titulos(["Transtorno de pânico com agorafobia - CID-11: 6B01 - DSM-5-TR: F41.0"]),
+                         ["Transtorno de Pânico", "Agorafobia"])
+        self.assertEqual(titulos(["Transtorno por uso de álcool, grave, com abstinência complicada - DSM-5-TR: F10.20"]),
+                         ["Transtorno por Uso de Álcool", "Abstinência de Álcool"])
+
+    def test_codigo_do_titulo_vale_mesmo_com_nome_diferente(self):
+        self.assertEqual(titulos(["Transtorno de ansiedade paroxística episódica - DSM-5-TR: F41.0"]), ["Transtorno de Pânico"])
+
+    def test_hipotese_sem_secao_nao_anexa_nada(self):
+        self.assertEqual(titulos(["Ausência de psicopatologia que justifique diagnóstico psiquiátrico no momento"]), [])
+
+    def test_teto_de_secoes_e_sem_repeticao(self):
+        selecao = ["Esquizofrenia", "Esquizofrenia - DSM-5-TR: F20.9", "Transtorno de pânico com agorafobia",
+                   "Transtorno depressivo maior", "Transtorno por uso de álcool com abstinência"]
+        achados = titulos(selecao)
+        self.assertEqual(len(achados), server.DSM_CRITERIA_MAX_SECTIONS)
+        self.assertEqual(len(achados), len(set(achados)))
+
+    def test_entrada_invalida_nao_quebra(self):
+        with patch.object(server, "load_dsm_criteria", return_value={"secoes": INDICE_DSM}):
+            self.assertEqual(server.dsm_criteria_sources("Esquizofrenia"), [])
+            self.assertEqual(server.dsm_criteria_sources([None, 42]), [])
+            fontes = server.dsm_criteria_sources(["Esquizofrenia"])
+        self.assertEqual(fontes[0]["attributes"]["secao"], "Esquizofrenia")
+        self.assertIn("dsm 5 tr", fontes[0]["filename"].lower(), "sem isso a tela nao cita a obra")
+
+    def test_sem_o_arquivo_do_indice_nao_ha_criterios(self):
+        with patch.object(server, "load_dsm_criteria", return_value=None):
+            self.assertEqual(server.dsm_criteria_sources(["Esquizofrenia"]), [])
+
+
+class DsmCriteriaInReviewTests(unittest.TestCase):
+    """De ponta a ponta: o Refinar leva os criterios ate a chamada do modelo; a
+    geracao do Diagnostico nao leva."""
+
+    @classmethod
+    def setUpClass(cls):
+        logging.disable(logging.CRITICAL)
+        cls.httpd = server.ThreadingHTTPServer(("127.0.0.1", 0), server.PrototypeHandler)
+        cls.port = cls.httpd.server_address[1]
+        cls.thread = Thread(target=cls.httpd.serve_forever, daemon=True)
+        cls.thread.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.httpd.shutdown()
+        cls.httpd.server_close()
+        cls.thread.join(timeout=5)
+        logging.disable(logging.NOTSET)
+
+    def _corpo_enviado_ao_modelo(self, kind):
+        import os
+        capturado = {}
+
+        def falso_urlopen(request, timeout=None):
+            capturado["corpo"] = json.loads(request.data.decode("utf-8"))
+            raise RuntimeError("parar aqui: so interessa o que foi enviado")
+
+        trecho = {"file_id": "file-x", "filename": "Tratado.pdf", "score": 0.9, "excerpt": "trecho do tratado", "attributes": {}}
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "chave-de-teste"}), \
+             patch.object(server, "load_dsm_criteria", return_value={"secoes": INDICE_DSM}), \
+             patch.object(server, "search_rag_sources", return_value=[trecho]), \
+             patch.object(server.urllib.request, "urlopen", side_effect=falso_urlopen):
+            conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
+            try:
+                conn.request("POST", "/api/clinical-ai", body=json.dumps({
+                    "kind": kind, "prompt": "caso", "mode": "rag", "ragQuery": "consulta",
+                    "diagnosisSelection": ["Esquizofrenia - CID-11: 6A20 - DSM-5-TR: F20.9"],
+                }), headers={"Content-Type": "application/json", "Origin": f"http://127.0.0.1:{self.port}"})
+                conn.getresponse().read()
+            finally:
+                conn.close()
+        return capturado["corpo"]["input"][1]["content"]
+
+    def test_refinar_leva_os_criterios_na_frente(self):
+        conteudo = self._corpo_enviado_ao_modelo("diagnosis_review")
+        self.assertIn("A. Dois ou mais dos seguintes", conteudo)
+        self.assertLess(conteudo.index("Critérios Diagnósticos F20.9"), conteudo.index("trecho do tratado"))
+
+    def test_geracao_do_diagnostico_nao_leva(self):
+        self.assertNotIn("Critérios Diagnósticos F20.9", self._corpo_enviado_ao_modelo("diagnosis"))
+
+
+class OutputCeilingTests(unittest.TestCase):
+    def test_teto_de_saida_cabe_o_diagnostico_mais_longo_medido(self):
+        """1.790 tokens foi o maior Diagnostico medido em 14/09/2026; 2200 cortou um."""
+        self.assertGreaterEqual(server.MAX_OUTPUT_TOKENS, 3000)

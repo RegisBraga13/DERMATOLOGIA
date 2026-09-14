@@ -98,7 +98,13 @@ DEFAULT_TRANSCRIPTION_MODEL = "gpt-4o-transcribe-diarize"
 # descontrolado, nao limite do modelo: gpt-4.1 tem 1M de contexto, e 31 mil
 # tokens cabem sem aperto.
 MAX_PROMPT_CHARS = 160000
-MAX_OUTPUT_TOKENS = 2200
+# 3000 desde 14/09/2026. Medido em 10 Diagnosticos reais: saida de 1.089 a
+# 1.790 tokens, e uma resposta com duas hipoteses e doze criterios veio cortada
+# no meio do JSON com o teto de 2200 -- na tela, "fora do formato clinico
+# validado". Nao sobe mais de proposito: a conta tem limite de 30 mil tokens
+# por minuto, a OpenAI desconta o teto pedido desse limite, e cada Diagnostico
+# ja manda ~12,5 mil de entrada. Com teto maior, cabe um Diagnostico por minuto.
+MAX_OUTPUT_TOKENS = 3000
 MAX_AUDIO_BYTES = 30 * 1024 * 1024
 ALLOWED_KINDS = {"anamnesis", "mental_exam", "refinement_scope", "refinement", "diagnosis", "diagnosis_review",
                  "treatment", "treatment_review", "symptomatic", "return_plan", "evolution", "medication",
@@ -136,7 +142,7 @@ ICD10CM_PATTERN = re.compile(r"\bF[0-9]{2}(?:\.[0-9A-Z]+)?\b")
 BLOCKED_NAMES = {".env", ".git", ".gitignore", ".venv", "__pycache__", ".DS_Store", "node_modules"}
 BLOCKED_SUFFIXES = {".py", ".pyc", ".sql", ".log", ".command", ".m4a", ".pem", ".key"}
 BLOCKED_PREFIXES = (".env",)          # .env.local, .env.production, ...
-BLOCKED_STEMS = ("rag_sources", "book_chapters")   # *.local.json
+BLOCKED_STEMS = ("rag_sources", "book_chapters", "dsm_criteria")   # *.local.json
 # O capitulo do livro sai por /api/book-chapter, um de cada vez. Servido como
 # arquivo estatico, GET /book_chapters.local.json entregaria o livro inteiro a
 # quem pedisse — 2,6 MB de obra licenciada, num programa que o resto do tempo
@@ -837,6 +843,90 @@ def find_book_chapter(nome=""):
         if len(chave) >= 4 and (chave in alvo or alvo in chave):
             return {"livro": dados.get("livro", ""), "nome": item["nome"], "blocos": item["blocos"]}
     return None
+
+
+# CRITERIOS DO DSM-5-TR NO REFINAR, desde 14/09/2026. Nao e RAG.
+#
+# O Refinar do Diagnostico revisa as hipoteses que o medico assinalou, e a
+# revisao confere cada criterio. A secao "Criterios Diagnosticos" do DSM-5-TR
+# daquela entidade quase nunca chegava pela busca vetorial: medido nos 10 casos
+# ficticios, chegou em 2 de 10; buscando pelo nome das hipoteses, em 4 de 10. A
+# consulta fala a lingua do exame psiquico, e o que ganha a vaga e o capitulo de
+# outro transtorno, a escala de sintomas da Secao III, a listagem de codigos.
+#
+# Aqui a hipotese ja tem nome e codigo, entao a secao e consultada como num
+# indice: recortada do livro por scripts/build_dsm_criteria.py, inteira e na
+# ordem do livro. Sem o arquivo, o Refinar segue so com a busca, como antes.
+DSM_CRITERIA_PATH = ROOT / "dsm_criteria.local.json"
+DSM_CRITERIA = None
+DSM_CRITERIA_LOCK = threading.Lock()
+DSM_CRITERIA_FILE_ID = "dsm-criterios-local"
+# "dsm 5 tr" no nome e o que faz a tela citar a obra (src/data/references.js),
+# e nao um nome de arquivo.
+DSM_CRITERIA_FILENAME = "DSM 5 TR - Critérios Diagnósticos (texto do livro)"
+# Tres hipoteses nosologicas, e uma delas pode ser duas entidades ("panico com
+# agorafobia"). Mais que isso e contexto que a revisao nao pediu.
+DSM_CRITERIA_MAX_SECTIONS = 4
+DIAGNOSIS_SELECTION_MAX = 6
+DSM_LABEL_CODE = re.compile(r"DSM-?5-?TR:\s*([A-Z]\d{2}(?:\.\w{1,4})?)", re.I)
+# Palavras que nao distinguem uma entidade de outra. "tipo" e "i" ficam: sao o
+# que separa Bipolar Tipo I de Tipo II.
+_CRITERIA_STOPWORDS = {"de", "da", "do", "das", "dos", "e", "a", "o", "com", "por", "ao", "em", "na", "no", "ou",
+                       "outra", "outro", "transtorno", "transtornos", "devido", "sem", "que"}
+
+
+def load_dsm_criteria():
+    global DSM_CRITERIA
+    with DSM_CRITERIA_LOCK:
+        if DSM_CRITERIA is None and DSM_CRITERIA_PATH.exists():
+            DSM_CRITERIA = json.loads(DSM_CRITERIA_PATH.read_text(encoding="utf-8"))
+    return DSM_CRITERIA
+
+
+def _criteria_words(texto):
+    palavras = normalize_name(texto).split()
+    return {p[:-1] if len(p) > 4 and p.endswith("s") else p for p in palavras if p not in _CRITERIA_STOPWORDS}
+
+
+def dsm_criteria_sections(selection, secoes):
+    """Secoes de criterios das hipoteses assinaladas.
+
+    Duas rotas, somadas. O codigo impresso na linha do titulo da secao e unico,
+    mas so 88 das 159 secoes o trazem: onde o codigo muda com gravidade e curso
+    (depressao maior, bipolar), ele fica no corpo, e o corpo de um transtorno
+    cita o codigo de outro. O nome cobre o resto: vale a secao cujo titulo
+    inteiro esta no nome da hipotese. Entre titulos contidos um no outro fica o
+    mais completo; entidades diferentes ficam as duas -- "Transtorno de panico
+    com agorafobia" traz Panico e Agorafobia, que sao dois conjuntos de criterios.
+    """
+    achadas = []
+    titulos = [(_criteria_words(s.get("titulo", "")), s) for s in secoes]
+    for rotulo in selection:
+        rotulo = str(rotulo or "")
+        codigo = next(iter(DSM_LABEL_CODE.findall(rotulo)), "").upper()
+        nome = _criteria_words(rotulo.split(" - ")[0])
+        cabem = [(t, s) for t, s in titulos if t and t <= nome]
+        pelo_nome = [s for t, s in cabem if not any(t < outro for outro, _ in cabem)]
+        pelo_codigo = [s for _, s in titulos if codigo and s.get("codigo_titulo") == codigo]
+        for secao in pelo_codigo + pelo_nome:
+            if secao not in achadas:
+                achadas.append(secao)
+    return achadas[:DSM_CRITERIA_MAX_SECTIONS]
+
+
+def dsm_criteria_sources(selection):
+    """As secoes no formato de fonte do RAG, para entrarem no mesmo contexto."""
+    dados = load_dsm_criteria()
+    if not dados or not isinstance(selection, list):
+        return []
+    selection = [item[:300] for item in selection[:DIAGNOSIS_SELECTION_MAX] if isinstance(item, str)]
+    return [{
+        "file_id": DSM_CRITERIA_FILE_ID,
+        "filename": DSM_CRITERIA_FILENAME,
+        "score": 1.0,
+        "excerpt": secao["texto"],
+        "attributes": {"secao": secao["titulo"]},
+    } for secao in dsm_criteria_sections(selection, dados.get("secoes") or [])]
 
 
 def load_env():
@@ -1972,6 +2062,14 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                     extras = [f for f in search_rag_sources(rag_query, api_key, kind, escopos=garantidos)
                               if (f["file_id"], f["excerpt"]) not in vistos]
                     sources = sources + extras[:RAG_ALWAYS_MAX_RESULTS]
+                # No Refinar, os criterios do DSM-5-TR das hipoteses assinaladas
+                # entram inteiros e na frente: sao a regra que a revisao confere.
+                if kind == "diagnosis_review":
+                    criterios = dsm_criteria_sources(payload.get("diagnosisSelection"))
+                    if criterios:
+                        logger.info("diagnosis_review: criterios do DSM-5-TR anexados: %s",
+                                    "; ".join(f["attributes"]["secao"] for f in criterios))
+                    sources = criterios + sources
                 # O acervo e de psiquiatria. Quando o medico pergunta por um
                 # farmaco que nao e dele -- losartana, metformina, omeprazol, o
                 # que o paciente ja toma --, o livro nao tem, mas a busca

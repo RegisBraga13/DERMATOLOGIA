@@ -30,7 +30,7 @@ export function localRefinementPlan(form = {}) {
   };
 }
 
-export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery = "", webQuery = "", ragMustMention = "", ragPatientScopes = []) {
+export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery = "", webQuery = "", ragMustMention = "", ragPatientScopes = [], diagnosisSelection = []) {
   const response = await fetch("/api/clinical-ai", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -39,7 +39,10 @@ export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery
     // sobre um nome proprio -- e so ali a busca vetorial conseguia devolver oito
     // trechos de psiquiatria com relevancia alta para uma pergunta sobre
     // losartana, sem que nenhum falasse dela.
-    body: JSON.stringify({ kind, prompt, mode: mode === "rag" ? "rag" : "current", ragQuery, webQuery, ragMustMention, ragPatientScopes })
+    // diagnosisSelection: as hipoteses que o medico assinalou, so no Refinar do
+    // Diagnostico. O servidor anexa a secao "Criterios Diagnosticos" do DSM-5-TR
+    // de cada uma, recortada do livro -- a busca vetorial nao a trazia.
+    body: JSON.stringify({ kind, prompt, mode: mode === "rag" ? "rag" : "current", ragQuery, webQuery, ragMustMention, ragPatientScopes, diagnosisSelection })
   });
   let data = {};
   try {
@@ -858,6 +861,12 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
     // entao a linha da marca so entra onde ela existe. Instrucao sobre um
     // rotulo que nao aparece no texto ensina o modelo a inventar o rotulo.
     kind === "medication_review" ? "" : "Item marcado [assinalado pelo medico] foi aceito por ele: so o altere ou retire com apoio explicito na literatura recuperada. Preferencia de redacao nao e motivo.",
+    // Desde 14/09/2026 o servidor anexa, para cada hipotese assinalada, a secao
+    // de criterios do DSM-5-TR inteira. Sem esta linha o modelo a trataria como
+    // mais um trecho entre outros, e nao como a regra contra a qual conferir.
+    kind === "diagnosis_review"
+      ? "Quando as FONTES trouxerem a secao 'Criterios Diagnosticos' do DSM-5-TR de uma hipotese, esse e o texto oficial dos criterios daquela entidade: confira 'criteria' item por item contra ele, com o numero de sintomas, a duracao e as exclusoes que ele exige."
+      : "",
     kind === "medication_review"
       ? "Esta ficha vai sustentar prescricao: confira dose inicial, titulacao, dose maxima, efeito colateral, contraindicacao, interacao e monitorizacao contra a fonte especializada. Numero que a fonte nao sustentar sai da ficha."
       : "",

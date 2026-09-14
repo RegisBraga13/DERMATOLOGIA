@@ -173,6 +173,48 @@ As duas revisoes leem o mesmo `tratado` porque o livro revisor e o mesmo. O que
 separa revisar diagnostico de revisar tratamento e a pergunta e o contexto do
 prompt, nao o corpus.
 
+## Criterios do DSM-5-TR no Refinar (nao e RAG)
+
+O Refinar do Diagnostico anexa, para cada hipotese assinalada pelo medico, a
+secao **"Criterios Diagnosticos" do DSM-5-TR inteira**, recortada do livro, na
+frente dos trechos do `tratado`. A revisao confere `criteria` item por item
+contra esse texto.
+
+```bash
+python3 scripts/build_dsm_criteria.py "/caminho/DSM 5 TR - português.pdf"   # gera dsm_criteria.local.json
+```
+
+O arquivo fica fora do Git e o servidor nao o entrega por HTTP, como o
+`book_chapters.local.json`. Sem ele, o Refinar funciona como antes, so com a
+busca.
+
+**Por que nao pela busca.** Medido em 14/09/2026 nos 10 casos ficticios, contando
+se a secao de criterios do transtorno esperado chegava entre os 4 trechos
+garantidos de `criterios`:
+
+| Consulta | Criterio certo |
+| --- | --- |
+| A de producao (exame psiquico + queixa) | 2/10 |
+| Nome das hipoteses, uma busca por hipotese | 4/10 |
+| PDF convertido pelo MarkItDown, ou limpo com etiqueta de contexto | 2/10 a 3/10 |
+
+A IA acertou o transtorno nos 10 casos mesmo assim: o que faltava nao era o nome,
+era o texto dos criterios contra o qual conferir. A metrica antiga, "240 de 240
+trechos", contava quantos trechos voltavam, e nao se eram os certos.
+
+**Como a hipotese chega a secao.** Pelas duas rotas, somadas:
+
+- o codigo DSM-5-TR do rotulo, contra o codigo impresso na linha do titulo da
+  secao (88 das 159 secoes o trazem, sem repeticao);
+- o nome: vale a secao cujo titulo inteiro esta no nome da hipotese. Entre
+  titulos contidos um no outro fica o mais completo; entidades diferentes ficam
+  as duas ("Transtorno de panico com agorafobia" traz Panico e Agorafobia).
+
+No maximo 4 secoes. So a Secao II: os criterios propostos da Secao III ficam de
+fora. O nome da hipotese principal chegou a secao certa em 10 de 10 nos casos
+ficticios; onde a IA escreve com a redacao da CID-11 ("Transtorno depressivo,
+episodio unico"), quem resolve e o codigo.
+
 ## Tirar um livro da biblioteca
 
 ```bash
