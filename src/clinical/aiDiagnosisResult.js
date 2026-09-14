@@ -1,4 +1,4 @@
-import { buildDiagnosticSuggestion, doctorSelectedOptions, formatDiagnosticOption, selectedDiagnosisValues } from "./diagnosis.js";
+import { buildDiagnosticSuggestion, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, doctorSelectedOptions, formatDiagnosticOption, selectedDiagnosisValues } from "./diagnosis.js";
 import { normalizeText, stripFinalPeriod } from "./textFormat.js";
 
 // Transformacao do que a IA devolve no que o formulario guarda. Estava dentro
@@ -115,6 +115,9 @@ export function diagnosisSuggestionFromAi({ result = {}, target = {}, sources = 
     : [];
   const marcadasMantidas = marcadasAntes.filter(valor => propostas.has(normalizeText(valor)));
   const marcadasPerdidas = marcadasAntes.length - marcadasMantidas.length;
+  // Quais, e nao so quantas, desde 11/09/2026: a revisao substitui a tela
+  // inteira, e sem o nome nao havia como conferir o que ela tirou.
+  const marcadasRetiradas = marcadasAntes.filter(valor => !propostas.has(normalizeText(valor)));
   const marcadasFinais = [...selectedDoctorOptions, ...marcadasMantidas];
 
   return {
@@ -148,6 +151,15 @@ export function diagnosisSuggestionFromAi({ result = {}, target = {}, sources = 
     // Gravado no registro, desde 11/09/2026: o aiStatus diz isso na tela, mas
     // some na proxima geracao. aiMode nao serve -- e o seletor do modo.
     diagnosticoOrigem: mode === "rag" ? "rag" : "nuvem",
+    // A primeira proposta, guardada no registro quando o refino a substitui.
+    // Geracao nova limpa: a comparacao so vale entre a proposta e a revisao.
+    diagnosticoRefinoAnterior: revisao ? {
+      em: new Date().toISOString(),
+      sindromico: diagnosticSyndromicOptionLines(target || {}),
+      nosologico: diagnosticNosologicalOptionLines(target || {}),
+      etiologico: diagnosticEtiologicalOptionLines(target || {}),
+      retiradas: marcadasRetiradas
+    } : null,
     aiStatus: [
       analysis.length
         ? `Análise psicopatológica: ${countLabel(analysis.length, "domínio", "domínios")}, cada um com a evidência do registro.`

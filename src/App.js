@@ -28,6 +28,8 @@ import { monitoringExamSelection, monitoringFor } from "./data/monitoring.js";
 import { buildDocumentText, documentDraftFields, documentType, doctorFromForm, issuedDocument, withoutDocumentDraftFields } from "./clinical/documents.js";
 import { documentsBody } from "./views/documents.js";
 import { previousScaleEntries, scaleFieldName, withoutUnappliedScaleAnswers } from "./clinical/scoring.js";
+import { withVersionHistory } from "./clinical/versions.js";
+import { finalizationNote, finalizedNotice, recordStatusLine, versionsView } from "./views/versions.js";
 import { scaleById } from "./data/scales.js";
 
 const app = document.querySelector("#app");
@@ -300,6 +302,7 @@ function consultationForm() {
     </div>
     <form id="consult-form">
       ${isSavedEntry ? recordReturnAction("Consulta anterior aberta para revisao") : ""}
+      ${finalizedNotice(form)}
       ${consultationAccessPanel(consultations, form)}
       ${consultationModeCard(form)}
       ${formPageTabs("consultation")}
@@ -329,6 +332,7 @@ function returnForm() {
     </div>
     <form id="return-form">
       ${returnRecordAccessPanel(form, patient.id)}
+      ${finalizedNotice(form)}
       ${consultationModeCard(form)}
       ${formPageTabs("return")}
       ${returnPageBody(form, patient, previous)}
@@ -669,7 +673,9 @@ function recordEntryCard(entry) {
   return `
     <article class="timeline-item">
       <h4>${escapeHtml(entry.label)} - ${new Date(entry.createdAt).toLocaleString("pt-BR")}</h4>
+      ${recordStatusLine(entry)}
       <p>${escapeHtml(recordReportText(entry))}</p>
+      ${versionsView(entry)}
       <div class="actions">
         <button class="secondary" data-action="pdf-entry" data-id="${entry.id}" data-type="${entry.type}">Exportar PDF</button>
       </div>
@@ -790,7 +796,17 @@ function pageStepActions(scope) {
   return `<div class="actions page-actions">
     ${nextPage ? `<button class="primary" type="button" data-action="save-next-page" data-scope="${scope}">Salvar e avancar</button>` : ""}
     <button class="${nextPage ? "secondary" : "primary"}" type="submit">${recordLabel}</button>
+    ${finalizeButton(scope, current)}
   </div>`;
+}
+
+// "Finalizar" so na ultima etapa do atendimento, e so enquanto nao finalizado.
+// O apendice nao e etapa: dele nao se finaliza.
+function finalizeButton(scope, current = {}) {
+  const etapas = pagesForScope(scope).filter(([key]) => !APPENDIX_PAGES.has(key));
+  const ultima = etapas[etapas.length - 1]?.[0];
+  if (current.finalizadoEm || currentPageForScope(scope) !== ultima) return "";
+  return `<button class="secondary" type="button" data-action="finalize-record" data-scope="${scope}">Finalizar ${scope === "return" ? "retorno" : "consulta"}</button>`;
 }
 
 function bindGlobalEvents() {
@@ -1146,6 +1162,7 @@ function bindActions() {
       if (action === "clear-scale") clearScaleAnswers(element.dataset.escala);
       if (action === "apply-monitoring-exams") applyMonitoringExams(element);
       if (action === "mental-exam-normal") markMentalExamNormal(element);
+      if (action === "finalize-record") finalizeCurrentRecord(element);
       if (action === "generate-document") generateDocument(element);
       if (action === "export-document") exportDocument(element);
       if (action === "reexport-document") reexportDocument(element.dataset.indice);
@@ -1251,6 +1268,24 @@ function markMentalExamNormal(element) {
   if (formulario) updateDraftFromForm(formulario);
   const chave = currentScope();
   draft[chave] = { ...(draft[chave] || {}), ...mentalExamNormalFill(draft[chave] || {}) };
+  render();
+}
+
+// Salva e finaliza. Finalizado continua editavel; o que muda depois na
+// historia clinica, no diagnostico ou no tratamento guarda a versao anterior
+// (withVersionHistory).
+function finalizeCurrentRecord(element) {
+  const scope = element.dataset.scope === "return" ? "return" : "consultation";
+  const tipo = scope === "return" ? "o retorno" : "a consulta";
+  if (!confirm(`Finalizar ${tipo}? Depois de finalizado, o que for alterado na história clínica, no diagnóstico ou no tratamento fica registrado, e a versão anterior é guardada.`)) return;
+  const formulario = element.closest("form");
+  if (formulario) updateDraftFromForm(formulario);
+  const salvo = saveClinicalRecord(scope);
+  if (!salvo) return;
+  const agora = new Date().toISOString();
+  upsert(scope === "return" ? "returns" : "consultations", { ...salvo, finalizadoEm: agora, updatedAt: agora });
+  draft[scope] = { ...(draft[scope] || {}), finalizadoEm: agora, updatedAt: agora };
+  persist();
   render();
 }
 
@@ -1434,10 +1469,11 @@ function saveClinicalRecord(scope) {
     if (!data.id) data.id = uid("consultation");
     data.updatedAt = now;
     data.createdAt = data.createdAt || now;
-    upsert("consultations", data);
-    draft.consultation = { ...structuredClone(data), ...screenOnlyFields(draft.consultation) };
+    const registro = withVersionHistory(findEntry(data.id, "consultation"), data, now);
+    upsert("consultations", registro);
+    draft.consultation = { ...structuredClone(registro), ...screenOnlyFields(draft.consultation) };
     persist();
-    return data;
+    return registro;
   }
   if (scope === "return") {
     const previous = previousEntryForReturn(draft.return || {}, selectedPatientId);
@@ -1464,10 +1500,11 @@ function saveClinicalRecord(scope) {
     if (!data.id) data.id = uid("return");
     data.updatedAt = now;
     data.createdAt = data.createdAt || now;
-    upsert("returns", data);
-    draft.return = { ...structuredClone(data), ...screenOnlyFields(draft.return) };
+    const registro = withVersionHistory(findEntry(data.id, "return"), data, now);
+    upsert("returns", registro);
+    draft.return = { ...structuredClone(registro), ...screenOnlyFields(draft.return) };
     persist();
-    return data;
+    return registro;
   }
   return null;
 }
@@ -1562,6 +1599,15 @@ async function generateTreatmentFromClinicalData(element, kind = "treatment") {
       condutaMedica: target?.condutaMedica || "",
       ragSourcesTratamento: sourcesOfMode(mode, sources, webSources),
       pharmaAiMode: mode,
+      // A primeira proposta, guardada quando o refino a substitui. Geracao nova
+      // limpa: a comparacao so vale entre a proposta e a revisao dela.
+      tratamentoRefinoAnterior: revisao ? {
+        em: new Date().toISOString(),
+        medicamentos: treatmentOptionLines(target?.tratamentoAiMedicamentos),
+        abordagens: treatmentOptionLines(target?.tratamentoAiAbordagens),
+        retiradas: [...arrayValue(target?.tratamentoMedicamentosSelecionados), ...arrayValue(target?.abordagensSelecionadas)]
+          .filter(item => !medicationOptions.includes(item) && !approachOptions.includes(item))
+      } : null,
       treatmentStatus: `${revisao ? "Refinado pela fonte especializada: " : ""}${result.care_level ? `Nível de cuidado proposto: ${result.care_level.level}. ` : "Nenhum nível de cuidado foi proposto — a resposta veio sem modalidade ou sem justificativa. "}${countLabel(medicationOptions.length, "opção medicamentosa", "opções medicamentosas")} e ${countLabel(approachOptions.length, "outra abordagem", "outras abordagens")} propostas para você assinalar. Suas escolhas anteriores foram mantidas.`,
       aiStatus: revisao ? "Tratamento refinado pela fonte especializada, para revisão médica." : "Sugestões de tratamento geradas pela IA para revisão médica."
     };
@@ -2337,7 +2383,7 @@ function pdfEntry(id, type) {
   const patient = getPatient();
   const title = `${entry.label || "Evolução"}${patient?.nome ? ` — ${patient.nome}` : ""}`;
   const date = new Date(entry.createdAt || Date.now()).toLocaleDateString("pt-BR").replaceAll("/", "-");
-  exportTextAsPdf(title, recordReportText(entry), `${patient?.nome || "Paciente"} - ${entry.label || "Evolução"} - ${date}`);
+  exportTextAsPdf(title, [recordReportText(entry), finalizationNote(entry)].filter(Boolean).join("\n\n"),`${patient?.nome || "Paciente"} - ${entry.label || "Evolução"} - ${date}`);
 }
 
 function pdfClinicalSummary() {

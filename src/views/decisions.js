@@ -34,6 +34,7 @@ export function diagnosisModule(form) {
       </div>
       ${aiStatus ? `<p class="online-status">${escapeHtml(aiStatus)}</p>` : ""}
       ${ragSourcesView(form.ragSourcesDiagnostico)}
+      ${firstPassView(form.diagnosticoRefinoAnterior, [["Sindrômico", "sindromico"], ["Nosológico", "nosologico"], ["Etiológico", "etiologico"]])}
     </div>
     ${psychopathologicalAnalysisView(analysisLines)}
     <textarea hidden name="analisePsicopatologica">${escapeHtml(analysisLines.join("\n"))}</textarea>
@@ -68,6 +69,23 @@ export function diagnosisModule(form) {
       ${textarea("diagnosticoMedicoOutro", "Ao marcar \"Outro\": escreva a hipótese e os códigos", form.diagnosticoMedicoOutro, "Ex.: Transtorno de ansiedade generalizada - CID-11: 6B00 - DSM-5-TR: F41.1", 2)}
     </div>
   `;
+}
+
+// O refino substitui a tela inteira, por decisao dele. O que a primeira
+// passada propunha fica guardado no registro, e aqui, recolhido, para conferir
+// o que a revisao tirou -- a comecar pelo que ele tinha assinalado.
+export function firstPassView(anterior, grupos = []) {
+  if (!anterior) return "";
+  const retiradas = arrayValue(anterior.retiradas);
+  const linhas = grupos
+    .filter(([, chave]) => arrayValue(anterior[chave]).length)
+    .map(([rotulo, chave]) => `<p><strong>${escapeHtml(rotulo)}:</strong> ${escapeHtml(arrayValue(anterior[chave]).join("; "))}</p>`);
+  if (!linhas.length && !retiradas.length) return "";
+  return `<details class="first-pass">
+    <summary>Primeira proposta, antes do refino</summary>
+    ${retiradas.length ? `<p><strong>Assinaladas por você e retiradas pela revisão:</strong> ${escapeHtml(retiradas.join("; "))}</p>` : ""}
+    ${linhas.join("")}
+  </details>`;
 }
 
 // O titulo conta o que esta na tela, nao o teto do grupo. Antes dizia sempre
@@ -283,6 +301,7 @@ export function treatmentModule(form, { podeEngravidar = false } = {}) {
       </div>
       ${form.treatmentStatus ? `<p class="online-status">${escapeHtml(form.treatmentStatus)}</p>` : ""}
       ${ragSourcesView(form.ragSourcesTratamento)}
+      ${firstPassView(form.tratamentoRefinoAnterior, [["Medicamentos", "medicamentos"], ["Outras abordagens", "abordagens"]])}
     </div>
     ${careLevelView(form)}
     <div class="treatment-card-grid">
