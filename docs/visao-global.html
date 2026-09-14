@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prontuário Psiquiátrico por dentro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Outfit:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#edf1f0; --paper:#ffffff; --ink:#172225; --muted:#586a69; --line:#cfd9d6;
+  --teal:#0d737d; --teal-ink:#0b5a62;
+  --p1:#e3eef4; --p1-dot:#2f6f9a;
+  --p2:#f6e4e1; --p2-dot:#b5534a;
+  --p3:#e2efe6; --p3-dot:#3d7a55;
+  --p4:#f5ecd6; --p4-dot:#a66f13;
+  --p5:#e9e6f4; --p5-dot:#6a5aa6;
+  --p6:#f7e6d8; --p6-dot:#b8652a;
+  --p7:#e4f0e8; --p7-dot:#2f7a4f;
+  --chip:#ffffffcc; --chip-line:#00000014;
+  --ok:#2f7a4f; --warn:#a66f13; --crit:#b74242;
+  --shadow:0 1px 0 #00000010;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0b1618; --paper:#122125; --ink:#e8f2f0; --muted:#9fb3b1; --line:#28403f;
+    --teal:#4fb3bb; --teal-ink:#7fd0d6;
+    --p1:#15242d; --p1-dot:#6aa8d2;
+    --p2:#2a1d1c; --p2-dot:#e08a80;
+    --p3:#152820; --p3-dot:#78c294;
+    --p4:#2a2415; --p4-dot:#dcae55;
+    --p5:#1e1c2c; --p5-dot:#a598e0;
+    --p6:#2b2018; --p6-dot:#e39a62;
+    --p7:#15261c; --p7-dot:#6fc08f;
+    --chip:#ffffff0d; --chip-line:#ffffff1a;
+    --ok:#6fc08f; --warn:#dcae55; --crit:#e38383;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0b1618; --paper:#122125; --ink:#e8f2f0; --muted:#9fb3b1; --line:#28403f;
+  --teal:#4fb3bb; --teal-ink:#7fd0d6;
+  --p1:#15242d; --p1-dot:#6aa8d2;
+  --p2:#2a1d1c; --p2-dot:#e08a80;
+  --p3:#152820; --p3-dot:#78c294;
+  --p4:#2a2415; --p4-dot:#dcae55;
+  --p5:#1e1c2c; --p5-dot:#a598e0;
+  --p6:#2b2018; --p6-dot:#e39a62;
+  --p7:#15261c; --p7-dot:#6fc08f;
+  --chip:#ffffff0d; --chip-line:#ffffff1a;
+  --ok:#6fc08f; --warn:#dcae55; --crit:#e38383;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.55 "Outfit",system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 20px 56px;display:grid;gap:22px}
+.hand{font-family:"Kalam","Comic Neue","Segoe Print",cursive}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:.86em}
+
+/* cabecalho */
+.head{text-align:center;display:grid;gap:4px;justify-items:center}
+.head h1{margin:0;font-size:clamp(30px,5vw,50px);line-height:1.05;text-wrap:balance;font-weight:700;
+  background:linear-gradient(transparent 58%, color-mix(in srgb,var(--p4-dot) 30%, transparent) 58%);padding:0 10px}
+.head p{margin:0;color:var(--muted);max-width:62ch}
+.head .who{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal-ink);font-weight:600}
+
+/* grade dos 6 paineis com setas */
+.row{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:stretch;gap:10px}
+.arrow{align-self:center;color:var(--teal);font-size:28px;font-family:"Kalam",cursive}
+.panel{border-radius:18px;padding:18px 18px 16px;display:grid;gap:12px;align-content:start;min-width:0}
+.panel h2{margin:0;display:flex;gap:10px;align-items:center;font-size:23px;line-height:1.1;font-weight:700;text-wrap:balance}
+.num{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:#fff;font:700 20px/1 "Kalam",cursive}
+.p1{background:var(--p1)} .p1 .num{background:var(--p1-dot)}
+.p2{background:var(--p2)} .p2 .num{background:var(--p2-dot)}
+.p3{background:var(--p3)} .p3 .num{background:var(--p3-dot)}
+.p4{background:var(--p4)} .p4 .num{background:var(--p4-dot)}
+.p5{background:var(--p5)} .p5 .num{background:var(--p5-dot)}
+.p6{background:var(--p6)} .p6 .num{background:var(--p6-dot)}
+.p7{background:var(--p7)} .p7 .num{background:var(--p7-dot)}
+.panel ul{margin:0;padding-left:18px;display:grid;gap:4px}
+.panel li::marker{color:var(--muted)}
+.lede{margin:0;color:var(--muted);font-size:14px}
+
+/* escala */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat{background:var(--chip);border:1px solid var(--chip-line);border-radius:10px;padding:8px 10px;display:grid;gap:0}
+.stat strong{font-size:20px;font-variant-numeric:tabular-nums;line-height:1.2}
+.stat span{font-size:12.5px;color:var(--muted);line-height:1.3}
+
+/* mini diagrama */
+.diag{display:grid;gap:6px;justify-items:center}
+.box{background:var(--paper);border:1.5px solid color-mix(in srgb,var(--p3-dot) 60%, var(--line));border-radius:9px;padding:5px 10px;text-align:center;font-size:13.5px;line-height:1.25}
+.box small{display:block;color:var(--muted);font-size:11.5px}
+.box.hl{background:color-mix(in srgb,var(--p5-dot) 18%, var(--paper));border-color:var(--p5-dot)}
+.down{color:var(--teal);line-height:1;font-size:15px}
+.fan{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:100%}
+
+/* componentes */
+.comp{display:grid;grid-template-columns:34px 1fr;gap:4px 10px;align-items:start}
+.comp svg{width:30px;height:30px}
+.comp b{display:block;font-size:15px}
+.comp span{font-size:13px;color:var(--muted);line-height:1.35;display:block}
+.comp + .comp{border-top:1px dashed var(--chip-line);padding-top:9px}
+
+/* preocupacoes */
+.concern{display:grid;grid-template-columns:96px 1fr;gap:8px;font-size:13.5px;line-height:1.35}
+.concern b{font-weight:600}
+.concern span{color:var(--muted)}
+.concern + .concern{border-top:1px dashed var(--chip-line);padding-top:8px}
+
+/* resultado */
+.result{display:grid;grid-template-columns:1fr 250px;gap:18px;align-items:center}
+.flow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center}
+.flow .box{padding:8px 12px;font-size:14px}
+.stack{border:1.5px dashed color-mix(in srgb,var(--p7-dot) 55%, var(--line));border-radius:12px;padding:8px;display:grid;gap:6px}
+.delivers{background:color-mix(in srgb,var(--p2) 70%, var(--paper));border-radius:14px;padding:12px 14px;display:grid;gap:6px}
+.delivers h3{margin:0;font-size:20px}
+.check{display:grid;grid-template-columns:18px 1fr;gap:8px;font-size:13.5px;line-height:1.35}
+.check i{width:18px;height:18px;border-radius:50%;background:var(--ok);display:grid;place-items:center;margin-top:1px}
+.check i::after{content:"";width:7px;height:4px;border:2px solid var(--paper);border-top:0;border-right:0;transform:rotate(-45deg) translate(1px,-1px)}
+
+.quote{background:var(--p1);border-radius:18px;padding:16px 22px;text-align:center;font-size:clamp(18px,2.4vw,24px);line-height:1.35;text-wrap:balance}
+
+/* mapa detalhado */
+.section-head{display:grid;gap:4px;margin-top:14px}
+.section-head h2{margin:0;font-size:30px;line-height:1.1}
+.section-head p{margin:0;color:var(--muted);max-width:70ch}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{font:600 14px "Outfit",sans-serif;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);border-radius:999px;padding:7px 14px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--teal);border-color:var(--teal);color:var(--paper)}
+.tabs button:focus-visible,.step:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.map{display:grid;gap:10px}
+.step{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:grid;grid-template-columns:200px 1fr 230px;gap:16px}
+.step .name{display:grid;gap:4px;align-content:start}
+.step .name b{font-size:17px;line-height:1.2}
+.pill{justify-self:start;font-size:11px;letter-spacing:.07em;text-transform:uppercase;font-weight:600;border-radius:999px;padding:2px 8px;border:1px solid currentColor}
+.pill.etapa{color:var(--teal-ink)} .pill.apendice{color:var(--p5-dot)} .pill.tela{color:var(--p6-dot)}
+.step ul{margin:0;padding-left:18px;display:grid;gap:3px;font-size:14px}
+.step .ai{font-size:13px;color:var(--muted);display:grid;gap:5px;align-content:start;border-left:1px dashed var(--line);padding-left:14px}
+.step .ai b{color:var(--ink);font-weight:600}
+.tag{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11.5px;background:color-mix(in srgb,var(--teal) 12%, transparent);color:var(--teal-ink);border-radius:5px;padding:0 5px;margin:1px 2px 1px 0}
+
+/* pendencias */
+.todo{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.item{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:4px;border-left:4px solid var(--sev)}
+.item b{font-size:15px}
+.item span{font-size:13.5px;color:var(--muted)}
+.item .st{font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:600;color:var(--sev)}
+.sev-crit{--sev:var(--crit)} .sev-warn{--sev:var(--warn)} .sev-ok{--sev:var(--ok)}
+footer{color:var(--muted);font-size:12.5px;text-align:center}
+
+@media (max-width:980px){
+  .row{grid-template-columns:1fr}
+  .arrow{transform:rotate(90deg);justify-self:center}
+  .result{grid-template-columns:1fr}
+  .step{grid-template-columns:1fr}
+  .step .ai{border-left:0;border-top:1px dashed var(--line);padding:10px 0 0}
+  .todo{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:no-preference){ .tabs button{transition:background .15s,color .15s} }
+</style>
+
+<div class="wrap">
+  <header class="head">
+    <span class="who">Dr. Regis Braga · Prontuário Psiquiátrico</span>
+    <h1 class="hand">Como o nosso sistema funciona</h1>
+    <p>Visão global no formato da figura de referência: do problema clínico à arquitetura. Depois, cada etapa e cada elemento das telas, e o que falta para terminar o app. Levantado do código em 14/09/2026.</p>
+  </header>
+
+  <!-- 1 2 3 -->
+  <div class="row">
+    <section class="panel p1">
+      <h2 class="hand"><span class="num">1</span>Entender o problema</h2>
+      <p class="lede">Um prontuário de consultório em que a IA propõe e o psiquiatra decide.</p>
+      <ul>
+        <li>Registrar consulta e retorno de uma mesma pessoa, com o caso em cadeia</li>
+        <li>Transformar anamnese e exame em hipóteses fundamentadas no DSM-5-TR e na CID-11, sem virar contagem de critérios</li>
+        <li>Conduta com dose, titulação e interação, não "enxurrada de bula"</li>
+        <li>Nada afirmado sem registro; campo em branco não vira normal</li>
+        <li>Sucesso = transtorno certo entre as hipóteses (10/10 nos casos fictícios) e critério do DSM certo no Refinar (10/10 pelo índice local)</li>
+      </ul>
+    </section>
+    <span class="arrow" aria-hidden="true">→</span>
+    <section class="panel p2">
+      <h2 class="hand"><span class="num">2</span>Estimar a escala</h2>
+      <div class="stats">
+        <div class="stat"><strong>1</strong><span>médico, 1 máquina, porta 8000</span></div>
+        <div class="stat"><strong>~5 KB</strong><span>por consulta; IndexedDB comporta centenas de MB</span></div>
+        <div class="stat"><strong>30 mil</strong><span>tokens/min na conta OpenAI (500 req/min)</span></div>
+        <div class="stat"><strong>12,5 mil</strong><span>tokens de entrada por Diagnóstico; saída 1–2 mil, teto 3.000</span></div>
+        <div class="stat"><strong>18</strong><span>livros no acervo do RAG</span></div>
+        <div class="stat"><strong>9–24 s</strong><span>por geração de Diagnóstico</span></div>
+      </div>
+      <p class="lede">Muita escrita durante a consulta; muita leitura no retorno e no prontuário. O gargalo é o limite por minuto da OpenAI, não o servidor.</p>
+    </section>
+    <span class="arrow" aria-hidden="true">→</span>
+    <section class="panel p3">
+      <h2 class="hand"><span class="num">3</span>Design de alto nível</h2>
+      <div class="diag" role="img" aria-label="Navegador conversa com o server.py, que chama OpenAI, Supabase e arquivos locais">
+        <div class="box">Navegador <small>index.html + src/App.js</small></div>
+        <div class="down">↓</div>
+        <div class="box hl">server.py <small>Python, proxy local</small></div>
+        <div class="down">↓ ↓ ↓</div>
+        <div class="fan">
+          <div class="box">OpenAI <small>gpt-4.1 · RAG · web</small></div>
+          <div class="box">Supabase <small>login e cópia</small></div>
+          <div class="box">Arquivos locais <small>.local.json</small></div>
+        </div>
+      </div>
+      <ul>
+        <li>A tela é JavaScript puro em módulos, sem framework</li>
+        <li>A chave da OpenAI fica só no servidor</li>
+        <li>Cada etapa de IA tem esquema JSON fechado e biblioteca própria</li>
+      </ul>
+    </section>
+  </div>
+
+  <!-- 4 5 6 -->
+  <div class="row">
+    <section class="panel p4">
+      <h2 class="hand"><span class="num">4</span>Componentes-chave</h2>
+      <div class="comp">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><ellipse cx="16" cy="7" rx="11" ry="4" fill="var(--p1-dot)"/><path d="M5 7v18c0 2.2 4.9 4 11 4s11-1.8 11-4V7c0 2.2-4.9 4-11 4S5 9.2 5 7z" fill="var(--p1-dot)" opacity=".75"/></svg>
+        <div><b>Banco de dados</b><span>IndexedDB no aparelho (localStorage de reserva) + Supabase na conta (tabela de prontuários). Sincroniza do remoto para o local e avisa quando não sobe.</span></div>
+      </div>
+      <div class="comp">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="5" width="22" height="7" rx="2" fill="var(--p2-dot)"/><rect x="5" y="13" width="22" height="7" rx="2" fill="var(--p2-dot)" opacity=".8"/><rect x="5" y="21" width="22" height="7" rx="2" fill="var(--p2-dot)" opacity=".6"/></svg>
+        <div><b>Índices locais (cache)</b><span>186 capítulos de fármacos, 159 seções de critérios do DSM-5-TR, tabelas CID-11 → DSM, 436 perguntas do protocolo. Custo zero, resposta imediata.</span></div>
+      </div>
+      <div class="comp">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="4" y="8" width="24" height="17" rx="2" fill="var(--p4-dot)"/><path d="M4 9l12 9 12-9" fill="none" stroke="var(--paper)" stroke-width="2"/></svg>
+        <div><b>Duas passadas (no lugar da fila)</b><span>Não há fila de mensagens: cada chamada é síncrona. Gerar com o livro geral → você assinala → Refinar com o especializado.</span></div>
+      </div>
+      <div class="comp">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><ellipse cx="16" cy="7" rx="11" ry="4" fill="var(--p3-dot)"/><path d="M5 7v18c0 2.2 4.9 4 11 4s11-1.8 11-4V7c0 2.2-4.9 4-11 4S5 9.2 5 7z" fill="var(--p3-dot)" opacity=".75"/></svg>
+        <div><b>Acervo (armazenamento)</b><span>18 PDFs num vector store da OpenAI, cada um com um gênero: psicopatologia, entrevista, síndromes, critérios, terapêutica, tratado, prescrição, psicofarmacologia.</span></div>
+      </div>
+    </section>
+    <span class="arrow" aria-hidden="true">→</span>
+    <section class="panel p5">
+      <h2 class="hand"><span class="num">5</span>Preocupações importantes</h2>
+      <div class="concern"><b>Escala</b><span>Um usuário. Multiagentes em paralelo esbarram nos 30 mil tokens/min; fica para quando o limite subir.</span></div>
+      <div class="concern"><b>Confiabilidade</b><span>Arquivar em vez de apagar; versão guardada ao editar finalizado; aviso vermelho se o navegador lotar; roteiro de contingência se a IA falhar.</span></div>
+      <div class="concern"><b>Desempenho</b><span>Capítulo do livro e critérios lidos localmente; módulos com cache versionado; teto de saída 3.000.</span></div>
+      <div class="concern"><b>Segurança</b><span>Login Supabase; .env e .local.json bloqueados via HTTP; noindex; a busca na web não leva nome, queixa nem cidade.</span></div>
+      <div class="concern"><b>Segurança clínica</b><span>Evidência é fato do paciente; código conferido na tabela da OMS; caixas da IA nascem desmarcadas.</span></div>
+      <div class="concern"><b>Monitoramento</b><span>Log do servidor; 343 testes JS e 88 Python; medição com 10 casos fictícios.</span></div>
+    </section>
+    <span class="arrow" aria-hidden="true">→</span>
+    <section class="panel p6">
+      <h2 class="hand"><span class="num">6</span>Aprofundar</h2>
+      <p class="lede">O que decide se o app está pronto.</p>
+      <ul>
+        <li>Mapa de cada tela e elemento, abaixo</li>
+        <li>13 etapas de IA, cada uma com esquema e biblioteca</li>
+        <li>Trocas já feitas: RAG × índice local, teto × multiagentes, MarkItDown descartado</li>
+        <li>Casos de borda: gestação "não sabe", criança e idoso, teleconsulta, paciente sem diagnóstico</li>
+        <li>Pendências para terminar, no fim da página</li>
+      </ul>
+    </section>
+  </div>
+
+  <!-- 7 -->
+  <section class="panel p7">
+    <h2 class="hand"><span class="num">7</span>Resultado: um prontuário que fundamenta e deixa a decisão com você</h2>
+    <div class="result">
+      <div class="flow" role="img" aria-label="Médico, navegador, server.py e os serviços">
+        <div class="box">Dr. Regis <small>consultório</small></div><span class="arrow">→</span>
+        <div class="box">Navegador <small>telas e rascunho</small></div><span class="arrow">→</span>
+        <div class="box hl">server.py <small>esquemas, RAG, códigos</small></div><span class="arrow">→</span>
+        <div class="stack">
+          <div class="box">OpenAI gpt-4.1 <small>Responses API</small></div>
+          <div class="box">Vector store <small>18 livros</small></div>
+          <div class="box">Transcrição <small>gpt-4o-transcribe-diarize</small></div>
+          <div class="box">Supabase <small>login e cópia</small></div>
+          <div class="box">Índices locais <small>DSM, capítulos, CID</small></div>
+        </div>
+      </div>
+      <div class="delivers">
+        <h3 class="hand">Entrega</h3>
+        <div class="check"><i></i><span>A IA propõe, você assinala</span></div>
+        <div class="check"><i></i><span>Toda hipótese cita o livro e o critério</span></div>
+        <div class="check"><i></i><span>O caso é lido no tempo, da consulta aos retornos</span></div>
+        <div class="check"><i></i><span>Privado: no aparelho e na sua conta</span></div>
+      </div>
+    </div>
+  </section>
+
+  <p class="quote hand">Design de sistema clínico é escolher trocas: menos automação onde o ato é médico, mais fonte onde o erro chega à receita.</p>
+
+  <!-- mapa -->
+  <div class="section-head">
+    <h2 class="hand">Cada etapa e cada elemento</h2>
+    <p>Etapa só avança por "Salvar e avançar". Apêndice abre a qualquer momento e não trava o fluxo. À direita de cada tela: o que chama a IA e qual biblioteca ela lê.</p>
+  </div>
+  <div class="tabs" role="tablist" aria-label="Área do app">
+    <button role="tab" aria-selected="true" data-tab="geral">Início e navegação</button>
+    <button role="tab" aria-selected="false" data-tab="consulta">Consulta (11 páginas)</button>
+    <button role="tab" aria-selected="false" data-tab="retorno">Retorno (5 páginas)</button>
+    <button role="tab" aria-selected="false" data-tab="prontuario">Prontuário e saída</button>
+  </div>
+  <div class="map" id="map" aria-live="polite"></div>
+
+  <!-- pendencias -->
+  <div class="section-head">
+    <h2 class="hand">O que falta para terminar</h2>
+    <p>Do que foi medido e deixado em aberto nas sessões. A cor diz o peso: vermelho bloqueia o uso real, âmbar falta conferir, verde está resolvido. Atualizado em 14/09/2026, depois do commit a2fb284.</p>
+  </div>
+  <div class="todo">
+    <div class="item sev-ok"><span class="st">Feito · a2fb284</span><b>Armazenamento no IndexedDB</b><span>Saiu do teto de ~5 MB do localStorage. Migração conferida com leitura de volta; o localStorage fica de reserva.</span></div>
+    <div class="item sev-ok"><span class="st">Conferido na tela</span><b>Refinar do Diagnóstico com login</b><span>"DSM-5-TR" aparece entre as fontes do refino.</span></div>
+    <div class="item sev-ok"><span class="st">Feito · 5541414 · 52ec490</span><b>Princípios clínicos e sinais de bipolaridade</b><span>Limiar, critério compartilhado, leitura dimensional e diagnóstico longitudinal; sete sinais pesados em conjunto; mania documentada caracteriza bipolaridade, invariavelmente.</span></div>
+    <div class="item sev-ok"><span class="st">Decidido</span><b>Campos próprios na tela (opção B)</b><span>Recusada. Os sinais pesam no critério de exclusão de mania, que volta no retorno como "o que investigar".</span></div>
+    <div class="item sev-ok"><span class="st">Corrigido</span><b>Ligaduras no normalize_name</b><span>NFKD: "ﬂuoxetina" vira "fluoxetina".</span></div>
+    <div class="item sev-ok"><span class="st">Limpo</span><b>Arquivos " 2.js" duplicados</b><span>Removidos do projeto.</span></div>
+    <div class="item sev-ok"><span class="st">Decidido</span><b>PDFs fora da biblioteca</b><span>Infância e Adolescência 2026 entrou no lugar da 2023. Os 2 manuais licenciados a terceiros foram para a Lixeira.</span></div>
+    <div class="item sev-warn"><span class="st">Conferir na tela</span><b>Salvar e recarregar com login</b><span>O IndexedDB foi testado sem login. Falta salvar uma consulta real e recarregar a página.</span></div>
+    <div class="item sev-warn"><span class="st">Opcional</span><b>Regra da mania com a IA real</b><span>Caso fictício de depressão com mania prévia, para ver a hipótese sair bipolar.</span></div>
+    <div class="item sev-ok"><span class="st">Adiado de propósito</span><b>Multiagentes</b><span>Rever quando o limite da OpenAI passar de 30 mil tokens/min.</span></div>
+  </div>
+
+  <footer>Levantado de src/, server.py, RAG.md e do histórico do Git · 14/09/2026 · 2.547 linhas no App.js, 2.225 no server.py</footer>
+</div>
+
+<script>
+const T = (s) => s.split("|").map(x => `<span class="tag">${x}</span>`).join("");
+const DATA = {
+  geral: [
+    ["Barra do topo", "tela", ["Marca RB e nome", "Estado: \"Ambiente clínico seguro\", \"Não sincronizado\" (âmbar) ou armazenamento cheio (vermelho)", "Botão Início", "Alternar tema claro/escuro"], "Sem IA."],
+    ["Início", "tela", ["Data de hoje", "Pacientes cadastrados e registros clínicos", "Nota de privacidade (aparelho + conta)", "Atalhos: 01 Novo paciente, 02 Nova consulta, 03 Registrar retorno, 04 Prontuários", "Encerrar sessão"], "Sem IA."],
+    ["Menu lateral", "tela", ["Paciente, Consulta, Retorno, Prontuários, Sair", "Rodapé: Dr. Regis Braga · Psiquiatria"], "Sem IA."],
+    ["Novo paciente", "tela", ["Nome, sexo, identidade de gênero, nascimento, estado civil, ocupação, escolaridade, religião", "E-mail, Fone/WhatsApp com máscara e link wa.me, contato de emergência", "Endereço com CEP (busca automática)", "Salvar paciente · Arquivar paciente", "Pacientes arquivados: restaurar ou excluir definitivamente"], "Sem IA. A idade e o sexo daqui mudam as regras de Anamnese, Diagnóstico e Tratamento."],
+    ["Topo de consulta e retorno", "tela", ["Seletor de paciente", "Atendimentos salvos deste paciente", "Aviso de finalizado", "Modalidade: presencial, teleconsulta, híbrida (consentimento CFM 2.314/2022 e local do paciente)", "Abas das páginas (travadas até Salvar e avançar)"], "Sem IA."]
+  ],
+  consulta: [
+    ["Anamnese", "etapa", ["Forma de registro: preenchimento pelo médico ou microfone e transcrição", "QP, HDA e anotação clínica livre", "Guia por seção: Ansiedade/Pânico, Depressivos, Mania/Hipomania, Psicóticos/Paranoia, Sono, Apetite, Hábitos, Risco", "Antecedentes psiquiátricos, tratamentos, médicos e familiares", "Contexto da criança/adolescente e saúde reprodutiva (quando cabem)", "Fatores de piora e de melhora; impacto funcional"], `<b>Transcrição</b> gpt-4o-transcribe-diarize<br><b>anamnesis</b> preenche campos<br>${T("psicopatologia|entrevista")}`],
+    ["Exame psíquico", "etapa", ["Aparência, atitude e contato · Consciência/orientação · Atenção · Memória · Sensopercepção", "Pensamento (curso e forma; conteúdo) · Linguagem · Humor · Afeto · Psicomotricidade · Vontade · Juízo crítico", "\"Outro\" com campo livre"], `<b>mental_exam</b> sugere 11 domínios; aparência, psicomotricidade e consciência ficam só com você.`],
+    ["Exame físico", "etapa", ["Achados físicos e neurológicos relevantes"], "Sem IA."],
+    ["Refinamento", "etapa", ["Iniciar refinamento", "Perguntas do protocolo (3 a 8) com opções", "Red flags: confirmada / negada / não avaliada", "Observações e pontos importantes", "Observações do médico", "Aviso quando as perguntas são contingência"], `<b>refinement_scope</b> escolhe blocos<br><b>refinement</b> escolhe perguntas do catálogo de 436<br>${T("psicopatologia|entrevista")}`],
+    ["Resumo", "etapa", ["Resumo clínico na ordem da anamnese na tela", "Identificação, queixa, HDA, antecedentes, exame"], "Sem IA: montado do que foi registrado."],
+    ["Diagnóstico", "etapa", ["Hipóteses do médico (ausência de psicopatologia, reativos, exame geral, outro)", "Modo IA Nuvem (web) ou RAG · Gerar · Refinar (depois de assinalar)", "Análise psicopatológica: domínio, achado, evidência", "Sindrômico → Nosológico com critérios (preenchido / não preenchido / não avaliável) → Etiológico", "Especificadores, comorbidades, fatores agravantes", "Primeira proposta antes do refino, recolhida"], `<b>diagnosis</b> ${T("psicopatologia|sindromes|criterios")}<br><b>diagnosis_review</b> ${T("tratado")} + critérios do DSM-5-TR pelo índice local`],
+    ["Tratamento", "etapa", ["Nível de cuidado (com a Lei 10.216 nas internações)", "Abordagem medicamentosa: fármaco, dose inicial, progressão, alvo", "Outras abordagens", "Exames solicitados + monitorização dos fármacos", "Ajustes do médico", "Conduta para os sintomas-alvo"], `<b>treatment</b> ${T("terapeutica")}<br><b>treatment_review</b> ${T("tratado")}<br><b>symptomatic</b> ${T("psicofarmacologia")}`],
+    ["História clínica", "etapa", ["Texto no seu modelo (\"Nome, idade, estado civil, ocupação, relata que há...\")", "O que você escreve não é reescrito", "Finalizar consulta"], `<b>evolution</b> ${T("terapeutica|tratado")}`],
+    ["Medicamentos", "apendice", ["Procurar por medicamento ou por sintoma", "Sugestão de nomes no Brasil", "Ficha telegráfica: classe, dose, titulação, alvo, teto, evitar com, efeitos, monitorização", "Capítulo do livro, local", "BIPP TIPS", "Manejo do sintoma → Levar para o Tratamento"], `<b>medication</b> ${T("prescricao")}<br><b>medication_tips</b> ${T("psicofarmacologia")}<br><b>symptomatic</b> ${T("psicofarmacologia")}`],
+    ["Escalas", "apendice", ["19 escalas: PHQ-9, GAD-7, ASQ, C-SSRS, MDQ, SRQ-20, EPDS, GDS-15, Y-BOCS, AUDIT, CGI-S/I, DASS-21, ASRS-18, SNAP-IV, SBQ-R, RAADS-R, M-CHAT-R/F, CARS", "Sugeridas pelo caso, idade e sexo", "Pontuação e faixa"], "Sem IA: pontuação local."],
+    ["Documentos", "apendice", ["Tipo: atestado, declaração, relatório, encaminhamento", "Dados de assinatura do médico", "Emitidos neste atendimento · PDF"], "Montados do que está registrado."]
+  ],
+  retorno: [
+    ["Evolução", "etapa", ["Espinha fixa: evolução global, adesão, efeitos colaterais, eventos, conduta com o medicamento", "Bloco do caso: cada hipótese, fármaco e sintoma-alvo do atendimento anterior", "Critérios \"não avaliáveis\" voltam como o que investigar hoje", "Um vocabulário só de evolução; não avança com campo em branco"], "Sem IA: derivado do atendimento anterior."],
+    ["Ajuste de conduta", "etapa", ["Uma decisão para cada fármaco: manter, aumentar, diminuir, trocar, retirar, acrescentar", "Ajustes de conduta e acrescentar (caixas desmarcadas)", "Texto da evolução só depois do ajuste", "Finalizar retorno"], `<b>return_plan</b> ${T("terapeutica")}<br><b>evolution</b> ${T("terapeutica|tratado")}`],
+    ["Medicamentos", "apendice", ["O mesmo da consulta; a conduta vai para o Ajuste de conduta"], `<b>medication</b> ${T("prescricao")}`],
+    ["Escalas", "apendice", ["Resultado ao lado da aplicação anterior"], "Sem IA."],
+    ["Documentos", "apendice", ["O mesmo da consulta"], "Montados do que está registrado."]
+  ],
+  prontuario: [
+    ["Prontuário longitudinal", "tela", ["Busca por palavra, diagnóstico, medicamento ou data", "Resumo do caso · Medicamentos ao longo do caso", "Evolução das escalas", "Caso em cadeia: consulta à esquerda, retornos à direita", "Status e versões de cada registro · Exportar PDF"], "Sem IA."],
+    ["Sair do sistema", "tela", ["Aviso do que se perde sem salvar", "Encerrar sessão · Cancelar"], "Sem IA."]
+  ]
+};
+const PILL = { etapa: "Etapa", apendice: "Apêndice", tela: "Tela" };
+const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+function show(tab) {
+  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
+  document.getElementById("map").innerHTML = DATA[tab].map(([nome, tipo, itens, ia]) => `
+    <article class="step">
+      <div class="name"><span class="pill ${tipo}">${PILL[tipo]}</span><b>${esc(nome)}</b></div>
+      <ul>${itens.map(i => `<li>${esc(i)}</li>`).join("")}</ul>
+      <div class="ai">${ia}</div>
+    </article>`).join("");
+}
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => show(b.dataset.tab)));
+show("consulta");
+document.querySelector('[data-tab="consulta"]').setAttribute("aria-selected", "true");
+document.querySelector('[data-tab="geral"]').setAttribute("aria-selected", "false");
+</script>
