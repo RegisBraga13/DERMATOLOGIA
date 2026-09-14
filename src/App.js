@@ -4,7 +4,7 @@ import { anamnesisText, buildEvolutionNarrative, evolutionNeedsRebuild, normaliz
 import { loadProtocol, protocolLoaded } from "./clinical/protocol.js";
 import { formatPhone, whatsappLink } from "./clinical/phone.js";
 import { arrayValue, joinValues, lowerFirst, normalizeText, stripFinalPeriod } from "./clinical/textFormat.js";
-import { ANAMNESIS_AI_FIELDS, anamnesisQuestionGroups, pagesForScope, TELECONSULTA_CONSENTIMENTO } from "./clinical/vocabulary.js";
+import { ANAMNESIS_AI_FIELDS, orderedAnamnesisSections, pagesForScope, TELECONSULTA_CONSENTIMENTO } from "./clinical/vocabulary.js";
 import { optionGroups } from "./data/examOptions.js";
 import { targetSymptomOptions } from "./data/targetSymptoms.js";
 import { fetchCep } from "./services/cepService.js";
@@ -672,20 +672,7 @@ function emptyPatientMessage(title) {
 
 function anamnesisQuestionGuide() {
   const form = currentClinicalDraft();
-  const itemOrder = [
-    "Sintomas de Ansiedade/Pânico",
-    "Sintomas depressivos",
-    "Sintomas de Mania/Hipomania",
-    "Sintomas Psicóticos/Paranoia",
-    "Sono",
-    "Apetite",
-    "Impacto",
-    "Habitos, substancias e comportamentos aditivos",
-    "Risco de suicidio e desesperanca"
-  ];
-  const orderedItems = anamnesisQuestionGroups
-    .flatMap(group => group.items)
-    .sort(([labelA], [labelB]) => itemOrder.indexOf(labelA) - itemOrder.indexOf(labelB));
+  const orderedItems = orderedAnamnesisSections();
 
   return `<div class="clinical-card anamnesis-guide">
     <div class="guide-group">

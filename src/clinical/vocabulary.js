@@ -304,6 +304,32 @@ export const anamnesisQuestionGroups = [
   }
 ];
 
+// Ordem das secoes da anamnese estruturada, a mesma na tela e no Resumo. Ate
+// 14/09/2026 a lista morava dentro do guia da tela, e o Resumo seguia a ordem
+// em que as secoes estao escritas acima -- a mesma anamnese saia em duas
+// sequencias diferentes. Secao fora da lista vai para o fim, e nao para o topo.
+export const anamnesisSectionOrder = [
+  "Sintomas de Ansiedade/Pânico",
+  "Sintomas depressivos",
+  "Sintomas de Mania/Hipomania",
+  "Sintomas Psicóticos/Paranoia",
+  "Sono",
+  "Apetite",
+  "Impacto",
+  "Habitos, substancias e comportamentos aditivos",
+  "Risco de suicidio e desesperanca"
+];
+
+export function orderedAnamnesisSections() {
+  const posicao = titulo => {
+    const indice = anamnesisSectionOrder.indexOf(titulo);
+    return indice === -1 ? anamnesisSectionOrder.length : indice;
+  };
+  return anamnesisQuestionGroups
+    .flatMap(group => group.items)
+    .sort(([tituloA], [tituloB]) => posicao(tituloA) - posicao(tituloB));
+}
+
 export const optionDisplayLabels = {
   IN_PERSON: "Presencial",
   TELECONSULTATION: "Online",

@@ -1,7 +1,7 @@
 import { anamnesisText } from "../clinical/narrative.js";
 import { scaleSummaryRows } from "../clinical/scoring.js";
 import { arrayValue, calculateAge, joinValues, mentalExamKeys, normalizeText } from "../clinical/textFormat.js";
-import { anamnesisQuestionGroups } from "../clinical/vocabulary.js";
+import { orderedAnamnesisSections } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js";
 import { formatSummaryDate, section, summaryGroupedOptionRow, summaryTable, summaryTextRow } from "../ui/controls.js";
 
@@ -40,12 +40,12 @@ export function clinicalSummaryGroups(form = {}, patient = {}) {
     const nome = item.label || item.question || "";
     return nome === sectionTitle ? "" : nome;
   };
-  const anamnesisRows = anamnesisQuestionGroups.flatMap(group => group.items.flatMap(([sectionTitle, items]) =>
+  const anamnesisRows = orderedAnamnesisSections().flatMap(([sectionTitle, items]) =>
     items.map(item => item.response === "multiple"
       ? summaryGroupedOptionRow(sectionTitle, rotulo(item, sectionTitle), item.key, item.options || [], form, item.otherKey)
       : summaryTextRow(sectionTitle, rotulo(item, sectionTitle), form[item.key])
     )
-  ));
+  );
   const complementaryRows = [
     summaryGroupedOptionRow("Antecedentes", "Psiquiátricos prévios", "psiPrevios", optionGroups.psiPrevios || [], form, "psiPreviosOutro"),
     summaryGroupedOptionRow("Antecedentes", "Tratamentos prévios", "tratamentos", optionGroups.tratamentos || [], form, "tratamentosOutro"),

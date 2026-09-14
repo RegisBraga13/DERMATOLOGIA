@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { anamnesisSectionOrder, orderedAnamnesisSections } from "../../src/clinical/vocabulary.js";
 import { clinicalSummaryGroups } from "../../src/views/clinicalSummary.js";
 
 function linhaSintomaAlvo(form) {
@@ -34,5 +35,24 @@ describe("Sintoma-Alvo no Resumo", () => {
 
   it("sem sintoma nenhum a secao nao aparece", () => {
     assert.deepEqual(linhaSintomaAlvo({}), []);
+  });
+});
+
+// Desde 14/09/2026 o Resumo segue a ordem da tela, e as duas leem a mesma lista.
+describe("Ordem da anamnese no Resumo", () => {
+  it("as secoes saem na ordem da tela", () => {
+    const secoesNaTela = orderedAnamnesisSections().map(([titulo]) => titulo);
+    const anamnese = clinicalSummaryGroups({}, {}).find(grupo => grupo.title === "Anamnese estruturada");
+    const secoesNoResumo = [...new Set(anamnese.rows.map(row => row.section))]
+      .filter(secao => secoesNaTela.includes(secao));
+    assert.deepEqual(secoesNoResumo, secoesNaTela);
+    assert.deepEqual(secoesNoResumo.slice(0, 4), [
+      "Sintomas de Ansiedade/Pânico", "Sintomas depressivos", "Sintomas de Mania/Hipomania", "Sintomas Psicóticos/Paranoia"
+    ]);
+  });
+
+  it("toda secao da anamnese esta na lista de ordem", () => {
+    const fora = orderedAnamnesisSections().map(([titulo]) => titulo).filter(titulo => !anamnesisSectionOrder.includes(titulo));
+    assert.deepEqual(fora, []);
   });
 });
