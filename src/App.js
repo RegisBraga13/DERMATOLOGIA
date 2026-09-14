@@ -36,10 +36,12 @@ import { caseViewForReturn, groupCases } from "./clinical/caseTimeline.js";
 import { caseSummaryView } from "./views/caseSummary.js";
 
 const app = document.querySelector("#app");
-let state = withoutBookChapters(loadState());
+// Vazio ate a leitura do aparelho terminar: desde 14/09/2026 o estado mora no
+// IndexedDB, e ler de la e assincrono. A primeira tela so desenha depois.
+let state = { patients: [], consultations: [], returns: [] };
 let view = "dashboard";
 let medicationLookupTimer = null;
-let selectedPatientId = firstActivePatientId();
+let selectedPatientId = "";
 // Uma sincronizacao por vez: gravacoes seguidas entram na fila, e cada uma le a
 // copia que a anterior deixou, em vez de disputarem a mesma linha.
 let syncChain = Promise.resolve();
@@ -81,7 +83,10 @@ const icons = {
   exit: lockIcon()
 };
 
-currentSession().then(async session => {
+Promise.all([loadState(), currentSession()]).then(async ([local, session]) => {
+  state = withoutBookChapters(local.state);
+  storageError = local.aviso;
+  selectedPatientId = firstActivePatientId();
   authSession = session;
   if (authSession) await syncAfterLogin();
   render();
@@ -100,7 +105,7 @@ async function syncAfterLogin() {
     const daConta = await syncState(state, mergeStates);
     if (daConta) {
       state = withoutBookChapters(mergeStates(state, daConta));
-      storageError = saveState(state);
+      storageError = await saveState(state);
       selectedPatientId = firstActivePatientId();
     }
   } catch (error) { syncError = error.message; }
@@ -2336,13 +2341,21 @@ function persist() {
   // Gravacao local antes de tudo: se ela falhou, o aviso e mais grave que o de
   // sincronizacao — ali o registro existe no aparelho e so nao subiu; aqui ele
   // nao existe em lugar nenhum.
-  const erroLocal = saveState(state);
-  if (erroLocal !== storageError) { storageError = erroLocal; render(); }
+  saveLocally();
   if (!authSession) return;
   syncWithAccount();
 }
 
-// O localStorage ja gravou; o que falta e avisar quando a copia remota nao
+// A gravacao no aparelho e assincrona desde 14/09/2026 (IndexedDB). O aviso so
+// muda quando o resultado muda, para nao redesenhar a tela a cada tecla salva.
+function saveLocally() {
+  return saveState(state).then(erroLocal => {
+    if (erroLocal !== storageError) { storageError = erroLocal; render(); }
+    return erroLocal;
+  });
+}
+
+// O aparelho ja gravou; o que falta e avisar quando a copia remota nao
 // acompanhou. Antes o erro ia para authError, que so aparece na tela de
 // login — na pratica, silencio.
 function syncWithAccount() {
@@ -2367,7 +2380,7 @@ function absorbAccountState(daConta) {
   const antes = stateSignature(state);
   state = withoutBookChapters(mergeStates(state, daConta));
   if (stateSignature(state) === antes) return;
-  storageError = saveState(state);
+  saveLocally();
   if (!getPatient()) selectedPatientId = firstActivePatientId();
   render();
 }

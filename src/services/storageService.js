@@ -1,45 +1,156 @@
 const KEY = "regis_psiquiatr_ia_v1";
+const DB_NAME = "prontuario_psiquiatrico";
+const DB_STORE = "estado";
 
-export function loadState() {
+// O ESTADO DO APARELHO MORA NO INDEXEDDB desde 14/09/2026.
+//
+// O localStorage tem teto de uns 5 MB. Medido no mesmo dia: 20 consultas davam
+// 100 KB, a maior 27 KB -- o teto chegava entre 190 e 700 atendimentos, e ali a
+// consulta deixava de ser salva neste aparelho. O IndexedDB guarda centenas de
+// MB. O localStorage continua como reserva: navegador sem IndexedDB (janela
+// privada em alguns Safari) segue gravando como antes.
+//
+// O texto gravado e o mesmo JSON de sempre, serializado NA HORA de salvar: a
+// gravacao e assincrona, e o estado pode mudar enquanto ela espera a vez.
+function emptyState() {
+  return { patients: [], consultations: [], returns: [] };
+}
+
+function parseState(texto) {
+  const state = JSON.parse(texto) || emptyState();
+  (state.returns || []).forEach(entry => {
+    if (/^Retorno\s+\d+$/i.test(entry.label || "")) entry.label = "Retorno";
+  });
+  return state;
+}
+
+function storageMessage(error) {
+  // Todo navegador usa um nome diferente para o mesmo estouro. O codigo 22 e
+  // o do padrao antigo, ainda emitido pelo Safari.
+  const cheio = error?.name === "QuotaExceededError"
+    || error?.name === "NS_ERROR_DOM_QUOTA_REACHED"
+    || error?.code === 22;
+  return cheio
+    ? "O armazenamento deste navegador está cheio. A consulta NÃO foi salva neste aparelho. Exporte ou apague consultas antigas antes de continuar."
+    : `Não foi possível salvar neste aparelho: ${error?.message || "erro desconhecido"}.`;
+}
+
+// Os dois lugares, com a mesma cara: get, put e remove de um texto por chave.
+function indexedDbBackend(factory = globalThis.indexedDB) {
+  if (!factory) return null;
+  let aberto;
+  const banco = () => (aberto ||= new Promise((resolve, reject) => {
+    const pedido = factory.open(DB_NAME, 1);
+    pedido.onupgradeneeded = () => pedido.result.createObjectStore(DB_STORE);
+    pedido.onsuccess = () => resolve(pedido.result);
+    pedido.onerror = () => reject(pedido.error);
+    pedido.onblocked = () => reject(new Error("IndexedDB bloqueado por outra aba."));
+  }));
+  const transacao = (modo, operacao) => banco().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, modo);
+    const pedido = operacao(tx.objectStore(DB_STORE));
+    // So vale quando a transacao fecha: put "com sucesso" numa transacao que
+    // aborta depois (cota estourada) nao gravou nada.
+    tx.oncomplete = () => resolve(pedido.result);
+    tx.onerror = () => reject(tx.error || pedido.error);
+    tx.onabort = () => reject(tx.error || new Error("Gravacao interrompida."));
+  }));
+  return {
+    get: key => transacao("readonly", store => store.get(key)),
+    put: (key, value) => transacao("readwrite", store => store.put(value, key)),
+    remove: key => transacao("readwrite", store => store.delete(key))
+  };
+}
+
+function localStorageBackend(storage = globalThis.localStorage) {
+  if (!storage) return null;
+  return {
+    get: async key => storage.getItem(key),
+    put: async (key, value) => storage.setItem(key, value),
+    remove: async key => storage.removeItem(key)
+  };
+}
+
+// Le o estado e, na primeira vez, traz para o IndexedDB o que estava no
+// localStorage. A copia antiga so sai depois de relida e conferida no
+// IndexedDB -- gravacao que nao confere deixa as duas onde estao.
+//
+// Se as duas existirem (migracao interrompida, ou o IndexedDB falhou numa sessao
+// e a gravacao caiu no localStorage), junta por registro, pela mesma regra da
+// conta: fica a versao mais recente de cada um, e nada se perde.
+export async function loadStateFrom({ idb, legacy }) {
+  let idbTexto = null;
+  let idbOk = Boolean(idb);
+  if (idb) {
+    try { idbTexto = await idb.get(KEY); } catch { idbOk = false; }
+  }
+  let legadoTexto = null;
+  try { legadoTexto = legacy ? await legacy.get(KEY) : null; } catch { legadoTexto = null; }
+
   try {
-    const state = JSON.parse(localStorage.getItem(KEY)) || { patients: [], consultations: [], returns: [] };
-    let changed = false;
-    (state.returns || []).forEach(entry => {
-      if (/^Retorno\s+\d+$/i.test(entry.label || "")) {
-        entry.label = "Retorno";
-        changed = true;
-      }
-    });
-    if (changed) localStorage.setItem(KEY, JSON.stringify(state));
-    return state;
+    if (!idbOk) {
+      return { state: legadoTexto ? parseState(legadoTexto) : emptyState(), backend: "localstorage", aviso: "" };
+    }
+    if (!legadoTexto) {
+      return { state: idbTexto ? parseState(idbTexto) : emptyState(), backend: "indexeddb", aviso: "" };
+    }
+    const legado = parseState(legadoTexto);
+    const state = idbTexto ? mergeStates(parseState(idbTexto), legado) : legado;
+    const texto = JSON.stringify(state);
+    try {
+      await idb.put(KEY, texto);
+      if (await idb.get(KEY) === texto) await legacy.remove(KEY);
+    } catch {
+      // Nao conferiu: o localStorage fica, e a proxima abertura tenta de novo.
+    }
+    return { state, backend: "indexeddb", aviso: "" };
   } catch {
-    return { patients: [], consultations: [], returns: [] };
+    return { state: emptyState(), backend: idbOk ? "indexeddb" : "localstorage", aviso: "" };
   }
 }
 
-// O localStorage tem teto — algo em torno de 5 MB — e quando ele enche o
-// navegador recusa a gravacao lancando QuotaExceededError. Antes a chamada era
-// nua: a excecao subia por uma pilha que ninguem tratava, o registro nao era
-// gravado e a tela continuava igual. O medico terminava a consulta convencido
-// de que tinha salvado.
-//
-// Aqui a falha vira valor de retorno: string vazia quando gravou, mensagem
-// quando nao gravou. Quem chama decide o que fazer com ela — e persist() poe na
-// barra de status, junto do aviso de sincronizacao.
-export function saveState(state) {
+// Grava no IndexedDB. Se ele falhar por outro motivo que nao a cota, tenta o
+// localStorage antes de avisar: o registro gravado la volta na proxima
+// abertura, junto com o do IndexedDB.
+export async function saveStateTo({ idb, legacy }, texto) {
+  if (idb) {
+    try {
+      await idb.put(KEY, texto);
+      return "";
+    } catch (error) {
+      if (error?.name === "QuotaExceededError" || !legacy) return storageMessage(error);
+    }
+  }
+  if (!legacy) return "Não foi possível salvar neste aparelho: o navegador não oferece armazenamento.";
   try {
-    localStorage.setItem(KEY, JSON.stringify(state));
+    await legacy.put(KEY, texto);
     return "";
   } catch (error) {
-    // Todo navegador usa um nome diferente para o mesmo estouro. O codigo 22 e
-    // o do padrao antigo, ainda emitido pelo Safari.
-    const cheio = error?.name === "QuotaExceededError"
-      || error?.name === "NS_ERROR_DOM_QUOTA_REACHED"
-      || error?.code === 22;
-    return cheio
-      ? "O armazenamento deste navegador está cheio. A consulta NÃO foi salva neste aparelho. Exporte ou apague consultas antigas antes de continuar."
-      : `Não foi possível salvar neste aparelho: ${error?.message || "erro desconhecido"}.`;
+    return storageMessage(error);
   }
+}
+
+let backends;
+let filaDeGravacao = Promise.resolve("");
+
+function defaultBackends() {
+  return (backends ||= { idb: indexedDbBackend(), legacy: localStorageBackend() });
+}
+
+export async function loadState() {
+  const lido = await loadStateFrom(defaultBackends());
+  if (lido.backend === "localstorage") backends = { idb: null, legacy: backends.legacy };
+  return lido;
+}
+
+// Aqui a falha vira valor de retorno: string vazia quando gravou, mensagem
+// quando nao gravou. Quem chama decide o que fazer com ela — e o App poe na
+// barra de status, junto do aviso de sincronizacao. As gravacoes entram numa
+// fila: a de agora nunca termina depois da seguinte e sobrescreve a mais nova.
+export function saveState(state) {
+  const texto = JSON.stringify(state);
+  filaDeGravacao = filaDeGravacao.then(() => saveStateTo(defaultBackends(), texto));
+  return filaDeGravacao;
 }
 
 export function uid(prefix = "id") {
