@@ -37,6 +37,10 @@ export const referenceCatalog = [
   { chave: "de bolso", autor: "Miguel, E. C. e cols.", titulo: "Clínica psiquiátrica de bolso", edicao: "3ª ed., 2023", curto: "Clínica de Bolso" },
   { chave: "condutas_em_psiquiatria", autor: "Baldaçara, L.; Teng, C. T. (orgs.)", titulo: "Condutas em psiquiatria", edicao: "2021", curto: "Condutas em Psiquiatria" },
   { chave: "compendio de psiquiatria", autor: "Sadock, B. J.; Sadock, V. A.; Ruiz, P.", titulo: "Compêndio de psiquiatria", edicao: "11ª ed.", curto: "Kaplan & Sadock" },
+  // 2a ed., 2026: trocou a de 2023 na biblioteca em 14/09/2026, a pedido dele.
+  // Sem autor pela mesma razao da Psicofarmacologia 2025: o arquivo so traz
+  // titulo, instituicao, edicao e ano.
+  { chave: "psiquiatria_da_infancia_e_adolescencia_hcfmusp", titulo: "Psiquiatria da infância e adolescência (HCFMUSP)", edicao: "2ª ed., 2026", curto: "Psiquiatria da Infância 2026" },
   { chave: "dsm 5 tr", autor: "American Psychiatric Association", titulo: "Manual diagnóstico e estatístico de transtornos mentais: DSM-5-TR", edicao: "Artmed, 2023", curto: "DSM-5-TR" },
   { chave: "cid-11", autor: "Organização Mundial da Saúde", titulo: "CID-11 MMS, capítulo 06: transtornos mentais, comportamentais ou do desenvolvimento neurológico", curto: "CID-11 — cap. 6" }
 ];

@@ -32,7 +32,8 @@ const BIBLIOTECA = [
   ["Tratado psiquiatria  ABP.pdf", "tratado"],
   ["2017 Compendio de Psiquiatria (Kaplan).pdf", "tratado"],
   ["Stahl - Guia de Prescrição .pdf", "prescricao"],
-  ["Psicofarmacologia_Da_Teoria_à_Clínica_1ª_edição,_2025.pdf", "psicofarmacologia"]
+  ["Psicofarmacologia_Da_Teoria_à_Clínica_1ª_edição,_2025.pdf", "psicofarmacologia"],
+  ["Psiquiatria_da_Infância_e_Adolescência_HCFMUSP_2ª_edição,_2026.pdf", "infantojuvenil"]
 ];
 
 describe("toda fonte indexada chega a tela como referencia", () => {

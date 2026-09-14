@@ -866,3 +866,16 @@ class OutputCeilingTests(unittest.TestCase):
     def test_teto_de_saida_cabe_o_diagnostico_mais_longo_medido(self):
         """1.790 tokens foi o maior Diagnostico medido em 14/09/2026; 2200 cortou um."""
         self.assertGreaterEqual(server.MAX_OUTPUT_TOKENS, 3000)
+
+
+class NormalizeNameTests(unittest.TestCase):
+    """Ligadura de PDF: com NFD o "ﬂ" caia no filtro de pontuacao e o nome saia
+    "uoxetina". NFKD desfaz a ligadura sem mudar nenhuma chave dos indices."""
+
+    def test_ligadura_vira_letras(self):
+        self.assertEqual(server.normalize_name("ﬂuoxetina"), "fluoxetina")
+        self.assertEqual(server.normalize_name("especiﬁcado"), "especificado")
+
+    def test_acento_caixa_e_pontuacao_como_antes(self):
+        self.assertEqual(server.normalize_name("D-Ciclosserina"), "d ciclosserina")
+        self.assertEqual(server.normalize_name("Episódio Depressivo"), "episodio depressivo")

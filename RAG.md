@@ -45,7 +45,7 @@ ele quiser — e agora muda em um lugar so, sem tocar em nada na nuvem.
 | `prescricao` | Stahl, Guia de Prescricao |
 | `psicofarmacologia` | Psicofarmacologia: Da Teoria a Clinica (2025) |
 | `criterios` | DSM-5-TR (portugues); CID-11 |
-| `infantojuvenil` | Psiquiatria da Infancia e Adolescencia (HCFMUSP, 2a ed. 2023) |
+| `infantojuvenil` | Psiquiatria da Infancia e Adolescencia (HCFMUSP, 2a ed. 2026). A de 2023 saiu da biblioteca em 14/09/2026, a pedido dele; o arquivo segue na conta |
 | `saude-mulher` | Transtornos Psiquiatricos na Mulher (Artmed, 2023) |
 
 Dentro de um genero, mais livro e estritamente melhor. A busca devolve os **8

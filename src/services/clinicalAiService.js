@@ -672,7 +672,7 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       // especificadores -- que foi justamente o que ele teve de corrigir a mao.
       "Em 'finding' escreva SO o achado, sem repetir a evidencia entre parenteses: a evidencia tem campo proprio e a tela ja a mostra entre parenteses depois do achado. Repetindo, a linha sai com o mesmo trecho duas vezes.",
       "DSM-5-TR e CID-11 sao o padrao de referencia desta etapa, e nao duas fontes entre outras. Toda hipotese NOSOLOGICA deve ser entidade existente em um dos dois; rotulo descritivo que nao seja entidade dessas classificacoes nao entra nessa camada — se for conjunto de achados, e sindromico.",
-      "Confira os criterios na literatura recuperada antes de propor: numero de sintomas, duracao minima, prejuizo funcional e exclusoes. Proponha o que os criterios sustentam, e nao o que o quadro sugere de longe. Quando um criterio decisivo nao puder ser verificado com o que esta registrado, diga isso na justificativa em vez de assumir que esta preenchido.",
+      "Confira os criterios na literatura recuperada antes de propor: numero de sintomas, duracao minima, prejuizo funcional e exclusoes. Proponha o que o registro sustenta, e nao o que o quadro sugere de longe. Quando um criterio decisivo nao puder ser verificado com o que esta registrado, marque-o 'nao avaliavel' em vez de assumir que esta preenchido.",
       "Os especificadores devem sair das listas oficiais do DSM-5-TR ou da CID-11 para AQUELA entidade: gravidade; com sintomas psicoticos, dizendo se sao congruentes ou incongruentes com o humor; caracteristicas melancolicas, atipicas, catatonicas, ansiosas; padrao sazonal; curso e remissao. Nao invente especificador descritivo fora dessas listas.",
       "Analise de forma integrada e nao superficial toda a anamnese, os antecedentes, o impacto funcional, os riscos e cada dominio preenchido do exame psiquico.",
       "Gere ate 3 hipoteses nosologicas, ate 3 sindromicas e ate 2 etiologicas: e teto, nao piso. Grupo vazio e resposta legitima quando o registro nao sustenta.",
@@ -690,6 +690,32 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "Em 'evidence' va ao FATO deste paciente que preenche o criterio, com as palavras do registro — 'dorme cerca de duas horas por noite ha tres semanas e acorda com energia de sobra'. Quando o status for 'nao avaliavel', escreva o que falta perguntar. Nunca repita o enunciado do criterio como se fosse evidencia.",
       "Confira os criterios contra a literatura recuperada, e nao de memoria: numero de sintomas exigido, duracao minima, prejuizo funcional e criterios de exclusao. Quando os manuais divergirem entre si — a CID-11 e o DSM-5-TR nem sempre exigem o mesmo —, diga qual voce esta conferindo.",
       "Nao proponha hipotese nosologica cujos criterios o registro contradiz. Hipotese com criterio decisivo NAO PREENCHIDO so entra se for diferencial que voce quer deixar registrado, e entao isso tem de estar visivel nos proprios criterios.",
+      // Pedido dele, 14/09/2026, para valer SEMPRE: os criterios do DSM-5-TR
+      // tem limites praticos e criticas estruturais na vida real; a mente
+      // funciona em espectro continuo, e nao em gavetas fechadas; muitos
+      // criterios se repetem em transtornos diferentes. Sem estas regras o
+      // criterio conferido item por item vira contagem, e o quadro um sintoma
+      // abaixo do limiar sai da tela levando o sofrimento junto.
+      "Os criterios sao referencia, e nao veredito. A mente funciona em espectro continuo, e nao em gavetas fechadas: quadro com sofrimento ou prejuizo funcional claro que fica abaixo do limiar de uma entidade NAO some. Ele fica na camada sindromica ou, havendo a categoria, como 'outro transtorno especificado' daquele grupo, com o criterio que faltou marcado 'nao preenchido'.",
+      "Muitos criterios se repetem em transtornos diferentes — insonia, fadiga, dificuldade de concentracao, irritabilidade, inquietacao, alteracao de apetite. Eles contam dentro de cada entidade, mas NAO separam uma hipotese da outra: no diagnostico diferencial, apoie a escolha no que e proprio de cada uma (a preocupacao na TAG, a elevacao do humor na mania, a revivescencia no TEPT), e nao na soma dos sintomas compartilhados.",
+      // Modelo dimensional, no mesmo pedido: gravidade e espectro medem a
+      // intensidade do sofrimento e a funcionalidade -- se o paciente consegue
+      // trabalhar, estudar e se relacionar --, e nao a contagem de criterios.
+      "Leitura dimensional: quando o registro trouxer dado sobre trabalho, estudo, relacoes ou autocuidado, a ANALISE PSICOPATOLOGICA inclui o dominio 'Funcionalidade', com o fato que mostra o prejuizo — o que a pessoa deixou de fazer, e desde quando. 'Prejuizo social, prejuizo familiar' e o rotulo marcado no formulario, e nao evidencia. A gravidade — leve, moderada, grave — sai da intensidade do sofrimento e desse prejuizo funcional, e nao do numero de criterios preenchidos.",
+      // Diagnostico longitudinal, no mesmo pedido: a depressao isolada de hoje
+      // pode se revelar bipolar, ou condicao medica, em alguns meses. O canal ja
+      // existe -- criterio 'nao avaliavel' volta no retorno como o que
+      // investigar --, entao a regra usa ele em vez de pedir campo novo.
+      "O diagnostico e longitudinal: o quadro de hoje pode se revelar outro em meses — a depressao que se revela bipolar, a ansiedade ou a psicose que se revela condicao medica ou uso de substancia. Quando o registro nao permitir descartar a causa por substancia ou condicao medica, marque 'nao avaliavel' esse criterio de exclusao e escreva em 'evidence' o que investigar.",
+      // Pedido dele, 14/09/2026: sinais de alerta para bipolaridade mesmo sem
+      // episodio de mania ou hipomania documentado. Medido no mesmo dia: com
+      // mania negada, a depressao psicotica saia com "nunca houve episodio
+      // maniaco: preenchido" e nenhum aviso. Sem campo novo na tela, por decisao
+      // dele: o sinal pesa no proprio criterio, e o 'nao avaliavel' ja volta no
+      // retorno como o que investigar.
+      "Em toda hipotese DEPRESSIVA — episodio depressivo, transtorno depressivo maior, recorrente ou persistente — o criterio de exclusao de mania ou hipomania ('nunca houve episodio maniaco ou hipomaniaco') e conferido tambem contra os sete sinais de alerta para bipolaridade, mesmo com mania negada: (1) primeiro episodio depressivo antes dos 20 anos; (2) tres ou mais episodios depressivos em cerca de cinco anos; (3) falta de resposta ao antidepressivo, perda rapida do efeito ou piora com ele; (4) estado misto ou ativacao com antidepressivo — agitacao, irritabilidade, ansiedade, 'acelerado por dentro e esgotado por fora'; (5) pai, mae ou irmao com transtorno bipolar; (6) caracteristicas atipicas — irritabilidade, raiva, impulsividade, hipersonia, aumento de apetite ou de peso; (7) episodios de inicio ou termino abrupto, em poucas semanas, sem estressor claro.",
+      "Com mania negada e o registro afastando os sinais, esse criterio fica 'preenchido'. Com algum sinal PRESENTE, ou sem registro da idade do primeiro episodio, da historia familiar e da resposta a antidepressivo, marque 'nao avaliavel' e escreva em 'evidence' o sinal presente com o fato, e as perguntas que faltam, escritas para o paciente ou o familiar — 'primeiro episodio aos 17 anos; perguntar: algum pai, mae ou irmao ja teve transtorno bipolar? ja ficou agitado ou acelerado com antidepressivo?'.",
+      "O sinal so pesa quando o registro o traz ou nao diz. Quando o registro mostrar o CONTRARIO do sinal — primeiro episodio depois dos 20 anos, nenhum parente com bipolar, boa resposta ao antidepressivo —, ele nao conta: 'primeiro episodio apos os 40 anos' e a ausencia do sinal, e nao alerta. Mas nao registrado nao e ausente: depressao ou suicidio na familia sem dizer se alguem teve transtorno bipolar NAO afasta o sinal (5), e uso previo de antidepressivo sem dizer a resposta NAO afasta os sinais (3) e (4). Nesses casos o criterio fica 'nao avaliavel', com a pergunta.",
       "Comece pela ANALISE PSICOPATOLOGICA, e so depois nomeie as hipoteses: e ela o raciocinio que as sustenta. Para cada dominio, escreva o achado e, entre parenteses, a EVIDENCIA — o trecho do registro que o sustenta, o mais literal possivel. 'Anedonia severa (parou de sair, de cozinhar e de atender o telefone)'. Achado que voce nao conseguir ancorar num trecho do registro NAO ENTRA: sem evidencia e afirmacao, e este prontuario nao afirma o que nao foi registrado.",
       // O exame psiquico e preenchido por termo tecnico marcado em lista. Sem a
       // regra abaixo, o trecho "mais literal" do registro para o dominio humor e
@@ -865,7 +891,7 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
     // de criterios do DSM-5-TR inteira. Sem esta linha o modelo a trataria como
     // mais um trecho entre outros, e nao como a regra contra a qual conferir.
     kind === "diagnosis_review"
-      ? "Quando as FONTES trouxerem a secao 'Criterios Diagnosticos' do DSM-5-TR de uma hipotese, esse e o texto oficial dos criterios daquela entidade: confira 'criteria' item por item contra ele, com o numero de sintomas, a duracao e as exclusoes que ele exige."
+      ? "Quando as FONTES trouxerem a secao 'Criterios Diagnosticos' do DSM-5-TR de uma hipotese, esse e o texto oficial dos criterios daquela entidade: confira 'criteria' item por item contra ele, com o numero de sintomas, a duracao e as exclusoes que ele exige. Conferir nao e contar: quadro abaixo do limiar com sofrimento ou prejuizo funcional nao e retirado, desce para a camada sindromica ou para 'outro transtorno especificado'; e criterio que se repete em outros transtornos nao decide o diferencial."
       : "",
     kind === "medication_review"
       ? "Esta ficha vai sustentar prescricao: confira dose inicial, titulacao, dose maxima, efeito colateral, contraindicacao, interacao e monitorizacao contra a fonte especializada. Numero que a fonte nao sustentar sai da ficha."

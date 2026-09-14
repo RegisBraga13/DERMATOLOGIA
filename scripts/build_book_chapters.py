@@ -96,7 +96,7 @@ def normalize(value=""):
     chave dos dois lados, senao o capitulo existe e nao e encontrado.
     """
     sem_acento = "".join(
-        c for c in unicodedata.normalize("NFD", str(value).lower())
+        c for c in unicodedata.normalize("NFKD", str(value).lower())
         if unicodedata.category(c) != "Mn"
     )
     return re.sub(r"[^a-z0-9]+", " ", sem_acento).strip()

@@ -41,7 +41,7 @@ TERMINA_EM_CONECTIVO = re.compile(r"\b(de|da|do|das|dos|e|com|por|ao|à|a|em|na|
 
 def normalize(value=""):
     """Mesma regra do normalize_name() do server.py — nao divergir."""
-    texto = unicodedata.normalize("NFD", str(value).lower())
+    texto = unicodedata.normalize("NFKD", str(value).lower())
     texto = "".join(c for c in texto if unicodedata.category(c) != "Mn")
     return re.sub(r"[^a-z0-9]+", " ", texto).strip()
 

@@ -1522,7 +1522,10 @@ def load_code_tables():
 
 def normalize_name(value):
     """Compara nome sem acento, caixa nem pontuacao."""
-    texto = unicodedata.normalize("NFD", str(value or "").lower())
+    # NFKD, e nao NFD: tambem desfaz ligadura de PDF ("ﬂuoxetina" -> "fluoxetina").
+    # Com NFD o "ﬂ" nao se decompunha e caia no filtro de pontuacao, e o nome
+    # saia "uoxetina". Nenhuma chave dos indices locais muda com a troca.
+    texto = unicodedata.normalize("NFKD", str(value or "").lower())
     texto = "".join(c for c in texto if unicodedata.category(c) != "Mn")
     return re.sub(r"[^a-z0-9]+", " ", texto).strip()
 

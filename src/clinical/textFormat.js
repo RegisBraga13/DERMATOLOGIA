@@ -98,7 +98,8 @@ export function joinValues(value) {
 }
 
 export function normalizeText(value) {
-  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  // NFKD desfaz tambem ligadura vinda de PDF ("ﬁ" -> "fi"), como o normalize_name do server.py.
+  return String(value || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
 export function calculateAge(dateValue) {
