@@ -2738,3 +2738,16 @@ textarea:focus-visible {
 .doctor-card summary { cursor: pointer; }
 .doctor-card[open] summary { margin-bottom: 8px; }
 .document-picker, .document-editor, .documents-issued, .doctor-card { margin-bottom: 14px; }
+
+/* Leva 4 (14/09/2026): caso com mais de dois atendimentos vira grade, na
+   ordem em que aconteceram; e o resumo do caso no topo do prontuario. */
+.timeline-case.chain { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; }
+.case-summary { margin: 4px 0 18px; }
+.case-summary h3 { margin: 0 0 10px; }
+.case-summary h4 { margin: 14px 0 8px; }
+.case-indices { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 0; }
+.case-indices div { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 10px 12px; }
+.case-indices dt { color: var(--muted); font-size: 13px; }
+.case-indices dd { margin: 4px 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.case-hypotheses { margin: 10px 0 0; line-height: 1.5; }
+.case-medications .med-stopped td { color: var(--muted); }

@@ -31,6 +31,8 @@ import { previousScaleEntries, scaleFieldName, withoutUnappliedScaleAnswers } fr
 import { withVersionHistory } from "./clinical/versions.js";
 import { finalizationNote, finalizedNotice, recordStatusLine, versionsView } from "./views/versions.js";
 import { scaleById } from "./data/scales.js";
+import { caseViewForReturn, groupCases } from "./clinical/caseTimeline.js";
+import { caseSummaryView } from "./views/caseSummary.js";
 
 const app = document.querySelector("#app");
 let state = withoutBookChapters(loadState());
@@ -327,7 +329,7 @@ function returnForm() {
   const previous = previousEntryForReturn(form, patient.id);
   return `
     <div class="panel-title">
-      <div><h2>${form.label}</h2><p>${escapeHtml(patient.nome)} | comparacao com consulta anterior.</p></div>
+      <div><h2>${form.label}</h2><p>${escapeHtml(patient.nome)} | comparação com o atendimento anterior${previous?.createdAt ? `, de ${new Date(previous.createdAt).toLocaleDateString("pt-BR")}` : ""}.</p></div>
       ${patientSelector()}
     </div>
     <form id="return-form">
@@ -616,6 +618,7 @@ function medicalRecord() {
       <div>
         ${field("recordSearch", "Busca por palavra-chave, diagnostico, medicamento ou data", draft.recordQuery || "")}
       </div>
+      ${caseSummaryView(patientEntries)}
       ${scaleTrendsView(patientEntries)}
       <div class="timeline" aria-live="polite">${recordTimeline(all)}</div>
     </div>
@@ -629,43 +632,15 @@ function medicalRecord() {
 // ficam lado a lado, na ordem em que se le -- o que foi decidido a esquerda, o
 // que aconteceu depois a direita.
 //
-// O par existe porque o programa garante UM retorno por consulta (ver
-// startNewReturn). Sem essa garantia isto seria uma arvore, e arvore de
-// prontuario nao cabe em duas colunas.
-function recordCases(entries) {
-  // Uma lista por consulta, e nao um retorno so. Dois aparelhos sem conexao
-  // podem criar cada um o seu retorno para a mesma consulta, e a uniao guarda
-  // os dois; com um Map de um valor, o segundo sobrescrevia o primeiro e um
-  // retorno sumia do prontuario. O mais recente faz par; os outros vao sozinhos.
-  const retornosDe = new Map();
-  entries.filter(entry => entry.type === "return" && entry.previousEntryId)
-    .forEach(entry => retornosDe.set(entry.previousEntryId, [...(retornosDe.get(entry.previousEntryId) || []), entry]));
-  const pareados = new Set();
-  const casos = entries
-    .filter(entry => entry.type !== "return")
-    .map(consulta => {
-      const retorno = retornosDe.get(consulta.id)?.[0] || null;
-      if (retorno) pareados.add(retorno);
-      return { consulta, retorno };
-    });
-  // Retorno sem par -- a consulta filtrada pela busca, arquivada, ou ja pareada
-  // com outro retorno -- aparece sozinho. Registro clinico nao some por falta
-  // de par.
-  entries
-    .filter(entry => entry.type === "return" && !pareados.has(entry))
-    .forEach(retorno => casos.push({ consulta: null, retorno }));
-  const quando = caso => Math.max(
-    caso.consulta ? entryTimestamp(caso.consulta) : 0,
-    caso.retorno ? entryTimestamp(caso.retorno) : 0
-  );
-  return casos.sort((a, b) => quando(b) - quando(a));
-}
-
+// Desde 14/09/2026 (leva 4) o caso e a consulta e todos os retornos que
+// descendem dela, em cadeia (groupCases). Dois cartoes ficam lado a lado; mais
+// de dois viram grade, na ordem em que aconteceram.
 function recordTimeline(entries) {
   if (!entries.length) return `<div class="warning">Nenhum registro encontrado para os filtros atuais.</div>`;
-  return recordCases(entries).map(caso => {
-    const cartoes = [caso.consulta, caso.retorno].filter(Boolean).map(recordEntryCard).join("");
-    return `<section class="timeline-case${caso.consulta && caso.retorno ? " paired" : ""}">${cartoes}</section>`;
+  return groupCases(entries).map(caso => {
+    const registros = [caso.consulta, ...caso.retornos].filter(Boolean);
+    const classe = registros.length === 2 ? " paired" : registros.length > 2 ? " chain" : "";
+    return `<section class="timeline-case${classe}">${registros.map(recordEntryCard).join("")}</section>`;
   }).join("");
 }
 
@@ -2225,41 +2200,40 @@ function defaultConsultation() {
   return { patientId: selectedPatientId, label: `Consulta ${count}`, type: "consultation", consultationMode: "IN_PERSON", anamnesisInputMode: "manual" };
 }
 
-// Consulta ainda sem retorno registrado. A regra e "cada consulta tem no
-// maximo um retorno", e ela estava escrita duas vezes, identica.
+// O atendimento a que o retorno novo responde. Ate 14/09/2026 era a consulta
+// sem retorno, e o terceiro atendimento de um paciente em acompanhamento nao
+// tinha onde entrar. Agora e o ULTIMO atendimento, consulta ou retorno: cada
+// atendimento continua com um retorno so, e o caso vira cadeia. Nulo quando o
+// ultimo ja tem retorno -- so acontece com dois aparelhos sem conexao.
 function returnCandidates() {
   const consultations = consultationsForPatient(selectedPatientId);
-  return {
-    consultations,
-    pendingConsultation: consultations.find(consultation =>
-      !state.returns.some(entry =>
-        entry.patientId === selectedPatientId && entry.previousEntryId === consultation.id && isActive(entry)
-      )
-    )
-  };
+  const ultimo = consultations.length ? latestEntry(selectedPatientId) : null;
+  const jaRespondido = ultimo && state.returns.some(entry =>
+    entry.patientId === selectedPatientId && entry.previousEntryId === ultimo.id && isActive(entry));
+  return { consultations, pendingEntry: ultimo && !jaRespondido ? ultimo : null };
 }
 
 function defaultReturn() {
-  const { consultations, pendingConsultation } = returnCandidates();
-  if (!pendingConsultation) {
+  const { consultations, pendingEntry } = returnCandidates();
+  if (!pendingEntry) {
     const latestSavedReturn = returnsForPatient(selectedPatientId)[0];
     if (latestSavedReturn) return structuredClone(latestSavedReturn);
   }
-  const previousEntryId = pendingConsultation?.id || consultations[0]?.id || "";
+  const previousEntryId = pendingEntry?.id || consultations[0]?.id || "";
   return { patientId: selectedPatientId, label: "Retorno", type: "return", previousEntryId };
 }
 
 function startNewReturn() {
-  const { pendingConsultation } = returnCandidates();
-  if (!pendingConsultation) {
-    alert("Cada consulta pode ter apenas um retorno. Todas as consultas deste paciente ja possuem retorno.");
+  const { pendingEntry } = returnCandidates();
+  if (!pendingEntry) {
+    alert("O último atendimento deste paciente já tem retorno. Abra o retorno salvo para continuar.");
     return;
   }
   draft.return = {
     patientId: selectedPatientId,
     label: "Retorno",
     type: "return",
-    previousEntryId: pendingConsultation.id
+    previousEntryId: pendingEntry.id
   };
   returnPage = "evolucao-retorno";
   returnUnlocked = 1;
@@ -2318,10 +2292,15 @@ function recordSearchText(entry) {
 // paciente, que podia ser POSTERIOR ao retorno, e a historia dizia "retorna
 // apos registro previo de" uma data errada. O palpite so vale para retorno
 // sem consulta registrada, que e o rascunho antigo.
+//
+// Desde 14/09/2026 (leva 4) o anterior pode ser um retorno. Nesse caso volta a
+// visao do caso (caseViewForReturn): hipoteses e criterios da consulta que abriu
+// o caso, e os medicamentos ja ajustados pelos retornos.
 function previousEntryForReturn(form = {}, patientId = selectedPatientId) {
   if (form.previousEntryId) {
-    const propria = state.consultations.find(entry => entry.id === form.previousEntryId);
-    return propria && !propria.excluidoEm ? propria : null;
+    const registros = state.consultations.concat(state.returns).filter(entry => !entry.excluidoEm);
+    const propria = registros.find(entry => entry.id === form.previousEntryId);
+    return propria ? caseViewForReturn(propria, registros) : null;
   }
   return consultationsForPatient(patientId)[0] || latestEntry(patientId);
 }
