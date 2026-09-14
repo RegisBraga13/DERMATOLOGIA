@@ -207,7 +207,12 @@ export function buildDiagnosticSuggestion(form) {
     .slice(0, limit);
   const namesOf = rules => rules.map(formatDiagnosticOption).join("\n");
   const syndromic = namesOf(byCategory("sindromico", 3));
-  const nosological = namesOf(byCategory("nosologico", 3));
+  // Dele, 14/09/2026: "qualquer episodio de mania documentado caracteriza
+  // bipolaridade. Invariavelmente". Com mania no registro, a hipotese do humor e
+  // o bipolar, e a depressao unipolar sai da lista em vez de concorrer com ele.
+  const nosologicas = byCategory("nosologico", 4);
+  const comMania = nosologicas.some(rule => rule.name === "Transtorno Bipolar");
+  const nosological = namesOf(nosologicas.filter(rule => !(comMania && rule.name === "Depressão Maior")).slice(0, 3));
   const selectedDoctorOptions = doctorSelectedOptions(form);
   return {
     diagnosticoAiSindromico: syndromic,

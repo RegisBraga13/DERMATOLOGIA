@@ -44,10 +44,22 @@ describe("o diagnostico nao e contagem de criterios", () => {
     }
   });
 
+  // Dele, 14/09/2026: "qualquer episodio de mania documentado caracteriza
+  // bipolaridade. Invariavelmente".
+  it("mania documentada caracteriza bipolaridade, sem peso nem excecao", () => {
+    assert.match(geracao, /Qualquer episodio MANIACO documentado/);
+    assert.match(geracao, /caracteriza bipolaridade, INVARIAVELMENTE/);
+    assert.match(geracao, /nunca vira depressao unipolar/);
+    assert.match(geracao, /Nao proponha transtorno depressivo maior, episodio depressivo ou distimia/);
+    assert.match(refino, /caracteriza bipolaridade, INVARIAVELMENTE/);
+  });
+
   // Medido em 14/09/2026: o oposto do sinal saia marcado como alerta.
-  it("sinal presente ou em aberto deixa o criterio de mania nao avaliavel, e o oposto do sinal nao conta", () => {
+  it("os sinais pesam em conjunto no criterio de mania, e o oposto do sinal nao conta", () => {
     assert.match(geracao, /criterio de exclusao de mania ou hipomania/);
-    assert.match(geracao, /Com algum sinal PRESENTE/);
+    // Dele: "Desses criterios nao sao rigidos, como tudo em psiquiatria".
+    assert.match(geracao, /Os sinais nao sao rigidos, como nada em psiquiatria/);
+    assert.match(geracao, /pese-os em conjunto/);
     assert.match(geracao, /mostrar o CONTRARIO do sinal/);
     // Medido em 14/09/2026: "ausencia de sinais de bipolaridade" com a historia
     // familiar e a resposta ao antidepressivo sem registro.
