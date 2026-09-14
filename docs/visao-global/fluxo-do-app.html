@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fluxo do Prontuário Psiquiátrico</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Outfit:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#edf1f0; --paper:#ffffff; --ink:#172225; --muted:#586a69; --line:#cfd9d6;
+  --teal:#0d737d; --teal-ink:#0b5a62;
+  --p1:#e3eef4; --p1-dot:#2f6f9a;
+  --p2:#f6e4e1; --p2-dot:#b5534a;
+  --p3:#e2efe6; --p3-dot:#3d7a55;
+  --p4:#f5ecd6; --p4-dot:#a66f13;
+  --p5:#e9e6f4; --p5-dot:#6a5aa6;
+  --p6:#f7e6d8; --p6-dot:#b8652a;
+  --p7:#e4f0e8; --p7-dot:#2f7a4f;
+  --chip:#ffffffcc; --chip-line:#00000014;
+  --ok:#2f7a4f; --warn:#a66f13; --crit:#b74242;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0b1618; --paper:#122125; --ink:#e8f2f0; --muted:#9fb3b1; --line:#28403f;
+    --teal:#4fb3bb; --teal-ink:#7fd0d6;
+    --p1:#15242d; --p1-dot:#6aa8d2;
+    --p2:#2a1d1c; --p2-dot:#e08a80;
+    --p3:#152820; --p3-dot:#78c294;
+    --p4:#2a2415; --p4-dot:#dcae55;
+    --p5:#1e1c2c; --p5-dot:#a598e0;
+    --p6:#2b2018; --p6-dot:#e39a62;
+    --p7:#15261c; --p7-dot:#6fc08f;
+    --chip:#ffffff0d; --chip-line:#ffffff1a;
+    --ok:#6fc08f; --warn:#dcae55; --crit:#e38383;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0b1618; --paper:#122125; --ink:#e8f2f0; --muted:#9fb3b1; --line:#28403f;
+  --teal:#4fb3bb; --teal-ink:#7fd0d6;
+  --p1:#15242d; --p1-dot:#6aa8d2;
+  --p2:#2a1d1c; --p2-dot:#e08a80;
+  --p3:#152820; --p3-dot:#78c294;
+  --p4:#2a2415; --p4-dot:#dcae55;
+  --p5:#1e1c2c; --p5-dot:#a598e0;
+  --p6:#2b2018; --p6-dot:#e39a62;
+  --p7:#15261c; --p7-dot:#6fc08f;
+  --chip:#ffffff0d; --chip-line:#ffffff1a;
+  --ok:#6fc08f; --warn:#dcae55; --crit:#e38383;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.55 "Outfit",system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 20px 56px;display:grid;gap:22px}
+.hand{font-family:"Kalam","Comic Neue","Segoe Print",cursive}
+
+.head{text-align:center;display:grid;gap:4px;justify-items:center}
+.head h1{margin:0;font-size:clamp(30px,5vw,50px);line-height:1.05;text-wrap:balance;font-weight:700;
+  background:linear-gradient(transparent 58%, color-mix(in srgb,var(--p4-dot) 30%, transparent) 58%);padding:0 10px}
+.head p{margin:0;color:var(--muted);max-width:66ch}
+.head .who{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal-ink);font-weight:600}
+
+.row{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:stretch;gap:10px}
+.arrow{align-self:center;color:var(--teal);font-size:28px;font-family:"Kalam",cursive}
+.down-arrow{justify-self:center;color:var(--teal);font-size:28px;font-family:"Kalam",cursive;line-height:1;margin:-10px 0}
+.panel{border-radius:18px;padding:18px 18px 16px;display:grid;gap:12px;align-content:start;min-width:0}
+.panel h2{margin:0;display:flex;gap:10px;align-items:center;font-size:23px;line-height:1.1;font-weight:700;text-wrap:balance}
+.num{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:#fff;font:700 20px/1 "Kalam",cursive}
+.p1{background:var(--p1)} .p1 .num{background:var(--p1-dot)}
+.p2{background:var(--p2)} .p2 .num{background:var(--p2-dot)}
+.p3{background:var(--p3)} .p3 .num{background:var(--p3-dot)}
+.p4{background:var(--p4)} .p4 .num{background:var(--p4-dot)}
+.p5{background:var(--p5)} .p5 .num{background:var(--p5-dot)}
+.p6{background:var(--p6)} .p6 .num{background:var(--p6-dot)}
+.p7{background:var(--p7)} .p7 .num{background:var(--p7-dot)}
+.panel ul{margin:0;padding-left:18px;display:grid;gap:4px;font-size:14px}
+.panel li::marker{color:var(--muted)}
+.lede{margin:0;color:var(--muted);font-size:14px}
+.btn{display:inline-block;font-size:12.5px;font-weight:600;border:1px solid var(--line);background:var(--paper);border-radius:7px;padding:0 6px;white-space:nowrap}
+.tag{display:inline-block;font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:11.5px;background:color-mix(in srgb,var(--teal) 12%, transparent);color:var(--teal-ink);border-radius:5px;padding:0 5px}
+
+/* trilho da consulta */
+.rail{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px}
+.st{background:var(--paper);border:1.5px solid color-mix(in srgb,var(--p4-dot) 55%, var(--line));border-radius:11px;padding:7px 10px;display:grid;gap:3px;align-content:start;min-width:0;flex:1 1 118px}
+.st b{font-size:14.5px;line-height:1.2}
+.st small{font-size:12px;color:var(--muted);line-height:1.3}
+.st .n{font:600 11px/1 "IBM Plex Mono",monospace;color:var(--p4-dot)}
+.st.detour{border-color:var(--p6-dot);box-shadow:inset 0 -3px 0 var(--p6-dot)}
+.st.end{border-color:var(--p7-dot);box-shadow:inset 0 -3px 0 var(--p7-dot)}
+.rail .to{align-self:center;color:var(--teal);font-family:"Kalam",cursive;font-size:20px}
+.apx{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;border:1.5px dashed color-mix(in srgb,var(--p5-dot) 60%, var(--line));border-radius:12px;padding:8px 12px;background:var(--chip)}
+.apx .lbl{font-size:11px;letter-spacing:.07em;text-transform:uppercase;font-weight:600;color:var(--p5-dot)}
+.apx span{font-size:13.5px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.note{font-size:13.5px;line-height:1.4;background:var(--chip);border:1px solid var(--chip-line);border-radius:10px;padding:8px 10px}
+.note b{font-weight:600}
+
+/* onde o dado mora */
+.store{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center}
+.box{background:var(--paper);border:1.5px solid color-mix(in srgb,var(--p3-dot) 60%, var(--line));border-radius:9px;padding:6px 11px;text-align:center;font-size:14px;line-height:1.25}
+.box small{display:block;color:var(--muted);font-size:11.5px}
+.box.hl{background:color-mix(in srgb,var(--p5-dot) 16%, var(--paper));border-color:var(--p5-dot)}
+.store .arrow{font-size:22px}
+
+/* idas e vindas */
+.section-head{display:grid;gap:4px;margin-top:12px}
+.section-head h2{margin:0;font-size:30px;line-height:1.1}
+.section-head p{margin:0;color:var(--muted);max-width:72ch}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;background:var(--k)}
+.groups{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.group{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:grid;gap:0;align-content:start}
+.group h3{margin:0 0 6px;font-size:20px;line-height:1.1}
+.move{display:grid;grid-template-columns:74px 1fr;gap:10px;padding:8px 0;border-top:1px dashed var(--line)}
+.move:first-of-type{border-top:0}
+.k{justify-self:start;align-self:start;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:var(--k);border:1px solid var(--k);border-radius:999px;padding:1px 7px;margin-top:2px}
+.k-barra{--k:var(--crit)} .k-desvio{--k:var(--p6-dot)} .k-volta{--k:var(--teal)} .k-reserva{--k:var(--p5-dot)}
+.move p{margin:0;font-size:13.5px;line-height:1.4}
+.move .path{font-weight:600;color:var(--ink);display:block;font-size:14px}
+.move .path em{font-style:normal;color:var(--teal);font-family:"Kalam",cursive;padding:0 2px}
+footer{color:var(--muted);font-size:12.5px;text-align:center}
+
+@media (max-width:980px){
+  .row{grid-template-columns:1fr}
+  .row > .arrow{transform:rotate(90deg);justify-self:center}
+  .two,.groups{grid-template-columns:1fr}
+}
+</style>
+
+<div class="wrap">
+  <header class="head">
+    <span class="who">Dr. Regis Braga · Prontuário Psiquiátrico</span>
+    <h1 class="hand">Do Entrar ao Sair</h1>
+    <p>O fluxo inteiro do app, com as idas e vindas. Entrar no sistema, abrir o paciente, fazer a consulta do começo ao fim, voltar no retorno, ler o prontuário e sair. Levantado de src/App.js em 14/09/2026.</p>
+  </header>
+
+  <!-- 1 2 3 -->
+  <div class="row">
+    <section class="panel p1">
+      <h2 class="hand"><span class="num">1</span>Entrar</h2>
+      <ul>
+        <li>Ao abrir, o app lê o aparelho (IndexedDB) e vê se há sessão</li>
+        <li>Sem sessão: tela de entrada com e-mail e senha, <span class="btn">Entrar</span></li>
+        <li>Com sessão ou depois de entrar: une o aparelho com a conta, registro por registro, e fica a versão mais recente de cada um</li>
+        <li>Senha errada: a mensagem aparece na própria tela de entrada</li>
+      </ul>
+    </section>
+    <span class="arrow" aria-hidden="true">→</span>
+    <section class="panel p2">
+      <h2 class="hand"><span class="num">2</span>Início</h2>
+      <ul>
+        <li>Data de hoje, pacientes cadastrados, registros clínicos</li>
+        <li>Atalhos: <span class="btn">01 Novo paciente</span> <span class="btn">02 Nova consulta</span> <span class="btn">03 Registrar retorno</span> <span class="btn">04 Prontuários</span></li>
+        <li><span class="btn">Encerrar sessão</span></li>
+        <li>Dentro do app: menu lateral Paciente · Consulta · Retorno · Prontuários · Sair, e <span class="btn">Início</span> no topo</li>
+        <li>Topo mostra o estado: seguro, "Não sincronizado" ou armazenamento cheio</li>
+      </ul>
+    </section>
+    <span class="arrow" aria-hidden="true">→</span>
+    <section class="panel p3">
+      <h2 class="hand"><span class="num">3</span>Paciente</h2>
+      <ul>
+        <li>Cadastro: nome (obrigatório), sexo, nascimento, contatos, CEP que busca o endereço</li>
+        <li><span class="btn">Salvar paciente</span> leva para a Consulta, ou para onde você tinha pedido ir</li>
+        <li>Idade e sexo mudam as perguntas, as escalas e as regras de tratamento</li>
+        <li><span class="btn">Arquivar paciente</span> tira das listas; restaurar traz tudo de volta</li>
+      </ul>
+    </section>
+  </div>
+
+  <span class="down-arrow" aria-hidden="true">↓</span>
+
+  <!-- 4 consulta -->
+  <section class="panel p4">
+    <h2 class="hand"><span class="num">4</span>Consulta, do começo ao fim</h2>
+    <p class="lede">Cada etapa só abre por <span class="btn">Salvar e avançar</span>. Voltar a uma etapa já percorrida é livre. Toda página tem <span class="btn">Salvar consulta</span>.</p>
+    <div class="rail" role="list" aria-label="Etapas da consulta">
+      <div class="st" role="listitem"><span class="n">1</span><b>Anamnese</b><small>Manual ou microfone; QP, HDA, guia, antecedentes</small></div><span class="to" aria-hidden="true">→</span>
+      <div class="st" role="listitem"><span class="n">2</span><b>Exame psíquico</b><small>11 domínios; branco não vira normal</small></div><span class="to" aria-hidden="true">→</span>
+      <div class="st" role="listitem"><span class="n">3</span><b>Exame físico</b><small>Achados relevantes</small></div><span class="to" aria-hidden="true">→</span>
+      <div class="st" role="listitem"><span class="n">4</span><b>Refinamento</b><small><span class="btn">Iniciar refinamento</span>: perguntas do protocolo e red flags</small></div><span class="to" aria-hidden="true">→</span>
+      <div class="st" role="listitem"><span class="n">5</span><b>Resumo</b><small>Montado do que foi registrado</small></div><span class="to" aria-hidden="true">→</span>
+      <div class="st" role="listitem"><span class="n">6</span><b>Diagnóstico</b><small><span class="btn">Gerar</span> → assinalar → <span class="btn">Refinar</span></small></div><span class="to" aria-hidden="true">→</span>
+      <div class="st detour" role="listitem"><span class="n">7</span><b>Tratamento</b><small>Nível de cuidado, fármacos, abordagens, exames</small></div><span class="to" aria-hidden="true">→</span>
+      <div class="st end" role="listitem"><span class="n">8</span><b>História clínica</b><small>Texto no seu modelo; <span class="btn">Finalizar consulta</span></small></div>
+    </div>
+    <div class="apx">
+      <span class="lbl">Apêndices, a qualquer momento</span>
+      <span><b>Medicamentos</b> (ficha por fármaco ou busca por sintoma) · <b>Escalas</b> (19, sugeridas pelo caso) · <b>Documentos</b> (atestado, declaração, relatório, encaminhamento, em PDF)</span>
+    </div>
+    <div class="two">
+      <p class="note"><b>Desvio do Tratamento.</b> Com fármaco assinalado, <span class="btn">Salvar e avançar</span> para em Medicamentos, na ficha. A História clínica já fica liberada e se abre pela aba.</p>
+      <p class="note"><b>Finalizar.</b> Pede confirmação e carimba data e hora. Depois disso, mudar história clínica, diagnóstico ou tratamento guarda a versão anterior no prontuário.</p>
+    </div>
+  </section>
+
+  <span class="down-arrow" aria-hidden="true">↓</span>
+
+  <!-- 5 6 7 -->
+  <div class="row">
+    <section class="panel p5">
+      <h2 class="hand"><span class="num">5</span>Retorno</h2>
+      <ul>
+        <li>Responde ao <b>último</b> atendimento, consulta ou retorno: o caso vira cadeia</li>
+        <li><b>Evolução</b>: espinha fixa (global, adesão, efeitos, eventos) e o bloco do caso: cada hipótese, fármaco e sintoma-alvo de antes; os critérios "não avaliáveis" voltam como o que investigar hoje</li>
+        <li><span class="btn">Salvar e avançar</span> só com tudo respondido</li>
+        <li><b>Ajuste de conduta</b>: uma decisão por fármaco; o texto da evolução aparece depois de assinalar</li>
+        <li><span class="btn">Salvar retorno</span> · <span class="btn">Finalizar retorno</span></li>
+        <li>Apêndices iguais aos da consulta, sem botão de salvar próprio</li>
+      </ul>
+    </section>
+    <span class="arrow" aria-hidden="true">→</span>
+    <section class="panel p6">
+      <h2 class="hand"><span class="num">6</span>Prontuário</h2>
+      <ul>
+        <li>Busca por palavra, diagnóstico, medicamento ou data</li>
+        <li>Resumo do caso e evolução das escalas</li>
+        <li>Caso em cadeia: a consulta e os retornos lado a lado, na ordem em que aconteceram</li>
+        <li>Status de finalizado e versões anteriores de cada registro</li>
+        <li><span class="btn">Exportar PDF</span> por registro</li>
+      </ul>
+    </section>
+    <span class="arrow" aria-hidden="true">→</span>
+    <section class="panel p7">
+      <h2 class="hand"><span class="num">7</span>Sair</h2>
+      <ul>
+        <li>Página Sair avisa: o que não foi salvo se perde</li>
+        <li><span class="btn">Encerrar sessão</span> ou <span class="btn">Cancelar</span> (volta ao Início)</li>
+        <li>Encerra a sessão da conta neste navegador, apaga o rascunho da tela e volta à tela de entrada</li>
+        <li>O que foi salvo continua no aparelho e na conta</li>
+      </ul>
+    </section>
+  </div>
+
+  <!-- dado -->
+  <section class="panel p1">
+    <h2 class="hand">Onde o que você escreve fica</h2>
+    <div class="store" role="img" aria-label="Tela, salvar, aparelho, conta">
+      <div class="box">Tela <small>rascunho só na memória</small></div><span class="arrow">→</span>
+      <div class="box">Salvar <small>Salvar e avançar · Salvar · Finalizar</small></div><span class="arrow">→</span>
+      <div class="box hl">Aparelho <small>IndexedDB · localStorage de reserva</small></div><span class="arrow">→</span>
+      <div class="box">Conta <small>Supabase, em fila, sob seu login</small></div>
+    </div>
+    <p class="lede">Digitar não grava; o rascunho vive na tela até um botão de salvar. Se a conta não responde, o topo mostra "Não sincronizado" e o registro fica no aparelho. Se o aparelho lota, o aviso vermelho diz que a consulta não foi salva.</p>
+  </section>
+
+  <!-- idas e vindas -->
+  <div class="section-head">
+    <h2 class="hand">As idas e vindas</h2>
+    <p>Todo caminho que não é seguir reto: onde o app barra, desvia, deixa voltar ou usa uma reserva.</p>
+    <div class="legend">
+      <span class="k-barra"><i></i>Barra: não segue e diz o que falta</span>
+      <span class="k-desvio"><i></i>Desvio: leva para outro lugar</span>
+      <span class="k-volta"><i></i>Volta: retorna a algo já feito</span>
+      <span class="k-reserva"><i></i>Reserva: quando algo falha</span>
+    </div>
+  </div>
+
+  <div class="groups">
+    <section class="group">
+      <h3 class="hand">Entrar e Início</h3>
+      <div class="move"><span class="k k-desvio">Desvio</span><p><span class="path">Consulta, Retorno ou Prontuários sem paciente <em>→</em> Paciente</span>Ao salvar o cadastro, vai para a tela que você tinha pedido.</p></div>
+      <div class="move"><span class="k k-reserva">Reserva</span><p><span class="path">Conta fora do ar ao entrar</span>Abre com o que está no aparelho e avisa "Não sincronizado".</p></div>
+      <div class="move"><span class="k k-reserva">Reserva</span><p><span class="path">Navegador sem IndexedDB</span>Grava no localStorage, como antes.</p></div>
+    </section>
+
+    <section class="group">
+      <h3 class="hand">Paciente</h3>
+      <div class="move"><span class="k k-volta">Volta</span><p><span class="path">Trocar o paciente no seletor</span>O rascunho da tela zera e a consulta recomeça na Anamnese, e o retorno na Evolução.</p></div>
+      <div class="move"><span class="k k-desvio">Desvio</span><p><span class="path">Arquivar paciente <em>→</em> Início</span>Ele vai para "Pacientes arquivados", na página Paciente.</p></div>
+      <div class="move"><span class="k k-barra">Barra</span><p><span class="path">Excluir definitivamente</span>Só arquivado, com o aviso da Lei 13.787/2018 e o nome digitado. É a única ação sem volta.</p></div>
+    </section>
+
+    <section class="group">
+      <h3 class="hand">Consulta</h3>
+      <div class="move"><span class="k k-barra">Barra</span><p><span class="path">Aba de etapa ainda não alcançada</span>Travada; só abre por Salvar e avançar.</p></div>
+      <div class="move"><span class="k k-volta">Volta</span><p><span class="path">Aba de etapa já percorrida</span>Livre. Troca de página sem perder o que está na tela.</p></div>
+      <div class="move"><span class="k k-barra">Barra</span><p><span class="path">Microfone gravando ou transcrevendo</span>Não salva, não avança, não sai. Ao terminar, a transcrição preenche os campos sem mudar de página.</p></div>
+      <div class="move"><span class="k k-barra">Barra</span><p><span class="path">Refinar o diagnóstico sem ter assinalado</span>"Assinale as hipóteses antes de refinar"; sem geração, "Gere as hipóteses antes".</p></div>
+      <div class="move"><span class="k k-volta">Volta</span><p><span class="path">Gerar de novo, alternando IA Nuvem e RAG</span>Quantas vezes quiser antes de assinalar. O Refinar substitui a tela e a primeira proposta fica recolhida.</p></div>
+      <div class="move"><span class="k k-barra">Barra</span><p><span class="path">Tratamento sem hipótese assinalada</span>Não gera. Refinar o tratamento exige uma geração antes.</p></div>
+      <div class="move"><span class="k k-desvio">Desvio</span><p><span class="path">Tratamento com fármaco <em>→</em> Medicamentos</span>Salvar e avançar para na ficha; a História clínica abre pela aba.</p></div>
+      <div class="move"><span class="k k-desvio">Desvio</span><p><span class="path">Medicamentos, busca por sintoma <em>→</em> Tratamento</span>"Levar para o Tratamento" põe a conduta já assinalada nos sintomas-alvo.</p></div>
+      <div class="move"><span class="k k-reserva">Reserva</span><p><span class="path">IA falhou</span>Diagnóstico sai do catálogo local; Refinamento, das perguntas de contingência; a História clínica é montada no seu modelo ao salvar.</p></div>
+    </section>
+
+    <section class="group">
+      <h3 class="hand">Retorno</h3>
+      <div class="move"><span class="k k-desvio">Desvio</span><p><span class="path">Retorno sem consulta salva <em>→</em> Consulta</span>"Crie e salve uma consulta antes", com <span class="btn">Ir para consulta</span>.</p></div>
+      <div class="move"><span class="k k-barra">Barra</span><p><span class="path">Novo retorno quando o último atendimento já tem retorno</span>Pede para abrir o retorno salvo.</p></div>
+      <div class="move"><span class="k k-barra">Barra</span><p><span class="path">Evolução com linha em branco</span>Não avança nem gera o ajuste; lista cada linha que falta.</p></div>
+      <div class="move"><span class="k k-barra">Barra</span><p><span class="path">Texto da evolução antes da conduta</span>Só aparece depois de assinalar o ajuste.</p></div>
+      <div class="move"><span class="k k-desvio">Desvio</span><p><span class="path">Medicamentos, busca por sintoma <em>→</em> Ajuste de conduta</span>A conduta entra em "Acrescentar", que a IA não reescreve.</p></div>
+      <div class="move"><span class="k k-volta">Volta</span><p><span class="path">Escalas e documentos no retorno</span>Ficam no rascunho e só gravam com o retorno, no Ajuste de conduta.</p></div>
+    </section>
+
+    <section class="group">
+      <h3 class="hand">Prontuário e registros salvos</h3>
+      <div class="move"><span class="k k-volta">Volta</span><p><span class="path">Reabrir consulta ou retorno salvo</span>Em "Consultas deste paciente" ou "Retornos salvos". Abre na História clínica ou no Ajuste, com todas as abas livres.</p></div>
+      <div class="move"><span class="k k-desvio">Desvio</span><p><span class="path">Consulta aberta <em>→</em> Prontuário</span><span class="btn">Voltar ao prontuário</span> no aviso do topo.</p></div>
+      <div class="move"><span class="k k-volta">Volta</span><p><span class="path">Mexer em registro finalizado</span>Permitido; a versão anterior fica guardada e aparece recolhida no prontuário.</p></div>
+    </section>
+
+    <section class="group">
+      <h3 class="hand">Sair</h3>
+      <div class="move"><span class="k k-barra">Barra</span><p><span class="path">Encerrar com o microfone ativo</span>Pede para encerrar a gravação e aguardar a transcrição.</p></div>
+      <div class="move"><span class="k k-volta">Volta</span><p><span class="path">Cancelar <em>→</em> Início</span>Nada muda.</p></div>
+      <div class="move"><span class="k k-desvio">Desvio</span><p><span class="path">Encerrar sessão <em>→</em> Entrar</span>Rascunho não salvo se perde; a tela de entrada não espera a rede.</p></div>
+    </section>
+  </div>
+
+  <footer>Levantado de src/App.js, src/clinical/vocabulary.js e src/ui/voiceRecording.js · 14/09/2026 · commit e5a6787</footer>
+</div>
