@@ -23,7 +23,6 @@ export function reproductiveHistoryCard(form = {}, patient = {}) {
   return `
     <div class="clinical-card">
       <h4>Saúde reprodutiva</h4>
-      <p class="field-hint">Muda o diagnóstico e restringe a prescrição. Campo em branco significa não investigado.</p>
       ${pregnancyBlock(form, patient)}
       ${chips("cicloReprodutivo", "Situação atual", optionGroups.cicloReprodutivo, form.cicloReprodutivo, form)}
       ${chips("sintomasCiclo", "Relação dos sintomas com o ciclo", optionGroups.sintomasCiclo, form.sintomasCiclo, form)}

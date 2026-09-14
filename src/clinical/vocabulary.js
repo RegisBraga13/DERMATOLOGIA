@@ -164,16 +164,15 @@ export const anamnesisQuestionGroups = [
       // perguntava impacto duas vezes — o grau, neste guia, e as areas
       // afetadas, em "Impacto funcional", no fim da pagina. Fica a segunda,
       // que e a que o diagnostico le para saber se ha marca de transtorno.
-      ["Mania/hipomania", [
+      ["Sintomas de Mania/Hipomania", [
         {
           key: "maniaHipomaniaSintomas",
           response: "multiple",
-          question: "Ja teve periodos, por dias, que voce ficou:",
           options: ["Nega sintomas relacionados", "Muito acelerado", "Com muita energia", "Falando mais", "Dormindo pouco", "Fazendo coisas impulsivas", "Outro"],
           otherKey: "maniaHipomaniaSintomasOutro"
         }
       ]],
-      ["Ansiedade e panico", [
+      ["Sintomas de Ansiedade/Pânico", [
         {
           key: "ansiedadeSintomas",
           response: "multiple",
@@ -237,7 +236,7 @@ export const anamnesisQuestionGroups = [
   {
     title: "Perguntas apos vinculo com o paciente",
     items: [
-      ["Paranoia e sintomas psicoticos", [
+      ["Sintomas Psicóticos/Paranoia", [
         {
           key: "psicoseSintomas",
           response: "multiple",
@@ -309,6 +308,53 @@ export const optionDisplayLabels = {
   IN_PERSON: "Presencial",
   TELECONSULTATION: "Online",
   HYBRID: "Híbrida"
+};
+
+// Rotulo curto so para a caixa na tela. O valor gravado, a narrativa, o
+// resumo e o que a IA devolve continuam com a frase inteira -- a IA casa a
+// resposta pelo texto exato da opcao, e prontuario nao se escreve abreviado.
+// A frase inteira fica no title da caixa, ao passar o mouse.
+// Escalas ficam de fora: a redacao delas e a do instrumento validado.
+export const optionShortLabels = {
+  "Sensacao de controle ou interferencia no pensamento": "Interferencia no pensamento",
+  "Sensacao de estar sendo observado ou comentado": "Sente-se vigiado ou comentado",
+  "Incapacidade de prever consequencias dos atos": "Nao preve consequencias",
+  "Alucinacoes marginais com critica preservada": "Alucinacoes com critica",
+  "Sensacoes tateis ou odores sem fonte externa": "Toques ou odores sem fonte",
+  "Nega ideacao, plano ou intencao suicida": "Nega ideacao/plano/intencao",
+  "Transtorno de ansiedade generalizada": "Ansiedade generalizada",
+  "Sentimento de estorvo para a familia": "Sente-se um estorvo",
+  "Acesso a meios potencialmente letais": "Acesso a meios letais",
+  "Desejo de morrer ou de nao acordar": "Desejo de morrer",
+  "Instabilidade de ritmo circadiano": "Ritmo circadiano instavel",
+  "Disforia (irritabilidade extrema)": "Disforia",
+  "Vozes ou ruidos sem fonte externa": "Vozes ou ruidos sem fonte",
+  "Autoagressao sem intencao suicida": "Autoagressao nao suicida",
+  "Conflito com colegas ou bullying": "Conflitos ou bullying",
+  "Benzodiazepinicos sem prescricao": "BZD sem prescricao",
+  "Memoria operacional prejudicada": "Memoria operacional",
+  "Desinteresse ou falta de prazer": "Anedonia",
+  "Contato visual esquivo ou fixo": "Olhar esquivo ou fixo",
+  "Piora na semana pre-menstrual": "Piora pre-menstrual",
+  "Desde a infancia/adolescencia": "Infancia/adolescencia",
+  "Lentificacao do processamento": "Processamento lento",
+  "Paramnesia (falsas memorias)": "Paramnesia",
+  "Tentativa de suicidio previa": "Tentativa previa",
+  "Cansaco ou falta de energia": "Falta de energia",
+  "Dificuldade de concentracao": "Baixa concentracao",
+  "Comportamento desorganizado": "Conduta desorganizada",
+  "Nega sintomas relacionados": "Nega sintomas",
+  "Dificuldade para adormecer": "Insonia inicial",
+  "Comportamento preparatorio": "Atos preparatorios",
+  "Fazendo coisas impulsivas": "Impulsividade",
+  "Com muita energia": "Muita energia",
+  "Afastamento de estressor": "Longe do estressor",
+  "Desanimo ou desesperanca": "Desanimo/desesperanca",
+  "Visoes sem fonte externa": "Visoes sem fonte",
+  "Plano suicida definido": "Plano suicida",
+  "Desconfianca excessiva": "Desconfianca",
+  "Alteracao de peso ou metabolica": "Peso ou metabolismo",
+  "Conflito, estressor ou luto": "Estressor ou luto"
 };
 
 export const ANAMNESIS_AI_FIELDS = {

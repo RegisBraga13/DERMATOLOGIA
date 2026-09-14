@@ -29,3 +29,7 @@ export function themeIcon() {
 export function microphoneIcon() {
   return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="3" width="8" height="13" rx="4" stroke="currentColor" stroke-width="1.8"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`;
 }
+
+export function whatsappIcon() {
+  return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 20.5l1.2-4.3A8.5 8.5 0 1 1 8 19.4l-4.5 1.1Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 8.5c.2 2.9 2.6 5.6 5.8 6.3l1.2-1.4-1.9-1-1 .8a4.8 4.8 0 0 1-2.2-2.2l.8-1-1-1.9L9 8.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
+}

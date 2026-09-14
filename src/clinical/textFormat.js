@@ -1,4 +1,4 @@
-import { MENTAL_EXAM_KEYS, optionDisplayLabels, PROFESSIONAL_TERM_REPLACEMENTS } from "./vocabulary.js";
+import { MENTAL_EXAM_KEYS, optionDisplayLabels, optionShortLabels, PROFESSIONAL_TERM_REPLACEMENTS } from "./vocabulary.js";
 
 export function arrayValue(value) {
   if (Array.isArray(value)) return value.filter(Boolean);
@@ -7,6 +7,11 @@ export function arrayValue(value) {
 
 export function optionDisplayLabel(option = "") {
   return optionDisplayLabels[option] || option;
+}
+
+// So para a caixa na tela; resumo e narrativa usam optionDisplayLabel.
+export function optionScreenLabel(option = "") {
+  return optionShortLabels[option] || optionDisplayLabel(option);
 }
 
 export function compactText(value, maxLength = 900) {

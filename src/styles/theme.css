@@ -249,15 +249,15 @@ details[open] summary:after { content: "-"; }
 
 .chips {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
-  margin: 8px 0 14px;
+  margin: 6px 0 12px;
 }
 
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   color: var(--text);
@@ -271,61 +271,65 @@ details[open] summary:after { content: "-"; }
    O que separa os dois continua inteiro, e no lugar certo: e comportamento, nao
    desenho. Marcar um radio solta o irmao; marcar uma caixa nao. Quem opera
    aprende isso no primeiro clique, e nao pela forma do simbolo. */
-.chip input {
-  width: auto;
-  min-height: auto;
-}
-
-/* Radio e caixa desenhados do zero, identicos. O controle nativo do radio e
-   redondo por decreto do sistema e nao aceita virar quadrado; a unica forma de
-   igualar os dois e desligar o desenho nativo (`appearance: none`) e pintar a
-   marca aqui. */
-.chip input[type="radio"],
-.chip input[type="checkbox"] {
+/* A caixa de marcar do programa inteiro, radio incluido: uma regra so, sem
+   seletor de componente na frente. Ate 14/09/2026 ela so valia dentro do
+   .chip, e a anamnese estruturada, o diagnostico e a fonte da IA caiam na
+   caixa nativa do sistema, cada uma de um tamanho.
+   Terracota, como o accent-color do body: e a unica cor quente da paleta, e o
+   que esta marcado le-se sem procurar. O tique usa a cor da superficie, entao
+   contrasta nos dois temas (branco no claro, escuro no escuro).
+   22px: a caixa de 18px sumia numa tela cheia delas. */
+input[type="checkbox"],
+input[type="radio"] {
   appearance: none;
   -webkit-appearance: none;
   flex: none;
-  width: 18px;
-  height: 18px;
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  min-height: 0;
   margin: 0;
-  border: 1.5px solid var(--line);
-  border-radius: 4px;
+  padding: 0;
+  border: 1.5px solid color-mix(in srgb, var(--terracota-ink) 45%, var(--line));
+  border-radius: 5px;
   background: var(--surface);
   display: inline-grid;
   place-content: center;
   cursor: pointer;
 }
 
-.chip input[type="radio"]:checked,
-.chip input[type="checkbox"]:checked {
-  border-color: var(--primary-2);
-  background: var(--primary-2);
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+  border-color: var(--terracota-ink);
+  background: var(--terracota-ink);
 }
 
 /* O tique: dois lados de uma caixa, girados. Desenhado em vez de tipografado
    porque glifo de check muda de forma e de peso conforme a fonte instalada. */
-.chip input[type="radio"]:checked::after,
-.chip input[type="checkbox"]:checked::after {
+input[type="checkbox"]:checked::after,
+input[type="radio"]:checked::after {
   content: "";
-  width: 4px;
-  height: 8px;
-  margin-top: -2px;
-  border: solid #fff;
-  border-width: 0 2px 2px 0;
+  width: 6px;
+  height: 11px;
+  margin-top: -3px;
+  border: solid var(--surface);
+  border-width: 0 2.5px 2.5px 0;
   transform: rotate(45deg);
 }
 
-.chip input[type="radio"]:focus-visible,
-.chip input[type="checkbox"]:focus-visible {
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-/* Estado marcado tambem no chip inteiro: numa tela cheia deles, 18px nao
-   carregam sozinhos a leitura do que esta selecionado. */
+/* Estado marcado tambem na caixa inteira: numa tela cheia delas, a caixinha
+   sozinha nao carrega a leitura do que esta selecionado. */
 @supports selector(:has(*)) {
-  .chip:has(input:checked) {
-    border-color: var(--primary-2);
+  .chip:has(input:checked),
+  .diagnosis-option:has(input:checked),
+  .ai-mode-selector label:has(input:checked) {
+    border-color: var(--terracota-ink);
   }
 }
 
@@ -471,37 +475,6 @@ details[open] summary:after { content: "-"; }
   color: var(--text);
   font-size: 17px;
   line-height: 1.45;
-}
-
-.segmented-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.multi-choice-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.segmented-options label,
-.multi-choice-options label {
-  width: auto;
-  padding: 7px 11px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: var(--text);
-  flex-direction: row;
-  align-items: center;
-  gap: 7px;
-}
-
-.segmented-options input,
-.multi-choice-options input {
-  width: auto;
-  min-height: auto;
-  padding: 0;
 }
 
 .risk-text textarea {
@@ -662,15 +635,14 @@ details[open] summary:after { content: "-"; }
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
-  gap: 9px;
-  padding: 11px;
+  gap: 8px;
+  padding: 6px 10px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--surface);
   cursor: pointer;
 }
 
-.ai-mode-selector input { width: auto; min-height: auto; }
 .ai-mode-selector span { color: var(--text); font-weight: 700; }
 
 /* Fica logo abaixo do botao Gerar, discreta: e procedencia, nao resultado. */
@@ -717,7 +689,7 @@ details[open] summary:after { content: "-"; }
   grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
   gap: 10px;
-  padding: 11px 12px;
+  padding: 8px 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface-2);
@@ -725,10 +697,9 @@ details[open] summary:after { content: "-"; }
   cursor: pointer;
 }
 
+/* Texto de varias linhas: a caixa acompanha a primeira, nao o meio. */
 .diagnosis-option input {
-  width: 18px;
-  min-height: 18px;
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 .diagnosis-option span  {
@@ -1395,8 +1366,6 @@ textarea:focus {
   border-left: 2px solid color-mix(in srgb, var(--primary-2) 55%, var(--line));
 }
 .chip,
-.segmented-options label,
-.multi-choice-options label,
 .timeline-item {
   background: var(--surface-2);
 }
@@ -1588,7 +1557,7 @@ button,
 }
 
 .chip {
-  padding: 11px 13px;
+  padding: 6px 12px 6px 9px;
 }
 
 .guide-items ul,
@@ -1870,13 +1839,19 @@ button, input, select, textarea { font-family: var(--font-ui); }
    hipotese ficavam em peso 400; segmentado e multi-escolha, em 550 -- mesmo
    tamanho, pesos diferentes, sem que ninguem tivesse decidido isso. */
 .chip,
-.segmented-options label,
-.multi-choice-options label,
 .diagnosis-option span {
   font-size: 18px;
   font-weight: var(--w-body);
   line-height: 1.5;
   font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* O chip e rotulo de uma ou duas palavras, e numa tela cheia deles o corpo de
+   18px alargava cada caixa ate empurrar a fileira para baixo. 16px desde
+   14/09/2026; a hipotese diagnostica, que e frase com codigo, fica nos 18px. */
+.chip {
+  font-size: 16px;
+  line-height: 1.35;
 }
 
 /* Dado clínico nunca fica leve, e sempre com numeral tabular */
@@ -1903,14 +1878,20 @@ label { font-weight: var(--w-strong); }
 .side-foot > span { font: var(--w-caps) 14px/1 var(--font-editorial); letter-spacing: .08em; }
 
 /* --- Botões --- */
+/* Principal sobrio desde 14/09/2026: o bloco azul-profundo solido chamava mais
+   atencao que o proprio formulario. Fica a tinta azul do tema num fundo so
+   levemente tingido -- ainda se distingue do botao comum pela cor e pela
+   borda, sem gritar. Mesma formula nos dois temas, cada um com a sua tinta. */
 .primary {
-  background: var(--primary-2);
-  border-color: var(--primary-2);
-  color: var(--on-primary);
+  background: color-mix(in srgb, var(--primary-2) 14%, var(--surface));
+  border-color: color-mix(in srgb, var(--primary-2) 45%, var(--line));
+  /* A tinta pura dava 4,1:1 no tema escuro, abaixo dos 4,5 da AA. Puxada para
+     a cor de texto do tema: clareia no escuro, escurece no claro. */
+  color: color-mix(in srgb, var(--primary-2) 65%, var(--text));
   font-weight: var(--w-strong);
   box-shadow: none;
 }
-.primary:hover { background: color-mix(in srgb, var(--primary-2) 86%, var(--text)); }
+.primary:hover { background: color-mix(in srgb, var(--primary-2) 22%, var(--surface)); }
 .danger { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
 .side-foot > span { background: var(--primary-2); color: var(--on-primary); }
 
@@ -2207,10 +2188,41 @@ label { font-weight: var(--w-strong); }
   max-width: 100%;
 }
 
-/* Telefone e curto; no bloco de endereco quem manda na largura e o
-   .address-grid (span de colunas), sem max-width por campo. */
-#patient-form input[name="telefone"] {
+/* Fone/WhatsApp e curto; no bloco de endereco quem manda na largura e o
+   .address-grid (span de colunas), sem max-width por campo. O atalho do
+   WhatsApp fica dentro da caixa, a direita, e o texto nao passa por baixo. */
+#patient-form .phone-input {
+  position: relative;
+  display: block;
   max-width: 260px;
+}
+
+#patient-form .phone-input input {
+  padding-right: 48px;
+}
+
+#patient-form .whatsapp-link {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: #1a9e55;
+}
+
+/* O display:grid acima venceria o atributo hidden: numero incompleto nao
+   mostra atalho. */
+#patient-form .whatsapp-link[hidden] {
+  display: none;
+}
+
+#patient-form .whatsapp-link:hover,
+#patient-form .whatsapp-link:focus-visible {
+  background: color-mix(in srgb, #25d366 16%, transparent);
 }
 
 /* "Nome e contato de emergencia" guarda dois dados no mesmo campo, entao
@@ -2254,11 +2266,11 @@ textarea:focus-visible {
   outline-offset: 1px;
 }
 
-/* Alvo de toque mínimo em chips e opções (WCAG 2.5.8). */
+/* Alvo de toque mínimo em chips e opções (WCAG 2.5.8). 40px desde 14/09/2026,
+   a pedido, para as caixas ocuparem menos: acima dos 24px da 2.5.8 AA, o mesmo
+   piso que o diagnostico compacto ja usava. */
 .chip,
-.segmented-options label,
-.multi-choice-options label,
-.diagnosis-option { min-height: 48px; }
+.diagnosis-option { min-height: 40px; }
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -2438,7 +2450,7 @@ textarea:focus-visible {
    ocupava tres linhas. Nao desce mais: abaixo disso o codigo, que e o que o
    medico confere antes de assinalar, fica dificil de ler. */
 .diagnosis-group-compact .diagnosis-option span { font-size: 15px; line-height: 1.4; }
-.diagnosis-group-compact .diagnosis-option input { width: 16px; min-height: 16px; margin-top: 1px; }
+.diagnosis-group-compact .diagnosis-option input { margin-top: 0; }
 .diagnosis-group-compact .diagnosis-empty { padding: 10px; font-size: 14px; }
 
 /* A caixa de busca do medicamento e uma moldura so: a borda e o anel de foco

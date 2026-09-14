@@ -23,7 +23,7 @@ export function clinicalSummaryGroups(form = {}, patient = {}) {
     summaryTextRow("Identidade", "Ocupação", patient.ocupacao),
     summaryTextRow("Identidade", "Escolaridade", patient.escolaridade),
     summaryTextRow("Identidade", "Religião", patient.religiao),
-    summaryTextRow("Contato", "Telefone", patient.telefone),
+    summaryTextRow("Contato", "Fone/WhatsApp", patient.telefone),
     summaryTextRow("Contato", "E-mail", patient.email),
     summaryTextRow("Contato", "Nome e contato de emergência", patient.emergencia),
     summaryTextRow("Endereço", "CEP", patient.cep),

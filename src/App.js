@@ -2,6 +2,7 @@ import { countLabel, diagnosisSuggestionFromAi, diagnosisSuggestionFromLocalCata
 import { diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, formatMedicationTreatmentOption, formatNonPharmacologicalOption, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
 import { anamnesisText, buildEvolutionNarrative, evolutionNeedsRebuild, normalizeEvolutionNarrative, removeReturnBoilerplate, requestedExamsText, treatmentDiagnosisText } from "./clinical/narrative.js";
 import { loadProtocol, protocolLoaded } from "./clinical/protocol.js";
+import { formatPhone, whatsappLink } from "./clinical/phone.js";
 import { arrayValue, joinValues, lowerFirst, normalizeText, stripFinalPeriod } from "./clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, anamnesisQuestionGroups, pagesForScope, TELECONSULTA_CONSENTIMENTO } from "./clinical/vocabulary.js";
 import { optionGroups } from "./data/examOptions.js";
@@ -12,7 +13,7 @@ import { buildMedicationAutofill, localMedicationSuggestions } from "./services/
 import { exportTextAsPdf } from "./services/pdfService.js";
 import { archiveEntry, archivePatient, isActive, isArchived, loadState, mergeStates, purgePatient, restorePatient, saveState, stateSignature, uid } from "./services/storageService.js";
 import { currentSession, signIn, signOut, syncState } from "./services/supabaseService.js";
-import { anamnesisStructuredFields, chips, field, selectField, summaryColumns, textarea, voiceTextarea } from "./ui/controls.js";
+import { anamnesisStructuredFields, chips, field, phoneField, selectField, summaryColumns, textarea, voiceTextarea } from "./ui/controls.js";
 import { escapeAttr, escapeHtml } from "./ui/html.js";
 import { createVoiceRecording } from "./ui/voiceRecording.js";
 import { clipboardIcon, folderIcon, homeIcon, lockIcon, personIcon, repeatIcon, themeIcon } from "./ui/icons.js";
@@ -239,7 +240,7 @@ function patientForm() {
         ${selectField("escolaridade", "Escolaridade", optionGroups.escolaridade, patient.escolaridade)}
         ${selectField("religiao", "Religiao", optionGroups.religiao, patient.religiao)}
         ${field("email", "E-mail", patient.email, "email")}
-        ${field("telefone", "Telefone", patient.telefone, "tel")}
+        ${phoneField("telefone", "Fone/WhatsApp", patient.telefone)}
         ${field("emergencia", "Nome e contato de emergencia", patient.emergencia)}
       </div>
       <div class="address-card">
@@ -672,14 +673,14 @@ function emptyPatientMessage(title) {
 function anamnesisQuestionGuide() {
   const form = currentClinicalDraft();
   const itemOrder = [
+    "Sintomas de Ansiedade/Pânico",
     "Sintomas depressivos",
-    "Mania/hipomania",
-    "Ansiedade e panico",
+    "Sintomas de Mania/Hipomania",
+    "Sintomas Psicóticos/Paranoia",
     "Sono",
     "Apetite",
     "Impacto",
     "Habitos, substancias e comportamentos aditivos",
-    "Paranoia e sintomas psicoticos",
     "Risco de suicidio e desesperanca"
   ];
   const orderedItems = anamnesisQuestionGroups
@@ -1033,6 +1034,7 @@ function bindPatientForm() {
       // CEP incompleto/invalido: silencioso, sem caixa de status para avisar.
     }
   });
+  bindPhoneInput(form.querySelector("[name='telefone']"));
   form.addEventListener("submit", event => {
     event.preventDefault();
     const data = { ...(draft.patient || {}), ...formToObject(form) };
@@ -1052,6 +1054,33 @@ function bindPatientForm() {
     if (view === "return") draft.return = defaultReturn();
     pendingViewAfterPatient = "";
     render();
+  });
+}
+
+// Mascara sem re-render: o cursor fica onde estava, contado em digitos, e o
+// atalho do WhatsApp aparece so quando o numero fica completo.
+function bindPhoneInput(input) {
+  if (!input) return;
+  const link = input.parentElement?.querySelector(".whatsapp-link");
+  const syncLink = () => {
+    const href = whatsappLink(input.value);
+    if (!link) return;
+    link.hidden = !href;
+    link.href = href || "#";
+  };
+  input.addEventListener("input", () => {
+    const caret = input.selectionStart ?? input.value.length;
+    const digitsBeforeCaret = input.value.slice(0, caret).replace(/\D/g, "").length;
+    const formatted = formatPhone(input.value);
+    if (formatted !== input.value) {
+      input.value = formatted;
+      let position = 0;
+      for (let seen = 0; position < formatted.length && seen < digitsBeforeCaret; position++) {
+        if (/\d/.test(formatted[position])) seen++;
+      }
+      input.setSelectionRange(position, position);
+    }
+    syncLink();
   });
 }
 

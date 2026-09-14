@@ -1,6 +1,7 @@
-import { arrayValue, normalizedSingleChoiceValue, normalizeText, optionDisplayLabel } from "../clinical/textFormat.js";
+import { formatPhone, whatsappLink } from "../clinical/phone.js";
+import { arrayValue, normalizedSingleChoiceValue, normalizeText, optionDisplayLabel, optionScreenLabel } from "../clinical/textFormat.js";
 import { escapeAttr, escapeHtml } from "./html.js";
-import { microphoneIcon } from "./icons.js";
+import { microphoneIcon, whatsappIcon } from "./icons.js";
 
 export function formatSummaryDate(value = "") {
   const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -57,6 +58,17 @@ export function field(name, labelText, value = "", type = "text") {
   return `<label>${labelText}<input name="${name}" type="${type}" value="${escapeAttr(value || "")}" /></label>`;
 }
 
+// Fone e WhatsApp no mesmo campo: teclado numerico no celular, mascara ao
+// digitar e, com o numero completo, o atalho que abre a conversa no WhatsApp.
+export function phoneField(name, labelText, value = "") {
+  const formatted = formatPhone(value);
+  const link = whatsappLink(formatted);
+  return `<label class="phone-field">${labelText}<span class="phone-input">
+    <input name="${name}" type="tel" inputmode="tel" autocomplete="tel" placeholder="(31) 90000-0000" maxlength="20" value="${escapeAttr(formatted)}" />
+    <a class="whatsapp-link" href="${escapeAttr(link)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir conversa no WhatsApp" title="Abrir conversa no WhatsApp"${link ? "" : " hidden"}>${whatsappIcon()}</a>
+  </span></label>`;
+}
+
 export function selectField(name, labelText, options, value = "") {
   return `<label>${labelText}<select name="${name}"><option value="">Selecionar</option>${options.map(option => `<option value="${escapeAttr(option)}" ${value === option ? "selected" : ""}>${escapeHtml(optionDisplayLabel(option))}</option>`).join("")}</select></label>`;
 }
@@ -65,7 +77,7 @@ export function textarea(name, labelText, value = "", placeholder = "", rows = "
   const rowsAttr = rows ? ` rows="${rows}"` : "";
   const evolutionAttrs = name === "evolution" ? ` class="evolution-textarea" data-auto-expand="true" rows="12"`
     : name === "qphda" ? ` class="auto-expand" data-auto-expand="true" rows="5"`
-      : ["queixa", "hdaManual"].includes(name) ? ` class="auto-expand" data-auto-expand="true" rows="1"`
+      : ["queixa", "hdaManual", "historiaReprodutiva"].includes(name) ? ` class="auto-expand" data-auto-expand="true" rows="1"`
         : name === "historia" ? ` class="auto-expand" data-auto-expand="true" rows="3"` : rowsAttr;
   return `<label>${labelText}<textarea name="${name}"${evolutionAttrs} placeholder="${escapeAttr(placeholder)}">${escapeHtml(value || "")}</textarea></label>`;
 }
@@ -89,6 +101,17 @@ export function anamnesisStructuredFields(questions, form) {
   </div>`;
 }
 
+// A caixa de marcar do programa inteiro. Chip, multipla escolha da anamnese e
+// SIM/NAO do risco eram tres markups com tres CSS, e cada um derivou para um
+// lado (em 14/09/2026 a multipla escolha empilhava a caixinha em cima do texto).
+// Rotulo curto na tela, frase inteira no title quando as duas diferem.
+function chipLabel(type, name, option, checked) {
+  const shown = optionScreenLabel(option);
+  const full = optionDisplayLabel(option);
+  const title = shown !== full ? ` title="${escapeAttr(full)}"` : "";
+  return `<label class="chip"${title}><input type="${type}" name="${name}" value="${escapeAttr(option)}" ${checked ? "checked" : ""}>${escapeHtml(shown)}</label>`;
+}
+
 function multipleChoiceField(item, form) {
   const values = Array.isArray(form[item.key]) ? form[item.key] : form[item.key] ? [form[item.key]] : [];
   const set = new Set(values);
@@ -98,21 +121,13 @@ function multipleChoiceField(item, form) {
   const otherValue = String(form[otherKey] || "");
   return `<div class="risk-fields">
     ${item.question ? `<p class="structured-question">${escapeHtml(item.question)}</p>` : ""}
-    <div class="multi-choice-options">
+    <div class="chips">
       ${item.options.map(option => isOtherOption(option) ? `
         <div class="chip-other">
-          <label>
-            <input type="checkbox" name="${item.key}" value="${escapeAttr(option)}" ${set.has(option) ? "checked" : ""} />
-            ${escapeHtml(optionDisplayLabel(option))}
-          </label>
+          ${chipLabel("checkbox", item.key, option, set.has(option))}
           <input class="chip-note" type="text" name="${otherKey}" value="${escapeAttr(otherValue)}" placeholder="Descreva" aria-label="Descreva o outro" />
         </div>
-      ` : `
-        <label>
-          <input type="checkbox" name="${item.key}" value="${escapeAttr(option)}" ${set.has(option) ? "checked" : ""} />
-          ${escapeHtml(optionDisplayLabel(option))}
-        </label>
-      `).join("")}
+      ` : chipLabel("checkbox", item.key, option, set.has(option))).join("")}
     </div>
   </div>`;
 }
@@ -127,13 +142,8 @@ function suicideRiskFields(questions, form) {
     ` : `
       <div class="risk-choice">
         <p><b>${escapeHtml(item.label)}:</b> ${escapeHtml(item.question)}</p>
-        <div class="segmented-options">
-          ${["SIM", "NAO"].map(option => `
-            <label>
-              <input type="radio" name="${item.key}" value="${option}" ${form[item.key] === option ? "checked" : ""} />
-              ${option}
-            </label>
-          `).join("")}
+        <div class="chips">
+          ${["SIM", "NAO"].map(option => chipLabel("radio", item.key, option, form[item.key] === option)).join("")}
         </div>
       </div>
     `).join("")}
@@ -151,7 +161,7 @@ function suicideRiskFields(questions, form) {
 // sempre, que e o pior caso aceitavel.
 function chipOther(name, option, value = "", checked = false, otherKey = `${name}Outro`) {
   return `<div class="chip-other">
-    <label class="chip"><input type="checkbox" name="${name}" value="${escapeAttr(option)}" ${checked ? "checked" : ""}>${escapeHtml(optionDisplayLabel(option))}</label>
+    ${chipLabel("checkbox", name, option, checked)}
     <input class="chip-note" type="text" name="${otherKey}" value="${escapeAttr(value)}" placeholder="Descreva" aria-label="Descreva o outro" />
   </div>`;
 }
@@ -166,7 +176,7 @@ export function chips(name, labelText, options, values = [], form = null, otherK
   const otherValue = form ? String(form[otherKey] || "") : "";
   return `<div><label>${labelText}</label><div class="chips">${options.map(option => isOtherOption(option)
     ? chipOther(name, option, otherValue, set.has(option), otherKey)
-    : `<label class="chip"><input type="checkbox" name="${name}" value="${escapeAttr(option)}" ${set.has(option) ? "checked" : ""}>${escapeHtml(optionDisplayLabel(option))}</label>`).join("")}</div></div>`;
+    : chipLabel("checkbox", name, option, set.has(option))).join("")}</div></div>`;
 }
 
 export function singleChoiceWithNotes(name, labelText, options, value = "", form = null) {
@@ -177,7 +187,7 @@ export function singleChoiceWithNotes(name, labelText, options, value = "", form
     <div class="chips">
       ${options.map(option => {
         const marcado = selectedValue === option ? "checked" : "";
-        const botao = `<label class="chip"><input type="radio" name="${name}" value="${escapeAttr(option)}" ${marcado}>${escapeHtml(option)}</label>`;
+        const botao = chipLabel("radio", name, option, Boolean(marcado));
         // O "Outro" carrega o campo de texto que a narrativa ja lia
         // (`${name}Outro`) e que ate 02/09/2026 nao tinha onde ser escrito:
         // o nome da funcao prometia a nota, e a nota nao existia na tela.
