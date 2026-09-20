@@ -31,7 +31,6 @@
   .treatment-card-grid { grid-template-columns: 1fr; }
   .ai-mode-selector { grid-template-columns: 1fr; }
   .medication-facts-grid { grid-template-columns: 1fr; }
-  .medication-priority-grid { grid-template-columns: 1fr; }
   .medication-fact:nth-child(even) { padding-left: 0; border-left: 0; }
   .medication-reference-title { display: block; }
   .side {

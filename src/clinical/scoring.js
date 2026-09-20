@@ -82,10 +82,6 @@ export function scaleResults(form = {}) {
     .filter(({ result }) => result.respondidas > 0);
 }
 
-export function scaleAlerts(form = {}) {
-  return scaleResults(form).flatMap(({ scale, result }) => result.alertas.map(alerta => ({ ...alerta, escala: scale.sigla })));
-}
-
 // Risco agudo pelas escalas: ASQ com pensamento de se matar agora, C-SSRS com
 // intencao, plano ou comportamento recente. E o resultado que o nivel de
 // cuidado nao pode ignorar -- item 9 da PHQ-9 isolado alerta na propria escala,

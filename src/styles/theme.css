@@ -868,33 +868,6 @@ input[type="radio"]:focus-visible {
   font-weight: 700;
 }
 
-.medication-priority-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin: 18px 0 4px;
-}
-
-.medication-priority-fact {
-  display: grid;
-  gap: 7px;
-  padding: 16px;
-  border: 1px solid color-mix(in srgb, var(--primary-2) 28%, var(--line));
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--accent-soft) 48%, var(--surface));
-}
-
-.medication-priority-fact span {
-  color: var(--primary-2);
-  font-weight: 800;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
-
-.medication-priority-fact strong {
-  color: var(--text);
-}
-
 .medication-facts-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1097,23 +1070,6 @@ input[type="radio"]:focus-visible {
   white-space: pre-wrap;
 }
 
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 18px;
-  z-index: 30;
-}
-
-.modal {
-  width: min(520px, 100%);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 18px;
-}
-
 .hidden { display: none !important; }
 
 @media print {
@@ -1307,8 +1263,7 @@ summary::after {
 .section,
 .address-card,
 .treatment-card,
-.diagnosis-ai-panel,
-.modal {
+.diagnosis-ai-panel {
   box-shadow: none;
 }
 .side {
@@ -1374,8 +1329,6 @@ textarea:focus {
   border-left-color: var(--primary-2);
   background: color-mix(in srgb, var(--primary-2) 10%, var(--surface));
 }
-
-.modal-backdrop { background: rgba(25, 25, 25, .68); }
 
 @media (max-width: 980px) {
   .side {
@@ -1585,15 +1538,9 @@ button,
 .diagnosis-empty,
 .warning,
 
-.medication-priority-fact span,
 .eyebrow,
 .side-label {
   font-size: 14px;
-}
-
-.medication-priority-fact strong {
-  font-size: 20px;
-  line-height: 1.55;
 }
 
 .medication-search-shell input {
@@ -1807,7 +1754,6 @@ button, input, select, textarea { font-family: var(--font-ui); }
 .treatment-card h4,
 .diagnosis-group h4,
 .antecedents-card h4,
-.modal h2,
 .dashboard-metrics > div > strong,
 .dash-button .dash-copy strong {
   font-family: var(--font-editorial);
@@ -1824,8 +1770,7 @@ button, input, select, textarea { font-family: var(--font-ui); }
 }
 
 .clinical-page-title h3,
-.antecedents-card h4,
-.modal h2 {
+.antecedents-card h4 {
   font-weight: var(--w-title);
   letter-spacing: -.022em;
 }
@@ -1859,7 +1804,6 @@ input,
 select,
 textarea,
 .medication-fact p,
-.medication-priority-fact strong,
 .timeline-item p {
   font-weight: var(--w-body);
   font-variant-numeric: lining-nums tabular-nums;

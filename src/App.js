@@ -51,7 +51,6 @@ let returnPage = "evolucao-retorno";
 // Quantas paginas do fluxo ja foram liberadas. Comeca em 1: so a primeira.
 let consultationUnlocked = 1;
 let returnUnlocked = 1;
-let modal = null;
 let pendingViewAfterPatient = "";
 let anamnesisProcessingSequence = 0;
 let clinicalDraftRevision = 0;
@@ -118,7 +117,6 @@ function render() {
     <div class="app-shell">
       ${topbar()}
       <main class="container">${view === "dashboard" ? dashboard() : workspace()}</main>
-      ${modal || ""}
     </div>
   `;
   bindGlobalEvents();
@@ -1178,7 +1176,6 @@ function bindActions() {
       if (action === "pdf-entry") pdfEntry(element.dataset.id, element.dataset.type);
       if (action === "pdf-summary") pdfClinicalSummary();
       if (action === "delete-entry") deleteEntry(element.dataset.id, element.dataset.type);
-      if (action === "close-modal") { modal = null; render(); }
       if (action === "exit-now") await endSession();
     }
   });
@@ -2521,14 +2518,12 @@ function findEntry(id, type) {
 
 // Sair encerra a sessao, desde 10/09/2026. Antes o botao so voltava ao Inicio:
 // a sessao do Supabase continuava aberta, e quem sentasse depois no mesmo
-// navegador entrava direto no prontuario. A pagina Sair ja e a confirmacao --
-// o modal que vinha depois dela pedia a mesma coisa pela segunda vez.
+// navegador entrava direto no prontuario. A pagina Sair ja e a confirmacao.
 async function endSession() {
   if (voiceRecording.isBusy()) {
     alert("Encerre a gravação e aguarde a transcrição antes de sair.");
     return;
   }
-  modal = null;
   // Sem await: signOut() tira a sessao local na hora, e o aviso ao Supabase
   // termina sozinho. A tela de entrada nao espera a rede.
   signOut().catch(() => {});
