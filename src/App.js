@@ -1,6 +1,6 @@
 import { returnPlanSuggestionFromAi, treatmentSuggestionFromAi } from "./clinical/aiTreatmentResult.js";
 import { createDraftGuard } from "./clinical/draftGuard.js";
-import { countLabel, diagnosisSuggestionFromAi, diagnosisSuggestionFromLocalCatalogue } from "./clinical/aiDiagnosisResult.js";
+import { countLabel, diagnosisReviewFailure, diagnosisSuggestionFromAi, diagnosisSuggestionFromLocalCatalogue } from "./clinical/aiDiagnosisResult.js";
 import { diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
 import { anamnesisText, buildEvolutionNarrative, evolutionNeedsRebuild, evolutionSuggestionOnAiFailure, normalizeEvolutionNarrative, removeReturnBoilerplate, requestedExamsText, treatmentDiagnosisText } from "./clinical/narrative.js";
 import { loadProtocol, protocolLoaded } from "./clinical/protocol.js";
@@ -1558,7 +1558,7 @@ async function generateDiagnosisFromClinicalData(element, kind = "diagnosis") {
     suggestion = diagnosisSuggestionFromAi({ result, target: draftTarget(scope), sources: sourcesOfMode(mode, sources, webSources), mode, codeWarnings, revisao });
     if (revisao) suggestion.aiStatus = `Refinado pela fonte especializada. ${suggestion.aiStatus}`;
   } catch (error) {
-    suggestion = diagnosisSuggestionFromLocalCatalogue(target, error);
+    suggestion = revisao ? diagnosisReviewFailure(error) : diagnosisSuggestionFromLocalCatalogue(draftTarget(scope), error);
   }
   if (!vigente()) return;
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };

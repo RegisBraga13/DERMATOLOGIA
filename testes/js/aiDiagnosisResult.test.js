@@ -13,6 +13,7 @@ import { normalizeText } from "../../src/clinical/textFormat.js";
 import { diagnosticCriteriaByOption, diagnosticRangeByOption } from "../../src/views/decisions.js";
 import {
   countLabel,
+  diagnosisReviewFailure,
   diagnosisSuggestionFromAi,
   diagnosisSuggestionFromLocalCatalogue
 } from "../../src/clinical/aiDiagnosisResult.js";
@@ -389,5 +390,37 @@ describe("faixa de sustentacao das hipoteses (20/09/2026)", () => {
       nosologica("Transtorno de ansiedade generalizada", { support_min: 50, support_max: 70 })
     ] } });
     assert.equal(linhas(r.diagnosticoAiFaixas).length, 2);
+  });
+});
+
+describe("Refinar que falha mantem a primeira passada", () => {
+  const falha = diagnosisReviewFailure(new Error("rag_insufficient_evidence"));
+
+  it("so o aviso muda: nada da primeira passada e trocado ou apagado", () => {
+    assert.deepEqual(Object.keys(falha), ["aiStatus"]);
+  });
+
+  it("o aviso diz o motivo, que a fonte era o RAG e que a primeira passada ficou", () => {
+    assert.match(falha.aiStatus, /rag_insufficient_evidence/);
+    assert.match(falha.aiStatus, /RAG/);
+    assert.match(falha.aiStatus, /primeira passada foi mantida/);
+  });
+
+  it("aplicado sobre o rascunho, analise, hipoteses, criterios e marcacao continuam", () => {
+    const rascunho = {
+      analisePsicopatologica: "Humor: deprimido (parou de sair)",
+      diagnosticoAiNosologico: "Transtorno depressivo maior",
+      diagnosticoAiCriterios: "x ::: y ::: preenchido ::: z",
+      diagnosticoAiFaixas: "x ::: 60 ::: 80",
+      diagnosticoSelecionado: ["Transtorno depressivo maior"],
+      diagnosticoOrigem: "rag"
+    };
+    const depois = { ...rascunho, ...falha };
+    for (const chave of Object.keys(rascunho)) assert.deepEqual(depois[chave], rascunho[chave]);
+  });
+
+  it("ja a primeira geracao que falha continua caindo no catalogo local", () => {
+    const local = diagnosisSuggestionFromLocalCatalogue({ aiMode: "rag" }, new Error("fora do ar"));
+    assert.equal(local.diagnosticoOrigem, "local");
   });
 });

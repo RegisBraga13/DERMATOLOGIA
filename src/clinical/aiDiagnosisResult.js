@@ -221,6 +221,18 @@ function pairedOptions(items, segundoCampo) {
     .slice(0, 4);
 }
 
+// Refinar que falha nao mexe em nada. A segunda passada revisa a primeira, e a
+// revisao que nao veio nao e motivo para trocar a tela por outra coisa: o
+// catalogo local apagaria a analise, os criterios e as faixas, e poria no lugar
+// hipoteses de casamento de termo -- para quem acabou de assinalar a hipotese
+// que queria refinar. So o aviso entra. O Refinar sempre pede RAG, por isso a
+// fonte que nomeia e essa, e nao o seletor da primeira passada.
+export function diagnosisReviewFailure(error = {}) {
+  return {
+    aiStatus: `Refinamento indisponível (RAG: ${error.message}). A primeira passada foi mantida como estava.`
+  };
+}
+
 // O catalogo local so entra quando nao ha resposta nenhuma, e e dito com todas
 // as letras que veio dele. Antes ele se misturava as hipoteses da IA sem que a
 // tela distinguisse uma coisa da outra.
