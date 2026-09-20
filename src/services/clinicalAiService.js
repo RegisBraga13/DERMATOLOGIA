@@ -1,7 +1,7 @@
 import { diagnosticAggravatingOptionLines, diagnosticComorbidityOptionLines, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSpecifierOptionLines, diagnosticSyndromicOptionLines, formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharmacologicalOption, normalizeDiagnosticOptions, parseTreatmentResponse, selectedAggravatingValues, selectedComorbidityValues, selectedDiagnosisValues, selectedSpecifierValues, treatmentOptionLines } from "../clinical/diagnosis.js";
 import { careLevelOptions as CARE_LEVELS } from "../data/careLevels.js";
 import { gestationalAgeText, lifeStagePromptText } from "../clinical/lifeStage.js";
-import { anamnesisText, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, patientIdentificationText, professionalSelectedTreatmentItems, refinementAnswersText, requestedExamsText, returnStoryText, treatmentDiagnosisText } from "../clinical/narrative.js";
+import { anamnesisText, buildEvolutionNarrative, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, patientIdentificationText, professionalSelectedTreatmentItems, refinementAnswersText, requestedExamsText, returnStoryText, treatmentDiagnosisText } from "../clinical/narrative.js";
 import { arrayValue, cleanClinicalLine, compactText, formatClinicalList, joinValues, mentalExamKeys, normalizeText, stripFinalPeriod } from "../clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, MENTAL_EXAM_AI_FIELDS, MENTAL_EXAM_NORMAL } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js";
@@ -337,6 +337,10 @@ function validateClinicalAiPayload(kind, result, text = "") {
         .filter(item => ["criterion", "status", "evidence"].every(key => typeof item?.[key] === "string" && item[key].trim())
           && CRITERION_STATUS.includes(item.status.trim()))
         .slice(0, 10);
+      // Faixa invalida some, e nao derruba a hipotese. Mesma regra do servidor.
+      const { support_min: baixo, support_max: alto } = option;
+      const faixaValida = [baixo, alto].every(Number.isInteger) && baixo >= 0 && baixo <= alto && alto <= 100;
+      if (!faixaValida) { option.support_min = null; option.support_max = null; }
     });
   }
   if (kind === "treatment") {
@@ -660,6 +664,10 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "Nao gere diagnostico nem tratamento."
     ],
     diagnosis: [
+      // Dele, 20/09/2026: depois da anamnese, do exame psiquico e do refinamento
+      // o programa monta a primeira historia clinica, e ela volta ao raciocinio
+      // para robustecer as hipoteses. "Isso aqui e ouro."
+      "A SINTESE DO CASO e a primeira historia clinica, montada so com anamnese, exame psiquico e exame fisico: ela mostra o caso inteiro e a cronologia, e serve para robustecer as hipoteses. Ela nao substitui o registro: a EVIDENCIA continua sendo o fato bruto do registro, nunca o termo tecnico nem a frase da sintese.",
       "A IDADE DE INICIO E CRITERIO, e nao contexto. Pese cada hipotese contra a faixa etaria: transtornos do neurodesenvolvimento comecam na infancia e nao surgem na vida adulta; esquizofrenia e transtorno bipolar tem inicio tipico da adolescencia ao adulto jovem; PRIMEIRO episodio de psicose, mania ou depressao grave no idoso e, ate prova em contrario, secundario a condicao medica, a medicamento ou a substancia — e a hipotese etiologica passa a ser obrigatoria.",
       "Hipotese incompativel com a idade so entra se o registro trouxer o que a sustente, e o motivo tem de aparecer na justificativa. Nao proponha transtorno de personalidade a partir de crise recente em adolescente ou adulto jovem: exige padrao ja estavel.",
       "Em mulher em idade fertil, considere no diferencial e nos especificadores o que depende do eixo reprodutivo: transtorno disforico pre-menstrual, inicio no periparto, e quadro do climaterio.",
@@ -685,6 +693,11 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       // esquema aceitava. Com criterio, o livro passa a ter onde falar -- e a
       // fundamentacao, que e o que sustenta laudo e pericia, chega a tela.
       "Para CADA hipotese nosologica preencha 'criteria': os criterios diagnosticos daquela entidade, conferidos um a um contra ESTE paciente. E o que separa nomear de fundamentar, e e o que sustenta laudo, atestado e pericia.",
+      // Decidido por ele em 20/09/2026, com quatro condicoes: faixa e nunca
+      // valor exato; rotulada como estimativa nao calibrada; so na tela; sem
+      // obrigar a soma a dar 100.
+      "Para CADA hipotese nosologica preencha 'support_min' e 'support_max', inteiros de 0 a 100: a FAIXA, em pontos percentuais, do quanto o REGISTRO ATUAL sustenta aquela hipotese como explicacao do quadro. Nao e probabilidade calibrada nem prevalencia — voce nao conhece a populacao do consultorio —, e sim a leitura de quanto do que esta registrado a sustenta.",
+      "A faixa tem de 10 a 25 pontos de largura, com extremos multiplos de 5 ('55 a 70', nunca '63'). Faixa mais larga quanto mais criterio decisivo estiver 'nao avaliavel': o que falta perguntar alarga a faixa. Hipotese com criterio decisivo 'nao preenchido' fica abaixo de 30. As faixas NAO precisam somar 100 e podem se sobrepor: as hipoteses nao sao exclusivas, e comorbidade e regra. Nao ordene nem arredonde as faixas para parecerem coerentes entre si.",
       "Em 'criterion' escreva o criterio como o manual o enuncia, com a letra ou o numero quando houver e o limiar quando houver — 'Criterio A: humor anormalmente elevado, expansivo ou irritavel, por pelo menos 1 semana'. Nao parafraseie ate virar sintoma solto: o que se confere e a regra.",
       "Em 'status' use exatamente 'preenchido', 'nao preenchido' ou 'nao avaliavel'. 'nao avaliavel' quando o registro nao permite decidir — e resposta legitima e util, porque diz o que perguntar; assumir preenchido o que nao foi registrado e o erro grave desta etapa.",
       "Em 'evidence' va ao FATO deste paciente que preenche o criterio, com as palavras do registro — 'dorme cerca de duas horas por noite ha tres semanas e acorda com energia de sobra'. Quando o status for 'nao avaliavel', escreva o que falta perguntar. Nunca repita o enunciado do criterio como se fosse evidencia.",
@@ -751,6 +764,7 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "Comorbidade e agravante sem apoio no registro nao entram. Lista vazia e resposta legitima nos dois grupos.",
     ],
     treatment: [
+      "A SINTESE DO CASO e a primeira historia clinica, montada so com anamnese, exame psiquico e exame fisico, e a ANALISE PSICOPATOLOGICA traz os achados que sustentam as hipoteses. Use as duas para ver o caso inteiro e propor o tratamento dos sintomas que o paciente de fato tem, e nao so o do rotulo diagnostico.",
       "A faixa etaria muda a prescricao antes da dose. No idoso, comece com metade da dose do adulto, suba mais devagar, e evite benzodiazepinico e anticolinergico pelo risco de queda e de piora cognitiva. Em crianca e adolescente, so farmaco com indicacao para a idade, e antidepressivo com vigilancia de ativacao e de ideacao suicida nas primeiras semanas.",
       "Gestacao e amamentacao mudam a ESCOLHA do farmaco, e nao apenas a dose. Havendo gestacao, puerperio ou amamentacao no registro, a opcao proposta tem de ser compativel com isso, e a justificativa tem de dizer por que. Sendo mulher em idade fertil sem esse dado registrado, sinalize a necessidade de confirmar antes de prescrever teratogeno conhecido.",
       // Primeira instrucao da etapa, e nao a ultima: onde tratar decide-se antes
@@ -929,9 +943,25 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
           ? `Medicamento pesquisado: ${form.medicationGeneric || "nao informado"}.\n${clinicalPromptData(form, patient, previous, isReturn)}`
           : clinicalPromptData(form, patient, previous, isReturn),
     "",
+    ...caseSynthesisLines(kind, form, patient, isReturn),
     "FORMATO DA RESPOSTA:",
     promptResponseFormat(kind)
   ].join("\n");
+}
+
+// A sintese do caso volta ao Diagnostico e ao Tratamento: a primeira historia
+// clinica, sem hipotese nem conduta, e no Tratamento tambem a analise
+// psicopatologica, que ja passou pelo medico ao assinalar as hipoteses. No
+// retorno nao ha esta etapa: o caso ja tem sintese, que e a consulta anterior.
+function caseSynthesisLines(kind, form = {}, patient = {}, isReturn = false) {
+  const base = REVIEW_OF_KIND[kind] || kind;
+  if (isReturn || !["diagnosis", "treatment"].includes(base)) return [];
+  const linhas = [];
+  const sintese = buildEvolutionNarrative(form, patient, null, false, { preliminar: true });
+  if (sintese) linhas.push("SINTESE DO CASO (primeira historia clinica, sem hipoteses nem tratamento):", sintese, "");
+  const analise = String(form.analisePsicopatologica || "").trim();
+  if (base === "treatment" && analise) linhas.push("ANALISE PSICOPATOLOGICA (achado e, entre parenteses, a evidencia do registro):", analise, "");
+  return linhas;
 }
 
 function clinicalEvolutionPromptData(form = {}, patient = {}, previous = null, isReturn = false) {

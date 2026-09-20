@@ -10,7 +10,7 @@ import { describe, it } from "node:test";
 
 import { doctorDiagnosisOptions } from "../../src/clinical/vocabulary.js";
 import { normalizeText } from "../../src/clinical/textFormat.js";
-import { diagnosticCriteriaByOption } from "../../src/views/decisions.js";
+import { diagnosticCriteriaByOption, diagnosticRangeByOption } from "../../src/views/decisions.js";
 import {
   countLabel,
   diagnosisSuggestionFromAi,
@@ -363,5 +363,31 @@ describe("criterios da hipotese nosologica", () => {
     const s = diagnosisSuggestionFromAi({ result: { nosological_options: [{ ...hipotese, criteria: [] }] } });
     assert.equal(s.diagnosticoAiCriterios, "");
     assert.equal(diagnosticCriteriaByOption(s).size, 0);
+  });
+});
+
+describe("faixa de sustentacao das hipoteses (20/09/2026)", () => {
+  const nosologica = (name, extra = {}) => ({ name, cid11: "6A70", dsm5tr: "F32.1", criteria: [], ...extra });
+
+  it("vira linha propria por hipotese, fora do texto que vai para documento", () => {
+    const r = diagnosisSuggestionFromAi({ result: { nosological_options: [nosologica("Transtorno depressivo maior", { support_min: 60, support_max: 75 })] } });
+    assert.doesNotMatch(r.diagnosticoAiNosologico, /60|75|%/);
+    assert.equal(diagnosticRangeByOption(r).get(normalizeText(linhas(r.diagnosticoAiNosologico)[0])).max, 75);
+  });
+
+  it("faixa invalida some e a hipotese continua", () => {
+    for (const ruim of [{ support_min: 80, support_max: 60 }, { support_min: -1, support_max: 20 }, { support_min: 10, support_max: 120 }, { support_min: 55.5, support_max: 70 }, {}]) {
+      const r = diagnosisSuggestionFromAi({ result: { nosological_options: [nosologica("Transtorno depressivo maior", ruim)] } });
+      assert.equal(linhas(r.diagnosticoAiNosologico).length, 1);
+      assert.equal(r.diagnosticoAiFaixas, "");
+    }
+  });
+
+  it("nao obriga a soma a dar 100 nem ordena as faixas", () => {
+    const r = diagnosisSuggestionFromAi({ result: { nosological_options: [
+      nosologica("Transtorno depressivo maior", { support_min: 60, support_max: 80 }),
+      nosologica("Transtorno de ansiedade generalizada", { support_min: 50, support_max: 70 })
+    ] } });
+    assert.equal(linhas(r.diagnosticoAiFaixas).length, 2);
   });
 });

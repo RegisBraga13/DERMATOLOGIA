@@ -1,5 +1,6 @@
 import { DRUG_ALIASES, DRUG_NAMES } from "../data/drugNames.js";
 import { selectedDiagnosisText } from "./diagnosis.js";
+import { pendingRefinementItems } from "./returnCarryover.js";
 import { formatDiagnosisForDocument } from "./documents.js";
 import { arrayValue, lowerFirst, normalizeText } from "./textFormat.js";
 
@@ -186,10 +187,29 @@ export function medicationEventsText(item) {
 const CAMPOS_DO_CASO = [
   "diagnosticoSelecionado", "diagnosticoMedicoOutro", "diagnosticoAiSindromico", "diagnosticoAiNosologico",
   "diagnosticoAiEtiologico", "diagnosticoAiOpcoes", "diagnosticoAiOutrasOpcoes", "especificadorSelecionado",
-  "comorbidadeSelecionada", "agravanteSelecionado", "sintomasAlvoSelecionados", "sintomasResiduais"
+  "comorbidadeSelecionada", "agravanteSelecionado", "sintomasAlvoSelecionados", "sintomasResiduais",
+  "analisePsicopatologica", "analisePsicopatologicaAchados"
 ];
 
+// O refinamento tambem e do caso, e nao do retorno: as pendencias dele vem da
+// consulta que abriu o caso.
+const CAMPOS_DO_REFINAMENTO = /^refinement(Plan|Question_|RedFlag_|Observation_|Important_|DoctorNotes)/;
+
 const RESOLVIDO = new Set(["confirmado", "descartado"]);
+
+// Pendencia do refinamento que um retorno ja confirmou ou descartou tambem nao
+// volta a ser pergunta. Mesma regra dos criterios.
+function pendenciasDoRefinamentoAindaAbertas(raiz, retornos) {
+  const resolvidos = new Set();
+  retornos.forEach(entry => {
+    for (let indice = 0; indice < 12; indice += 1) {
+      const rotulo = String(entry[`retornoPendencia_${indice}Rotulo`] || "").trim();
+      const valor = normalizeText(arrayValue(entry[`retornoPendencia_${indice}`])[0] || "");
+      if (rotulo && RESOLVIDO.has(valor)) resolvidos.add(rotulo);
+    }
+  });
+  return pendingRefinementItems(raiz).filter(item => !resolvidos.has(item));
+}
 
 // Criterio que um retorno ja confirmou ou descartou nao volta a ser pergunta.
 function criteriosAindaPendentes(raiz, retornos) {
@@ -217,12 +237,16 @@ export function caseViewForReturn(previous, entries = []) {
   const cadeia = caseChain(previous, entries);
   const raiz = cadeia[0]?.type === "return" ? {} : cadeia[0];
   const retornos = cadeia.filter(item => item.type === "return");
-  const doCaso = Object.fromEntries(CAMPOS_DO_CASO.filter(campo => raiz[campo] !== undefined).map(campo => [campo, raiz[campo]]));
+  const doCaso = Object.fromEntries([
+    ...CAMPOS_DO_CASO,
+    ...Object.keys(raiz).filter(campo => CAMPOS_DO_REFINAMENTO.test(campo))
+  ].filter(campo => raiz[campo] !== undefined).map(campo => [campo, raiz[campo]]));
   const emUso = medicationHistory(cadeia).filter(item => item.situacao === "em uso").map(item => item.atual || item.nome);
   return {
     ...previous,
     ...doCaso,
     diagnosticoAiCriterios: criteriosAindaPendentes(raiz, retornos),
+    pendenciasRefino: pendenciasDoRefinamentoAindaAbertas(raiz, retornos),
     tratamentoMedicamentosSelecionados: emUso,
     casoRaizId: raiz.id || ""
   };

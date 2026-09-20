@@ -453,6 +453,13 @@ SCHEMAS = {
                         "name": {"type": "string"},
                         "cid11": {"type": "string"},
                         "dsm5tr": {"type": "string"},
+                        # Faixa de sustentacao, decidida por ele em 20/09/2026:
+                        # so faixa (nunca valor exato), so na tela, e sem
+                        # obrigar a soma a dar 100 -- as hipoteses nao sao
+                        # exclusivas. E o quanto o REGISTRO sustenta a
+                        # hipotese, nao probabilidade calibrada.
+                        "support_min": {"type": "integer"},
+                        "support_max": {"type": "integer"},
                         "criteria": {
                             "type": "array",
                             "minItems": 0,
@@ -481,7 +488,7 @@ SCHEMAS = {
                             },
                         },
                     },
-                    "required": ["name", "cid11", "dsm5tr", "criteria"],
+                    "required": ["name", "cid11", "dsm5tr", "support_min", "support_max", "criteria"],
                 },
             },
             "etiological_options": {
@@ -1369,6 +1376,13 @@ def validate_result(kind, result):
                         logger.warning("nosological_options: %d criterio(s) incompleto(s) descartado(s)",
                                        len(criterios) - len(inteiros))
                     option["criteria"] = inteiros
+                    # Faixa invalida some, e nao derruba a hipotese: sem faixa
+                    # a tela mostra a hipotese como sempre mostrou.
+                    baixo, alto = option.get("support_min"), option.get("support_max")
+                    valida = (all(isinstance(v, int) and not isinstance(v, bool) for v in (baixo, alto))
+                              and 0 <= baixo <= alto <= 100)
+                    if not valida:
+                        option["support_min"] = option["support_max"] = None
         # Mesmo criterio dos grupos acima: teto, nao piso; entrada sem nome e
         # descartada em vez de derrubar a resposta. "applies_to" vazio nao
         # descarta — o especificador ainda serve ao medico, que sabe a qual

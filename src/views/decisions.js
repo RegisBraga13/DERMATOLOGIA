@@ -46,7 +46,7 @@ export function diagnosisModule(form) {
     <textarea hidden name="diagnosticoAiComorbidades">${escapeHtml(comorbidityOptions.join("\n"))}</textarea>
     <textarea hidden name="diagnosticoAiAgravantes">${escapeHtml(aggravatingOptions.join("\n"))}</textarea>
     ${diagnosisCategory("Sindrômico", syndromicOptions, selectedValues)}
-    ${diagnosisCategory("Nosológico", nosologicalOptions, selectedValues, false, diagnosticCriteriaByOption(form))}
+    ${diagnosisCategory("Nosológico", nosologicalOptions, selectedValues, false, diagnosticCriteriaByOption(form), diagnosticRangeByOption(form))}
     ${checklistGroup({
       label: "Especificadores", campo: "especificadorSelecionado",
       options: specifierOptions, selecionados: selectedSpecifiers,
@@ -98,13 +98,14 @@ export function firstPassView(anterior, grupos = []) {
 // etiologico por ultimo, a raiz, que pede acompanhamento longitudinal.
 // Invertido em 31/08/2026 por decisao do medico. E o core do programa -- nao
 // reordenar sem decisao medica.
-function diagnosisCategory(label, options, selectedValues, compacto = false, criterios = new Map()) {
+function diagnosisCategory(label, options, selectedValues, compacto = false, criterios = new Map(), faixas = new Map()) {
   const total = options.length
     ? `${options.length} ${options.length === 1 ? "hipótese" : "hipóteses"}`
     : "sem hipóteses";
   return `<div class="diagnosis-group${compacto ? " diagnosis-group-compact" : ""}"><h4>${label} — ${total}</h4>
       <div class="diagnosis-options">
-        ${options.length ? diagnosisOptionCheckboxes(options, selectedValues, criterios) : `<p class="diagnosis-empty">O registro atual não sustenta hipótese nesta categoria. Veja <strong>Hipóteses do médico</strong>.</p>`}
+        ${faixas.size ? `<p class="diagnosis-range-note">As faixas não precisam somar 100% e não entram nos documentos.</p>` : ""}
+        ${options.length ? diagnosisOptionCheckboxes(options, selectedValues, criterios, faixas) : `<p class="diagnosis-empty">O registro atual não sustenta hipótese nesta categoria. Veja <strong>Hipóteses do médico</strong>.</p>`}
       </div>
     </div>`;
 }
@@ -162,7 +163,7 @@ function checklistGroup({ label, campo, options, selecionados, vazio, compacto =
   </div>`;
 }
 
-function diagnosisOptionCheckboxes(options, selectedValues, criterios = new Map()) {
+function diagnosisOptionCheckboxes(options, selectedValues, criterios = new Map(), faixas = new Map()) {
   // Comparacao sem acento: os nomes do catalogo foram acentuados, e um
   // prontuario salvo antes disso guarda "Sindrome Ansiosa". Comparando literal,
   // a marcacao do medico sumia da tela sem sumir do registro.
@@ -172,14 +173,34 @@ function diagnosisOptionCheckboxes(options, selectedValues, criterios = new Map(
     // marcaria a caixa de selecao, e ele assinalaria a hipotese so por querer
     // conferir por que ela foi proposta.
     const lista = criterionList(criterios.get(normalizeText(option)) || []);
+    // A faixa fica FORA do <label> pelo mesmo motivo dos criterios, e fora do
+    // texto da hipotese: o que vai para laudo e atestado e o nome, nunca ela.
+    const faixa = faixas.get(normalizeText(option));
+    const selo = faixa
+      ? `<span class="diagnosis-range" title="Estimativa da IA, não calibrada: quanto o registro atual sustenta esta hipótese. Não é probabilidade.">~${faixa.min}–${faixa.max}% <small>estimativa da IA, não calibrada</small></span>`
+      : "";
     return `<div class="diagnosis-option-block">
       <label class="diagnosis-option">
         <input type="checkbox" name="diagnosticoSelecionado" value="${escapeAttr(option)}" ${marcados.has(normalizeText(option)) ? "checked" : ""} />
         <span>${escapeHtml(option)}</span>
       </label>
+      ${selo}
       ${lista}
     </div>`;
   }).join("");
+}
+
+// Faixa de sustentacao por hipotese, so para a tela. Linha malformada some, e
+// a hipotese aparece como sempre apareceu: sem faixa nao ha o que inventar.
+export function diagnosticRangeByOption(form = {}) {
+  const mapa = new Map();
+  String(form.diagnosticoAiFaixas || "").split("\n").forEach(linha => {
+    const [hipotese, baixo, alto, ...resto] = linha.split(CRITERION_SEPARATOR).map(parte => parte.trim());
+    const min = Number(baixo), max = Number(alto);
+    if (!hipotese || resto.length || !/^\d+$/.test(baixo) || !/^\d+$/.test(alto) || !Number.isInteger(min) || !Number.isInteger(max) || min < 0 || min > max || max > 100) return;
+    mapa.set(normalizeText(hipotese), { min, max });
+  });
+  return mapa;
 }
 
 // As linhas de criterio chegam como texto, uma por linha, chaveadas pela mesma

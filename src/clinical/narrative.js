@@ -3,6 +3,7 @@ import { selectedAggravatingValues, selectedComorbidityValues, selectedDiagnosis
 import { arrayValue, calculateAge, capitalizeFirst, cleanClinicalLine, clinicalPhrase, formatClinicalList, formatPlainList, joinValues, lowerFirst, mentalExamKeys, normalizedSingleChoiceValue, normalizeText, professionalClinicalTerms, professionalList, professionalListWithOther, stripFinalPeriod } from "./textFormat.js";
 import { EVOLUTION_REFRESH_PATTERNS, laboratoryExamRequestItems, MENTAL_EXAM_DOMAIN_NAMES, MENTAL_EXAM_NORMAL_OPTIONS, RETURN_BOILERPLATE_PHRASES } from "./vocabulary.js";
 import { scalesNarrativeText } from "./scoring.js";
+import { stemsOf, termAlreadyWritten } from "./termMatch.js";
 import { documentsNarrativeText } from "./documents.js";
 
 // Especificador assinalado viaja colado a hipotese, porque e ele que muda a
@@ -38,13 +39,18 @@ export function treatmentDiagnosisText(form = {}) {
   ].filter(Boolean).join("\n");
 }
 
-export function buildEvolutionNarrative(form, patient = {}, previous = null, isReturn = false) {
+// `preliminar`: a primeira historia clinica, montada so com o que vem ANTES das
+// decisoes -- anamnese, exame psiquico e exame fisico. Escala nao entra: e
+// ferramenta a parte, e nao compoe o fluxo (dele, 20/09/2026). E a que volta ao
+// raciocinio do Diagnostico e do Tratamento como sintese do caso; sem hipotese,
+// tratamento nem documento, para a IA nao ler de volta a propria proposta.
+export function buildEvolutionNarrative(form, patient = {}, previous = null, isReturn = false, { preliminar = false } = {}) {
   const complaint = stripFinalPeriod(conciseComplaintText(form, isReturn));
   const history = stripFinalPeriod(conciseHdaText(form, previous, isReturn));
   const structuredAnamnesis = isReturn ? "" : professionalStructuredAnamnesisText(form);
   const antecedents = evolutionAntecedentsText(form);
-  const diagnosis = selectedDiagnosisText(form) || form.diagnosticoSelecionadoResumo || form.diagnosticoManual || "";
-  const treatment = professionalTreatmentText(form, isReturn);
+  const diagnosis = preliminar ? "" : (selectedDiagnosisText(form) || form.diagnosticoSelecionadoResumo || form.diagnosticoManual || "");
+  const treatment = preliminar ? "" : professionalTreatmentText(form, isReturn);
 
   // Abertura no modelo que ele escreveu: "Regis Braga, 42 anos, solteiro,
   // agricultor, relata que ha 03 meses...". A identificacao e a historia sao
@@ -77,20 +83,18 @@ export function buildEvolutionNarrative(form, patient = {}, previous = null, isR
       workStatus ? `${workStatus}.` : ""
     ].filter(Boolean).join(" ");
 
+  const escritoAntes = [opening, teleconsultationText(form), structuredAnamnesis, antecedents, isReturn ? "" : refinementNarrativeText(form), mentalExamParagraph(form)];
   return normalizeEvolutionNarrative([
-    opening,
-    teleconsultationText(form),
-    structuredAnamnesis,
-    antecedents,
-    mentalExamParagraph(form),
+    ...escritoAntes,
+    isReturn ? "" : psychopathologicalFindingsParagraph(form, escritoAntes.join(" "), diagnosis),
     // Depois do exame e antes da hipotese: e onde a escala entra no raciocinio.
     // No retorno, com o valor do atendimento anterior ao lado.
-    scalesNarrativeText(form, isReturn ? previous : null),
+    preliminar ? "" : scalesNarrativeText(form, isReturn ? previous : null),
     diagnosis ? `Consideram-se as hipóteses diagnósticas assinaladas de ${stripFinalPeriod(diagnosis)}.` : "",
     treatment,
     // O que saiu do consultorio com o paciente: atestado, relatorio,
     // encaminhamento. O texto de cada um fica em documentosEmitidos.
-    documentsNarrativeText(form)
+    preliminar ? "" : documentsNarrativeText(form)
   ].filter(Boolean).join("\n\n"));
 }
 
@@ -150,6 +154,30 @@ function mentalExamParagraph(form = {}) {
     partes.push(`${alterados.length ? "Sem alterações" : "Exame psíquico sem alterações"} em ${formatPlainList(semAlteracao)}.`);
   }
   return partes.join(" ");
+}
+
+// Os achados da analise psicopatologica, em prosa, logo depois do exame
+// psiquico e antes das hipoteses: e a ordem em que a historia clinica se conta.
+// Sem o dominio ("Pensamento (conteudo):") -- decisao dele, 20/09/2026: entram
+// como o achado descritivo, "delirio de perseguicao, afrouxamento de nexos".
+//
+// So depois de ele assinalar hipotese: a analise e proposta da IA, e o que ele
+// nao confirmou nao entra no prontuario. E so o que o texto ainda NAO disse:
+// medido no caso Ismael, quase toda a analise repetia o exame psiquico e a
+// anamnese, e a frase saia como uma lista longa do que ja estava escrito acima.
+// O que ficou de fora continua na tela do Diagnostico, com a evidencia.
+export function psychopathologicalFindingsParagraph(form = {}, writtenText = "", confirmedDiagnosis = "") {
+  if (!String(confirmedDiagnosis || "").trim()) return "";
+  const writtenStems = new Set(stemsOf(writtenText));
+  const seen = new Set();
+  const novos = String(form.analisePsicopatologicaAchados || "").split("\n")
+    .flatMap(linha => linha.split(","))
+    .map(termo => stripFinalPeriod(termo.trim()))
+    .filter(Boolean)
+    .filter(termo => !termAlreadyWritten(termo, writtenStems))
+    .filter(termo => { const chave = normalizeText(termo); if (seen.has(chave)) return false; seen.add(chave); return true; });
+  if (!novos.length) return "";
+  return `À análise psicopatológica, destacam-se ${formatPlainList(novos.map(termo => lowerFirst(professionalClinicalTerms(termo))))}.`;
 }
 
 export function professionalTreatmentText(form = {}, isReturn = false) {
@@ -486,7 +514,11 @@ function previousCaseSentences(form) {
     frase(previousCaseAnswers(form, "retornoFarmaco"),
       texto => `Sobre os medicamentos prescritos: ${texto}.`),
     frase(previousCaseAnswers(form, "retornoAlvo"),
-      texto => `Quanto aos sintomas-alvo: ${texto}.`)
+      texto => `Quanto aos sintomas-alvo: ${texto}.`),
+    frase(previousCaseAnswers(form, "retornoAchado"),
+      texto => `Quanto aos achados psicopatológicos da consulta anterior: ${texto}.`),
+    frase(previousCaseAnswers(form, "retornoPendencia"),
+      texto => `Dos pontos que haviam ficado sem esclarecimento no refinamento: ${texto}.`)
   ];
 }
 
@@ -558,6 +590,37 @@ export function anamnesisText(form = {}) {
 // original. Aqui a resposta volta ao prontuario que o diagnostico e o
 // tratamento leem. Pergunta sem resposta nao entra: campo vazio e dado nao
 // informado, nunca negacao.
+// O refinamento na historia clinica, desde 20/09/2026. Antes as respostas iam so
+// ao Resumo e ao prompt do Diagnostico: a historia nao as via, e a sintese que
+// volta ao Diagnostico tambem nao. Entram como o registro do que foi
+// esclarecido -- pergunta e resposta, sem reescrever a pergunta em terceira
+// pessoa, que mudaria o sentido --, e SO o que foi respondido: "nao esclarecido",
+// "nao avaliada" e observacao "pertinente" nao sao achado, sao pendencia, e
+// seguem para o retorno.
+const REFINEMENT_PENDING = new Set(["nao esclarecido", "nao avaliada", "nao avaliado"]);
+
+export function refinementNarrativeText(form = {}) {
+  const plan = form.refinementPlan || {};
+  const partes = [];
+  (plan.questions || []).forEach((item, index) => {
+    const respostas = arrayValue(form[`refinementQuestion_${index}`]).filter(Boolean)
+      .filter(resposta => !REFINEMENT_PENDING.has(normalizeText(resposta)));
+    if (!respostas.length) return;
+    const pergunta = stripFinalPeriod(cleanClinicalLine(item.prompt || "")).replace(/\?$/, "");
+    partes.push(`${item.topic ? `${item.topic} (${lowerFirst(pergunta)}?)` : `${pergunta}?`}: ${lowerFirst(formatPlainList(respostas))}`);
+  });
+  [["red_flags", "refinementRedFlag", "Red flag"], ["important_points", "refinementImportant", "Ponto importante"]].forEach(([key, prefix, rotulo]) => {
+    (plan[key] || []).forEach((item, index) => {
+      const decisao = arrayValue(form[`${prefix}_${index}`])[0] || (typeof form[`${prefix}_${index}`] === "string" ? form[`${prefix}_${index}`] : "");
+      if (!decisao || REFINEMENT_PENDING.has(normalizeText(decisao))) return;
+      partes.push(`${rotulo} ${lowerFirst(cleanClinicalLine(item.topic || ""))}: ${lowerFirst(decisao)}`);
+    });
+  });
+  const nota = stripFinalPeriod(cleanClinicalLine(form.refinementDoctorNotes || ""));
+  if (nota) partes.push(`observação do médico: ${lowerFirst(nota)}`);
+  return partes.length ? `Ao refinamento clínico, esclareceu-se: ${partes.join("; ")}.` : "";
+}
+
 export function refinementAnswersText(form = {}) {
   const plan = form.refinementPlan || {};
   const lines = [];

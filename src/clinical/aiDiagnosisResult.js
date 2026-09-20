@@ -66,6 +66,17 @@ export function diagnosisSuggestionFromAi({ result = {}, target = {}, sources = 
       String(criterio?.evidence || "").trim()
     ].join(CRITERION_SEPARATOR)).filter(linha => linha.split(CRITERION_SEPARATOR).every(parte => parte));
   });
+  // A faixa de sustentacao viaja como criterio: uma linha por hipotese,
+  // chaveada pela mesma linha que rotula a caixa. Campo proprio, fora do texto
+  // da hipotese, para nao chegar a laudo, atestado nem prontuario exportado:
+  // decisao dele, 20/09/2026, e ela so aparece na tela do Diagnostico.
+  const faixaLines = (result.nosological_options || []).flatMap(item => {
+    const hipotese = formatDiagnosticOption(item);
+    const { support_min: baixo, support_max: alto } = item || {};
+    if (!nosologicalOptions.includes(hipotese)) return [];
+    if (![baixo, alto].every(Number.isInteger) || baixo < 0 || baixo > alto || alto > 100) return [];
+    return [[hipotese, baixo, alto].join(CRITERION_SEPARATOR)];
+  });
   const syndromicOptions = uniqueGroup(result.syndromic_options, 3, "Sindrômico");
   const etiologicalOptions = uniqueGroup(result.etiological_options, 2, "Etiológico");
   // Comorbidade passa pelo uniqueGroup, ao contrario do especificador: ela e
@@ -85,7 +96,7 @@ export function diagnosisSuggestionFromAi({ result = {}, target = {}, sources = 
   // A evidencia entre parenteses e o que separa esta analise de um rotulo
   // colado no caso -- e o que permite ao medico conferir cada achado contra o
   // proprio registro, sem reler a consulta inteira.
-  const analysis = (result.psychopathological_analysis || [])
+  const analysisItems = (result.psychopathological_analysis || [])
     .filter(item => ["domain", "finding", "evidence"].every(key => String(item?.[key] || "").trim()))
     .map(item => {
       const evidencia = stripFinalPeriod(String(item.evidence).trim());
@@ -101,10 +112,15 @@ export function diagnosisSuggestionFromAi({ result = {}, target = {}, sources = 
           const a = normalizeText(dentro), b = normalizeText(evidencia);
           return a && b && (a.includes(b) || b.includes(a)) ? "" : tudo;
         }).trim();
-      return `${String(item.domain).trim()}: ${stripFinalPeriod(achado)} (${evidencia})`;
+      return { linha: `${String(item.domain).trim()}: ${stripFinalPeriod(achado)} (${evidencia})`, achado: stripFinalPeriod(achado) };
     })
-    .filter((linha, index, lista) => lista.indexOf(linha) === index)
+    .filter((item, index, lista) => lista.findIndex(outro => outro.linha === item.linha) === index)
     .slice(0, 8);
+  const analysis = analysisItems.map(item => item.linha);
+  // So o achado, sem o dominio nem a evidencia: e o que a Historia clinica
+  // escreve, em prosa. O dominio ("Pensamento (conteudo):") e rotulo de
+  // formulario, e a evidencia ja esta contada na propria historia.
+  const findings = analysisItems.map(item => item.achado).filter(Boolean);
   // Marcacao do medico que sobreviveu a revisao: so continua marcado o que a
   // segunda passada ainda propoe. Fora do refino nao ha o que preservar — uma
   // geracao nova troca a lista inteira.
@@ -122,9 +138,11 @@ export function diagnosisSuggestionFromAi({ result = {}, target = {}, sources = 
 
   return {
     analisePsicopatologica: analysis.join("\n"),
+    analisePsicopatologicaAchados: findings.join("\n"),
     diagnosticoAiSindromico: syndromicOptions.join("\n"),
     diagnosticoAiNosologico: nosologicalOptions.join("\n"),
     diagnosticoAiCriterios: criterionLines.join("\n"),
+    diagnosticoAiFaixas: faixaLines.join("\n"),
     diagnosticoAiEtiologico: etiologicalOptions.join("\n"),
     diagnosticoAiEspecificadores: specifierOptions.join("\n"),
     diagnosticoAiComorbidades: comorbidityOptions.join("\n"),
@@ -219,10 +237,12 @@ export function diagnosisSuggestionFromLocalCatalogue(target = {}, error = {}) {
     // antes, para nao sobrar analise de uma geracao ao lado de hipoteses de
     // outra.
     analisePsicopatologica: "",
+    analisePsicopatologicaAchados: "",
     // Pela mesma razao: o catalogo casa termo com regra, nao confere criterio
     // contra manual nenhum. Deixar os criterios da geracao anterior aqui seria
     // pior do que nao ter -- fundamentacao de uma hipotese ao lado de outra.
     diagnosticoAiCriterios: "",
+    diagnosticoAiFaixas: "",
     ragSourcesDiagnostico: [],
     diagnosticoOrigem: "local",
     treatmentStatus: `${fonte} indisponivel: ${error.message}`,

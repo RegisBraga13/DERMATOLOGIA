@@ -15,6 +15,7 @@ import {
   normalizeEvolutionNarrative,
   outdatedEvolutionText,
   patientIdentificationText,
+  psychopathologicalFindingsParagraph,
   professionalSelectedTreatmentItems,
   refinementAnswersText,
   requestedExamsText,
@@ -248,5 +249,42 @@ describe("respostas do refinamento", () => {
 
   it("refinamento sem nenhuma resposta nao produz texto", () => {
     assert.equal(refinementAnswersText(plano), "");
+  });
+});
+
+describe("achados da analise psicopatologica na historia clinica (20/09/2026)", () => {
+  const base = {
+    queixa: "Acha que o vigiam.",
+    hdaManual: "Ha um ano desconfia dos vizinhos.",
+    pensamentoConteudo: ["Delirio persecutorio"],
+    analisePsicopatologicaAchados: "Delirio persecutorio\nAfrouxamento de nexos\nAlucinacao auditiva comentando os atos"
+  };
+  const confirmado = { ...base, diagnosticoSelecionado: ["Esquizofrenia - CID-11: 6A20 - DSM-5-TR: F20.9"] };
+
+  it("entra em prosa, sem o nome do dominio", () => {
+    const texto = buildEvolutionNarrative(confirmado, MARIA);
+    assert.match(texto, /À análise psicopatológica, destacam-se .*afrouxamento de nexos/);
+    assert.doesNotMatch(texto, /Pensamento \(conteúdo\):|Sensopercepção:/);
+  });
+
+  it("nao repete o que o exame psiquico ja disse", () => {
+    const paragrafo = psychopathologicalFindingsParagraph(confirmado, "No exame psíquico, apresenta delírio persecutório.", "Esquizofrenia");
+    assert.doesNotMatch(paragrafo, /persecut/i);
+    assert.match(paragrafo, /afrouxamento de nexos/);
+  });
+
+  it("so depois de o medico assinalar hipotese", () => {
+    assert.doesNotMatch(buildEvolutionNarrative(base, MARIA), /análise psicopatológica/);
+  });
+
+  it("a historia preliminar nao leva escala: e ferramenta a parte", () => {
+    const comEscala = { ...confirmado, escalasAplicadas: ["phq9"], ...Object.fromEntries([2, 2, 2, 2, 2, 2, 2, 2, 2].map((valor, i) => [`escala_phq9_${i}`, String(valor)])) };
+    assert.match(buildEvolutionNarrative(comEscala, MARIA), /Escalas aplicadas/);
+    assert.doesNotMatch(buildEvolutionNarrative(comEscala, MARIA, null, false, { preliminar: true }), /Escalas aplicadas/);
+  });
+
+  it("a historia preliminar nao leva hipotese, tratamento nem a analise", () => {
+    const texto = buildEvolutionNarrative({ ...confirmado, tratamentoMedicamentosSelecionados: ["Risperidona 2 mg"] }, MARIA, null, false, { preliminar: true });
+    assert.doesNotMatch(texto, /Esquizofrenia|Risperidona|análise psicopatológica/);
   });
 });

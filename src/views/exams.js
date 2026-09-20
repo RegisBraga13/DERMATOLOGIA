@@ -1,5 +1,6 @@
 import { CRITERION_SEPARATOR } from "../clinical/aiDiagnosisResult.js";
 import { diagnosticEtiologicalOptionLines } from "../clinical/diagnosis.js";
+import { analysisFindingsForReturn, pendingRefinementItems } from "../clinical/returnCarryover.js";
 import { arrayValue, normalizeText } from "../clinical/textFormat.js";
 import { MENTAL_EXAM_KEYS, MENTAL_EXAM_NORMAL_OPTIONS } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js";
@@ -148,7 +149,9 @@ export function missingReturnAssessment(form = {}, previous = null) {
     ["retornoHipotese", returnHypothesisLabels(previous)],
     ["retornoCriterio", pendingCriteriaFromPrevious(previous)],
     ["retornoFarmaco", arrayValue(previous.tratamentoMedicamentosSelecionados)],
-    ["retornoAlvo", arrayValue(previous.sintomasAlvoSelecionados)]
+    ["retornoAlvo", arrayValue(previous.sintomasAlvoSelecionados)],
+    ["retornoAchado", analysisFindingsForReturn(previous)],
+    ["retornoPendencia", pendingRefinementForReturn(previous)]
   ];
   linhas.forEach(([prefixo, itens]) => itens.forEach((rotulo, index) => exige(`${prefixo}_${index}`, rotulo)));
   return faltando;
@@ -172,6 +175,8 @@ function previousCaseBlocks(form, previous) {
   // atendimento anterior e, literalmente, a lista do que perguntar hoje. Antes
   // essa duvida morria na tela do diagnostico.
   const pendentes = pendingCriteriaFromPrevious(previous);
+  const achados = analysisFindingsForReturn(previous);
+  const pendenciasRefino = pendingRefinementForReturn(previous);
   const blocos = [
     previousCaseSection("Hipóteses do atendimento anterior",
       "Como está cada hipótese que você assinalou da última vez.",
@@ -188,10 +193,25 @@ function previousCaseBlocks(form, previous) {
     previousCaseSection("Sintomas-alvo",
       "O manejo imediato que você levou para o tratamento.",
       alvos.map((item, index) => previousCaseRow("retornoAlvo", index, item,
-        EVOLUCAO_OPCOES, form)))
+        EVOLUCAO_OPCOES, form))),
+    previousCaseSection("Achados psicopatológicos",
+      "Da análise da consulta anterior, o que ainda não tem linha acima. É o seguimento do sintoma ao longo do tempo.",
+      achados.map((item, index) => previousCaseRow("retornoAchado", index, item,
+        EVOLUCAO_OPCOES, form))),
+    previousCaseSection("Ficou sem esclarecer no refinamento",
+      "Perguntas, red flags e pontos que o refinamento deixou em aberto. São o que investigar hoje.",
+      pendenciasRefino.map((item, index) => previousCaseRow("retornoPendencia", index, item,
+        ["Confirmado", "Descartado", "Ainda não avaliado"], form)))
   ].filter(Boolean);
   if (!blocos.length) return "";
   return `<div class="return-case-blocks">${blocos.join("")}</div>`;
+}
+
+// No primeiro retorno o "anterior" e a propria consulta e as pendencias saem
+// dela; nos seguintes vem ja filtradas pela cadeia (caseViewForReturn), sem as
+// que um retorno confirmou ou descartou.
+function pendingRefinementForReturn(previous = {}) {
+  return Array.isArray(previous.pendenciasRefino) ? previous.pendenciasRefino : pendingRefinementItems(previous);
 }
 
 // Le as linhas de criterio gravadas pelo diagnostico e devolve so os que

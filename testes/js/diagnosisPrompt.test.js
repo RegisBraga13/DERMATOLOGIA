@@ -81,3 +81,45 @@ describe("o diagnostico nao e contagem de criterios", () => {
     assert.doesNotMatch(geracao, /diga isso na justificativa/);
   });
 });
+
+// Dele, 20/09/2026: a primeira historia clinica volta ao raciocinio do
+// Diagnostico e do Tratamento -- "isso aqui e ouro".
+describe("a sintese do caso volta ao diagnostico e ao tratamento", () => {
+  const CABECALHO = /SINTESE DO CASO \(primeira historia clinica/;
+  const paciente = { nome: "Ismael Ferrari", nascimento: "2002-09-08", sexo: "Masculino" };
+  const registro = {
+    queixa: "Eles instalaram alguma coisa em mim.",
+    hdaManual: "Ha um ano ouve duas vozes que comentam seus atos.",
+    sensopercepcao: ["Alucinacoes auditivas"],
+    diagnosticoSelecionado: ["Esquizofrenia - CID-11: 6A20 - DSM-5-TR: F20.9"],
+    tratamentoMedicamentosSelecionados: ["Risperidona 2 mg"],
+    analisePsicopatologica: "Sensopercepcao: alucinacoes auditivas comentando os atos (ouve duas vozes)"
+  };
+
+  it("o diagnostico recebe a sintese, sem hipotese nem tratamento", () => {
+    const prompt = buildClinicalAiPrompt("diagnosis", registro, paciente);
+    assert.match(prompt, CABECALHO);
+    const sintese = prompt.split("SINTESE DO CASO (")[1].split("FORMATO DA RESPOSTA")[0];
+    assert.match(sintese, /Ismael Ferrari/);
+    assert.doesNotMatch(sintese, /Esquizofrenia|Risperidona|Consideram-se as hip/);
+  });
+
+  it("a evidencia continua sendo o fato bruto, e nao a sintese", () => {
+    assert.match(buildClinicalAiPrompt("diagnosis", registro, paciente), /EVIDENCIA continua sendo o fato bruto do registro/);
+  });
+
+  it("o tratamento recebe a sintese e a analise psicopatologica", () => {
+    const prompt = buildClinicalAiPrompt("treatment", registro, paciente);
+    assert.match(prompt, CABECALHO);
+    assert.match(prompt, /ANALISE PSICOPATOLOGICA \(achado e, entre parenteses, a evidencia/);
+  });
+
+  it("a revisao segue a mesma regra da geracao", () => {
+    assert.match(buildClinicalAiPrompt("diagnosis_review", registro, paciente), CABECALHO);
+  });
+
+  it("outras etapas e o retorno nao recebem a sintese", () => {
+    assert.doesNotMatch(buildClinicalAiPrompt("mental_exam", registro, paciente), CABECALHO);
+    assert.doesNotMatch(buildClinicalAiPrompt("diagnosis", registro, paciente, null, true), CABECALHO);
+  });
+});

@@ -2548,6 +2548,12 @@ textarea:focus-visible {
   border: 1px solid currentColor;
 }
 
+/* Faixa de sustentacao: discreta, ao lado do que ele le primeiro. Nao usa cor
+   de alerta nem de sucesso -- e estimativa, e a cor diria que e veredito. */
+.diagnosis-range { margin: 0 0 0 34px; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.diagnosis-range small { font-size: 12px; margin-left: 6px; }
+.diagnosis-range-note { margin: 0 0 6px; font-size: 13px; color: var(--muted); }
+
 /* Tres estados, tres leituras. O "nao avaliavel" e o que mais importa destacar:
    ele nao e falha da resposta, e a lista do que perguntar no retorno. */
 .criterion-preenchido .criterion-status { color: var(--primary-2); }
