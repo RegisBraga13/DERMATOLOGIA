@@ -893,3 +893,106 @@ class NormalizeNameTests(unittest.TestCase):
     def test_acento_caixa_e_pontuacao_como_antes(self):
         self.assertEqual(server.normalize_name("D-Ciclosserina"), "d ciclosserina")
         self.assertEqual(server.normalize_name("Episódio Depressivo"), "episodio depressivo")
+
+
+class _FakeOpenAI:
+    """Resposta simulada da OpenAI, no formato que o servidor le."""
+
+    def __init__(self, payload):
+        self._payload = payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def read(self):
+        return json.dumps(self._payload).encode("utf-8")
+
+
+class ClinicalAiEndpointTests(unittest.TestCase):
+    """A rota /api/clinical-ai de ponta a ponta, com a OpenAI simulada: confere
+    o que o servidor MANDA ao modelo e o que ele responde ao cliente."""
+
+    @classmethod
+    def setUpClass(cls):
+        logging.disable(logging.CRITICAL)
+        cls._original_cwd = Path.cwd()
+        import os
+        os.chdir(server.ROOT)
+        cls.httpd = server.ThreadingHTTPServer(("127.0.0.1", 0), server.PrototypeHandler)
+        cls.port = cls.httpd.server_address[1]
+        cls.thread = Thread(target=cls.httpd.serve_forever, daemon=True)
+        cls.thread.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.httpd.shutdown()
+        cls.httpd.server_close()
+        cls.thread.join(timeout=5)
+        import os
+        os.chdir(cls._original_cwd)
+        logging.disable(logging.NOTSET)
+
+    def _post(self, body, headers=None):
+        conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
+        try:
+            raw = body if isinstance(body, (bytes, str)) else json.dumps(body)
+            conn.request("POST", "/api/clinical-ai", body=raw, headers={"Content-Type": "application/json", **(headers or {})})
+            response = conn.getresponse()
+            return response.status, json.loads(response.read().decode("utf-8") or "{}")
+        finally:
+            conn.close()
+
+    def _answer(self, body, *, search_text=None, model_output=None):
+        """Faz o pedido com a OpenAI simulada. Devolve (status, corpo, chamadas)
+        -- as chamadas sao os corpos que o servidor enviou a OpenAI."""
+        import os
+        chamadas = []
+
+        def falso(request, timeout=None):
+            enviado = json.loads(request.data.decode("utf-8"))
+            chamadas.append(enviado)
+            if "tools" in enviado:  # a etapa de busca na web
+                return _FakeOpenAI({"output_text": search_text or ""})
+            return _FakeOpenAI({"output_text": json.dumps(model_output or {"markdown": "Texto."})})
+
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "chave-de-teste"}), \
+                patch("server.urllib.request.urlopen", falso):
+            status, resposta = self._post(body)
+        return status, resposta, chamadas
+
+    @staticmethod
+    def _resposta_final(chamadas):
+        return [c for c in chamadas if "tools" not in c][-1]
+
+    def test_cloud_without_web_query_does_not_claim_a_search(self):
+        """Sem consulta de busca nao ha pesquisa. O contrato antigo dizia ao
+        modelo 'voce PESQUISA NA WEB', numa chamada sem ferramenta alguma."""
+        _, resposta, chamadas = self._answer({"kind": "evolution", "prompt": "Paciente estavel.", "mode": "current"})
+        enviado = self._resposta_final(chamadas)
+        self.assertIn("NAO houve pesquisa na web", enviado["input"][0]["content"])
+        self.assertNotIn("PESQUISA NA WEB antes de responder", enviado["input"][0]["content"])
+        self.assertNotIn("ENCONTRADO NA WEB", enviado["input"][1]["content"])
+        self.assertEqual(resposta["web_sources"], [])
+
+    def test_cloud_with_an_empty_search_does_not_claim_one_either(self):
+        """A busca voltou sem texto: o cabecalho 'ENCONTRADO NA WEB' ia vazio."""
+        _, resposta, chamadas = self._answer(
+            {"kind": "evolution", "prompt": "Paciente estavel.", "mode": "current", "webQuery": "sertralina dose"},
+            search_text="")
+        enviado = self._resposta_final(chamadas)
+        self.assertIn("NAO houve pesquisa na web", enviado["input"][0]["content"])
+        self.assertNotIn("ENCONTRADO NA WEB", enviado["input"][1]["content"])
+        self.assertEqual(resposta["web_sources"], [])
+
+    def test_cloud_with_findings_keeps_the_web_contract_and_the_header(self):
+        _, resposta, chamadas = self._answer(
+            {"kind": "evolution", "prompt": "Paciente estavel.", "mode": "current", "webQuery": "sertralina dose"},
+            search_text="Bula ANVISA: dose inicial 50 mg.")
+        enviado = self._resposta_final(chamadas)
+        self.assertIn("PESQUISA NA WEB antes de responder", enviado["input"][0]["content"])
+        self.assertIn("ENCONTRADO NA WEB", enviado["input"][1]["content"])
+        self.assertIn("Bula ANVISA", enviado["input"][1]["content"])
+        self.assertEqual(resposta["mode"], "current")
