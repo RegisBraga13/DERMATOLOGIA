@@ -117,6 +117,11 @@ DEFAULT_TRANSCRIPTION_MODEL = "gpt-4o-transcribe-diarize"
 # descontrolado, nao limite do modelo: gpt-4.1 tem 1M de contexto, e 31 mil
 # tokens cabem sem aperto.
 MAX_PROMPT_CHARS = 160000
+# O teto do CORPO da requisicao, conferido antes de ler: sem ele, Content-Length
+# enorme era lido inteiro e so depois batia no teto do prompt, e um valor
+# negativo fazia rfile.read(-1) esperar o cliente fechar a conexao. Quatro bytes
+# por caractere cobre o pior caso do UTF-8, mais folga para os outros campos.
+MAX_CLINICAL_BODY_BYTES = MAX_PROMPT_CHARS * 4 + 64 * 1024
 # 3000 desde 14/09/2026. Medido em 10 Diagnosticos reais: saida de 1.089 a
 # 1.790 tokens, e uma resposta com duas hipoteses e doze criterios veio cortada
 # no meio do JSON com o teto de 2200 -- na tela, "fora do formato clinico
@@ -2066,8 +2071,21 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             return
 
         try:
-            length = int(self.headers.get("Content-Length", "0"))
-            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                length = 0
+            if length <= 0:
+                self.send_json(400, {"error": "Corpo da requisicao ausente ou invalido."})
+                return
+            if length > MAX_CLINICAL_BODY_BYTES:
+                self.send_json(413, {"error": "Requisicao excede o tamanho maximo permitido."})
+                return
+            try:
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            except (ValueError, UnicodeDecodeError):
+                self.send_json(400, {"error": "Corpo da requisicao nao e um JSON valido."})
+                return
             prompt = str(payload.get("prompt") or "").strip()
             kind = str(payload.get("kind") or "").strip()
             mode = str(payload.get("mode") or "current").strip().lower()

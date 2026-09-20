@@ -1013,3 +1013,41 @@ class ClinicalAiEndpointTests(unittest.TestCase):
     def test_a_complete_result_still_carries_its_text(self):
         status, resposta, _ = self._answer({"kind": "evolution", "prompt": "Paciente.", "mode": "current"})
         self.assertEqual((status, resposta["text"]), (200, "Texto."))
+
+    def _post_com_content_length(self, valor, corpo=b""):
+        """Content-Length dito a mao, para mentir sobre o tamanho do corpo."""
+        import os
+        conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
+        try:
+            with patch.dict(os.environ, {"OPENAI_API_KEY": "chave-de-teste"}):
+                conn.putrequest("POST", "/api/clinical-ai")
+                conn.putheader("Content-Type", "application/json")
+                conn.putheader("Content-Length", valor)
+                conn.endheaders()
+                if corpo:
+                    conn.send(corpo)
+                resposta = conn.getresponse()
+                return resposta.status
+        finally:
+            conn.close()
+
+    def test_negative_content_length_is_refused_instead_of_blocking(self):
+        self.assertEqual(self._post_com_content_length("-1"), 400)
+
+    def test_non_numeric_content_length_is_refused(self):
+        self.assertEqual(self._post_com_content_length("abc"), 400)
+
+    def test_oversized_body_is_refused_before_being_read(self):
+        """Nao manda o corpo: se o servidor tentasse le-lo, esperaria ate o
+        timeout. A recusa tem de vir so pelo cabecalho."""
+        self.assertEqual(self._post_com_content_length(str(server.MAX_CLINICAL_BODY_BYTES + 1)), 413)
+
+    def test_the_body_ceiling_covers_the_largest_prompt(self):
+        pior_caso = json.dumps({"prompt": "\u00e7" * server.MAX_PROMPT_CHARS}, ensure_ascii=False).encode("utf-8")
+        self.assertLess(len(pior_caso), server.MAX_CLINICAL_BODY_BYTES)
+
+    def test_malformed_json_is_a_400_not_a_500(self):
+        import os
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "chave-de-teste"}):
+            status, _ = self._post("isto nao e json")
+        self.assertEqual(status, 400)
