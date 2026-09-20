@@ -18,3 +18,6 @@ dsm_criteria.local.json
 testes/*
 !testes/*.py
 !testes/js/
+
+# Teste do JEV: material de trabalho, fora do repositorio
+docs/teste-jev/
