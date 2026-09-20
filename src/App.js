@@ -1,3 +1,4 @@
+import { createDraftGuard } from "./clinical/draftGuard.js";
 import { countLabel, diagnosisSuggestionFromAi, diagnosisSuggestionFromLocalCatalogue } from "./clinical/aiDiagnosisResult.js";
 import { diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, formatMedicationTreatmentOption, formatNonPharmacologicalOption, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
 import { anamnesisText, buildEvolutionNarrative, evolutionNeedsRebuild, normalizeEvolutionNarrative, removeReturnBoilerplate, requestedExamsText, treatmentDiagnosisText } from "./clinical/narrative.js";
@@ -54,6 +55,9 @@ let returnUnlocked = 1;
 let pendingViewAfterPatient = "";
 let anamnesisProcessingSequence = 0;
 let clinicalDraftRevision = 0;
+// Conta as trocas de rascunho (paciente, atendimento, sessao). As chamadas de
+// IA conferem com ela na volta, para nao gravar a resposta no rascunho errado.
+const draftGuard = createDraftGuard();
 let refinementGenerating = false;
 let authSession = null;
 let authError = "";
@@ -799,6 +803,7 @@ function bindGlobalEvents() {
   });
   app.querySelectorAll("[data-action='select-patient']").forEach(select => select.addEventListener("change", event => {
     selectedPatientId = event.target.value;
+    draftGuard.replaced();
     draft.consultation = selectedPatientId ? defaultConsultation() : {};
     draft.return = selectedPatientId ? defaultReturn() : {};
     consultationPage = "anamnese";
@@ -1040,6 +1045,7 @@ function bindPatientForm() {
     draft.patient = structuredClone(data);
     persist();
     view = pendingViewAfterPatient || "consultation";
+    draftGuard.replaced();
     if (view === "consultation") draft.consultation = defaultConsultation();
     if (view === "return") draft.return = defaultReturn();
     pendingViewAfterPatient = "";
@@ -1170,7 +1176,7 @@ function bindActions() {
       if (action === "voice") voiceRecording.startVoice(element.dataset.target, element);
       if (action === "edit-current-patient") { view = "patient"; draft.patient = structuredClone(getPatient()); render(); }
       if (action === "edit-entry") editEntry(element.dataset.id, element.dataset.type);
-      if (action === "new-consultation") { draft.consultation = defaultConsultation(); consultationPage = "anamnese"; consultationUnlocked = 1; render(); }
+      if (action === "new-consultation") { draftGuard.replaced(); draft.consultation = defaultConsultation(); consultationPage = "anamnese"; consultationUnlocked = 1; render(); }
       if (action === "new-return") startNewReturn();
       if (action === "back-to-record") { view = "record"; render(); }
       if (action === "pdf-entry") pdfEntry(element.dataset.id, element.dataset.type);
@@ -1521,6 +1527,7 @@ function syncedTarget(element) {
 // inteira: nada da primeira passada sobrevive ao que a segunda nao repetir.
 async function generateDiagnosisFromClinicalData(element, kind = "diagnosis") {
   const { scope, target } = syncedTarget(element);
+  const vigente = draftGuard.capture();
   const revisao = kind === "diagnosis_review";
   // Refino so depois da escolha: o medico gera quantas vezes quiser, alternando
   // entre IA Nuvem e RAG, e assinala o que fica. O refinamento revisa o que ele
@@ -1546,6 +1553,7 @@ async function generateDiagnosisFromClinicalData(element, kind = "diagnosis") {
   } catch (error) {
     suggestion = diagnosisSuggestionFromLocalCatalogue(target, error);
   }
+  if (!vigente()) return;
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
   else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
   render();
@@ -1553,6 +1561,7 @@ async function generateDiagnosisFromClinicalData(element, kind = "diagnosis") {
 
 async function generateTreatmentFromClinicalData(element, kind = "treatment") {
   const { scope, target } = syncedTarget(element);
+  const vigente = draftGuard.capture();
   const diagnosisText = treatmentDiagnosisText(target || {});
   if (!diagnosisText) return alert("Selecione ao menos uma hipotese diagnostica antes de gerar o tratamento.");
   const revisao = kind === "treatment_review";
@@ -1609,6 +1618,7 @@ async function generateTreatmentFromClinicalData(element, kind = "treatment") {
       ? { ragSourcesTratamento: [], treatmentStatus: `RAG indisponivel: ${error.message}`, aiStatus: `RAG indisponivel: ${error.message}` }
       : { ragSourcesTratamento: [], treatmentStatus: `IA indisponivel: ${error.message}`, aiStatus: `IA indisponivel: ${error.message}` };
   }
+  if (!vigente()) return;
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
   else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
   render();
@@ -1625,7 +1635,9 @@ async function generateReturnPlanFromClinicalData(element) {
   if (faltando.length) {
     return alert(`Complete a Evolucao antes de gerar o ajuste. Falta:\n\n- ${faltando.join("\n- ")}`);
   }
+  const vigente = draftGuard.capture();
   const gravar = dados => {
+    if (!vigente()) return;
     if (scope === "return") draft.return = { ...(draft.return || {}), ...dados };
     else draft.consultation = { ...(draft.consultation || {}), ...dados };
   };
@@ -1661,6 +1673,7 @@ async function generateReturnPlanFromClinicalData(element) {
       returnPlanStatus: `${(target?.returnPlanAiMode || "rag") === "rag" ? "RAG" : "IA"} indisponivel: ${error.message}`
     });
   }
+  if (!vigente()) return;
   render();
 }
 
@@ -1716,7 +1729,9 @@ async function generateAppendixSymptomConduct(element) {
   const { scope, target } = syncedTarget(element);
   const sintoma = String(target?.appendixSymptom || "").trim();
   if (!sintoma) return alert("Escreva o sintoma que voce quer consultar antes de gerar.");
+  const vigente = draftGuard.capture();
   const gravar = dados => {
+    if (!vigente()) return;
     if (scope === "return") draft.return = { ...(draft.return || {}), ...dados };
     else draft.consultation = { ...(draft.consultation || {}), ...dados };
   };
@@ -1742,6 +1757,7 @@ async function generateAppendixSymptomConduct(element) {
   } catch (error) {
     gravar({ ragSourcesSintomatico: [], appendixSymptomStatus: `Literatura de manejo sintomatico indisponivel: ${error.message}` });
   }
+  if (!vigente()) return;
   render();
 }
 
@@ -1789,6 +1805,7 @@ function adoptAppendixConduct(conduta) {
 
 async function generateEvolutionFromClinicalData(element) {
   const { scope, target } = syncedTarget(element);
+  const vigente = draftGuard.capture();
   setClinicalAiStatus(scope, "Consultando IA real para evolução clínica...");
   render();
   let suggestion;
@@ -1824,6 +1841,7 @@ async function generateEvolutionFromClinicalData(element) {
       aiStatus: `IA indisponível: ${error.message}. Evolução local aplicada.`
     };
   }
+  if (!vigente()) return;
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
   else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
   render();
@@ -1836,6 +1854,7 @@ async function generateEvolutionFromClinicalData(element) {
 // dia em que o botao voltar.
 async function generateMedicationFromClinicalData(element) {
   const { scope, target } = syncedTarget(element);
+  const vigente = draftGuard.capture();
   if (!target?.medicationGeneric?.trim()) return alert("Digite o nome do medicamento antes de consultar a IA.");
   const aviso = "Consultando IA real para medicamento...";
   setClinicalAiStatus(scope, aviso);
@@ -1896,6 +1915,7 @@ async function generateMedicationFromClinicalData(element) {
       aiStatus: wasRag ? `RAG indisponivel: ${error.message}.` : `IA indisponível: ${error.message}.`
     };
   }
+  if (!vigente()) return;
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
   else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
   render();
@@ -2036,10 +2056,11 @@ async function processAnamnesisTranscriptSilently(transcript = "", options = {})
   if (!cleanTranscript || view !== "consultation") return;
   const sequence = ++anamnesisProcessingSequence;
   const baselineRevision = clinicalDraftRevision;
+  const vigente = draftGuard.capture();
   const context = clinicalAiContext("consultation");
   const anamnesisTarget = { ...context.target, qphda: cleanTranscript };
   const { result } = await requestClinicalAi("anamnesis", buildClinicalAiPrompt("anamnesis", anamnesisTarget, context.patient), "rag", buildRagQuery("anamnesis", anamnesisTarget), "", "", ragPatientScopes(context.patient));
-  if (sequence !== anamnesisProcessingSequence || view !== "consultation" || baselineRevision !== clinicalDraftRevision) return;
+  if (sequence !== anamnesisProcessingSequence || view !== "consultation" || baselineRevision !== clinicalDraftRevision || !vigente()) return;
   applyAnamnesisAiResult(result, cleanTranscript);
   if (options.preserveFocus) syncAnamnesisControlsFromDraft();
   else render();
@@ -2054,6 +2075,7 @@ function mandatoryRefinementBlocks(patient = {}) {
 }
 
 async function prepareRefinementFromClinicalData() {
+  const vigente = draftGuard.capture();
   const context = clinicalAiContext("consultation");
   let result;
   // O catalogo precisa estar carregado ANTES de montar o prompt: e ele que vai
@@ -2097,6 +2119,7 @@ async function prepareRefinementFromClinicalData() {
   } catch {
     result = { ...localRefinementPlan(context.target), origem: "local" };
   }
+  if (!vigente()) return;
   draft.consultation = { ...(draft.consultation || {}), refinementPlan: result, refinementPreparedAt: new Date().toISOString() };
 }
 
@@ -2108,11 +2131,13 @@ async function fillMedicationInfo(element) {
     medicationOnlineStatus: `Pesquisando online: ${medicationName}...`,
     medicationPriceResearch: ""
   };
+  const vigente = draftGuard.capture();
   if (scope === "return") draft.return = { ...(draft.return || {}), ...loading };
   else draft.consultation = { ...(draft.consultation || {}), ...loading };
   render();
 
   const suggestion = await buildMedicationAutofill(medicationName);
+  if (!vigente()) return;
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
   else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
   render();
@@ -2451,6 +2476,7 @@ function editEntry(id, type) {
   const entry = findEntry(id, type);
   if (!entry) return;
   selectedPatientId = entry.patientId;
+  draftGuard.replaced();
   // Registro salvo e reaberto: o atendimento ja foi percorrido inteiro, entao
   // as abas voltam a ser livres. O travamento existe para o atendimento novo.
   if (type === "consultation") {
@@ -2530,6 +2556,7 @@ async function endSession() {
   authSession = null;
   authError = "";
   syncError = "";
+  draftGuard.replaced();
   draft = {};
   view = "dashboard";
   consultationPage = "anamnese";
