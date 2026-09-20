@@ -1,6 +1,7 @@
+import { returnPlanSuggestionFromAi, treatmentSuggestionFromAi } from "./clinical/aiTreatmentResult.js";
 import { createDraftGuard } from "./clinical/draftGuard.js";
 import { countLabel, diagnosisSuggestionFromAi, diagnosisSuggestionFromLocalCatalogue } from "./clinical/aiDiagnosisResult.js";
-import { diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, formatMedicationTreatmentOption, formatNonPharmacologicalOption, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
+import { diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
 import { anamnesisText, buildEvolutionNarrative, evolutionNeedsRebuild, normalizeEvolutionNarrative, removeReturnBoilerplate, requestedExamsText, treatmentDiagnosisText } from "./clinical/narrative.js";
 import { loadProtocol, protocolLoaded } from "./clinical/protocol.js";
 import { formatPhone, whatsappLink } from "./clinical/phone.js";
@@ -1513,6 +1514,12 @@ function saveClinicalRecord(scope) {
 // Preambulo identico nos cinco geradores: grava o que esta na tela antes de
 // gerar — sem isso a IA raciocina sobre o registro anterior — e descobre se o
 // alvo e a consulta ou o retorno.
+// O rascunho de AGORA. Depois de uma espera longa, o `target` lido antes dela
+// esta velho: cada mesclagem cria um objeto novo, e o formulario segue editavel.
+function draftTarget(scope) {
+  return (scope === "return" ? draft.return : draft.consultation) || {};
+}
+
 function syncedTarget(element) {
   const formElement = element.closest("form");
   if (formElement) updateDraftFromForm(formElement);
@@ -1548,7 +1555,7 @@ async function generateDiagnosisFromClinicalData(element, kind = "diagnosis") {
     const { result, sources, webSources, mode, codeWarnings } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), revisao ? "rag" : context.target?.aiMode, buildRagQuery(kind, context.target), buildWebQuery(kind, context.target), "", ragPatientScopes(context.patient), revisao ? selectedDiagnosisText(context.target || {}).split("\n").filter(Boolean) : []);
     // A procedencia da resposta e a do modo que respondeu: trechos do acervo no
     // RAG, paginas da web na Nuvem. So um dos dois vem preenchido por chamada.
-    suggestion = diagnosisSuggestionFromAi({ result, target, sources: sourcesOfMode(mode, sources, webSources), mode, codeWarnings, revisao });
+    suggestion = diagnosisSuggestionFromAi({ result, target: draftTarget(scope), sources: sourcesOfMode(mode, sources, webSources), mode, codeWarnings, revisao });
     if (revisao) suggestion.aiStatus = `Refinado pela fonte especializada. ${suggestion.aiStatus}`;
   } catch (error) {
     suggestion = diagnosisSuggestionFromLocalCatalogue(target, error);
@@ -1578,41 +1585,9 @@ async function generateTreatmentFromClinicalData(element, kind = "treatment") {
   try {
     const context = clinicalAiContext(scope);
     const { result, sources, webSources, mode } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), revisao ? "rag" : (context.target?.pharmaAiMode || "rag"), buildRagQuery(kind, context.target), buildWebQuery(kind, context.target), "", ragPatientScopes(context.patient));
-    const medicationOptions = result.medication_options.map(formatMedicationTreatmentOption);
-    const approachOptions = result.non_pharmacological_options.map(formatNonPharmacologicalOption);
-    suggestion = {
-      // A IA propoe o nivel; quem assinala e o medico, como em todo o resto do
-      // programa. Privar alguem de liberdade nao e decisao que se aceita por
-      // omissao, entao o radio nao vem marcado.
-      nivelCuidadoAi: result.care_level?.level || "",
-      nivelCuidadoAiJustificativa: result.care_level?.justification || "",
-      nivelCuidado: target?.nivelCuidado || "",
-      nivelCuidadoJustificativa: target?.nivelCuidadoJustificativa || "",
-      tratamentoAiMedicamentos: medicationOptions.join("\n"),
-      tratamentoAiAbordagens: approachOptions.join("\n"),
-      // Mesmo criterio ja aplicado ao diagnostico: a IA propoe, quem assinala
-      // e o medico. Marcar as tres opcoes de saida inverte o onus — passaria a
-      // ser preciso descartar duas prescricoes em vez de escolher uma.
-      tratamentoMedicamentosSelecionados: arrayValue(target?.tratamentoMedicamentosSelecionados),
-      abordagensSelecionadas: arrayValue(target?.abordagensSelecionadas),
-      tratamentoMedicamentoso: "",
-      abordagensTerapeuticas: "",
-      examesLaboratoriais: requestedExamsText(target || {}),
-      condutaMedica: target?.condutaMedica || "",
-      ragSourcesTratamento: sourcesOfMode(mode, sources, webSources),
-      pharmaAiMode: mode,
-      // A primeira proposta, guardada quando o refino a substitui. Geracao nova
-      // limpa: a comparacao so vale entre a proposta e a revisao dela.
-      tratamentoRefinoAnterior: revisao ? {
-        em: new Date().toISOString(),
-        medicamentos: treatmentOptionLines(target?.tratamentoAiMedicamentos),
-        abordagens: treatmentOptionLines(target?.tratamentoAiAbordagens),
-        retiradas: [...arrayValue(target?.tratamentoMedicamentosSelecionados), ...arrayValue(target?.abordagensSelecionadas)]
-          .filter(item => !medicationOptions.includes(item) && !approachOptions.includes(item))
-      } : null,
-      treatmentStatus: `${revisao ? "Refinado pela fonte especializada: " : ""}${result.care_level ? `Nível de cuidado proposto: ${result.care_level.level}. ` : "Nenhum nível de cuidado foi proposto — a resposta veio sem modalidade ou sem justificativa. "}${countLabel(medicationOptions.length, "opção medicamentosa", "opções medicamentosas")} e ${countLabel(approachOptions.length, "outra abordagem", "outras abordagens")} propostas para você assinalar. Suas escolhas anteriores foram mantidas.`,
-      aiStatus: revisao ? "Tratamento refinado pela fonte especializada, para revisão médica." : "Sugestões de tratamento geradas pela IA para revisão médica."
-    };
+    // O rascunho de agora, nao o de antes da espera: o que ele marcou enquanto a
+    // IA respondia tem de sobreviver.
+    suggestion = treatmentSuggestionFromAi({ result, target: draftTarget(scope), sources: sourcesOfMode(mode, sources, webSources), mode, revisao });
   } catch (error) {
     suggestion = (target?.pharmaAiMode || "rag") === "rag"
       ? { ragSourcesTratamento: [], treatmentStatus: `RAG indisponivel: ${error.message}`, aiStatus: `RAG indisponivel: ${error.message}` }
@@ -1650,23 +1625,9 @@ async function generateReturnPlanFromClinicalData(element) {
       buildClinicalAiPrompt("return_plan", context.target, context.patient, context.previous, context.isReturn),
       context.target?.returnPlanAiMode || "rag",
       buildRagQuery("return_plan", context.target), buildWebQuery("return_plan", context.target), "", ragPatientScopes(context.patient));
-    const medicacao = returnPlanMedicationLines(result);
-    const conduta = (result.conduct_options || []).map(item => String(item || "").trim()).filter(Boolean);
-    gravar({
-      ajusteAiMedicacao: medicacao.join("\n"),
-      ajusteAiConduta: conduta.join("\n"),
-      // As escolhas anteriores sobrevivem a uma nova geracao, como no
-      // Diagnostico e no Tratamento: regerar nao pode apagar o que ele ja
-      // decidiu. As linhas que sumirem da nova proposta caem sozinhas, porque a
-      // caixa so existe enquanto a linha existir.
-      ajusteMedicacaoSelecionada: arrayValue(target?.ajusteMedicacaoSelecionada),
-      ajusteCondutaSelecionada: arrayValue(target?.ajusteCondutaSelecionada),
-      ragSourcesAjuste: sourcesOfMode(mode, sources, webSources),
-      returnPlanAiMode: mode,
-      returnPlanStatus: medicacao.length || conduta.length
-        ? `${countLabel(medicacao.length, "decisão de medicamento", "decisões de medicamento")} e ${countLabel(conduta.length, "ajuste de conduta", "ajustes de conduta")} para você assinalar. Nada entra no prontuário sem a sua marcação.`
-        : "A IA não propôs ajuste algum. Verifique se o atendimento anterior tem medicamento assinalado."
-    });
+    // O rascunho de agora, nao o de antes da espera: o que ele marcou enquanto a
+    // IA respondia tem de sobreviver.
+    gravar(returnPlanSuggestionFromAi({ result, target: draftTarget(scope), sources: sourcesOfMode(mode, sources, webSources), mode }));
   } catch (error) {
     gravar({
       ragSourcesAjuste: [],
@@ -1675,20 +1636,6 @@ async function generateReturnPlanFromClinicalData(element) {
   }
   if (!vigente()) return;
   render();
-}
-
-// Uma linha por farmaco, e a linha carrega a decisao inteira: sem o "por que", a
-// caixa assinalada vira ordem sem motivo no prontuario, e o motivo e o que o
-// medico esta conferindo quando aceita ou recusa.
-function returnPlanMedicationLines(result = {}) {
-  return (result.medication_actions || []).flatMap(item => {
-    const farmaco = String(item?.medication || "").trim();
-    const acao = String(item?.action || "").trim();
-    if (!farmaco || !acao) return [];
-    const detalhe = String(item?.detail || "").trim();
-    const porque = String(item?.rationale || "").trim();
-    return [[`${farmaco} — ${acao}`, detalhe, porque].filter(Boolean).join(" | ")];
-  }).filter((linha, index, lista) => lista.indexOf(linha) === index);
 }
 
 // Cada linha e uma caixa de selecao independente: a conduta de manejo, a
