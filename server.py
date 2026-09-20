@@ -1692,7 +1692,11 @@ def verify_diagnostic_codes(result):
         return []
     by_name = {normalize_name(name): code for code, name in known11.items()}
     warnings = []
-    for group in ("syndromic_options", "nosological_options", "etiological_options", "comorbidity_options"):
+    # Sem "syndromic_options": sindrome nao e entidade catalogada, e o
+    # validate_result esvazia os dois codigos dela por construcao. Conferir esta
+    # camada reancorava pelo nome e devolvia o codigo -- bastava a IA chamar a
+    # sindrome pelo titulo oficial ("Transtorno de ansiedade generalizada").
+    for group in ("nosological_options", "etiological_options", "comorbidity_options"):
         for option in result.get(group) or []:
             nome = option.get("name") or "hipotese sem nome"
 

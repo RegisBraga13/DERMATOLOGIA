@@ -403,6 +403,20 @@ class CodeMatchesNameTests(unittest.TestCase):
             self.assertEqual(opcao["cid11"], "")
             self.assertEqual(opcao["cid11Title"], "")
 
+    def test_syndromic_layer_stays_without_codes(self):
+        """Sindrome nao e entidade catalogada, e o validate_result esvazia os
+        codigos dela. Se a IA a chama pelo titulo oficial da OMS, o verificador
+        nao pode reancorar pelo nome e devolver o codigo."""
+        r = {"syndromic_options": [{"name": "Transtorno de ansiedade generalizada", "cid11": "", "dsm5tr": ""}],
+             "nosological_options": [{"name": "Transtorno de ansiedade generalizada", "cid11": "", "dsm5tr": ""}]}
+        avisos = server.verify_diagnostic_codes(r)
+        sindrome = r["syndromic_options"][0]
+        self.assertEqual((sindrome["cid11"], sindrome["dsm5tr"]), ("", ""))
+        self.assertNotIn("cid11Title", sindrome)
+        self.assertFalse([a for a in avisos if "sindrom" in a["text"].lower()])
+        # a nosologica, com o mesmo nome, continua sendo ancorada
+        self.assertEqual(r["nosological_options"][0]["cid11"], "6B00")
+
     def test_traits_read_both_languages(self):
         """A tabela da OMS traz titulo em portugues e nameEN em ingles."""
         self.assertEqual(server.diagnostic_traits("severe, with psychotic symptoms")["psicotico"], True)
