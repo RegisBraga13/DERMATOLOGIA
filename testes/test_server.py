@@ -996,3 +996,20 @@ class ClinicalAiEndpointTests(unittest.TestCase):
         self.assertIn("ENCONTRADO NA WEB", enviado["input"][1]["content"])
         self.assertIn("Bula ANVISA", enviado["input"][1]["content"])
         self.assertEqual(resposta["mode"], "current")
+
+    def test_result_missing_a_derived_text_key_is_still_answered(self):
+        """Pergunta do refinamento sem "topic" passa na validacao. O texto
+        corrido nao monta, mas o resultado e aproveitavel: 200, e nao 500."""
+        refinamento = {
+            "questions": [{"id": f"q{i}", "prompt": f"Pergunta {i}?", "options": ["a", "b"]} for i in range(3)],
+            "red_flags": [], "observations": [], "important_points": [],
+        }
+        status, resposta, _ = self._answer(
+            {"kind": "refinement", "prompt": "Paciente.", "mode": "current"}, model_output=refinamento)
+        self.assertEqual(status, 200)
+        self.assertEqual(len(resposta["result"]["questions"]), 3)
+        self.assertEqual(resposta["text"], "")
+
+    def test_a_complete_result_still_carries_its_text(self):
+        status, resposta, _ = self._answer({"kind": "evolution", "prompt": "Paciente.", "mode": "current"})
+        self.assertEqual((status, resposta["text"]), (200, "Texto."))

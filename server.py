@@ -1904,6 +1904,22 @@ def plain_text_from_result(kind, result):
     return ""
 
 
+def safe_plain_text(kind, result):
+    """O texto corrido e derivado do resultado, e o resultado e o que vale.
+
+    plain_text_from_result indexa chaves que o validate_result nao garante --
+    uma pergunta do refinamento sem "topic" passa na validacao e quebra aqui --
+    e a excecao virava um 500 que jogava fora uma resposta aproveitavel. O
+    cliente ja sabe montar o texto a partir do resultado quando este vem vazio.
+    """
+    try:
+        return plain_text_from_result(kind, result)
+    except (KeyError, TypeError, AttributeError) as error:
+        logger.warning("texto corrido de %s nao montado (%s: %s); o cliente o remonta do resultado",
+                       kind, type(error).__name__, error)
+        return ""
+
+
 class PrototypeHandler(SimpleHTTPRequestHandler):
     # Definido em send_head/do_GET para escolher a política de cache da resposta.
     _cacheable = False
@@ -2231,7 +2247,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 "kind": kind,
                 "mode": mode,
                 "result": result,
-                "text": plain_text_from_result(kind, result),
+                "text": safe_plain_text(kind, result),
                 "sources": public_sources,
                 "web_sources": web_findings[0]["citations"] if web_findings else [],
                 "code_warnings": code_warnings,
