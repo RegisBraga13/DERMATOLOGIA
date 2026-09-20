@@ -88,3 +88,26 @@ describe("ajuste de conduta: as decisoes do retorno sobrevivem a nova geracao", 
     assert.deepEqual(linhas, ["Sertralina — Manter"]);
   });
 });
+
+describe("o seletor de modo guarda a escolha dele, nao o que o servidor fez", () => {
+  // O servidor cai do RAG para a web quando o acervo nao sustenta a resposta e
+  // devolve mode "current". Gravar isso no radio mandaria toda geracao seguinte
+  // para a web sem ele pedir.
+  const daWeb = { result: resultadoTratamento, target: {}, sources: [], mode: "current" };
+
+  it("o tratamento nao devolve pharmaAiMode", () => {
+    assert.equal("pharmaAiMode" in treatmentSuggestionFromAi(daWeb), false);
+  });
+
+  it("o ajuste de conduta nao devolve returnPlanAiMode", () => {
+    const sugestao = returnPlanSuggestionFromAi({ result: { conduct_options: ["Psicoeducacao"] }, target: {}, sources: [], mode: "current" });
+    assert.equal("returnPlanAiMode" in sugestao, false);
+  });
+
+  it("refino respondido pela web diz que veio da web, nao da fonte especializada", () => {
+    const pelaWeb = treatmentSuggestionFromAi({ ...daWeb, revisao: true });
+    assert.match(pelaWeb.treatmentStatus, /^Refinado pela web/);
+    const peloAcervo = treatmentSuggestionFromAi({ ...daWeb, mode: "rag", revisao: true });
+    assert.match(peloAcervo.treatmentStatus, /^Refinado pela fonte especializada/);
+  });
+});

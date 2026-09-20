@@ -165,9 +165,10 @@ export function diagnosisSuggestionFromAi({ result = {}, target = {}, sources = 
     diagnosticoManual: marcadasFinais.join("\n"),
     diferenciais: "",
     ragSourcesDiagnostico: sources,
-    aiMode: mode,
     // Gravado no registro, desde 11/09/2026: o aiStatus diz isso na tela, mas
-    // some na proxima geracao. aiMode nao serve -- e o seletor do modo.
+    // some na proxima geracao. O seletor do modo (aiMode) fica de fora: guarda a
+    // ESCOLHA dele, e gravar aqui o modo que respondeu -- o servidor cai do RAG
+    // para a web quando o acervo nao sustenta -- trocaria o radio sem ele pedir.
     diagnosticoOrigem: mode === "rag" ? "rag" : "nuvem",
     // A primeira proposta, guardada no registro quando o refino a substitui.
     // Geracao nova limpa: a comparacao so vale entre a proposta e a revisao.

@@ -424,3 +424,16 @@ describe("Refinar que falha mantem a primeira passada", () => {
     assert.equal(local.diagnosticoOrigem, "local");
   });
 });
+
+describe("o seletor de modo do diagnostico guarda a escolha dele", () => {
+  it("a resposta que veio da web nao muda aiMode, mas a origem fica registrada", () => {
+    const sugestao = diagnosisSuggestionFromAi({ result: {}, target: {}, sources: [], mode: "current" });
+    assert.equal("aiMode" in sugestao, false);
+    assert.equal(sugestao.diagnosticoOrigem, "nuvem");
+  });
+
+  it("resposta do acervo registra origem rag", () => {
+    const sugestao = diagnosisSuggestionFromAi({ result: {}, target: {}, sources: [], mode: "rag" });
+    assert.equal(sugestao.diagnosticoOrigem, "rag");
+  });
+});

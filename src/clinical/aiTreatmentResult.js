@@ -10,6 +10,12 @@ import { arrayValue } from "./textFormat.js";
 // estava na tela quando ela foi chamada. A chamada leva dezenas de segundos e o
 // formulario continua editavel: o que o medico marcou nesse intervalo tem de
 // sobreviver, e uma copia velha do rascunho desfaria a escolha dele.
+//
+// Os seletores de modo (pharmaAiMode, returnPlanAiMode) ficam de fora do que
+// volta: guardam a ESCOLHA dele. O servidor cai do RAG para a web quando o
+// acervo nao sustenta a resposta, e gravar o modo que respondeu trocaria o radio
+// -- e mandaria toda geracao seguinte para a web -- sem ele pedir. A fonte que
+// respondeu ja aparece no painel de fontes.
 
 export function treatmentSuggestionFromAi({ result = {}, target = {}, sources = [], mode = "", revisao = false }) {
   const medicationOptions = result.medication_options.map(formatMedicationTreatmentOption);
@@ -34,7 +40,6 @@ export function treatmentSuggestionFromAi({ result = {}, target = {}, sources = 
     examesLaboratoriais: requestedExamsText(target || {}),
     condutaMedica: target?.condutaMedica || "",
     ragSourcesTratamento: sources,
-    pharmaAiMode: mode,
     // A primeira proposta, guardada quando o refino a substitui. Geracao nova
     // limpa: a comparacao so vale entre a proposta e a revisao dela.
     tratamentoRefinoAnterior: revisao ? {
@@ -44,7 +49,7 @@ export function treatmentSuggestionFromAi({ result = {}, target = {}, sources = 
       retiradas: [...arrayValue(target?.tratamentoMedicamentosSelecionados), ...arrayValue(target?.abordagensSelecionadas)]
         .filter(item => !medicationOptions.includes(item) && !approachOptions.includes(item))
     } : null,
-    treatmentStatus: `${revisao ? "Refinado pela fonte especializada: " : ""}${result.care_level ? `Nível de cuidado proposto: ${result.care_level.level}. ` : "Nenhum nível de cuidado foi proposto — a resposta veio sem modalidade ou sem justificativa. "}${countLabel(medicationOptions.length, "opção medicamentosa", "opções medicamentosas")} e ${countLabel(approachOptions.length, "outra abordagem", "outras abordagens")} propostas para você assinalar. Suas escolhas anteriores foram mantidas.`,
+    treatmentStatus: `${revisao ? (mode === "rag" ? "Refinado pela fonte especializada: " : "Refinado pela web, porque o acervo não sustentou: ") : ""}${result.care_level ? `Nível de cuidado proposto: ${result.care_level.level}. ` : "Nenhum nível de cuidado foi proposto — a resposta veio sem modalidade ou sem justificativa. "}${countLabel(medicationOptions.length, "opção medicamentosa", "opções medicamentosas")} e ${countLabel(approachOptions.length, "outra abordagem", "outras abordagens")} propostas para você assinalar. Suas escolhas anteriores foram mantidas.`,
     aiStatus: revisao ? "Tratamento refinado pela fonte especializada, para revisão médica." : "Sugestões de tratamento geradas pela IA para revisão médica."
   };
 }
@@ -76,7 +81,6 @@ export function returnPlanSuggestionFromAi({ result = {}, target = {}, sources =
     ajusteMedicacaoSelecionada: arrayValue(target?.ajusteMedicacaoSelecionada),
     ajusteCondutaSelecionada: arrayValue(target?.ajusteCondutaSelecionada),
     ragSourcesAjuste: sources,
-    returnPlanAiMode: mode,
     returnPlanStatus: medicacao.length || conduta.length
       ? `${countLabel(medicacao.length, "decisão de medicamento", "decisões de medicamento")} e ${countLabel(conduta.length, "ajuste de conduta", "ajustes de conduta")} para você assinalar. Nada entra no prontuário sem a sua marcação.`
       : "A IA não propôs ajuste algum. Verifique se o atendimento anterior tem medicamento assinalado."
