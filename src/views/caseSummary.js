@@ -1,10 +1,5 @@
-import { caseIndices, medicationEventsText, medicationHistory } from "../clinical/caseTimeline.js";
+import { caseIndices, curtaData, medicationEventsText, medicationHistory } from "../clinical/caseTimeline.js";
 import { escapeHtml } from "../ui/html.js";
-
-function curtaData(value) {
-  const data = new Date(value || "");
-  return Number.isNaN(data.getTime()) ? "" : data.toLocaleDateString("pt-BR");
-}
 
 // Topo do prontuario longitudinal (leva 4): o caso em numeros e os
 // medicamentos do caso inteiro, antes da pilha de atendimentos. Sem

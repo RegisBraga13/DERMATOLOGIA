@@ -206,7 +206,7 @@ export function diagnosisSuggestionFromAi({ result = {}, target = {}, sources = 
 }
 
 // "Transtorno depressivo maior - CID-11: 6A70 - DSM-5-TR: F32.-" -> o nome.
-function entityName(linha = "") {
+export function entityName(linha = "") {
   return String(linha).split(/\s+-\s+(?:CID-11|DSM-5-TR):/)[0].trim();
 }
 

@@ -1,4 +1,4 @@
-import { CRITERION_SEPARATOR } from "../clinical/aiDiagnosisResult.js";
+import { CRITERION_SEPARATOR, entityName } from "../clinical/aiDiagnosisResult.js";
 import { diagnosticEtiologicalOptionLines } from "../clinical/diagnosis.js";
 import { analysisFindingsForReturn, pendingRefinementItems } from "../clinical/returnCarryover.js";
 import { arrayValue, normalizeText } from "../clinical/textFormat.js";
@@ -113,10 +113,6 @@ export function returnHypothesisLabels(previous = {}) {
     .map(linha => normalizeText(entityName(linha))));
   return arrayValue(previous.diagnosticoSelecionado)
     .filter(item => !etiologicas.has(normalizeText(entityName(item))));
-}
-
-function entityName(linha = "") {
-  return String(linha).split(/\s+-\s+(?:CID-11|DSM-5-TR):/)[0].trim();
 }
 
 // Nada em branco sai da Evolucao, decisao dele em 02/09/2026: "garanta que eu

@@ -138,7 +138,7 @@ function respostasDeFarmaco(entry) {
   return respostas;
 }
 
-function curtaData(value) {
+export function curtaData(value) {
   const data = new Date(value || "");
   return Number.isNaN(data.getTime()) ? "" : data.toLocaleDateString("pt-BR");
 }
