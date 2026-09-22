@@ -10,7 +10,7 @@ import { ANAMNESIS_AI_FIELDS, orderedAnamnesisSections, pagesForScope, TELECONSU
 import { optionGroups } from "./data/examOptions.js";
 import { targetSymptomOptions } from "./data/targetSymptoms.js";
 import { fetchCep } from "./services/cepService.js";
-import { buildClinicalAiPrompt, buildRagQuery, buildWebQuery, canonicalAiSelections, localRefinementPlan, requestClinicalAi } from "./services/clinicalAiService.js";
+import { buildClinicalAiPrompt, buildRagQuery, buildWebQuery, canonicalAiSelections, localRefinementPlan, requestClinicalAi, requestRiskScreen } from "./services/clinicalAiService.js";
 import { buildMedicationAutofill, localMedicationSuggestions } from "./services/medicationService.js";
 import { exportTextAsPdf } from "./services/pdfService.js";
 import { archiveEntry, archivePatient, isActive, isArchived, loadState, mergeStates, purgePatient, restorePatient, saveState, stateSignature, uid } from "./services/storageService.js";
@@ -43,6 +43,8 @@ const app = document.querySelector("#app");
 let state = { patients: [], consultations: [], returns: [] };
 let view = "dashboard";
 let medicationLookupTimer = null;
+let riskScreenTimer = null;
+let riskScreenSequence = 0;
 let selectedPatientId = "";
 // Uma sincronizacao por vez: gravacoes seguidas entram na fila, e cada uma le a
 // copia que a anterior deixou, em vez de disputarem a mesma linha.
@@ -421,6 +423,7 @@ function consultationPageBody(form, patient) {
         </div>
       `}
     </div>
+    <div id="risk-screen-banner" class="risk-screen-banner" aria-live="polite"></div>
     ${anamnesisQuestionGuide()}
     <div class="clinical-card antecedents-card">
       <h4>Antecedentes pessoais e familiares</h4>
@@ -824,6 +827,7 @@ function bindViewEvents() {
   bindAutoDraft();
   bindAutoExpandingTextareas();
   bindMedicationLookup();
+  bindRiskScreen();
   bindPatientForm();
   bindConsultForm();
   bindReturnForm();
@@ -867,6 +871,83 @@ function bindMedicationLookup() {
   });
 
   input.addEventListener("focus", () => showSuggestions(localMedicationSuggestions(input.value)));
+}
+
+const RISK_SCREEN_LABELS = Object.freeze({
+  ideacao_suicida: "Ideação suicida",
+  plano_suicida: "Plano suicida",
+  intencao_suicida: "Intenção suicida",
+  acesso_meios_letais: "Acesso a meios letais",
+  tentativa_previa: "Tentativa prévia de suicídio",
+  autoagressao: "Autoagressão/automutilação",
+  desesperanca: "Desesperança"
+});
+
+// Segunda opiniao independente da extracao por RAG/GPT que ja preenche
+// riscoSuicidioIndicadores (ANAMNESIS_AI_FIELDS.suicide_risk, aplicada em
+// applyAnamnesisAiResult). Cobre o modo manual, onde aquela extracao nunca
+// roda, e o caso em que ela classificou errado um indicador de risco.
+function bindRiskScreen() {
+  const form = app.querySelector("#consult-form");
+  if (!form || !app.querySelector("#risk-screen-banner")) return;
+  const readCombinedText = () => {
+    const qphda = (form.querySelector("[name='qphda']")?.value || "").trim();
+    if (qphda) return qphda;
+    const queixa = form.querySelector("[name='queixa']")?.value || "";
+    const hda = form.querySelector("[name='hdaManual']")?.value || "";
+    return [queixa && `QP: ${queixa}`, hda && `HDA: ${hda}`].filter(Boolean).join("\n\n");
+  };
+  ["qphda", "queixa", "hdaManual"].forEach(name => {
+    form.querySelector(`[name='${name}']`)?.addEventListener("input", () => scheduleRiskScreen(readCombinedText()));
+  });
+}
+
+function scheduleRiskScreen(text) {
+  clearTimeout(riskScreenTimer);
+  const trimmed = text.trim();
+  const banner = app.querySelector("#risk-screen-banner");
+  if (!banner) return;
+  if (trimmed.length < 20) {
+    banner.innerHTML = "";
+    return;
+  }
+  const sequence = ++riskScreenSequence;
+  riskScreenTimer = setTimeout(async () => {
+    const loadingBanner = app.querySelector("#risk-screen-banner");
+    if (loadingBanner) loadingBanner.innerHTML = riskScreenStatusMarkup("Analisando indícios de risco no texto ditado...");
+    try {
+      const data = await requestRiskScreen(trimmed);
+      if (sequence !== riskScreenSequence) return;
+      const target = app.querySelector("#risk-screen-banner");
+      if (target) target.innerHTML = riskScreenMarkup(data);
+    } catch (error) {
+      if (sequence !== riskScreenSequence) return;
+      const target = app.querySelector("#risk-screen-banner");
+      if (target) target.innerHTML = riskScreenStatusMarkup(`Triagem de risco indisponível: ${error.message}`, true);
+    }
+  }, 2000);
+}
+
+function riskScreenStatusMarkup(message, isError = false) {
+  return `<div class="risk-screen-status ${isError ? "risk-screen-error" : ""}">${escapeHtml(message)}</div>`;
+}
+
+function riskScreenMarkup(data) {
+  const threshold = typeof data.threshold === "number" ? data.threshold : 0.6;
+  const indicators = Array.isArray(data.indicators) ? data.indicators : [];
+  const flagged = indicators.filter(item => item.probability >= threshold);
+  if (!flagged.length) {
+    return `<div class="risk-screen-status risk-screen-clear">Triagem automática: nenhum indício relevante de risco identificado no texto até agora. Continue a avaliação clínica normalmente.</div>`;
+  }
+  return `
+    <div class="risk-screen-alert" role="alert">
+      <strong>Triagem automática sinalizou possível indício de risco no texto — revisar antes de salvar:</strong>
+      <ul>
+        ${flagged.map(item => `<li>${escapeHtml(RISK_SCREEN_LABELS[item.key] || item.key)} (${Math.round(item.probability * 100)}%)</li>`).join("")}
+      </ul>
+      <small>Sinalização automática por IA, não é diagnóstico nem substitui avaliação clínica. Confirme os itens correspondentes no bloco "Risco de suicídio e desesperança" da anamnese.</small>
+    </div>
+  `;
 }
 
 async function selectMedicationLookup(name) {

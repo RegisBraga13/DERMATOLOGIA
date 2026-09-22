@@ -574,6 +574,48 @@ input[type="radio"]:focus-visible {
   margin: 12px 0;
 }
 
+.risk-screen-banner:empty {
+  display: none;
+}
+
+.risk-screen-status {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.risk-screen-status.risk-screen-error {
+  color: var(--danger);
+}
+
+.risk-screen-status.risk-screen-clear {
+  color: var(--sage);
+}
+
+.risk-screen-alert {
+  border-left: 4px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+  padding: 12px;
+  border-radius: var(--radius);
+  color: var(--text);
+  margin: 10px 0 0;
+  font-size: 13px;
+}
+
+.risk-screen-alert ul {
+  margin: 6px 0;
+  padding-left: 18px;
+}
+
+.risk-screen-alert small {
+  display: block;
+  color: var(--muted);
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .record-opened {
   display: flex;
   align-items: center;

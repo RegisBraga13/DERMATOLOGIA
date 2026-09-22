@@ -140,6 +140,96 @@ ALLOWED_KINDS = {"anamnesis", "mental_exam", "refinement_scope", "refinement", "
 REVIEW_OF_KIND = {"diagnosis_review": "diagnosis", "treatment_review": "treatment", "medication_review": "medication"}
 RXNAV_DISPLAY_TERMS_URL = "https://rxnav.nlm.nih.gov/REST/displaynames.json"
 RXNAV_DISPLAY_TERMS = None
+
+TYPESAFE_API_URL = "https://api.typesafe.ai/v1/systemone"
+TYPESAFE_MODEL = "jev-latest"
+RISK_SCREEN_THRESHOLD = 0.6
+RISK_SCREEN_MAX_CHARS = 4000
+# Camada independente da extracao por RAG/GPT que ja preenche
+# riscoSuicidioIndicadores na anamnese (ver ANAMNESIS_AI_FIELDS em
+# src/clinical/vocabulary.js). Um Noul por indicador, calibrado, roda sobre o
+# texto bruto da transcricao/anotacao e serve de segunda opiniao: cobre o modo
+# manual (onde a extracao por IA nunca roda) e o caso em que a extracao
+# classificou errado um indicador de risco.
+RISK_INDICATORS = {
+    "ideacao_suicida": {
+        "instructions": "O texto indica que o paciente tem pensamentos de morte, desejo de nao acordar ou ideacao suicida?",
+        "criteria": {
+            "true": "Menciona vontade de morrer, pensamentos suicidas, desejo de nao existir ou de nao acordar.",
+            "false": "Nao ha mencao a pensamentos de morte ou desejo de morrer.",
+        },
+    },
+    "plano_suicida": {
+        "instructions": "O texto indica que o paciente tem um plano suicida definido, com metodo, local ou momento pensados?",
+        "criteria": {
+            "true": "Descreve um metodo, local ou momento especifico planejado para tentar suicidio.",
+            "false": "Nao ha plano especifico descrito.",
+        },
+    },
+    "intencao_suicida": {
+        "instructions": "O texto indica intencao atual de agir e tentar suicidio em breve?",
+        "criteria": {
+            "true": "Expressa intencao proxima ou decisao tomada de tentar suicidio.",
+            "false": "Nao ha intencao atual expressa.",
+        },
+    },
+    "acesso_meios_letais": {
+        "instructions": "O texto indica que o paciente tem acesso a meios potencialmente letais, como armas de fogo, grandes quantidades de medicamentos ou similares?",
+        "criteria": {
+            "true": "Menciona posse ou acesso facil a armas, medicamentos em excesso ou outros meios letais.",
+            "false": "Nao ha mencao a acesso a meios letais.",
+        },
+    },
+    "tentativa_previa": {
+        "instructions": "O texto menciona uma tentativa de suicidio anterior do paciente?",
+        "criteria": {
+            "true": "Relata tentativa de suicidio no passado.",
+            "false": "Nao ha relato de tentativa previa.",
+        },
+    },
+    "autoagressao": {
+        "instructions": "O texto sugere comportamento de autoagressao ou automutilacao sem intencao suicida?",
+        "criteria": {
+            "true": "Menciona cortes, queimaduras ou outra automutilacao sem intencao de morrer.",
+            "false": "Nao ha mencao a autoagressao.",
+        },
+    },
+    "desesperanca": {
+        "instructions": "O texto indica desesperanca significativa do paciente em relacao ao futuro?",
+        "criteria": {
+            "true": "Expressa sensacao de que nada vai melhorar, falta de perspectiva ou desesperanca marcante.",
+            "false": "Nao ha desesperanca significativa expressa.",
+        },
+    },
+}
+
+
+def call_typesafe_risk_screen(api_key, text):
+    questions = {
+        key: {
+            "type": "noul",
+            "instructions": indicator["instructions"],
+            "criteria": indicator["criteria"],
+        }
+        for key, indicator in RISK_INDICATORS.items()
+    }
+    request_body = {
+        "state": text,
+        "model": TYPESAFE_MODEL,
+        "questions": questions,
+    }
+    data = json.dumps(request_body, ensure_ascii=False).encode("utf-8")
+    request = urllib.request.Request(
+        TYPESAFE_API_URL,
+        data=data,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        return json.loads(response.read().decode("utf-8"))
 RXNAV_LOCK = threading.Lock()
 RAG_MAX_RESULTS = 8
 RAG_SCORE_THRESHOLD = 0.55
@@ -2033,8 +2123,12 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             self.send_json(403, {"error": "Origem nao autorizada."})
             return
 
-        if self.path not in {"/api/clinical-ai", "/api/transcribe-consultation"}:
+        if self.path not in {"/api/clinical-ai", "/api/transcribe-consultation", "/api/risk-screen"}:
             self.send_json(404, {"error": "Endpoint nao encontrado."})
+            return
+
+        if self.path == "/api/risk-screen":
+            self.handle_risk_screen()
             return
 
         api_key = os.environ.get("OPENAI_API_KEY")
@@ -2278,6 +2372,50 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
         except Exception as error:
             logger.exception("Falha em /api/clinical-ai")
             self.send_json(500, {"error": "Erro interno ao processar a solicitacao."})
+
+    def handle_risk_screen(self):
+        api_key = os.environ.get("TYPESAFE_API_KEY")
+        if not api_key:
+            self.send_json(503, {"error": "TYPESAFE_API_KEY nao configurada. Adicione a chave no .env para usar a triagem de risco."})
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            length = 0
+        if length <= 0 or length > MAX_CLINICAL_BODY_BYTES:
+            self.send_json(400, {"error": "Corpo da requisicao ausente ou invalido."})
+            return
+        try:
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+        except (ValueError, UnicodeDecodeError):
+            self.send_json(400, {"error": "Corpo da requisicao nao e um JSON valido."})
+            return
+        text = str(payload.get("text") or "").strip()
+        if not text:
+            self.send_json(400, {"error": "Texto vazio."})
+            return
+        text = text[-RISK_SCREEN_MAX_CHARS:]
+        try:
+            response_data = call_typesafe_risk_screen(api_key, text)
+            answers = response_data.get("answers", {})
+            indicators = []
+            for key in RISK_INDICATORS:
+                probability = (answers.get(key) or {}).get("noul")
+                if isinstance(probability, (int, float)):
+                    indicators.append({"key": key, "probability": probability})
+            flagged = any(item["probability"] >= RISK_SCREEN_THRESHOLD for item in indicators)
+            self.send_json(200, {
+                "ok": True,
+                "indicators": indicators,
+                "threshold": RISK_SCREEN_THRESHOLD,
+                "flagged": flagged,
+            })
+        except urllib.error.HTTPError as error:
+            logger.error("TypeSafe %s: %s", error.code, error.read().decode("utf-8", errors="replace"))
+            self.send_json(error.code, {"error": "Erro retornado pela TypeSafe. Detalhes no log do servidor."})
+        except Exception:
+            logger.exception("Falha em /api/risk-screen")
+            self.send_json(500, {"error": "Erro interno na triagem de risco."})
 
 
 if __name__ == "__main__":

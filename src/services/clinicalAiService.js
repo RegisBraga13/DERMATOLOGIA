@@ -71,6 +71,30 @@ export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery
   };
 }
 
+// Segunda opiniao independente do RAG/GPT que ja preenche
+// riscoSuicidioIndicadores (ANAMNESIS_AI_FIELDS.suicide_risk): um Noul
+// calibrado por indicador, via TypeSafe Jev, direto sobre o texto bruto da
+// anamnese. Cobre o modo manual (onde a extracao por IA nunca roda) e o caso
+// em que a extracao classificou errado um indicador de risco.
+export async function requestRiskScreen(text) {
+  const response = await fetch("/api/risk-screen", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text })
+  });
+  let data = {};
+  try {
+    data = await response.json();
+  } catch {
+    data = {};
+  }
+  if (!response.ok) {
+    const detail = data.detail ? ` ${compactText(data.detail, 320)}` : "";
+    throw new Error(`${data.error || "Falha ao consultar triagem de risco."}${detail}`);
+  }
+  return data;
+}
+
 export function buildRagQuery(kind, form = {}) {
   const diagnosis = treatmentDiagnosisText(form) || form.diagnosticoManual || "";
   // A busca vetorial recebe o dado ja estruturado, nao a transcricao bruta.
