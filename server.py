@@ -1644,6 +1644,11 @@ def load_code_tables():
                         # procura na ICD-10-CM quando o mapa da OMS falha, ja
                         # que as descricoes do CDC sao em ingles.
                         tables["cid11_en"] = {entry["code"]: entry.get("nameEN", "") for entry in data["codigos"]}
+                        # Indice reverso (nome normalizado -> codigo), calculado uma
+                        # vez aqui. verify_diagnostic_codes roda a cada Diagnostico
+                        # gerado; reconstruir este dict do zero em toda chamada
+                        # refazia o mesmo trabalho que este cache evita.
+                        tables["cid11_by_name"] = {normalize_name(name): code for code, name in tables[key].items()}
             CODE_TABLES = tables
         return CODE_TABLES
 
@@ -1804,7 +1809,7 @@ def verify_diagnostic_codes(result):
     crosswalk = tables.get("crosswalk") or {}
     if not known11:
         return []
-    by_name = {normalize_name(name): code for code, name in known11.items()}
+    by_name = tables.get("cid11_by_name") or {}
     warnings = []
     # Sem "syndromic_options": sindrome nao e entidade catalogada, e o
     # validate_result esvazia os dois codigos dela por construcao. Conferir esta

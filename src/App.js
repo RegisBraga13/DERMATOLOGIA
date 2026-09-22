@@ -42,7 +42,6 @@ const app = document.querySelector("#app");
 // IndexedDB, e ler de la e assincrono. A primeira tela so desenha depois.
 let state = { patients: [], consultations: [], returns: [] };
 let view = "dashboard";
-let medicationLookupTimer = null;
 let riskScreenTimer = null;
 let riskScreenSequence = 0;
 let selectedPatientId = "";
@@ -80,6 +79,11 @@ const voiceRecording = createVoiceRecording({
 });
 const RECORD_SEARCH_TEXT_CACHE = new WeakMap();
 const ENTRY_TIMESTAMP_CACHE = new WeakMap();
+// consultationsForPatient/returnsForPatient/entriesForPatient eram um filter
+// sobre TODA a base a cada chamada, nao so os registros do paciente aberto.
+// Indexado por patientId aqui, uma vez por `state` (chave fraca: state e
+// trocado, nao mutado, a cada gravacao -- o indice velho vira lixo sozinho).
+const PATIENT_INDEX_CACHE = new WeakMap();
 
 const icons = {
   patient: personIcon(),
@@ -864,10 +868,7 @@ function bindMedicationLookup() {
   input.addEventListener("input", event => {
     updateDraftFromForm(event.target.closest("form"));
     const term = event.target.value.trim();
-    const local = localMedicationSuggestions(term);
-    showSuggestions(local);
-    clearTimeout(medicationLookupTimer);
-    if (term.length >= 3) showSuggestions(local);
+    showSuggestions(localMedicationSuggestions(term));
   });
 
   input.addEventListener("focus", () => showSuggestions(localMedicationSuggestions(input.value)));
@@ -2311,21 +2312,36 @@ function firstActivePatientId() {
   return (state.patients || []).find(isActive)?.id || "";
 }
 
+function patientIndex() {
+  let index = PATIENT_INDEX_CACHE.get(state);
+  if (!index) {
+    index = { consultations: new Map(), returns: new Map() };
+    [["consultations", state.consultations], ["returns", state.returns]].forEach(([key, entries]) => {
+      (entries || []).forEach(entry => {
+        const lista = index[key].get(entry.patientId);
+        if (lista) lista.push(entry);
+        else index[key].set(entry.patientId, [entry]);
+      });
+    });
+    PATIENT_INDEX_CACHE.set(state, index);
+  }
+  return index;
+}
+
 function entriesForPatient(patientId) {
-  return state.consultations.concat(state.returns)
-    .filter(entry => entry.patientId === patientId && isActive(entry))
+  return consultationsForPatient(patientId).concat(returnsForPatient(patientId))
     .sort(compareEntriesNewestFirst);
 }
 
 function consultationsForPatient(patientId) {
-  return state.consultations
-    .filter(entry => entry.patientId === patientId && isActive(entry))
+  return (patientIndex().consultations.get(patientId) || [])
+    .filter(isActive)
     .sort(compareEntriesNewestFirst);
 }
 
 function returnsForPatient(patientId) {
-  return state.returns
-    .filter(entry => entry.patientId === patientId && isActive(entry))
+  return (patientIndex().returns.get(patientId) || [])
+    .filter(isActive)
     .sort(compareEntriesNewestFirst);
 }
 
