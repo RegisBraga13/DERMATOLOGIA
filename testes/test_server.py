@@ -301,7 +301,6 @@ class ValidateResultTests(unittest.TestCase):
         esperado = {
             "anamnesis": ("psicopatologia", "entrevista"),
             "refinement": ("psicopatologia", "entrevista"),
-            "refinement_scope": ("psicopatologia", "entrevista"),
             # Os dois lados: o fenomeno (Dalgalarrondo, Cheniaux) e a entidade
             # (FMUSP vol. 2). Lendo so a FMUSP, o app nao chegou a sindrome de
             # Cotard num caso que a tinha.

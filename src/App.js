@@ -3,14 +3,14 @@ import { createDraftGuard } from "./clinical/draftGuard.js";
 import { countLabel, diagnosisReviewFailure, diagnosisSuggestionFromAi, diagnosisSuggestionFromLocalCatalogue } from "./clinical/aiDiagnosisResult.js";
 import { diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
 import { anamnesisText, buildEvolutionNarrative, evolutionNeedsRebuild, evolutionSuggestionOnAiFailure, normalizeEvolutionNarrative, removeReturnBoilerplate, requestedExamsText, treatmentDiagnosisText } from "./clinical/narrative.js";
-import { loadProtocol, protocolLoaded } from "./clinical/protocol.js";
+import { loadProtocol, protocolLoaded, protocolScopeQuestions } from "./clinical/protocol.js";
 import { formatPhone, whatsappLink } from "./clinical/phone.js";
 import { arrayValue, joinValues, lowerFirst, normalizeText, stripFinalPeriod } from "./clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, orderedAnamnesisSections, pagesForScope, TELECONSULTA_CONSENTIMENTO } from "./clinical/vocabulary.js";
 import { optionGroups } from "./data/examOptions.js";
 import { targetSymptomOptions } from "./data/targetSymptoms.js";
 import { fetchCep } from "./services/cepService.js";
-import { buildClinicalAiPrompt, buildRagQuery, buildWebQuery, canonicalAiSelections, localRefinementPlan, requestClinicalAi, requestRiskScreen } from "./services/clinicalAiService.js";
+import { buildClinicalAiPrompt, buildRagQuery, buildWebQuery, canonicalAiSelections, localRefinementPlan, requestClinicalAi, requestJevJudge, requestRiskScreen } from "./services/clinicalAiService.js";
 import { buildMedicationAutofill, localMedicationSuggestions } from "./services/medicationService.js";
 import { exportTextAsPdf } from "./services/pdfService.js";
 import { archiveEntry, archivePatient, isActive, isArchived, loadState, mergeStates, purgePatient, restorePatient, saveState, stateSignature, uid } from "./services/storageService.js";
@@ -2084,6 +2084,28 @@ async function processAnamnesisTranscriptSilently(transcript = "", options = {})
   else render();
 }
 
+// Abaixo deste limiar o bloco fica de fora do Refinamento. Baixo de proposito
+// -- a instrucao que o GPT seguia era "inclua mesmo que so para descartar",
+// entao um bloco so deve ficar fora quando o caso realmente nao toca nele.
+const REFINEMENT_SCOPE_THRESHOLD = 0.5;
+// Mesmo teto que o schema antigo (maxItems: 12): limite de escopo, nao de
+// julgamento -- o Jev julga os 31, so os 12 mais prováveis entram no prompt
+// do Refinamento, pelo mesmo motivo de sempre (orcamento de tokens por minuto).
+const REFINEMENT_SCOPE_MAX_BLOCKS = 12;
+
+async function pickRefinementScope(form) {
+  const state = buildRagQuery("refinement", form);
+  const questions = protocolScopeQuestions();
+  const { answers } = await requestJevJudge(state, questions);
+  const escolhidos = Object.entries(answers || {})
+    .filter(([, probabilidade]) => probabilidade >= REFINEMENT_SCOPE_THRESHOLD)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, REFINEMENT_SCOPE_MAX_BLOCKS)
+    .map(([campo]) => campo);
+  if (!escolhidos.length) throw new Error("Nenhum bloco do protocolo atingiu o limiar de relevancia.");
+  return escolhidos;
+}
+
 function mandatoryRefinementBlocks(patient = {}) {
   const blocos = [];
   if (needsCaregiverHistory(patient)) blocos.push("crianca_adolescente");
@@ -2105,27 +2127,33 @@ async function prepareRefinementFromClinicalData() {
     console.warn("Protocolo de entrevista indisponivel; refinamento sem lista fechada.", error);
   }
   try {
-    // Duas etapas, por causa do teto de tokens por minuto da conta: primeiro a
-    // IA escolhe os blocos pertinentes, depois recebe so as perguntas deles.
-    // Quem escolhe segue sendo ela, de lista fechada — mudou a ordem, nao o
-    // criterio. Sem protocolo carregado, escopo nulo e o motor antigo assume.
+    // Etapa 1 do refinamento: que blocos do protocolo pedir. Ate 22/09/2026
+    // isto era outra chamada GPT so para classificar (o teto de tokens por
+    // minuto da conta nao deixava mandar o catalogo inteiro numa chamada so).
+    // Agora e o Jev, calibrado e paralelo, sem gastar geracao de texto numa
+    // decisao que e escolha entre 31 blocos fechados. Falhando, cai para
+    // escopo nulo -- o motor manda o catalogo inteiro, que cabe no teto
+    // sozinho, so mais lento -- e nao para o motor antigo (que so entra se a
+    // geracao do Refinamento em si falhar, la na captura de baixo).
     let scope = null;
     if (protocolLoaded()) {
-      const escopo = await requestClinicalAi(
-        "refinement_scope",
-        buildClinicalAiPrompt("refinement_scope", context.target, context.patient),
-        "current"
-      );
-      scope = escopo.result?.blocks || null;
-      // OS BLOCOS DA FAIXA ENTRAM POR FORA DA ESCOLHA DA IA.
+      scope = await pickRefinementScope(context.target).catch(error => {
+        console.warn("Triagem de blocos via Jev indisponivel; refinamento sem filtro de escopo.", error);
+        return null;
+      });
+      // OS BLOCOS DA FAIXA ENTRAM POR FORA DA TRIAGEM.
       //
-      // O resto do escopo ela escolhe, e escolhe bem. Estes tres nao: se a
-      // cobertura de crianca, de idoso e de saude reprodutiva dependesse de a
-      // IA lembrar de pedir o bloco, ela seria boa na maioria das vezes -- e a
+      // O resto do escopo o Jev acerta bem. Estes tres nao: se a cobertura de
+      // crianca, de idoso e de saude reprodutiva dependesse de o julgamento
+      // lembrar de pedir o bloco, ele seria bom na maioria das vezes -- e a
       // minoria e justamente onde o dado muda a prescricao. Sao forcados pela
-      // identificacao do paciente, que e fato, e nao juizo.
-      const obrigatorios = mandatoryRefinementBlocks(context.patient);
-      if (obrigatorios.length) scope = [...new Set([...(scope || []), ...obrigatorios])];
+      // identificacao do paciente, que e fato, e nao juizo. Escopo nulo (Jev
+      // fora do ar) ja manda o catalogo inteiro, que os inclui -- so entram
+      // aqui quando ha uma lista para completar.
+      if (scope) {
+        const obrigatorios = mandatoryRefinementBlocks(context.patient);
+        if (obrigatorios.length) scope = [...new Set([...scope, ...obrigatorios])];
+      }
     }
     ({ result } = await requestClinicalAi(
       "refinement",

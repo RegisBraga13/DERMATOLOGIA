@@ -7,7 +7,7 @@ import { ANAMNESIS_AI_FIELDS, MENTAL_EXAM_AI_FIELDS, MENTAL_EXAM_NORMAL } from "
 import { optionGroups } from "../data/examOptions.js";
 import { scalesNarrativeText } from "../clinical/scoring.js";
 
-import { protocolBlocksText, protocolCatalogText, protocolItemById, protocolLoaded } from "../clinical/protocol.js";
+import { protocolCatalogText, protocolItemById, protocolLoaded } from "../clinical/protocol.js";
 import { parseMedicationResponse } from "./medicationService.js";
 
 export function canonicalAiSelections(values, allowed = []) {
@@ -91,6 +91,29 @@ export async function requestRiskScreen(text) {
   if (!response.ok) {
     const detail = data.detail ? ` ${compactText(data.detail, 320)}` : "";
     throw new Error(`${data.error || "Falha ao consultar triagem de risco."}${detail}`);
+  }
+  return data;
+}
+
+// Camada zero generica: um Noul por pergunta de `questions`, via TypeSafe Jev.
+// Qualquer etapa pode usar isto para decidir algo barato (que bloco perguntar,
+// que rota seguir) antes de pagar uma chamada GPT/RAG cara. `questions` e
+// {id: {instructions, criteria?}}; a resposta e {answers: {id: probabilidade}}.
+export async function requestJevJudge(state, questions) {
+  const response = await fetch("/api/jev-judge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ state, questions })
+  });
+  let data = {};
+  try {
+    data = await response.json();
+  } catch {
+    data = {};
+  }
+  if (!response.ok) {
+    const detail = data.detail ? ` ${compactText(data.detail, 320)}` : "";
+    throw new Error(`${data.error || "Falha ao consultar o Jev."}${detail}`);
   }
   return data;
 }
@@ -323,9 +346,6 @@ function validateClinicalAiPayload(kind, result, text = "") {
   }
   if (kind === "mental_exam") {
     if (!Object.values(result).every(value => Array.isArray(value))) throw new Error("Exame psiquico fora do formato esperado.");
-  }
-  if (kind === "refinement_scope") {
-    if (!Array.isArray(result.blocks) || !result.blocks.length) throw new Error("Escopo do refinamento ausente.");
   }
   if (kind === "refinement") {
     if (!Array.isArray(result.questions) || result.questions.length < 3) throw new Error("Perguntas de refinamento ausentes.");
@@ -667,11 +687,6 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "O medico revisara e alterara todas as selecoes antes de prosseguir.",
       `Use exclusivamente estes rotulos canonicos: ${JSON.stringify(Object.fromEntries(Object.entries(MENTAL_EXAM_AI_FIELDS).map(([key, formKey]) => [key, (optionGroups[formKey] || [])])))}`
     ],
-    refinement_scope: [
-      "Escolha quais blocos do protocolo de entrevista sao pertinentes a este caso.",
-      "Devolva apenas os nomes dos blocos, exatamente como aparecem na lista. Ate 12.",
-      "Inclua o bloco quando o caso levanta o assunto que ele cobre, mesmo que so para descartar. Deixe de fora o que o caso nao toca."
-    ],
     refinement: [
       "Puxe as perguntas que a FAIXA ETARIA deste paciente exige e que ainda nao foram feitas — o que falta perguntar a uma crianca, a um adolescente ou a um idoso nao e o mesmo. Em mulher em idade fertil, ciclo menstrual, gestacao, puerperio, amamentacao e contracepcao sao lacuna quando ausentes.",
       "Havendo no catalogo um bloco de faixa (crianca_adolescente, idoso, saude_reprodutiva), ele entrou porque a identificacao do paciente o exige: escolha PELO MENOS uma pergunta dele, e mais de uma se o caso pedir. Bloco de faixa presente e ignorado e falha de cobertura, e nao economia.",
@@ -954,7 +969,6 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
     // de proposito: prefixo estavel e o que o cache do modelo consegue
     // reaproveitar. Invertido, cada refinamento pagaria os 27 mil tokens
     // inteiros de novo.
-    kind === "refinement_scope" && protocolLoaded() ? `BLOCOS DO PROTOCOLO DE ENTREVISTA:\n${protocolBlocksText()}\n` : "",
     kind === "refinement" && protocolLoaded() ? `CATALOGO DO PROTOCOLO DE ENTREVISTA:\n${protocolCatalogText(scope)}\n` : "",
     "TAREFA:",
     ...task.map(item => `- ${item}`),
@@ -1097,7 +1111,6 @@ function promptResponseFormat(kind) {
   kind = REVIEW_OF_KIND[kind] || kind;
   if (kind === "anamnesis") return "Objeto estruturado de anamnese conforme o schema, sem texto adicional.";
   if (kind === "mental_exam") return "Objeto estruturado do exame psiquico conforme o schema, sem texto adicional.";
-  if (kind === "refinement_scope") return "Objeto com a chave blocks: lista de nomes de bloco, sem texto adicional.";
   if (kind === "refinement") return "Objeto estruturado com questions (cada uma com id do protocolo e opcoes de resposta), mandatory_gaps e alerts (apenas ids do protocolo), sem texto adicional.";
   if (kind === "diagnosis") {
     return [

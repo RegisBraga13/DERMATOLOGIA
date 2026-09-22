@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import json
@@ -130,7 +131,7 @@ MAX_CLINICAL_BODY_BYTES = MAX_PROMPT_CHARS * 4 + 64 * 1024
 # ja manda ~12,5 mil de entrada. Com teto maior, cabe um Diagnostico por minuto.
 MAX_OUTPUT_TOKENS = 3000
 MAX_AUDIO_BYTES = 30 * 1024 * 1024
-ALLOWED_KINDS = {"anamnesis", "mental_exam", "refinement_scope", "refinement", "diagnosis", "diagnosis_review",
+ALLOWED_KINDS = {"anamnesis", "mental_exam", "refinement", "diagnosis", "diagnosis_review",
                  "treatment", "treatment_review", "symptomatic", "return_plan", "evolution", "medication",
                  "medication_review", "medication_tips"}
 # A segunda passada do Diagnostico e do Tratamento nao e outra tarefa: e a
@@ -204,19 +205,28 @@ RISK_INDICATORS = {
 }
 
 
-def call_typesafe_risk_screen(api_key, text):
-    questions = {
+JEV_JUDGE_MAX_QUESTIONS = 40
+JEV_JUDGE_MAX_STATE_CHARS = 6000
+
+
+def call_typesafe_noul_batch(api_key, state, questions):
+    """Um Noul por entrada de `questions` ({id: {instructions, criteria?}}).
+
+    Compartilhado por /api/risk-screen e /api/jev-judge: a chamada HTTP a
+    TypeSafe e sempre a mesma forma, so a lista de perguntas muda.
+    """
+    payload_questions = {
         key: {
             "type": "noul",
-            "instructions": indicator["instructions"],
-            "criteria": indicator["criteria"],
+            "instructions": question["instructions"],
+            **({"criteria": question["criteria"]} if question.get("criteria") else {}),
         }
-        for key, indicator in RISK_INDICATORS.items()
+        for key, question in questions.items()
     }
     request_body = {
-        "state": text,
+        "state": state,
         "model": TYPESAFE_MODEL,
-        "questions": questions,
+        "questions": payload_questions,
     }
     data = json.dumps(request_body, ensure_ascii=False).encode("utf-8")
     request = urllib.request.Request(
@@ -230,6 +240,16 @@ def call_typesafe_risk_screen(api_key, text):
     )
     with urllib.request.urlopen(request, timeout=30) as response:
         return json.loads(response.read().decode("utf-8"))
+
+
+def call_typesafe_risk_screen(api_key, text):
+    questions = {
+        key: {"instructions": indicator["instructions"], "criteria": indicator["criteria"]}
+        for key, indicator in RISK_INDICATORS.items()
+    }
+    return call_typesafe_noul_batch(api_key, text, questions)
+
+
 RXNAV_LOCK = threading.Lock()
 RAG_MAX_RESULTS = 8
 RAG_SCORE_THRESHOLD = 0.55
@@ -420,17 +440,6 @@ SCHEMAS = {
             for key in MENTAL_EXAM_KEYS
         },
         "required": list(MENTAL_EXAM_KEYS),
-    },
-    # Etapa 1 do refinamento: escolher os blocos do protocolo antes de receber
-    # as perguntas. O catalogo inteiro pede 33 mil tokens e a conta tem teto de
-    # 30 mil por minuto — a requisicao nao passava.
-    "refinement_scope": {
-        "type": "object",
-        "additionalProperties": False,
-        "properties": {
-            "blocks": {"type": "array", "minItems": 1, "maxItems": 12, "items": {"type": "string"}},
-        },
-        "required": ["blocks"],
     },
     "refinement": {
         "type": "object",
@@ -1193,7 +1202,6 @@ RAG_SCOPE_BY_KIND = {
     # livro nao atrapalha.
     "anamnesis": ("psicopatologia", "entrevista"),
     "refinement": ("psicopatologia", "entrevista"),
-    "refinement_scope": ("psicopatologia", "entrevista"),
     # Nomear a sindrome exige os DOIS lados: o fenomeno e a entidade.
     # Dalgalarrondo e Cheniaux descrevem o quadro pelo fenomeno -- Cotard,
     # catatonia, delirio niilista, tracos melancolicos --, a FMUSP vol. 2
@@ -1296,7 +1304,7 @@ RAG_PATIENT_SCOPES = {"infantojuvenil", "saude-mulher"}
 # ficha de um farmaco, o que se quer e a bula do farmaco, e nao o capitulo de
 # infancia; nos BIPP TIPS, a secao nomeada do livro.
 KINDS_ACCEPTING_PATIENT_SCOPE = {
-    "anamnesis", "refinement", "refinement_scope",
+    "anamnesis", "refinement",
     "diagnosis", "diagnosis_review",
     "treatment", "treatment_review", "symptomatic", "return_plan",
 }
@@ -1409,10 +1417,6 @@ def validate_result(kind, result):
     elif kind == "mental_exam":
         if not all(isinstance(value, list) and all(isinstance(item, str) for item in value) for value in result.values()):
             raise ValueError("Exame psiquico estruturado invalido.")
-    elif kind == "refinement_scope":
-        blocks = result.get("blocks")
-        if not isinstance(blocks, list) or not blocks or not all(isinstance(b, str) and b.strip() for b in blocks):
-            raise ValueError("O escopo do refinamento deve trazer ao menos um bloco.")
     elif kind == "refinement":
         questions = result.get("questions")
         if not isinstance(questions, list) or not 3 <= len(questions) <= 8:
@@ -2128,12 +2132,16 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             self.send_json(403, {"error": "Origem nao autorizada."})
             return
 
-        if self.path not in {"/api/clinical-ai", "/api/transcribe-consultation", "/api/risk-screen"}:
+        if self.path not in {"/api/clinical-ai", "/api/transcribe-consultation", "/api/risk-screen", "/api/jev-judge"}:
             self.send_json(404, {"error": "Endpoint nao encontrado."})
             return
 
         if self.path == "/api/risk-screen":
             self.handle_risk_screen()
+            return
+
+        if self.path == "/api/jev-judge":
+            self.handle_jev_judge()
             return
 
         api_key = os.environ.get("OPENAI_API_KEY")
@@ -2219,7 +2227,6 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             if mode == "current" and web_query:
                 web_findings = usable_web_findings(search_web_sources(web_query, api_key))
             if mode == "rag":
-                sources = search_rag_sources(rag_query, api_key, kind)
                 garantidos = RAG_ALWAYS_SCOPE_BY_KIND.get(kind)
                 # O reforco do paciente soma ao da etapa: um adolescente no
                 # Diagnostico recebe os dois -- o criterio e o livro da faixa.
@@ -2229,12 +2236,24 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                     if do_paciente:
                         garantidos = tuple(garantidos or ()) + do_paciente
                 if garantidos:
+                    # As duas buscas sao independentes -- "garantidos" so
+                    # depende do kind e do payload, nunca do resultado da busca
+                    # base -- entao rodam em paralelo em vez de em fila. Cada
+                    # chamada ao vector store da OpenAI custa a sua rodada de
+                    # rede; em serie isso dobrava a latencia desta etapa em
+                    # toda consulta de crianca, idoso ou gestante.
+                    with ThreadPoolExecutor(max_workers=2) as pool:
+                        busca_base = pool.submit(search_rag_sources, rag_query, api_key, kind)
+                        busca_garantida = pool.submit(search_rag_sources, rag_query, api_key, kind, escopos=garantidos)
+                        sources = busca_base.result()
+                        achados_garantidos = busca_garantida.result()
                     # Deduplicado por trecho: o mesmo pedaco de livro nao entra
                     # duas vezes no contexto so por ter vindo das duas buscas.
                     vistos = {(f["file_id"], f["excerpt"]) for f in sources}
-                    extras = [f for f in search_rag_sources(rag_query, api_key, kind, escopos=garantidos)
-                              if (f["file_id"], f["excerpt"]) not in vistos]
+                    extras = [f for f in achados_garantidos if (f["file_id"], f["excerpt"]) not in vistos]
                     sources = sources + extras[:RAG_ALWAYS_MAX_RESULTS]
+                else:
+                    sources = search_rag_sources(rag_query, api_key, kind)
                 # No Refinar, os criterios do DSM-5-TR das hipoteses assinaladas
                 # entram inteiros e na frente: sao a regra que a revisao confere.
                 if kind == "diagnosis_review":
@@ -2421,6 +2440,80 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
         except Exception:
             logger.exception("Falha em /api/risk-screen")
             self.send_json(500, {"error": "Erro interno na triagem de risco."})
+
+    def handle_jev_judge(self):
+        """Um Noul por pergunta, generico: qualquer etapa do front pode usar o
+        Jev como camada barata antes de uma chamada GPT/RAG cara, sem precisar
+        de um endpoint novo a cada caso de uso. O primeiro a usar e a escolha
+        do escopo do Refinamento (ver protocolScopeQuestions em protocol.js).
+
+        `criteria`, quando vem, e o unico jeito de o front-end influenciar o
+        julgamento alem do texto do caso: instructions e criteria sao sempre
+        escritos aqui do lado do front, nunca aceitos como HTML/instrucao de
+        sistema, e a chamada e protegida pelo mesmo is_same_origin de qualquer
+        outro POST desta origem.
+        """
+        api_key = os.environ.get("TYPESAFE_API_KEY")
+        if not api_key:
+            self.send_json(503, {"error": "TYPESAFE_API_KEY nao configurada. Adicione a chave no .env para usar o Jev."})
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            length = 0
+        if length <= 0 or length > MAX_CLINICAL_BODY_BYTES:
+            self.send_json(400, {"error": "Corpo da requisicao ausente ou invalido."})
+            return
+        try:
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+        except (ValueError, UnicodeDecodeError):
+            self.send_json(400, {"error": "Corpo da requisicao nao e um JSON valido."})
+            return
+        state = str(payload.get("state") or "").strip()
+        if not state:
+            self.send_json(400, {"error": "Texto (state) vazio."})
+            return
+        state = state[:JEV_JUDGE_MAX_STATE_CHARS]
+        questions_in = payload.get("questions")
+        if not isinstance(questions_in, dict) or not questions_in:
+            self.send_json(400, {"error": "Nenhuma pergunta informada."})
+            return
+        if len(questions_in) > JEV_JUDGE_MAX_QUESTIONS:
+            self.send_json(413, {"error": f"No maximo {JEV_JUDGE_MAX_QUESTIONS} perguntas por chamada."})
+            return
+        questions = {}
+        for key, question in questions_in.items():
+            if not isinstance(key, str) or not key:
+                self.send_json(400, {"error": "Chave de pergunta invalida."})
+                return
+            instructions = (question or {}).get("instructions")
+            if not isinstance(instructions, str) or not instructions.strip():
+                self.send_json(400, {"error": f"Pergunta '{key}' sem instructions."})
+                return
+            criteria = (question or {}).get("criteria")
+            if criteria is not None and not (
+                isinstance(criteria, dict)
+                and isinstance(criteria.get("true"), str)
+                and isinstance(criteria.get("false"), str)
+            ):
+                self.send_json(400, {"error": f"Pergunta '{key}' com criteria fora do formato esperado."})
+                return
+            questions[key] = {"instructions": instructions.strip()[:600], "criteria": criteria}
+        try:
+            response_data = call_typesafe_noul_batch(api_key, state, questions)
+            answers = response_data.get("answers", {})
+            result = {}
+            for key in questions:
+                probability = (answers.get(key) or {}).get("noul")
+                if isinstance(probability, (int, float)):
+                    result[key] = probability
+            self.send_json(200, {"ok": True, "answers": result})
+        except urllib.error.HTTPError as error:
+            logger.error("TypeSafe %s: %s", error.code, error.read().decode("utf-8", errors="replace"))
+            self.send_json(error.code, {"error": "Erro retornado pela TypeSafe. Detalhes no log do servidor."})
+        except Exception:
+            logger.exception("Falha em /api/jev-judge")
+            self.send_json(500, {"error": "Erro interno no julgamento via Jev."})
 
 
 if __name__ == "__main__":

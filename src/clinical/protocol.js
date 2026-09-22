@@ -88,25 +88,34 @@ export function protocolItemById(id = "") {
 // antes dos dados do paciente: assim o trecho estavel pode ser reaproveitado
 // pelo cache do modelo, e so a parte que muda e cobrada de novo.
 /**
- * Os 31 blocos, um por linha, com o que cada um cobre.
+ * Etapa 1 do refinamento: um Noul por bloco, para o Jev escolher quais dos 31
+ * blocos sao pertinentes ao caso, sem gastar uma chamada GPT so pra isso.
  *
- * Etapa 1 do refinamento. O catalogo inteiro pede 33 mil tokens e a conta tem
- * teto de 30 mil por minuto: a requisicao nao passava. Entao a IA escolhe
- * primeiro os blocos — isto aqui custa uns 2 mil tokens — e so depois recebe
- * as perguntas dos blocos escolhidos.
- *
- * A escolha continua sendo dela, de lista fechada. O que mudou foi a ordem,
- * nao quem decide.
+ * Ate 22/09/2026 esta etapa era outra chamada de IA generativa: o catalogo
+ * inteiro pede 33 mil tokens e a conta tem teto de 30 mil por minuto, a
+ * requisicao nao passava, e a saida era so uma classificacao (quais blocos
+ * cabem), nao texto novo -- exatamente o que um julgamento calibrado faz mais
+ * rapido e mais barato que gerar. A escolha continua sendo de lista fechada:
+ * o Jev julga cada bloco pelo mesmo "cobre" que ia no prompt antigo, so que
+ * como pergunta sim/nao em vez de linha de catalogo.
  */
-export function protocolBlocksText(limiteAchados = 6) {
-  return todosOsBlocos().map(bloco => {
+export function protocolScopeQuestions(limiteAchados = 6) {
+  const perguntas = {};
+  todosOsBlocos().forEach(bloco => {
     const cobre = (bloco.achados || [])
       .slice(0, limiteAchados)
       .map(achado => achado.achado)
       .filter(Boolean)
-      .join(", ");
-    return `${bloco.campo} | ${bloco.perguntas?.length || 0} perguntas | cobre: ${cobre}`;
-  }).join("\n");
+      .join(", ") || bloco.campo;
+    perguntas[bloco.campo] = {
+      instructions: `O caso levanta, mesmo que so para descartar, algum destes achados: ${cobre}?`,
+      criteria: {
+        true: `O relato toca em pelo menos um de: ${cobre}.`,
+        false: `O relato nao toca em nenhum destes achados.`
+      }
+    };
+  });
+  return perguntas;
 }
 
 /** Etapa 2: so os blocos escolhidos. Bloco desconhecido e ignorado. */

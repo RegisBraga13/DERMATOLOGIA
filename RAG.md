@@ -77,10 +77,12 @@ Etapa fora do mapa busca sem filtro.
 | Sintoma-Alvo | `psicofarmacologia` |
 | BIPP TIPS | `psicofarmacologia` |
 
-A primeira etapa do Refinamento (`refinement_scope`) esta no mapa, mas roda na
-IA Nuvem sem busca: escolhe blocos de uma lista que vai no proprio prompt. A
-revisao da ficha (`medication_review`, `psicofarmacologia`) tambem esta, e nao
-tem botao na tela — ver abaixo.
+A primeira etapa do Refinamento (escolher os blocos do protocolo) nao e mais
+uma chamada de IA generativa nem entra neste mapa: desde 22/09/2026 e o Jev
+(TypeSafe) que julga, por `POST /api/jev-judge`, um Noul por bloco — sem busca
+vetorial, sem gastar geracao de texto numa decisao de classificacao. A revisao
+da ficha (`medication_review`, `psicofarmacologia`) esta no mapa e nao tem
+botao na tela — ver abaixo.
 
 Os dois ultimos generos nao estao nesta tabela, e e de proposito: **quem os pede
 e o paciente, e nao a etapa.**
