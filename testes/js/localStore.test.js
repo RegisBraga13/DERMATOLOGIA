@@ -26,7 +26,8 @@ function memoria(inicial = {}, { falhaAoLer = false, falhaAoGravar = null, devol
   };
 }
 
-const estado = (...consultas) => JSON.stringify({ patients: [{ id: "p1", nome: "Maria" }], consultations: consultas, returns: [] });
+const estadoObjeto = (...consultas) => ({ patients: [{ id: "p1", nome: "Maria" }], consultations: consultas, returns: [] });
+const estado = (...consultas) => JSON.stringify(estadoObjeto(...consultas));
 
 describe("leitura do aparelho", () => {
   it("primeira abertura: traz o localStorage para o IndexedDB e so entao apaga a copia antiga", async () => {
@@ -35,7 +36,8 @@ describe("leitura do aparelho", () => {
     const lido = await loadStateFrom({ idb, legacy });
     assert.equal(lido.backend, "indexeddb");
     assert.equal(lido.state.consultations.length, 1);
-    assert.ok(idb.dados.has(KEY));
+    assert.ok(idb.dados.has(`${KEY}:consultations`));
+    assert.ok(!idb.dados.has(KEY));
     assert.ok(!legacy.dados.has(KEY));
   });
 
@@ -71,24 +73,34 @@ describe("leitura do aparelho", () => {
 });
 
 describe("gravacao no aparelho", () => {
-  it("grava no IndexedDB e nao toca no localStorage", async () => {
+  it("grava no IndexedDB, uma chave por colecao, e nao toca no localStorage", async () => {
     const idb = memoria();
     const legacy = memoria();
-    assert.equal(await saveStateTo({ idb, legacy }, estado()), "");
-    assert.ok(idb.dados.has(KEY));
+    assert.equal(await saveStateTo({ idb, legacy }, estadoObjeto()), "");
+    assert.ok(idb.dados.has(`${KEY}:patients`));
+    assert.ok(idb.dados.has(`${KEY}:consultations`));
+    assert.ok(!idb.dados.has(KEY));
     assert.ok(!legacy.dados.has(KEY));
+  });
+
+  it("so regrava a colecao cuja assinatura mudou", async () => {
+    const idb = memoria();
+    await saveStateTo({ idb, legacy: memoria() }, estadoObjeto({ id: "c1", updatedAt: "2026-09-01" }), ["patients", "consultations"]);
+    await saveStateTo({ idb, legacy: memoria() }, estadoObjeto({ id: "c1", updatedAt: "2026-09-01" }), []);
+    assert.ok(idb.dados.has(`${KEY}:consultations`));
+    assert.ok(!idb.dados.has(`${KEY}:returns`));
   });
 
   it("IndexedDB falhando por outro motivo: grava no localStorage e nao avisa", async () => {
     const legacy = memoria();
-    const erro = await saveStateTo({ idb: memoria({}, { falhaAoGravar: new Error("transacao abortada") }), legacy }, estado());
+    const erro = await saveStateTo({ idb: memoria({}, { falhaAoGravar: new Error("transacao abortada") }), legacy }, estadoObjeto());
     assert.equal(erro, "");
     assert.ok(legacy.dados.has(KEY));
   });
 
   it("cota estourada no IndexedDB avisa que a consulta NAO foi salva", async () => {
     const cheio = Object.assign(new Error("cheio"), { name: "QuotaExceededError" });
-    const erro = await saveStateTo({ idb: memoria({}, { falhaAoGravar: cheio }), legacy: memoria() }, estado());
+    const erro = await saveStateTo({ idb: memoria({}, { falhaAoGravar: cheio }), legacy: memoria() }, estadoObjeto());
     assert.match(erro, /NÃO foi salva/);
   });
 });

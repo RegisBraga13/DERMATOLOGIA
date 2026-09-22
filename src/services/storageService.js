@@ -24,6 +24,40 @@ function parseState(texto) {
   return state;
 }
 
+// Uma chave por colecao (patients, consultations, returns) mais uma para o
+// que nao e prontuario (theme, doctor), desde 22/09/2026. Antes tudo isto era
+// UM blob so sob a chave KEY: qualquer gravacao -- inclusive trocar o tema --
+// serializava e regravava o prontuario inteiro. Agora so a colecao que mudou
+// e regravada. KEY continua existindo, mas so como fonte de migracao: nunca
+// mais e escrita.
+const COLLECTION_KEYS = {
+  patients: `${KEY}:patients`,
+  consultations: `${KEY}:consultations`,
+  returns: `${KEY}:returns`,
+  meta: `${KEY}:meta`
+};
+
+function collectionValue(state, campo) {
+  return campo === "meta" ? { theme: state.theme, doctor: state.doctor } : (state[campo] || []);
+}
+
+// Fingerprint por registro (id + timestamp), e nao o registro inteiro: o que
+// decide se uma colecao precisa ser regravada e comparado por aqui, e nao por
+// igualdade de referencia. upsert() (App.js) muta o array de state no lugar
+// -- o mesmo array, com um item trocado -- entao comparar por `===` nunca
+// veria a mudanca.
+function collectionSignature(entries = []) {
+  return (entries || []).map(entry => `${entry?.id}:${entry?.updatedAt || entry?.createdAt || ""}`).join(",");
+}
+
+function stateSignatures(state = {}) {
+  const assinaturas = {};
+  Object.keys(COLLECTION_KEYS).forEach(campo => {
+    assinaturas[campo] = campo === "meta" ? JSON.stringify(collectionValue(state, campo)) : collectionSignature(state[campo]);
+  });
+  return assinaturas;
+}
+
 function storageMessage(error) {
   // Todo navegador usa um nome diferente para o mesmo estouro. O codigo 22 e
   // o do padrao antigo, ainda emitido pelo Safari.
@@ -71,6 +105,32 @@ function localStorageBackend(storage = globalThis.localStorage) {
   };
 }
 
+// Le as 4 chaves por colecao. Nenhuma delas existindo ainda, tenta o blob
+// unico antigo (KEY) — aparelho que nunca abriu depois de 22/09/2026. O blob
+// antigo nunca e apagado por aqui, so deixa de ser escrito: uma migracao que
+// falhe no meio nao perde nada, a proxima abertura tenta de novo a partir do
+// mesmo blob intacto.
+async function readIdbState(idb) {
+  const entradas = await Promise.all(
+    Object.entries(COLLECTION_KEYS).map(async ([campo, chave]) => [campo, await idb.get(chave)])
+  );
+  if (entradas.every(([, texto]) => texto == null)) {
+    const antigo = await idb.get(KEY);
+    return antigo ? parseState(antigo) : null;
+  }
+  const estado = emptyState();
+  entradas.forEach(([campo, texto]) => {
+    if (texto == null) return;
+    if (campo === "meta") Object.assign(estado, JSON.parse(texto));
+    else estado[campo] = JSON.parse(texto);
+  });
+  return estado;
+}
+
+async function writeIdbState(idb, state, colecoes = Object.keys(COLLECTION_KEYS)) {
+  await Promise.all(colecoes.map(campo => idb.put(COLLECTION_KEYS[campo], JSON.stringify(collectionValue(state, campo)))));
+}
+
 // Le o estado e, na primeira vez, traz para o IndexedDB o que estava no
 // localStorage. A copia antiga so sai depois de relida e conferida no
 // IndexedDB -- gravacao que nao confere deixa as duas onde estao.
@@ -79,10 +139,10 @@ function localStorageBackend(storage = globalThis.localStorage) {
 // e a gravacao caiu no localStorage), junta por registro, pela mesma regra da
 // conta: fica a versao mais recente de cada um, e nada se perde.
 export async function loadStateFrom({ idb, legacy }) {
-  let idbTexto = null;
+  let estadoIdb = null;
   let idbOk = Boolean(idb);
   if (idb) {
-    try { idbTexto = await idb.get(KEY); } catch { idbOk = false; }
+    try { estadoIdb = await readIdbState(idb); } catch { idbOk = false; }
   }
   let legadoTexto = null;
   try { legadoTexto = legacy ? await legacy.get(KEY) : null; } catch { legadoTexto = null; }
@@ -92,14 +152,14 @@ export async function loadStateFrom({ idb, legacy }) {
       return { state: legadoTexto ? parseState(legadoTexto) : emptyState(), backend: "localstorage", aviso: "" };
     }
     if (!legadoTexto) {
-      return { state: idbTexto ? parseState(idbTexto) : emptyState(), backend: "indexeddb", aviso: "" };
+      return { state: estadoIdb || emptyState(), backend: "indexeddb", aviso: "" };
     }
     const legado = parseState(legadoTexto);
-    const state = idbTexto ? mergeStates(parseState(idbTexto), legado) : legado;
-    const texto = JSON.stringify(state);
+    const state = estadoIdb ? mergeStates(estadoIdb, legado) : legado;
     try {
-      await idb.put(KEY, texto);
-      if (await idb.get(KEY) === texto) await legacy.remove(KEY);
+      await writeIdbState(idb, state);
+      const confirmado = await readIdbState(idb);
+      if (confirmado && stateSignature(confirmado) === stateSignature(state)) await legacy.remove(KEY);
     } catch {
       // Nao conferiu: o localStorage fica, e a proxima abertura tenta de novo.
     }
@@ -109,13 +169,15 @@ export async function loadStateFrom({ idb, legacy }) {
   }
 }
 
-// Grava no IndexedDB. Se ele falhar por outro motivo que nao a cota, tenta o
-// localStorage antes de avisar: o registro gravado la volta na proxima
-// abertura, junto com o do IndexedDB.
-export async function saveStateTo({ idb, legacy }, texto) {
+// Grava so as colecoes de `colecoes` no IndexedDB (por omissao, todas -- quem
+// quer o ganho de so regravar o que mudou passa a lista explicita, ver
+// saveState). Se o IndexedDB falhar por outro motivo que nao a cota, tenta o
+// localStorage antes de avisar: ali ainda e o blob inteiro, de proposito --
+// e so a via de emergencia, sem o mesmo volume de gravacoes que o IndexedDB.
+export async function saveStateTo({ idb, legacy }, state, colecoes = Object.keys(COLLECTION_KEYS)) {
   if (idb) {
     try {
-      await idb.put(KEY, texto);
+      await writeIdbState(idb, state, colecoes);
       return "";
     } catch (error) {
       if (error?.name === "QuotaExceededError" || !legacy) return storageMessage(error);
@@ -123,7 +185,7 @@ export async function saveStateTo({ idb, legacy }, texto) {
   }
   if (!legacy) return "Não foi possível salvar neste aparelho: o navegador não oferece armazenamento.";
   try {
-    await legacy.put(KEY, texto);
+    await legacy.put(KEY, JSON.stringify(state));
     return "";
   } catch (error) {
     return storageMessage(error);
@@ -132,6 +194,12 @@ export async function saveStateTo({ idb, legacy }, texto) {
 
 let backends;
 let filaDeGravacao = Promise.resolve("");
+// A ultima assinatura de cada colecao efetivamente gravada. E o que decide o
+// que saveState precisa regravar: colecao cuja assinatura nao mudou desde a
+// ultima gravacao confirmada fica de fora da vez. So avanca quando a gravacao
+// realmente confirma (sem erro) -- numa falha, a proxima chamada tenta de
+// novo a mesma colecao, porque a assinatura registrada ainda e a antiga.
+let assinaturasGravadas = {};
 
 function defaultBackends() {
   return (backends ||= { idb: indexedDbBackend(), legacy: localStorageBackend() });
@@ -140,6 +208,10 @@ function defaultBackends() {
 export async function loadState() {
   const lido = await loadStateFrom(defaultBackends());
   if (lido.backend === "localstorage") backends = { idb: null, legacy: backends.legacy };
+  // Zerado, e nao preenchido com a assinatura do que acabou de ler: garante
+  // que a primeira gravacao da sessao sempre grava tudo, mesmo se a leitura
+  // veio do blob antigo (formato que as chaves por colecao ainda nao tem).
+  assinaturasGravadas = {};
   return lido;
 }
 
@@ -148,8 +220,13 @@ export async function loadState() {
 // barra de status, junto do aviso de sincronizacao. As gravacoes entram numa
 // fila: a de agora nunca termina depois da seguinte e sobrescreve a mais nova.
 export function saveState(state) {
-  const texto = JSON.stringify(state);
-  filaDeGravacao = filaDeGravacao.then(() => saveStateTo(defaultBackends(), texto));
+  const assinaturasAtuais = stateSignatures(state);
+  const mudou = Object.keys(COLLECTION_KEYS).filter(campo => assinaturasAtuais[campo] !== assinaturasGravadas[campo]);
+  filaDeGravacao = filaDeGravacao.then(async () => {
+    const erro = await saveStateTo(defaultBackends(), state, mudou);
+    if (!erro) assinaturasGravadas = assinaturasAtuais;
+    return erro;
+  });
   return filaDeGravacao;
 }
 
@@ -261,7 +338,5 @@ export function archiveEntry(state = {}, collection, id, agora = new Date().toIS
 // Assinatura barata do estado: muda quando entra, sai ou muda um registro. E o
 // que diz se a copia da conta trouxe algo novo e a tela precisa ser redesenhada.
 export function stateSignature(state = {}) {
-  return ["patients", "consultations", "returns"]
-    .map(key => (state[key] || []).map(entry => `${entry?.id}:${entry?.updatedAt || entry?.createdAt || ""}`).join(","))
-    .join("|");
+  return ["patients", "consultations", "returns"].map(key => collectionSignature(state[key])).join("|");
 }
