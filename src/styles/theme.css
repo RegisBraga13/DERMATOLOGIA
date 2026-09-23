@@ -2755,3 +2755,23 @@ textarea:focus-visible {
 .case-indices dd { margin: 4px 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
 .case-hypotheses { margin: 10px 0 0; line-height: 1.5; }
 .case-medications .med-stopped td { color: var(--muted); }
+
+/* Origem da marcacao na anamnese: o que a extracao da IA marcou e o medico
+   ainda nao conferiu. Mesmo desenho do `.scale-suggested` e do
+   `.care-suggested`, que ja resolviam a mesma pergunta em outras telas --
+   tracejado quer dizer "proposto", continuo quer dizer "decidido".
+   A marca some no instante em que ele toca a caixa: dali em diante e dele.
+   Nao e cor sozinha: quem nao distingue a cor ainda ve o tracejado, e o
+   `title` diz a frase inteira. */
+.chip.chip-ai { border-style: dashed; border-color: var(--primary-2); }
+.chip.chip-ai::before { content: "IA"; font-size: 10px; font-weight: 700; letter-spacing: .04em; color: var(--primary-2); }
+.ai-origin-legend { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 12px; padding: 10px 12px; border-radius: var(--radius); border: 1px dashed color-mix(in srgb, var(--primary-2) 55%, var(--line)); color: var(--muted); line-height: 1.45; }
+.ai-origin-legend .chip { pointer-events: none; padding: 2px 8px; font-size: 12px; }
+
+/* Atalho de quem chega com o diagnostico pronto. Cartao discreto: e desvio do
+   fluxo, nao a acao principal da pagina. */
+.shortcut-card .actions { margin-top: 10px; }
+
+/* Botao de IA com chamada em voo. O cinza sozinho lia como "indisponivel";
+   com o cursor de espera, le como "estou indo". */
+[data-ai-busy="1"] { cursor: progress; opacity: .6; }

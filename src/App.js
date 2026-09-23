@@ -1,5 +1,7 @@
 import { returnPlanSuggestionFromAi, treatmentSuggestionFromAi } from "./clinical/aiTreatmentResult.js";
 import { createDraftGuard } from "./clinical/draftGuard.js";
+import { anamnesisAiMarks, hasAiMarks, withoutAiMarks } from "./clinical/anamnesisOrigin.js";
+import { createAiOperations } from "./clinical/aiOperations.js";
 import { countLabel, diagnosisReviewFailure, diagnosisSuggestionFromAi, diagnosisSuggestionFromLocalCatalogue } from "./clinical/aiDiagnosisResult.js";
 import { diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
 import { anamnesisText, buildEvolutionNarrative, evolutionNeedsRebuild, evolutionSuggestionOnAiFailure, normalizeEvolutionNarrative, removeReturnBoilerplate, requestedExamsText, treatmentDiagnosisText } from "./clinical/narrative.js";
@@ -60,6 +62,19 @@ let clinicalDraftRevision = 0;
 // Conta as trocas de rascunho (paciente, atendimento, sessao). As chamadas de
 // IA conferem com ela na volta, para nao gravar a resposta no rascunho errado.
 const draftGuard = createDraftGuard();
+// Qual etapa tem chamada de IA em voo. O botao dela fecha enquanto isso; o
+// formulario nao. Ver clinical/aiOperations.js.
+const aiOperations = createAiOperations(() => paintAiBusyState());
+// Que botao pertence a que etapa. "Gerar" e "Refinar" do mesmo assunto sao a
+// mesma vaga: escrevem nos mesmos campos e nao podem correr juntos.
+const AI_BUSY_BUTTONS = {
+  diagnosis: ["generate-diagnosis", "refine-diagnosis"],
+  treatment: ["generate-treatment", "refine-treatment"],
+  "return-plan": ["generate-return-plan"],
+  evolution: ["generate-evolution"],
+  medication: ["generate-medication-ai"],
+  "appendix-symptom": ["generate-appendix-symptom"]
+};
 let refinementGenerating = false;
 let authSession = null;
 let authError = "";
@@ -427,7 +442,18 @@ function consultationPageBody(form, patient) {
         </div>
       `}
     </div>
+    <div class="clinical-card shortcut-card">
+      <h4>Paciente com diagnóstico já definido</h4>
+      <p class="field-hint">Salva o que estiver nesta página e vai direto ao Diagnóstico, para você escrever a hipótese e seguir ao Tratamento. As páginas intermediárias ficam liberadas e podem ser preenchidas depois, pelas abas.</p>
+      <div class="actions">
+        <button class="secondary" type="button" data-action="skip-to-diagnosis">Já tenho o diagnóstico</button>
+      </div>
+    </div>
     <div id="risk-screen-banner" class="risk-screen-banner" aria-live="polite"></div>
+    ${hasAiMarks(form.anamnesisAiMarks) ? `
+      <p class="ai-origin-legend" role="status"><span class="chip chip-ai" aria-hidden="true">exemplo</span>
+        Caixas com esta marca foram preenchidas pela extração da IA a partir da transcrição e ainda não foram conferidas por você. A marca sai quando você toca a caixa.</p>
+    ` : ""}
     ${anamnesisQuestionGuide()}
     <div class="clinical-card antecedents-card">
       <h4>Antecedentes pessoais e familiares</h4>
@@ -572,7 +598,8 @@ function medicationBody(form) {
         <div class="actions">
           <button class="primary" type="button" data-action="generate-medication-ai">Gerar</button>
         </div>
-        ${form.medicationOnlineStatus ? `<p class="medication-source-status">${escapeHtml(form.medicationOnlineStatus)}</p>` : ""}
+        ${form.medicationAcervoAviso ? `<p class="warning" role="alert">${escapeHtml(form.medicationAcervoAviso)}</p>` : ""}
+        ${form.medicationOnlineStatus ? `<p class="medication-source-status" role="status">${escapeHtml(form.medicationOnlineStatus)}</p>` : ""}
         ${ragSourcesView(form.ragSourcesMedicamento)}
         ${bookChapterView(form)}
         ${hasInformation ? medicationReferenceCard(form) : (form.medicationChapter ? "" : `
@@ -815,7 +842,7 @@ function bindGlobalEvents() {
   });
   app.querySelectorAll("[data-action='select-patient']").forEach(select => select.addEventListener("change", event => {
     selectedPatientId = event.target.value;
-    draftGuard.replaced();
+    draftGuard.replaced(); aiOperations.reset();
     draft.consultation = selectedPatientId ? defaultConsultation() : {};
     draft.return = selectedPatientId ? defaultReturn() : {};
     consultationPage = "anamnese";
@@ -833,6 +860,8 @@ function bindGlobalEvents() {
 
 function bindViewEvents() {
   bindAutoDraft();
+  paintAnamnesisAiMarks();
+  paintAiBusyState();
   bindAutoExpandingTextareas();
   bindMedicationLookup();
   bindRiskScreen();
@@ -1098,15 +1127,23 @@ function recordAnamnesisDoctorOverride(control) {
   const target = draft.consultation || defaultConsultation();
   const overrides = { ...(target.anamnesisDoctorOverrides || {}) };
   const key = option => `${control.name}:${option}`;
+  // As caixas que esta acao decidiu. A do clique sempre; as demais quando a
+  // regra de negacao mexe nelas por tabela -- marcar "Nega sintomas" desmarca
+  // o resto, e desmarcado por ele tambem e decisao dele.
+  const tocadas = [key(control.value)];
   overrides[key(control.value)] = control.checked;
   const denialOptions = ["Nega sintomas relacionados", "Nega ideacao, plano ou intencao suicida", "Nenhum"];
   if (control.checked && denialOptions.includes(control.value)) {
-    allowed.forEach(option => { overrides[key(option)] = option === control.value; });
+    allowed.forEach(option => { overrides[key(option)] = option === control.value; tocadas.push(key(option)); });
   } else if (control.checked) {
-    allowed.filter(option => denialOptions.includes(option)).forEach(option => { overrides[key(option)] = false; });
+    allowed.filter(option => denialOptions.includes(option)).forEach(option => { overrides[key(option)] = false; tocadas.push(key(option)); });
   }
   target.anamnesisDoctorOverrides = overrides;
+  target.anamnesisAiMarks = withoutAiMarks(target.anamnesisAiMarks, tocadas);
   draft.consultation = target;
+  // Sem esperar por render(): marcar uma caixa da anamnese nao redesenha a
+  // pagina, e a marca tem de sair no mesmo instante em que ele clica.
+  paintAnamnesisAiMarks();
 }
 
 function bindPatientForm() {
@@ -1137,7 +1174,7 @@ function bindPatientForm() {
     draft.patient = structuredClone(data);
     persist();
     view = pendingViewAfterPatient || "consultation";
-    draftGuard.replaced();
+    draftGuard.replaced(); aiOperations.reset();
     if (view === "consultation") draft.consultation = defaultConsultation();
     if (view === "return") draft.return = defaultReturn();
     pendingViewAfterPatient = "";
@@ -1239,6 +1276,7 @@ function bindActions() {
       if (action === "form-page") switchFormPage(element);
       if (action === "start-refinement") await startRefinement(element);
       if (action === "save-next-page") await saveCurrentPageAndAdvance(element);
+      if (action === "skip-to-diagnosis") skipToDiagnosis(element);
       if (action === "generate-diagnosis") await generateDiagnosisFromClinicalData(element);
       if (action === "refine-diagnosis") await generateDiagnosisFromClinicalData(element, "diagnosis_review");
       if (action === "generate-treatment") await generateTreatmentFromClinicalData(element);
@@ -1268,7 +1306,7 @@ function bindActions() {
       if (action === "voice") voiceRecording.startVoice(element.dataset.target, element);
       if (action === "edit-current-patient") { view = "patient"; draft.patient = structuredClone(getPatient()); render(); }
       if (action === "edit-entry") editEntry(element.dataset.id, element.dataset.type);
-      if (action === "new-consultation") { draftGuard.replaced(); draft.consultation = defaultConsultation(); consultationPage = "anamnese"; consultationUnlocked = 1; render(); }
+      if (action === "new-consultation") { draftGuard.replaced(); aiOperations.reset(); draft.consultation = defaultConsultation(); consultationPage = "anamnese"; consultationUnlocked = 1; render(); }
       if (action === "new-return") startNewReturn();
       if (action === "back-to-record") { view = "record"; render(); }
       if (action === "pdf-entry") pdfEntry(element.dataset.id, element.dataset.type);
@@ -1531,6 +1569,36 @@ async function saveCurrentPageAndAdvance(element) {
   render();
 }
 
+// O caso que ele descreveu quando pediu o acervo de diretrizes: paciente que
+// chega com diagnostico fechado, ele escreve a hipotese e vai tratar. Pelo
+// fluxo normal isso custava cinco cliques em "Salvar e avancar" sobre paginas
+// em branco, so para destravar a aba do Tratamento.
+//
+// NAO e o atalho livre que existia antes de 2026 e foi removido de proposito. A
+// diferenca esta na primeira linha: aqui SALVA antes de destravar. O problema
+// das abas livres era chegar a uma pagina com o que estava na tela nao gravado
+// -- e continua barrado. O que muda e que ele nao precisa mais fingir que
+// percorreu cinco etapas para chegar a sexta.
+//
+// Destrava tudo, e nao so ate o Tratamento: as paginas puladas continuam
+// alcancaveis pelas abas, e ele volta e preenche na ordem que quiser. Trancar o
+// que ficou para tras puniria justamente quem usou o atalho.
+//
+// O que ele perde ao pular a anamnese e a triagem de risco, que le o texto
+// dela. A pagina segue ali, e o aviso do cartao diz isso.
+function skipToDiagnosis(element) {
+  if (voiceRecording.isBusy()) {
+    alert("Encerre a gravação e aguarde a transcrição antes de avançar.");
+    return;
+  }
+  const form = element.closest("form");
+  if (form) updateDraftFromForm(form);
+  saveClinicalRecord("consultation");
+  unlockAllPages("consultation");
+  consultationPage = "diagnostico";
+  render();
+}
+
 // Decisao dele: assinalado o medicamento no Tratamento, "Salvar e avancar" leva
 // a ficha em vez da proxima etapa. A consulta a ficha nasce da prescricao — sem
 // farmaco marcado nao ha o que consultar, e o fluxo segue reto.
@@ -1638,6 +1706,7 @@ async function generateDiagnosisFromClinicalData(element, kind = "diagnosis") {
       ? "Assinale as hipoteses antes de refinar: o refinamento revisa o que voce escolheu."
       : "Gere as hipoteses antes de refinar: o refinamento revisa a primeira passada, nao a substitui.");
   }
+  const operacao = aiOperations.begin("diagnosis");
   setClinicalAiStatus(scope, revisao ? "Refinando o diagnostico com a fonte especializada..." : "Consultando IA real para diagnostico...");
   render();
   let suggestion;
@@ -1651,6 +1720,10 @@ async function generateDiagnosisFromClinicalData(element, kind = "diagnosis") {
   } catch (error) {
     suggestion = revisao ? diagnosisReviewFailure(error) : diagnosisSuggestionFromLocalCatalogue(draftTarget(scope), error);
   }
+  // Uma chamada mais nova desta etapa ja assumiu: esta resposta esta velha e
+  // nao grava. Nao libera o botao tampouco -- quem o fechou foi a mais nova.
+  if (!operacao.atual()) return;
+  operacao.encerrar();
   if (!vigente()) return;
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
   else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
@@ -1667,6 +1740,7 @@ async function generateTreatmentFromClinicalData(element, kind = "treatment") {
       && !treatmentOptionLines(target?.tratamentoAiAbordagens).length) {
     return alert("Gere o tratamento antes de refinar: o refinamento revisa a primeira passada, nao a substitui.");
   }
+  const operacao = aiOperations.begin("treatment");
   const aviso = revisao ? "Refinando o tratamento com a fonte especializada..." : "Consultando IA real para tratamento...";
   setClinicalAiStatus(scope, aviso);
   if (scope === "return") draft.return = { ...(draft.return || {}), treatmentStatus: aviso };
@@ -1695,6 +1769,10 @@ async function generateTreatmentFromClinicalData(element, kind = "treatment") {
     const recado = `${rotulo} sem resposta: ${error.message}`;
     suggestion = { ragSourcesTratamento: [], treatmentStatus: recado, aiStatus: recado };
   }
+  // Uma chamada mais nova desta etapa ja assumiu: esta resposta esta velha e
+  // nao grava. Nao libera o botao tampouco -- quem o fechou foi a mais nova.
+  if (!operacao.atual()) return;
+  operacao.encerrar();
   if (!vigente()) return;
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
   else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
@@ -1713,8 +1791,9 @@ async function generateReturnPlanFromClinicalData(element) {
     return alert(`Complete a Evolucao antes de gerar o ajuste. Falta:\n\n- ${faltando.join("\n- ")}`);
   }
   const vigente = draftGuard.capture();
+  const operacao = aiOperations.begin("return-plan");
   const gravar = dados => {
-    if (!vigente()) return;
+    if (!vigente() || !operacao.atual()) return;
     if (scope === "return") draft.return = { ...(draft.return || {}), ...dados };
     else draft.consultation = { ...(draft.consultation || {}), ...dados };
   };
@@ -1739,6 +1818,10 @@ async function generateReturnPlanFromClinicalData(element) {
       returnPlanStatus: `${{ rag: "RAG", guidelines: "Diretrizes", current: "IA" }[target?.returnPlanAiMode || "rag"] || "IA"} sem resposta: ${error.message}`
     });
   }
+  // Uma chamada mais nova desta etapa ja assumiu: esta resposta esta velha e
+  // nao grava. Nao libera o botao tampouco -- quem o fechou foi a mais nova.
+  if (!operacao.atual()) return;
+  operacao.encerrar();
   if (!vigente()) return;
   render();
 }
@@ -1782,8 +1865,9 @@ async function generateAppendixSymptomConduct(element) {
   const sintoma = String(target?.appendixSymptom || "").trim();
   if (!sintoma) return alert("Escreva o sintoma que voce quer consultar antes de gerar.");
   const vigente = draftGuard.capture();
+  const operacao = aiOperations.begin("appendix-symptom");
   const gravar = dados => {
-    if (!vigente()) return;
+    if (!vigente() || !operacao.atual()) return;
     if (scope === "return") draft.return = { ...(draft.return || {}), ...dados };
     else draft.consultation = { ...(draft.consultation || {}), ...dados };
   };
@@ -1808,6 +1892,10 @@ async function generateAppendixSymptomConduct(element) {
   } catch (error) {
     gravar({ ragSourcesSintomatico: [], appendixSymptomStatus: `Literatura de manejo sintomatico indisponivel: ${error.message}` });
   }
+  // Uma chamada mais nova desta etapa ja assumiu: esta resposta esta velha e
+  // nao grava. Nao libera o botao tampouco -- quem o fechou foi a mais nova.
+  if (!operacao.atual()) return;
+  operacao.encerrar();
   if (!vigente()) return;
   render();
 }
@@ -1857,6 +1945,7 @@ function adoptAppendixConduct(conduta) {
 async function generateEvolutionFromClinicalData(element) {
   const { scope } = syncedTarget(element);
   const vigente = draftGuard.capture();
+  const operacao = aiOperations.begin("evolution");
   setClinicalAiStatus(scope, "Consultando IA real para evolução clínica...");
   render();
   let suggestion;
@@ -1883,6 +1972,10 @@ async function generateEvolutionFromClinicalData(element) {
     const context = clinicalAiContext(scope);
     suggestion = evolutionSuggestionOnAiFailure({ target: context.target, patient: context.patient, previous: context.previous, isReturn: context.isReturn, error });
   }
+  // Uma chamada mais nova desta etapa ja assumiu: esta resposta esta velha e
+  // nao grava. Nao libera o botao tampouco -- quem o fechou foi a mais nova.
+  if (!operacao.atual()) return;
+  operacao.encerrar();
   if (!vigente()) return;
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
   else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
@@ -1898,10 +1991,16 @@ async function generateMedicationFromClinicalData(element) {
   const { scope, target } = syncedTarget(element);
   const vigente = draftGuard.capture();
   if (!target?.medicationGeneric?.trim()) return alert("Digite o nome do medicamento antes de consultar a IA.");
+  const operacao = aiOperations.begin("medication");
   const aviso = "Consultando IA real para medicamento...";
   setClinicalAiStatus(scope, aviso);
-  if (scope === "return") draft.return = { ...(draft.return || {}), medicationStatus: aviso };
-  else draft.consultation = { ...(draft.consultation || {}), medicationStatus: aviso };
+  // O aviso vai para `medicationOnlineStatus`, que e o campo que a pagina
+  // Medicamentos desenha. Ate aqui ia para `medicationStatus`, que NENHUM view
+  // le: durante a espera o painel ficava com a mensagem de sucesso do farmaco
+  // anterior, sem nada dizendo que havia consulta em curso.
+  const emEspera = { medicationOnlineStatus: aviso, medicationAcervoAviso: "" };
+  if (scope === "return") draft.return = { ...(draft.return || {}), ...emEspera };
+  else draft.consultation = { ...(draft.consultation || {}), ...emEspera };
   render();
   let suggestion;
   try {
@@ -1940,9 +2039,15 @@ async function generateMedicationFromClinicalData(element) {
       medicationPresentation: "",
       medicationSafety: "",
       medicationBestUse: "",
-      medicationStatus: caiuParaWeb
-        ? "Nenhum livro do acervo traz esse farmaco — a ficha foi pesquisada na web. Revise com bula vigente."
-        : "Medicamento preenchido nos campos essenciais. Revise com bula vigente.",
+      // Campo proprio, e nao mais uma variante do status: "o acervo nao tinha
+      // este farmaco" e um aviso de SUSTENTACAO da ficha, nao uma mensagem de
+      // andamento, e a tela precisa desenha-lo diferente. O texto existia desde
+      // sempre e nunca chegou a tela -- era escrito em `medicationStatus`, que
+      // nenhum view renderiza. Vazio quando o livro sustentou a ficha: aviso
+      // que aparece sempre deixa de ser aviso.
+      medicationAcervoAviso: caiuParaWeb
+        ? "Nenhum livro do acervo traz esse fármaco — a ficha foi pesquisada na web. Confira a bula vigente antes de prescrever."
+        : "",
       medicationOnlineStatus: "Resposta de medicamento gerada pela IA real. Revise com bula brasileira e dados do paciente.",
       medicationTips: await fetchMedicationTips(context, target),
       aiStatus: "Resposta gerada pela IA real. Revise antes de salvar.",
@@ -1952,10 +2057,15 @@ async function generateMedicationFromClinicalData(element) {
     const wasRag = (target?.pharmaAiMode || "rag") === "rag";
     suggestion = {
       ragSourcesMedicamento: [],
+      medicationAcervoAviso: "",
       medicationOnlineStatus: wasRag ? `RAG indisponivel: ${error.message}. Use pesquisa online ou prompt manual.` : `IA indisponível: ${error.message}. Use pesquisa online ou prompt manual.`,
       aiStatus: wasRag ? `RAG indisponivel: ${error.message}.` : `IA indisponível: ${error.message}.`
     };
   }
+  // Uma chamada mais nova desta etapa ja assumiu: esta resposta esta velha e
+  // nao grava. Nao libera o botao tampouco -- quem o fechou foi a mais nova.
+  if (!operacao.atual()) return;
+  operacao.encerrar();
   if (!vigente()) return;
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
   else draft.consultation = { ...(draft.consultation || {}), ...suggestion };
@@ -2057,20 +2167,72 @@ function applyAnamnesisAiResult(result = {}, transcript = "") {
   if (!textOverrides.hdaManual) target.hdaManual = result.hda || target.hdaManual || "";
   if (!textOverrides.medicos) target.medicos = result.medical_history || target.medicos || "";
   const overrides = target.anamnesisDoctorOverrides || {};
+  const propostoPorCampo = {};
   Object.entries(ANAMNESIS_AI_FIELDS).forEach(([aiKey, [formKey, allowed]]) => {
     const suggested = new Set(canonicalAiSelections(result[aiKey], allowed));
     const denialOptions = ["Nega sintomas relacionados", "Nega ideacao, plano ou intencao suicida", "Nenhum"];
     if ([...suggested].some(option => !denialOptions.includes(option))) {
       denialOptions.forEach(option => suggested.delete(option));
     }
+    propostoPorCampo[formKey] = suggested;
     target[formKey] = allowed.filter(option => {
       const overrideKey = `${formKey}:${option}`;
       return Object.hasOwn(overrides, overrideKey) ? overrides[overrideKey] : suggested.has(option);
     });
   });
+  // De quem e cada caixa. Calculado AQUI, onde as tres informacoes existem ao
+  // mesmo tempo -- o que a IA propos, o que ele ja tinha decidido e o que
+  // sobrou marcado. Depois desta linha a tela nao tem como reconstruir isso.
+  target.anamnesisAiMarks = anamnesisAiMarks(target, propostoPorCampo, overrides);
   target.anamnesisProcessedAt = new Date().toISOString();
   target.anamnesisProcessedTranscript = target.qphda;
   draft.consultation = target;
+}
+
+// A marca de origem e aplicada no DOM depois de desenhar, e nao dentro do HTML
+// dos chips. Duas razoes: as caixas da anamnese saem de tres renderizadores
+// diferentes (chips, multipleChoiceField, suicideRiskFields) e passar a marca
+// por todos eles espalharia o assunto; e ha caminhos que mexem nas caixas SEM
+// redesenhar a pagina (o toque do medico, e a extracao que sincroniza direto
+// para nao perder a rolagem), que aqui ficam cobertos pela mesma funcao.
+// O `disabled` sai do estado, e nao do DOM: render() recria os botoes a cada
+// mudanca de status -- inclusive a que anuncia "Consultando..." -- e um
+// atributo posto na mao seria apagado no desenho seguinte.
+function paintAiBusyState() {
+  if (!app) return;
+  Object.entries(AI_BUSY_BUTTONS).forEach(([chave, acoes]) => {
+    const ocupada = aiOperations.ocupada(chave);
+    acoes.forEach(acao => {
+      app.querySelectorAll(`[data-action="${acao}"]`).forEach(botao => {
+        // Nao mexe no que ja esta fechado por outro motivo: o "Refinar" fecha
+        // sozinho enquanto nao ha hipotese assinalada, e reabri-lo aqui
+        // ofereceria uma segunda passada sobre nada.
+        if (!ocupada && botao.dataset.aiBusy !== "1") return;
+        botao.disabled = ocupada;
+        if (ocupada) botao.dataset.aiBusy = "1";
+        else delete botao.dataset.aiBusy;
+      });
+    });
+  });
+}
+
+function paintAnamnesisAiMarks() {
+  if (view !== "consultation" || consultationPage !== "anamnese") return;
+  const form = app.querySelector("#consult-form");
+  if (!form) return;
+  const marcas = (draft.consultation || {}).anamnesisAiMarks || {};
+  Object.values(ANAMNESIS_AI_FIELDS).forEach(([formKey]) => {
+    form.querySelectorAll(`input[type="checkbox"][name="${CSS.escape(formKey)}"]`).forEach(control => {
+      const daIa = control.checked && marcas[`${formKey}:${control.value}`] === true;
+      const chip = control.closest(".chip");
+      if (!chip) return;
+      chip.classList.toggle("chip-ai", daIa);
+      // O contorno sozinho e decorativo: quem navega por leitor de tela, ou
+      // quem nao distingue o tracejado, precisa da frase.
+      if (daIa) chip.title = "Marcado pela extração da IA a partir da transcrição. Confira: ao tocar, passa a ser seu.";
+      else if (chip.title.startsWith("Marcado pela extração")) chip.removeAttribute("title");
+    });
+  });
 }
 
 function syncAnamnesisControlsFromDraft() {
@@ -2086,6 +2248,7 @@ function syncAnamnesisControlsFromDraft() {
       control.checked = selected.has(control.value);
     });
   });
+  paintAnamnesisAiMarks();
   window.scrollTo(scrollLeft, scrollTop);
   requestAnimationFrame(() => window.scrollTo(scrollLeft, scrollTop));
   setTimeout(() => window.scrollTo(scrollLeft, scrollTop), 120);
@@ -2560,7 +2723,7 @@ function editEntry(id, type) {
   const entry = findEntry(id, type);
   if (!entry) return;
   selectedPatientId = entry.patientId;
-  draftGuard.replaced();
+  draftGuard.replaced(); aiOperations.reset();
   // Registro salvo e reaberto: o atendimento ja foi percorrido inteiro, entao
   // as abas voltam a ser livres. O travamento existe para o atendimento novo.
   if (type === "consultation") {
@@ -2640,7 +2803,7 @@ async function endSession() {
   authSession = null;
   authError = "";
   syncError = "";
-  draftGuard.replaced();
+  draftGuard.replaced(); aiOperations.reset();
   draft = {};
   view = "dashboard";
   consultationPage = "anamnese";
