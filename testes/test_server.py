@@ -1050,3 +1050,216 @@ class ClinicalAiEndpointTests(unittest.TestCase):
         with patch.dict(os.environ, {"OPENAI_API_KEY": "chave-de-teste"}):
             status, _ = self._post("isto nao e json")
         self.assertEqual(status, 400)
+class GuidelinesModeTests(unittest.TestCase):
+    """O terceiro modo de resposta: Guidelines.
+
+    Nao e etapa nova -- e valor novo do eixo `mode`, que ja separava "IA Nuvem"
+    de "RAG com literatura". O mesmo Tratamento, o mesmo schema, as mesmas
+    caixas de assinalar; o que muda e a prateleira.
+    """
+
+    def test_o_modo_existe_e_a_lista_continua_fechada(self):
+        """Modo escolhe em que ACERVO a busca entra, e o valor vem do cliente.
+        Mesma disciplina de RAG_PATIENT_SCOPES: lista fechada, conferida."""
+        self.assertEqual(server.AI_MODES, {"current", "rag", "guidelines"})
+
+    def test_so_as_duas_etapas_de_conduta_aceitam_diretriz(self):
+        """Uma diretriz nao nomeia sindrome (isso e o Diagnostico) nem redige
+        bula (isso e o Medicamento): ela diz o que fazer com o diagnostico ja
+        fechado, que e a pergunta destas duas etapas e de nenhuma outra."""
+        self.assertEqual(server.GUIDELINES_KINDS, {"treatment", "return_plan"})
+        for kind in ("diagnosis", "medication", "medication_tips", "anamnesis", "symptomatic"):
+            self.assertNotIn(kind, server.GUIDELINES_KINDS)
+
+    def test_as_etapas_de_conduta_sao_etapas_de_verdade(self):
+        self.assertTrue(server.GUIDELINES_KINDS <= server.ALLOWED_KINDS)
+
+    def test_a_store_das_diretrizes_nao_e_a_dos_livros(self):
+        """A razao do dispositivo existir. A biblioteca devolve 8 trechos NO
+        TOTAL, e diretriz de conduta e topicamente vizinha da terapeutica: na
+        mesma store, ela ocuparia vagas dos livros sem responder a mesma
+        pergunta."""
+        self.assertNotEqual(server.GUIDELINES_ENV_KEY, "OPENAI_RAG_VECTOR_STORE_ID")
+
+    def test_as_diretrizes_nao_entram_no_mapa_de_escopo_dos_livros(self):
+        """RAG_SCOPE_BY_KIND decide que GENERO cada etapa recupera da
+        biblioteca. As diretrizes nao sao um genero de la, e por isso nao tem
+        linha nenhuma nesse mapa -- e nenhuma etapa consegue alcanca-las por
+        engano."""
+        for escopos in server.RAG_SCOPE_BY_KIND.values():
+            self.assertNotIn("diretrizes", escopos)
+
+    def test_sem_store_configurada_a_busca_avisa_qual_falta(self):
+        with patch.dict("os.environ", {server.GUIDELINES_ENV_KEY: ""}, clear=False):
+            with self.assertRaises(ValueError) as ctx:
+                server.search_guideline_sources("depressao", "sk-teste")
+            self.assertIn(server.GUIDELINES_ENV_KEY, str(ctx.exception))
+
+    def test_a_busca_das_diretrizes_vai_na_store_certa_e_sem_filtro(self):
+        """SEM FILTRO INTERNO, de proposito: os 39 arquivos sao todos o mesmo
+        genero, e filtrar por transtorno bloquearia o diferencial -- a propria
+        diretriz de depressao manda excluir bipolaridade antes de
+        antidepressivo, e sob filtro `depressao` o arquivo do TAB nunca entra.
+        """
+        with patch.object(server, "vector_store_search", return_value=[]) as busca:
+            with patch.dict("os.environ", {server.GUIDELINES_ENV_KEY: "vs_diretrizes"}, clear=False):
+                server.search_guideline_sources("depressao em crianca de 9 anos", "sk-teste")
+        store_id, query, _api_key, filtros = busca.call_args[0]
+        self.assertEqual(store_id, "vs_diretrizes")
+        self.assertIn("9 anos", query)
+        self.assertIsNone(filtros, "filtro por transtorno bloquearia o diferencial e a comorbidade")
+
+    def test_a_busca_dos_livros_continua_filtrando_por_genero(self):
+        """A separacao nao pode ter afrouxado a da biblioteca: o Tratamento le
+        `terapeutica`, e so."""
+        with patch.object(server, "vector_store_search", return_value=[]) as busca:
+            with patch.dict("os.environ", {"OPENAI_RAG_VECTOR_STORE_ID": "vs_livros"}, clear=False):
+                server.search_rag_sources("depressao", "sk-teste", kind="treatment")
+        store_id, _query, _api_key, filtros = busca.call_args[0]
+        self.assertEqual(store_id, "vs_livros")
+        self.assertEqual([f["value"] for f in filtros["filters"]], ["terapeutica"])
+
+    def test_o_contrato_preserva_a_forca_da_recomendacao(self):
+        """A unica coisa que o acervo tem de diferente. Dizer "considere" onde a
+        diretriz diz "primeira linha" e perde-la."""
+        contrato = server.GUIDELINES_CONTRACT.lower()
+        for palavra in ("primeira linha", "contraindicado", "divergirem", "cobertura"):
+            self.assertIn(palavra, contrato)
+
+    def test_o_contrato_nao_deixa_o_modelo_arbitrar_divergencia(self):
+        """Quem decide a conduta e o medico -- e nao o modelo, e nao a diretriz
+        que por acaso pontuou mais alto."""
+        self.assertIn("quem decide a conduta e o medico", server.GUIDELINES_CONTRACT.lower())
+
+    def test_acervo_nao_indexado_diz_o_que_falta(self):
+        """Condicao NORMAL de quem acabou de clonar. Sem a guarda, a ValueError
+        da busca cai no except generico e a tela diz "Erro interno ao
+        processar", que manda procurar defeito onde ha so um passo de
+        instalacao faltando."""
+        fonte = (server.ROOT / "server.py").read_text(encoding="utf-8")
+        self.assertIn("guidelines_not_configured", fonte)
+        self.assertIn("scripts/ingest_guidelines.py", fonte)
+
+
+class GuidelineEntityMatchTests(unittest.TestCase):
+    """A busca garantida por entidade.
+
+    Medido em 23/09/2026: a busca semantica acerta o primeiro lugar em 15 de 21
+    casos, e quando erra, erra feio -- Alzheimer encabecado por transtorno de
+    personalidade, autismo por transtorno de conduta. O documento da entidade
+    para de disputar e passa a ter vaga propria, escolhido por TERMO contra o
+    `condicoes` que a ingestao gravou. E a mesma licao do codigo da CID: a
+    recuperacao acerta o tema e erra o digito, entao o digito vem de tabela.
+    """
+
+    CATALOGO = [
+        {"filename": "Episodios_Depressivos_e_Depressao_Maior.md",
+         "titulo": "Episodios Depressivos e Transtorno Depressivo Maior",
+         "condicoes": "episodio depressivo; transtorno depressivo maior; depressao unipolar"},
+        {"filename": "Depressao_na_Infancia_e_Adolescencia.md",
+         "titulo": "Depressao na Infancia e Adolescencia",
+         "condicoes": "depressao pediatrica; fluoxetina; autolesao"},
+        {"filename": "Transtorno_Depressivo_Persistente_Distimia.md",
+         "titulo": "Transtorno Depressivo Persistente (Distimia)",
+         "condicoes": "distimia; depressao cronica; depressao dupla; depressao maior",
+         "populacao": "adultos, inicio precoce antes dos 21 anos"},
+        {"filename": "Doenca_de_Alzheimer_e_Outras_Demencias.md",
+         "titulo": "Doenca de Alzheimer e Outras Demencias",
+         "condicoes": "doenca de Alzheimer; demencia vascular; demencia frontotemporal"},
+        {"filename": "Transtornos_de_Personalidade_Descompensacoes.md",
+         "titulo": "Transtornos de Personalidade: Descompensacoes",
+         "condicoes": "descompensacao de personalidade; crise"},
+        {"filename": "Transtorno_do_Jogo.md",
+         "titulo": "Transtorno do Jogo",
+         "condicoes": "jogo problematico; danos relacionados",
+         "populacao": "adultos e adolescentes, inicio precoce frequente"},
+    ]
+
+    def casar(self, diagnostico, infantojuvenil=False, limite=2):
+        return server.guideline_entity_matches(diagnostico, infantojuvenil,
+                                               catalogo=self.CATALOGO, limite=limite)
+
+    def test_alzheimer_chega_no_documento_de_alzheimer(self):
+        """Na medicao este caso veio encabecado por um documento de transtorno
+        de personalidade, com o arquivo certo existindo no acervo."""
+        casados = self.casar("Demencia na doenca de Alzheimer, fase moderada, com agitacao")
+        self.assertEqual(casados[0], "Doenca de Alzheimer e Outras Demencias")
+
+    def test_casa_por_radical_e_nao_so_por_termo_igual(self):
+        """O medico escreve "Episodio depressivo maior" e o documento da
+        infancia se chama "Depressao na Infancia": `depressivo` e `depressao`
+        sao termos diferentes, e sem radical o arquivo certo nao entrava NEM na
+        lista."""
+        casados = self.casar("Episodio depressivo maior", infantojuvenil=True, limite=2)
+        self.assertIn("Depressao na Infancia e Adolescencia", casados)
+
+    def test_a_faixa_desempata_e_nunca_exclui(self):
+        """O documento do Transtorno do Jogo cita adolescentes e inicio precoce.
+        Enquanto a faixa era somada ao escore, ele ficava negativo num paciente
+        adulto e sumia -- e o unico documento do acervo sobre jogo nao chegava
+        ao caso de jogo."""
+        self.assertIn("Transtorno do Jogo", self.casar("Transtorno do jogo, apostas online"))
+
+    def test_inicio_precoce_na_populacao_nao_faz_documento_infantil(self):
+        """Em distimia, "inicio precoce" quer dizer antes dos 21 anos: e
+        especificador de curso, e nao publico. Lido como faixa, a distimia
+        recebia o reforco de um paciente crianca."""
+        distimia = next(i for i in self.CATALOGO if "Distimia" in i["filename"])
+        self.assertFalse(server.e_documento_infantil(distimia))
+        infancia = next(i for i in self.CATALOGO if "Infancia" in i["filename"])
+        self.assertTrue(server.e_documento_infantil(infancia))
+
+    def test_quem_cobre_mais_do_diagnostico_vem_primeiro(self):
+        """A faixa e desempate, e nao soma. Somada, ela ultrapassava casamento
+        melhor: um documento da faixa que casa um termo passava na frente do
+        documento da entidade que casa todos."""
+        casados = self.casar("Transtorno depressivo maior", infantojuvenil=True)
+        self.assertEqual(casados[0], "Episodios Depressivos e Transtorno Depressivo Maior")
+
+    def test_crianca_ganha_uma_vaga_a_mais(self):
+        """O documento da faixa precisa ENTRAR, e nao liderar. A vaga extra e a
+        mesma economia dos RAG_PATIENT_SCOPES: entra por cima, sem tirar de
+        ninguem."""
+        adulto = self.casar("Episodio depressivo maior", infantojuvenil=False, limite=2)
+        crianca = self.casar("Episodio depressivo maior", infantojuvenil=True, limite=2)
+        self.assertEqual(len(adulto), 2)
+        self.assertEqual(len(crianca), 3)
+        self.assertIn("Depressao na Infancia e Adolescencia", crianca)
+
+    def test_quadro_fora_do_acervo_nao_casa_documento_nenhum(self):
+        """Lista vazia e resposta legitima: o acervo nao tem documento proprio
+        para esta hipotese, e a busca geral responde sozinha."""
+        self.assertEqual(self.casar("Hipertensao arterial sistemica"), [])
+        self.assertEqual(self.casar("Hipotireoidismo primario"), [])
+
+    def test_sem_diagnostico_nao_ha_o_que_garantir(self):
+        self.assertEqual(self.casar(""), [])
+        self.assertEqual(self.casar("   "), [])
+
+    def test_a_porta_de_recusa_e_o_casamento_e_nao_o_escore(self):
+        """Medido em 23/09/2026 com 21 legitimos e 13 fora do acervo: casar
+        algo aceita 21/21 legitimos e so 2/13 de fora; casar nada recusa 11/13
+        de fora e ZERO legitimo. O escore de similaridade nao servia -- as duas
+        faixas se tocavam a tres milesimos."""
+        fora = ["Hipertensao arterial sistemica, ajuste de anti-hipertensivo",
+                "Hipotireoidismo primario, reposicao de levotiroxina",
+                "Diabetes mellitus tipo 2, ajuste de metformina",
+                "Fratura de colo de femur, conduta cirurgica",
+                "Epilepsia focal, ajuste de anticonvulsivante",
+                "Enxaqueca com aura, profilaxia",
+                "Infeccao do trato urinario nao complicada",
+                "Doenca do refluxo gastroesofagico, ajuste de inibidor de bomba"]
+        for diagnostico in fora:
+            self.assertEqual(self.casar(diagnostico), [], f"deveria recusar: {diagnostico}")
+
+    def test_palavra_clinica_generica_nao_abre_a_porta(self):
+        """`doenca` fazia refluxo gastroesofagico casar com Doenca de Alzheimer,
+        e `complicada` fazia infeccao urinaria casar com Luto Complicado. Sao
+        palavras que descrevem qualquer doenca."""
+        for generica in ("doenca", "complicada", "ajuste", "sintomas", "manejo"):
+            self.assertIn(generica, server.GUIDELINE_STOPWORDS)
+
+    def test_persistente_nao_e_generica_porque_nomeia_entidade(self):
+        """Parece do mesmo tipo e nao e: "Transtorno Depressivo Persistente" e
+        o nome de uma entidade. Deixa passar um caso de asma, e e o preco."""
+        self.assertNotIn("persistente", server.GUIDELINE_STOPWORDS)

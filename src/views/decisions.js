@@ -237,11 +237,33 @@ export function refineButton(action, liberado) {
     title="Revisa com a fonte especializada, sempre pelo RAG. Substitui o que esta na tela.">Refinar</button>`;
 }
 
-export function aiModeSelector(value = "current", name = "aiMode") {
+// O Tratamento ganhou campo PROPRIO em 23/09/2026. Ate aqui dividia o
+// `pharmaAiMode` com a pagina Medicamentos: um valor so, dois radios em telas
+// diferentes, e trocar a fonte numa trocava na outra sem dizer. Era surpresa;
+// com o terceiro modo viraria erro, porque Guidelines escolhido no Tratamento
+// faria a ficha do farmaco pedir ao servidor um modo que aquela etapa recusa.
+//
+// O valor antigo segue valendo como padrao: registro salvo antes da separacao
+// reabre no modo em que foi gerado, em vez de aparecer em outro sem explicacao.
+export function treatmentAiMode(form = {}) {
+  const valor = form.treatmentAiMode || form.pharmaAiMode || "rag";
+  return valor === "guidelines" || valor === "rag" ? valor : "current";
+}
+
+// O terceiro modo e OPCIONAL e desligado por padrao: as diretrizes so respondem
+// onde a pergunta e de conduta -- Tratamento e Ajuste de conduta. Oferecer o
+// radio onde o servidor recusa o modo seria uma escolha que vira erro.
+export function aiModeSelector(value = "current", name = "aiMode", { guidelines = false } = {}) {
+  // Com DOIS modos, "nao e rag" bastava para marcar a Nuvem. Com tres, essa
+  // conta marca duas caixas ao mesmo tempo quando o modo e guidelines, e o
+  // radio passa a mostrar um modo que nao e o que vai ser usado. O modo atual
+  // se resolve uma vez, aqui, e cada caixa compara com ele.
+  const atual = value === "guidelines" && guidelines ? "guidelines" : value === "rag" ? "rag" : "current";
   return `<fieldset class="ai-mode-selector">
     <legend>Fonte da resposta</legend>
-    <label><input type="radio" name="${name}" value="current" ${value !== "rag" ? "checked" : ""} /><span>IA Nuvem</span></label>
-    <label><input type="radio" name="${name}" value="rag" ${value === "rag" ? "checked" : ""} /><span>RAG com literatura</span></label>
+    <label><input type="radio" name="${name}" value="current" ${atual === "current" ? "checked" : ""} /><span>IA Nuvem</span></label>
+    <label><input type="radio" name="${name}" value="rag" ${atual === "rag" ? "checked" : ""} /><span>RAG com literatura</span></label>
+    ${guidelines ? `<label><input type="radio" name="${name}" value="guidelines" ${atual === "guidelines" ? "checked" : ""} /><span>Guidelines</span></label>` : ""}
   </fieldset>`;
 }
 
@@ -315,10 +337,10 @@ export function treatmentModule(form, { podeEngravidar = false } = {}) {
   const selectedApproaches = arrayValue(form.abordagensSelecionadas);
   return `
     <div class="diagnosis-ai-panel">
-      ${aiModeSelector(form.pharmaAiMode || "rag", "pharmaAiMode")}
+      ${aiModeSelector(treatmentAiMode(form), "treatmentAiMode", { guidelines: true })}
       <div class="actions">
         <button class="primary" type="button" data-action="generate-treatment">Gerar</button>
-        ${refineButton("refine-treatment", medicationOptions.length || approachOptions.length)}
+        ${treatmentAiMode(form) === "guidelines" ? "" : refineButton("refine-treatment", medicationOptions.length || approachOptions.length)}
       </div>
       ${form.treatmentStatus ? `<p class="online-status">${escapeHtml(form.treatmentStatus)}</p>` : ""}
       ${ragSourcesView(form.ragSourcesTratamento)}
@@ -415,7 +437,7 @@ export function returnPlanModule(form) {
   const gerado = medicacao.length || conduta.length;
   return `
     <div class="diagnosis-ai-panel">
-      ${aiModeSelector(form.returnPlanAiMode || "rag", "returnPlanAiMode")}
+      ${aiModeSelector(form.returnPlanAiMode || "rag", "returnPlanAiMode", { guidelines: true })}
       <div class="actions">
         <button class="primary" type="button" data-action="generate-return-plan">Gerar</button>
       </div>

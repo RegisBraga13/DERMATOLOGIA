@@ -1,8 +1,13 @@
 # Biblioteca RAG de psiquiatria
 
-Cada etapa de IA responde por um de dois modos, escolhido na tela: `IA Nuvem`, que pesquisa na web, e
+Cada etapa de IA responde por um modo, escolhido na tela: `IA Nuvem`, que pesquisa na web, e
 `RAG com literatura`, que le a biblioteca de psiquiatria: **18 arquivos, 18 titulos, um genero para cada**. Os
 PDFs nao devem ser adicionados ao Git. Somente materiais licenciados ou autorizados devem ser indexados.
+
+No Tratamento e no Ajuste de conduta ha um terceiro modo, `Guidelines`, que le
+um acervo **separado** de diretrizes de conduta — outra store, outra busca,
+outro script de ingestao. Ele nao se mistura com a biblioteca dos livros em
+nenhum ponto; ver [Diretrizes de conduta](#diretrizes-de-conduta-acervo-separado).
 
 ## Preparacao
 
@@ -216,6 +221,301 @@ No maximo 4 secoes. So a Secao II: os criterios propostos da Secao III ficam de
 fora. O nome da hipotese principal chegou a secao certa em 10 de 10 nos casos
 ficticios; onde a IA escreve com a redacao da CID-11 ("Transtorno depressivo,
 episodio unico"), quem resolve e o codigo.
+## Diretrizes de conduta (acervo separado)
+
+Terceiro **modo** de resposta, e nao uma etapa nova. O app tem dois eixos
+independentes: o `kind`, que diz **que etapa e**, e o `mode`, que diz **de onde
+vem a resposta**. Ate 23/09/2026 o segundo tinha dois valores — `IA Nuvem` e
+`RAG com literatura`. `Guidelines` e o terceiro: mesma etapa, mesmo schema,
+mesmas caixas de assinalar, outra prateleira.
+
+O radio aparece em **Tratamento** e **Ajuste de conduta**, e em mais nenhuma
+tela. Uma diretriz nao nomeia sindrome — isso e o Diagnostico — nem redige bula
+— isso e o Medicamento: ela diz o que fazer com o diagnostico ja fechado, que e
+a pergunta destas duas etapas e de nenhuma outra. Pedida noutra, o servidor
+recusa com 400, em vez de cair para outro modo em silencio.
+
+### Por que store propria, e nao um genero novo
+
+Duas razoes, e as duas ja estao medidas neste documento:
+
+1. **A busca devolve 8 trechos no total.** Diretriz de conduta e topicamente
+   vizinha da `terapeutica`: no Tratamento ela pontuaria alto o bastante para
+   ocupar vagas dos livros sem responder a mesma pergunta. E o erro da
+   psicofarmacologia disputando com a psicopatologia, repetido com outro par.
+   Separadas, as duas buscas nunca competem — porque nunca rodam juntas: o
+   medico escolhe **um modo por vez**.
+2. **`tag_rag_scope.py` e `desassociar_rag.py` varrem a store dos livros por
+   escopo.** Script que envelhece vira destrutivo sem uma linha de erro. Este
+   acervo fica onde eles nao alcancam, e nao tem linha nenhuma em
+   `RAG_SCOPE_BY_KIND`.
+
+### Sem filtro interno, de proposito
+
+O acervo tem **39 documentos, todos do mesmo genero**: diretriz de conduta. A
+regra desta pagina vale aqui inteira — dentro de um genero, mais documento e
+estritamente melhor; o que dilui e misturar genero. Nao ha genero para misturar.
+
+Filtrar por transtorno nao protegeria de nada e **bloquearia** o que mais
+importa:
+
+| Caso | O que o filtro por transtorno esconderia |
+| --- | --- |
+| Diferencial | A propria diretriz de depressao manda "excluir bipolaridade antes de antidepressivo". Sob filtro `depressao`, o arquivo do TAB nunca entra. |
+| Comorbidade | Depressao com uso de alcool precisa dos dois arquivos. |
+| Faixa etaria | `Depressao_na_Infancia_e_Adolescencia` e arquivo proprio, ao lado do de adultos. |
+
+A metadata — grupo, titulo, condicoes, populacao, data — **e gravada na
+ingestao** e nao filtra nada. Se a medicao mostrar diluicao, ligar o filtro e
+uma linha, sem reindexar.
+
+### A idade entra na consulta, e so aqui
+
+No acervo de livros quem resolve a faixa etaria e o escopo do paciente:
+`infantojuvenil` entra por cima, com vaga propria, porque o tratado da infancia
+perderia a disputa por trecho contra cinco tratados de adulto. Nas diretrizes
+nao ha escopo nem disputa entre generos — ha um **arquivo** da faixa, e ele so
+vence se a consulta disser de quem se trata. Sem isso, "tratamento de episodio
+depressivo" recupera o arquivo de adultos para um paciente de 9 anos, que e o
+erro ja registrado acima: sem o escopo, a crianca recebia a dose de adulto.
+
+A faixa entra **depois do diagnostico, dentro da mesma oracao**. Na frente,
+desloca o peso do embedding para a idade e afasta a busca do que se pergunta;
+no fim, vira apendice e nao puxa o arquivo da faixa. A consulta do modo RAG nao
+mudou: ela foi medida na composicao atual, e mexer nela sem medir de novo troca
+um ganho suposto por uma regressao invisivel.
+
+### O que o modo nao faz
+
+**Nao decide.** A IA propoe, o medico assinala — e conduta e decisao dele. Por
+isso, quando as diretrizes recuperadas divergem entre si, o contrato manda
+apresentar a divergencia em vez de escolher; e quando nao cobrem um ponto, o
+campo sai vazio, porque ausencia de recomendacao nao e recomendacao contraria e
+tampouco autorizacao.
+
+**Nao tem Refinar.** O botao some neste modo. A segunda passada do Tratamento
+revisa com o `tratado`, que e outro acervo e outra pergunta.
+
+**Nao cai para a web.** Nenhum trecho acima do limiar e 422 visivel, e nao uma
+resposta montada de outra fonte. O ramo do RAG cai na web quando o farmaco
+perguntado nao e de psiquiatria — ali a biblioteca nao ter losartana e a
+resposta certa de um acervo de psiquiatria. Aqui nao ha equivalente: a tela
+afirma que a conduta veio de diretriz, e conduta remontada de busca na web nao e
+mais isso.
+
+### Porta de recusa
+
+Quadro que o acervo nao cobre **nao e respondido**. Quem decide isso e o
+casamento por entidade, e nao o escore de similaridade.
+
+Medido em 23/09/2026 com 21 casos legitimos e 13 fora do acervo -- clinica
+geral, neurologia, ortopedia, cardiologia e um administrativo:
+
+| Instrumento | Recusa correta | Recusa falsa |
+| --- | --- | --- |
+| **Casou zero documento** | 11/13 | **0/21** |
+| Corte por escore | impossivel | as duas faixas se tocam |
+
+**Zero recusa falsa** e o que torna a porta usavel. O escore nao serve e nao vai
+servir: os melhores escores dos casos legitimos vao de 0.84 a 0.95, os dos casos
+de fora vao de 0.63 a 0.91, e as faixas se sobrepoem. Um piso de 0.86 chegou a
+ser escrito e foi removido no mesmo dia, quando a amostra completa mostrou que
+ele recusaria um caso legitimo de borderline que tinha acertado o arquivo.
+
+Tres palavras saiam caro e viraram stopword: `doenca` fazia refluxo
+gastroesofagico casar com "Doenca de Alzheimer", `complicada` fazia infeccao
+urinaria casar com "Luto Complicado", e `sintomas` puxava "Sintomas Somaticos"
+para qualquer coisa. Descrevem qualquer doenca e nao nomeiam nenhuma.
+`persistente` ficou de fora dessa lista de proposito: parece do mesmo tipo e
+nao e -- "Transtorno Depressivo Persistente" e o nome de uma entidade.
+
+**Os dois que ainda passam estao registrados, e sao honestos:**
+
+- **Parkinson** casa `parkinson` porque o guideline de demencias cobre mesmo a
+  demencia da doenca de Parkinson. O acervo tem o termo; o que nao tem e o
+  manejo motor.
+- **Asma** casa `persistente`, pela razao acima.
+
+### Documento que declara publico
+
+O CANMAT 2023 entrou no acervo em 23/09/2026 -- a diretriz original de
+depressao maior em adultos, ao lado das sinteses. Ele casa `depressivo` e
+`maior` com peso maximo e passou a **liderar os tres casos de depressao**,
+inclusive o da crianca de nove anos, para quem o titulo dele diz que nao serve.
+
+Dai a marca de publico: `infantil`, `adulto`, ou nada. Nao declarar e o caso
+comum e nao e falha -- a maioria das diretrizes serve a faixa toda --, e fica no
+MEIO do desempate: perde para o documento da faixa do paciente e ganha do
+documento da outra faixa.
+
+E foi preciso mais do que isso. A vaga extra do paciente pediatrico garante
+ESPACO, nao presenca: com o CANMAT no acervo, tres documentos de adulto casavam
+com peso maximo e ocupavam as tres vagas da crianca, deixando "Depressao na
+Infancia" de fora. **Acrescentar um documento ao acervo nao pode expulsar da
+consulta o documento da faixa do paciente** -- entao, se nenhum da faixa entrou,
+o ultimo colocado cede o lugar. O ultimo, e nao o primeiro: quem lidera e quem
+melhor cobre a hipotese, e isso nao se troca.
+
+### Indexar um arquivo que ja esta na conta
+
+```bash
+python3 scripts/ingest_guidelines.py --file-id file-abc   --titulo "CANMAT 2023: ..." --condicoes "transtorno depressivo maior; ..."
+```
+
+Associar nao pede novo upload -- mesma razao pela qual `desassociar_rag.py` nao
+apaga da conta. PDF nao tem frontmatter, entao `--titulo` e `--condicoes` sao
+obrigatorios: sem eles o documento entra na store, responde na busca geral e
+**nunca ganha vaga garantida**, que num acervo de diretrizes e quase nao estar
+la. Adivinhar a condicao pelo nome do arquivo poria a diretriz errada na vaga do
+diagnostico errado.
+
+### Medir
+
+```bash
+node scripts/avaliar_diretrizes.mjs              # tabela por grupo
+node scripts/avaliar_diretrizes.mjs --limiares   # varredura de limiar
+node scripts/avaliar_diretrizes.mjs --detalhe    # caso a caso, com os arquivos que voltaram
+```
+
+Roda 23 casos ficticios de `testes/diretrizes_corpus.json` contra o acervo
+indexado, sem precisar do servidor no ar. A consulta vem do **proprio**
+`buildRagQuery` do app: consulta remontada a mao mede uma consulta que nao
+existe, e bastaria o app mudar a composicao para o numero continuar descrevendo
+um comportamento que acabou.
+
+| Grupo | O que responde |
+| --- | --- |
+| `faixa` | O mesmo diagnostico em duas idades. E a unica coisa que a consulta das diretrizes faz de diferente: se os dois lados do par recuperarem o mesmo arquivo, levar a idade nao esta servindo, e a crianca recebe conduta de adulto |
+| `diferencial` | Casos cuja resposta exige mais de um arquivo — a prova da decisao de nao filtrar por transtorno |
+| `cobertura` | Um caso por prateleira |
+| `fora` | Hipotireoidismo e hipertensao. Aqui acertar e **recusar** |
+
+**O limiar 0.55 e herdado dos livros e nao foi calibrado para diretriz.** A
+varredura existe para isso: queda brusca de cobertura entre duas linhas indica
+limiar alto demais; caso do grupo `fora` passando indica limiar baixo demais.
+Ate essa medicao existir, o numero e um palpite que funcionou para outra prosa.
+
+### Busca garantida por entidade
+
+Medida a primeira vez, a busca semantica sozinha acertava o primeiro lugar em
+**15 de 21** casos, e quando errava, errava feio: o caso de Alzheimer vinha
+encabecado por "Transtornos de Personalidade: Descompensacoes", o de autismo
+por "Transtorno de Conduta". Nos dois o arquivo certo estava no acervo e tinha
+perdido a primeira posicao para um vizinho.
+
+E o mesmo problema que o `RAG_ALWAYS_SCOPE_BY_KIND` resolveu para o criterio
+diagnostico, e a resposta e a mesma: **pressuposto que disputa vaga nao e
+pressuposto.** O documento da entidade tem busca propria e vaga garantida.
+
+O que muda em relacao ao criterio e como se escolhe o documento. La bastava um
+genero; aqui e preciso saber QUAL dos 39 fala desta doenca, e a semantica ja
+mostrou que nao sabe. Entao vem de tabela -- o `condicoes` e o `titulo` que a
+ingestao gravou, casados por termo contra a hipotese que o medico assinalou. E
+a mesma licao dos codigos da CID: a recuperacao acerta o tema e erra o digito,
+entao o digito vem de tabela.
+
+Tres decisoes desse casamento, cada uma de um erro medido:
+
+| Decisao | O erro que a motivou |
+| --- | --- |
+| Casa por **radical de 6 letras** | "Episodio depressivo maior" nao casava com "Depressao na Infancia": `depressivo` e `depressao` sao termos diferentes, e o arquivo certo nao entrava nem na lista |
+| Pesa termo por **raridade** | `insonia cronica` empatava entre "Sono-Vigilia" (casa `insonia`) e "Burnout" (casa `cronica`), e o desempate alfabetico dava a vaga ao Burnout |
+| A faixa **desempata**, nao soma | Somada, ela ultrapassava casamento melhor: num caso de autismo, "Psicoses de Inicio Precoce" passava na frente do documento do proprio espectro autista |
+
+E duas do lado da busca:
+
+- **O documento garantido e promovido, nao acrescentado.** Deduplicar por trecho
+  nao basta: o documento da entidade quase sempre JA aparece na busca geral, so
+  que em terceiro lugar. Se os trechos coincidirem, os extras ficam vazios e
+  nada e promovido -- o primeiro lugar continua errado, que e o defeito que
+  esta busca existe para corrigir.
+- **A ordem dos garantidos e a do casamento, nao a do escore.** Ordenar por
+  escore aqui pergunta de novo, ao mesmo mecanismo que ja errou, o que esta
+  busca existe para decidir de outro jeito: num caso de depressao maior, o
+  trecho da distimia pontuava mais alto e a distimia voltava ao primeiro lugar.
+
+Resultado, no mesmo corpus: **19/21** no primeiro lugar, contra 15/21 sem a
+busca garantida. Os dois que restam sao pediatricos em que o documento geral
+lidera e o da faixa entra em segundo -- os dois documentos chegam ao modelo, e
+a idade vai no prompt. Ajustar so isso exigiria um reforco de faixa que, medido,
+quebrava o caso de autismo; com 23 casos, afinar mais e ajustar ao ruido.
+
+### O que os dois modos respondem ao MESMO caso
+
+Rodado de ponta a ponta em 23/09/2026 -- navegador ate o schema validado --, com
+o caso ficticio de `carregar-caso.html`: mulher de 34 anos, transtorno de
+personalidade borderline assinalado pelo medico.
+
+| Modo | Medicamentos propostos | Fontes |
+| --- | --- | --- |
+| `RAG com literatura` | Sertralina, Quetiapina, Lamotrigina (off-label) | FMUSP vol. 3 e 4, Clinica de bolso, Condutas em Psiquiatria, Transtornos Psiquiatricos na Mulher |
+| `Guidelines` | **nenhum** | Transtorno_de_Personalidade_Borderline |
+
+A diferenca nao e ruido, e o dispositivo funcionando: nenhum farmaco e primeira
+linha no TPB, e a diretriz responde psicoterapia estruturada. Os livros
+respondem o que os livros respondem -- e e por isso que os dois modos existem
+separados, e por isso que quem decide a conduta le os dois e escolhe.
+
+O escopo do paciente tambem aparece na tabela: `Transtornos Psiquiatricos na
+Mulher` entrou na busca dos livros porque a paciente e mulher, e nenhum livro de
+outro genero ocupou vaga.
+
+### Primeira medicao, 23/09/2026
+
+Rodada com os 39 arquivos indexados e os 23 casos do corpus. **O acervo ainda
+nao esta pronto para uso assistencial**, e estes sao os numeros:
+
+| Medida | Resultado |
+| --- | --- |
+| Arquivo esperado **em primeiro lugar** | 15/21 |
+| Arquivo esperado em qualquer posicao (cobertura) | 10/10 |
+| A idade separa o par | 2 de 4 (depressao e ansiedade sim; bipolar e psicose nao) |
+| Caso que exige dois arquivos | 3/6 |
+| Casos fora do acervo recusados | 0/2 |
+
+**O limiar por escore nao funciona neste acervo, e nao ha piso que funcione.**
+A varredura de 0.35 a 0.65 devolveu a mesma linha sete vezes: aqui todo escore
+fica entre 0.70 e 0.94, porque os livros sao prosa densa e estas 39 sao
+sinteses escritas no mesmo vocabulario clinico que o app usa para perguntar.
+
+Cortar pelo melhor escore do caso tambem nao serve:
+
+```
+0.839  hipertensao arterial      -> Psicoses_de_Inicio_Precoce   (ruido puro)
+0.841  personalidade borderline  -> Transtorno_de_Personalidade_Borderline  (certo)
+```
+
+Tres milesimos entre o ruido e o acerto. Qualquer corte nessa faixa recusa caso
+legitimo ou aceita hipertensao, e escolher entre os dois e escolher qual erro
+cometer. Um piso de 0.86 chegou a ser escrito e foi removido no mesmo dia,
+quando a amostra completa mostrou que ele recusaria o borderline.
+
+**As duas falhas que mais pesam** nao sao de limiar, e sim de recuperacao:
+
+| Caso | Primeiro lugar veio |
+| --- | --- |
+| Demencia na doenca de Alzheimer | `Transtornos_de_Personalidade_Descompensacoes` |
+| Transtorno do espectro autista | `Transtorno_de_Conduta` |
+
+Nos dois o arquivo certo existe no acervo e perdeu a primeira posicao para um
+vizinho. E o primeiro lugar que mais pesa no contexto do modelo.
+
+O criterio "o esperado apareceu entre os oito" daria 10/10 em cobertura
+**enquanto** o caso de Alzheimer era encabecado por um documento de transtorno
+de personalidade. Por isso a medicao passou a reportar top-1.
+
+### Indexar
+
+```bash
+python3 scripts/ingest_guidelines.py "C:/Users/Regis/diretrizes"
+```
+
+Copie o `OPENAI_GUIDELINES_VECTOR_STORE_ID` exibido para o `.env` e reinicie o
+`server.py`. O script pula o que ja esta no catalogo — rodar duas vezes nao
+duplica o acervo; `--refazer` reenvia. Os `.md` ficam **fora do Git**, pela
+mesma razao que os PDFs. O `CLAUDE.md` que acompanha a pasta nao e indexado: ele
+descreve a pasta, e nao uma conduta, e viraria um trecho recuperavel de prosa
+sobre como consultar o acervo.
 
 ## Tirar um livro da biblioteca
 

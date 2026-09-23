@@ -20,7 +20,7 @@ import { escapeAttr, escapeHtml } from "./ui/html.js";
 import { createVoiceRecording } from "./ui/voiceRecording.js";
 import { clipboardIcon, folderIcon, homeIcon, lockIcon, personIcon, repeatIcon, themeIcon } from "./ui/icons.js";
 import { clinicalSummaryGroups, clinicalSummaryPage } from "./views/clinicalSummary.js";
-import { aiModeSelector, diagnosisModule, evolutionBody, ragSourcesView, returnPlanModule, returnPlanSettled, treatmentModule } from "./views/decisions.js";
+import { aiModeSelector, diagnosisModule, evolutionBody, ragSourcesView, returnPlanModule, returnPlanSettled, treatmentAiMode, treatmentModule } from "./views/decisions.js";
 import { consultationAccessPanel, mentalExamBody, mentalExamNormalFill, missingReturnAssessment, neurologicExamBody, recordReturnAction, returnAssessmentBody } from "./views/exams.js";
 import { caregiverHistoryCard, reproductiveHistoryCard } from "./views/lifeStageBlocks.js";
 import { lifeStageOf, mayBePregnant, needsCaregiverHistory, needsReproductiveHistory, ragPatientScopes } from "./clinical/lifeStage.js";
@@ -529,8 +529,12 @@ function refinementBody(form = {}) {
 // da insonia" em abstrato responderia igual para os tres.
 // Cada modo tem a sua procedencia, e o campo do formulario guarda a do modo que
 // respondeu. Nunca as duas: uma chamada e RAG ou e Nuvem.
+// Guidelines recupera documento indexado, como o RAG -- o que muda e a estante,
+// nao a forma da procedencia. Sem esta linha a coluna de fontes ficava vazia no
+// modo novo: a resposta citaria diretriz e a tela nao diria qual, que e
+// exatamente o defeito que a caixa de fontes existe para nao ter.
 function sourcesOfMode(mode, sources = [], webSources = []) {
-  return mode === "rag" ? (sources || []) : (webSources || []);
+  return mode === "rag" || mode === "guidelines" ? (sources || []) : (webSources || []);
 }
 
 function medicationBody(form) {
@@ -1076,6 +1080,11 @@ function bindAutoDraft() {
       // A resposta da gestacao abre o campo seguinte -- data da DUM, ou o aviso
       // do beta-hCG. Sem redesenhar, a pergunta que ela levanta nao aparece.
       if (event.target?.name === "gravidez") { render(); return; }
+      // Trocar a fonte da resposta no Tratamento muda a propria barra de acoes:
+      // Guidelines nao tem Refinar. Sem redesenhar, o botao ficaria na tela
+      // depois de escolhido o modo que nao o tem -- e a tela ofereceria uma
+      // segunda passada que aquele modo nao faz.
+      if (event.target?.name === "treatmentAiMode") { render(); return; }
       if (event.target?.matches?.("input[type='checkbox'][value='Outro'], select")) render();
     });
   });
@@ -1666,14 +1675,25 @@ async function generateTreatmentFromClinicalData(element, kind = "treatment") {
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result, sources, webSources, mode } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), revisao ? "rag" : (context.target?.pharmaAiMode || "rag"), buildRagQuery(kind, context.target), buildWebQuery(kind, context.target), "", ragPatientScopes(context.patient));
+    // O refino continua indo ao RAG, e nao existe em Guidelines: o botao nao
+    // aparece nesse modo, e a fonte especializada da revisao e o tratado.
+    const modoEscolhido = revisao ? "rag" : treatmentAiMode(context.target);
+    // A faixa etaria so entra na consulta das diretrizes: la o arquivo da
+    // infancia e um documento a parte e precisa ser chamado; no acervo de
+    // livros quem faz esse trabalho e o ragPatientScopes, por cima da busca.
+    const { result, sources, webSources, mode } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), modoEscolhido, buildRagQuery(kind, context.target, modoEscolhido === "guidelines" ? { paciente: context.patient } : {}), buildWebQuery(kind, context.target), "", ragPatientScopes(context.patient), [], treatmentDiagnosisText(context.target || {}));
     // O rascunho de agora, nao o de antes da espera: o que ele marcou enquanto a
-    // IA respondia tem de sobreviver.
+    // IA respondia tem de sobreviver. O seletor de modo fica de fora do que
+    // volta -- guarda a ESCOLHA dele --, e por isso nada aqui o reescreve.
     suggestion = treatmentSuggestionFromAi({ result, target: draftTarget(scope), sources: sourcesOfMode(mode, sources, webSources), mode, revisao });
   } catch (error) {
-    suggestion = (target?.pharmaAiMode || "rag") === "rag"
-      ? { ragSourcesTratamento: [], treatmentStatus: `RAG indisponivel: ${error.message}`, aiStatus: `RAG indisponivel: ${error.message}` }
-      : { ragSourcesTratamento: [], treatmentStatus: `IA indisponivel: ${error.message}`, aiStatus: `IA indisponivel: ${error.message}` };
+    // Tres modos, tres nomes. A falha precisa dizer QUE fonte falhou: em
+    // Guidelines a recusa por falta de cobertura e resposta legitima -- as
+    // diretrizes nao cobrem este caso --, e chama-la de "RAG indisponivel"
+    // mandaria procurar defeito onde nao ha.
+    const rotulo = { rag: "RAG", guidelines: "Diretrizes", current: "IA" }[treatmentAiMode(target || {})];
+    const recado = `${rotulo} sem resposta: ${error.message}`;
+    suggestion = { ragSourcesTratamento: [], treatmentStatus: recado, aiStatus: recado };
   }
   if (!vigente()) return;
   if (scope === "return") draft.return = { ...(draft.return || {}), ...suggestion };
@@ -1702,18 +1722,21 @@ async function generateReturnPlanFromClinicalData(element) {
   render();
   try {
     const context = clinicalAiContext(scope);
+    const modoEscolhido = context.target?.returnPlanAiMode || "rag";
     const { result, sources, webSources, mode } = await requestClinicalAi(
       "return_plan",
       buildClinicalAiPrompt("return_plan", context.target, context.patient, context.previous, context.isReturn),
-      context.target?.returnPlanAiMode || "rag",
-      buildRagQuery("return_plan", context.target), buildWebQuery("return_plan", context.target), "", ragPatientScopes(context.patient));
+      modoEscolhido,
+      buildRagQuery("return_plan", context.target, modoEscolhido === "guidelines" ? { paciente: context.patient } : {}),
+      buildWebQuery("return_plan", context.target), "", ragPatientScopes(context.patient),
+      [], treatmentDiagnosisText(context.target || {}));
     // O rascunho de agora, nao o de antes da espera: o que ele marcou enquanto a
     // IA respondia tem de sobreviver.
     gravar(returnPlanSuggestionFromAi({ result, target: draftTarget(scope), sources: sourcesOfMode(mode, sources, webSources), mode }));
   } catch (error) {
     gravar({
       ragSourcesAjuste: [],
-      returnPlanStatus: `${(target?.returnPlanAiMode || "rag") === "rag" ? "RAG" : "IA"} indisponivel: ${error.message}`
+      returnPlanStatus: `${{ rag: "RAG", guidelines: "Diretrizes", current: "IA" }[target?.returnPlanAiMode || "rag"] || "IA"} sem resposta: ${error.message}`
     });
   }
   if (!vigente()) return;

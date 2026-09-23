@@ -39,15 +39,38 @@ o Node os roda como estao, sem `package.json` e sem dependencia nenhuma.
 
 | Documento | Assunto |
 | --- | --- |
-| [RAG.md](RAG.md) | biblioteca de psiquiatria, escopo por etapa, duas passadas, BIPP TIPS, tabelas de codigo |
+| [RAG.md](RAG.md) | biblioteca de psiquiatria, escopo por etapa, duas passadas, BIPP TIPS, tabelas de codigo, diretrizes de conduta |
 | [SUPABASE.md](SUPABASE.md) | autenticacao e sincronizacao dos prontuarios |
 | `scripts/` | indexacao do RAG, recorte de capitulo, montagem das tabelas de codigo |
 | `carregar-caso.html` | carrega um caso ficticio no prontuario local, para experimentar sem paciente real |
 
+## Diretrizes de conduta
+
+No Tratamento e no Ajuste de conduta, o seletor "Fonte da resposta" tem um
+terceiro modo: **Guidelines**. Ele le um acervo de diretrizes de conduta que
+fica em store **separada** da biblioteca dos 18 livros — outra busca, outro
+script de ingestao, e nenhuma linha em `RAG_SCOPE_BY_KIND`. As duas nunca
+competem por vaga, porque nunca rodam juntas: escolhe-se um modo por vez.
+
+```bash
+python3 scripts/ingest_guidelines.py "C:/Users/Regis/diretrizes"
+```
+
+Para medir a recuperacao depois de indexar:
+
+```bash
+node scripts/avaliar_diretrizes.mjs --limiares
+```
+
+Como nos outros modos, a IA propoe e o medico assinala. Este nao tem **Refinar**
+e nao cai para a web: diretriz que nao cobre o caso devolve recusa visivel, e
+nao uma resposta remontada de outra fonte. O porque de cada uma dessas escolhas
+esta no [RAG.md](RAG.md).
+
 ## O que nao entra no Git
 
-PDF de livro, o `book_chapters.local.json` recortado deles, o catalogo de
-fontes, o `.env` e os audios de consulta. Obra licenciada e dado de paciente
+PDF de livro, o `book_chapters.local.json` recortado deles, os `.md` das
+diretrizes, os catalogos de fontes, o `.env` e os audios de consulta. Obra licenciada e dado de paciente
 ficam fora do versionamento — e o `server.py` tambem os recusa como arquivo
 estatico, um a um.
 

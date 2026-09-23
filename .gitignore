@@ -7,6 +7,9 @@ __pycache__/
 .env.*
 !.env.example
 rag_sources.local.json
+# Catalogo da store de diretrizes. Fora do Git pela mesma razao do de cima: diz
+# o que ha no acervo e os file_id da conta.
+guidelines_sources.local.json
 # Texto de livro extraido do PDF. Fora do Git pela mesma razao que os PDFs:
 # e o livro. Cada um gera o seu com scripts/build_book_chapters.py.
 book_chapters.local.json
@@ -18,6 +21,15 @@ dsm_criteria.local.json
 testes/*
 !testes/*.py
 !testes/js/
+# Corpus de medicao das diretrizes: casos ficticios, sem dado de paciente.
+!testes/diretrizes_corpus.json
 
 # Teste do JEV: material de trabalho, fora do repositorio
 docs/teste-jev/
+
+# Arquivo de anotacao com a chave em texto puro. Nunca versionar.
+chave*.txt
+*chave*.txt
+
+# Anotacao dos file_id de stores apagadas, para reassociar sem novo upload.
+.stores_apagadas.json

@@ -1,6 +1,6 @@
 import { diagnosticAggravatingOptionLines, diagnosticComorbidityOptionLines, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSpecifierOptionLines, diagnosticSyndromicOptionLines, formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharmacologicalOption, normalizeDiagnosticOptions, parseTreatmentResponse, selectedAggravatingValues, selectedComorbidityValues, selectedDiagnosisValues, selectedSpecifierValues, treatmentOptionLines } from "../clinical/diagnosis.js";
 import { careLevelOptions as CARE_LEVELS } from "../data/careLevels.js";
-import { gestationalAgeText, lifeStagePromptText } from "../clinical/lifeStage.js";
+import { gestationalAgeText, lifeStageOf, lifeStagePromptText, patientAge } from "../clinical/lifeStage.js";
 import { anamnesisText, buildEvolutionNarrative, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, patientIdentificationText, professionalSelectedTreatmentItems, refinementAnswersText, requestedExamsText, returnStoryText, treatmentDiagnosisText } from "../clinical/narrative.js";
 import { arrayValue, cleanClinicalLine, compactText, formatClinicalList, joinValues, mentalExamKeys, normalizeText, stripFinalPeriod } from "../clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, MENTAL_EXAM_AI_FIELDS, MENTAL_EXAM_NORMAL } from "../clinical/vocabulary.js";
@@ -30,7 +30,14 @@ export function localRefinementPlan(form = {}) {
   };
 }
 
-export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery = "", webQuery = "", ragMustMention = "", ragPatientScopes = [], diagnosisSelection = []) {
+// Os modos que o servidor aceita. Lista, e nao ternario: enquanto eram dois,
+// `mode === "rag" ? "rag" : "current"` dizia a mesma coisa que uma lista e
+// custava menos. Com o terceiro passou a MENTIR -- "guidelines" caia em
+// "current" antes de sair do navegador, e escolher Guidelines dava IA Nuvem,
+// sem erro nenhum na tela. Modo novo agora entra aqui ou nao existe.
+const AI_MODES = new Set(["current", "rag", "guidelines"]);
+
+export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery = "", webQuery = "", ragMustMention = "", ragPatientScopes = [], diagnosisSelection = [], guidelineEntity = "") {
   const response = await fetch("/api/clinical-ai", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -39,10 +46,16 @@ export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery
     // sobre um nome proprio -- e so ali a busca vetorial conseguia devolver oito
     // trechos de psiquiatria com relevancia alta para uma pergunta sobre
     // losartana, sem que nenhum falasse dela.
+    //
     // diagnosisSelection: as hipoteses que o medico assinalou, so no Refinar do
     // Diagnostico. O servidor anexa a secao "Criterios Diagnosticos" do DSM-5-TR
     // de cada uma, recortada do livro -- a busca vetorial nao a trazia.
-    body: JSON.stringify({ kind, prompt, mode: mode === "rag" ? "rag" : "current", ragQuery, webQuery, ragMustMention, ragPatientScopes, diagnosisSelection })
+    //
+    // guidelineEntity: a hipotese ASSINALADA, que decide qual documento do
+    // acervo ganha vaga garantida. Vai separada da consulta porque a consulta
+    // carrega sintomas, idade e sexo -- casar termo contra ela faria o quadro
+    // clinico escolher o documento, e quem escolhe e o diagnostico.
+    body: JSON.stringify({ kind, prompt, mode: AI_MODES.has(mode) ? mode : "current", ragQuery, webQuery, ragMustMention, ragPatientScopes, diagnosisSelection, guidelineEntity })
   });
   let data = {};
   try {
@@ -118,7 +131,39 @@ export async function requestJevJudge(state, questions) {
   return data;
 }
 
-export function buildRagQuery(kind, form = {}) {
+// A IDADE ENTRA NA CONSULTA DAS DIRETRIZES, e so nela.
+//
+// Na biblioteca dos livros quem resolve a faixa etaria e o escopo do paciente:
+// `infantojuvenil` entra por cima, com vaga propria, porque o tratado da
+// infancia perderia a disputa por trecho contra cinco tratados de adulto. No
+// acervo de diretrizes nao ha escopo nem disputa entre generos -- ha um
+// ARQUIVO proprio da faixa, "Depressao na Infancia e Adolescencia" ao lado do
+// de adultos --, e ele so vence se a consulta disser de quem se trata.
+//
+// Sem esta linha, "tratamento de episodio depressivo" recupera o arquivo de
+// adultos para um paciente de 9 anos, que e literalmente o erro que o RAG.md
+// registra: sem o escopo, a crianca recebia a dose de adulto.
+//
+// So nas diretrizes porque a consulta do RAG foi MEDIDA na composicao atual --
+// 56 a 58 trechos acima do limiar em dez casos --, e mexer nela sem medir de
+// novo troca um ganho suposto por uma regressao invisivel.
+export function patientQueryProfile(patient = {}) {
+  const idade = patientAge(patient);
+  const faixa = lifeStageOf(patient);
+  const sexo = String(patient.sexo || "").trim().toLowerCase();
+  const partes = [
+    faixa ? faixa.label.toLowerCase() : "",
+    idade === null ? "" : `${idade} anos`,
+    sexo ? `sexo ${sexo}` : ""
+  ].filter(Boolean);
+  return partes.length ? partes.join(", ") : "";
+}
+
+export function buildRagQuery(kind, form = {}, { paciente = null } = {}) {
+  // Vazio quando nao ha paciente ou nao ha data de nascimento: consulta sem
+  // faixa e a consulta de hoje, e nao uma consulta quebrada.
+  const perfil = paciente ? patientQueryProfile(paciente) : "";
+  const emPaciente = perfil ? ` em paciente ${perfil}` : "";
   const diagnosis = treatmentDiagnosisText(form) || form.diagnosticoManual || "";
   // A busca vetorial recebe o dado ja estruturado, nao a transcricao bruta.
   // Depois de uma entrevista por voz, anamnesisText devolve a conversa inteira
@@ -166,9 +211,14 @@ export function buildRagQuery(kind, form = {}) {
   // a busca leva os farmacos em uso e a evolucao observada, e nao so a hipotese.
   if (kind === "return_plan") {
     const emUso = joinValues(arrayValue(form.tratamentoMedicamentosSelecionados)) || stripFinalPeriod(form.tratamentoMedicamentoso || "");
-    return `Conduta no seguimento de ${diagnosis} em uso de ${emUso || "tratamento nao informado"}: tempo esperado de resposta, quando aumentar dose, quando trocar, quando retirar, manejo de efeito adverso e de adesao irregular. Evolucao observada: ${symptoms}`.slice(0, 4000);
+    return `Conduta no seguimento de ${diagnosis}${emPaciente} em uso de ${emUso || "tratamento nao informado"}: tempo esperado de resposta, quando aumentar dose, quando trocar, quando retirar, manejo de efeito adverso e de adesao irregular. Evolucao observada: ${symptoms}`.slice(0, 4000);
   }
-  if (kind === "treatment") return `Diretrizes e tratamento de ${diagnosis}. Dados clinicos relevantes: ${symptoms}`.slice(0, 4000);
+  // O diagnostico continua LIDERANDO a consulta, e a faixa entra logo depois,
+  // dentro da mesma oracao. Posta na frente, ela desloca o peso do embedding
+  // para a idade e afasta a busca do que se pergunta; posta no fim, vira
+  // apendice e nao puxa o arquivo da faixa. E a mesma licao de composicao que o
+  // RAG.md ja registra sobre as listas leigas afogarem o termo clinico.
+  if (kind === "treatment") return `Diretrizes e tratamento de ${diagnosis}${emPaciente}. Dados clinicos relevantes: ${symptoms}`.slice(0, 4000);
   // A busca do sintoma-alvo pergunta por manejo, nao por diretriz de doenca, e
   // vai contra a biblioteca marcada "sintomatico". O diagnostico entra so como
   // contexto, no fim: quem manda aqui e o sintoma.

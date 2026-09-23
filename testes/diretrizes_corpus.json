@@ -1,0 +1,441 @@
+{
+  "sobre": "Casos ficticios para medir a recuperacao no acervo de diretrizes. Nenhum dado de paciente real. O gabarito e o NOME DO ARQUIVO que deveria estar entre os trechos recuperados; a medicao pergunta se ele aparece, e em que posicao. O campo 'sintomas' entra na consulta como a queixa entra no app: sem ele a consulta fica curta e o limiar calibrado nela nao vale para a consulta real, que carrega os achados.",
+  "grupos": {
+    "faixa": "Pares do MESMO diagnostico em idades diferentes. Medem a unica coisa que a consulta das diretrizes faz de diferente: levar a idade. O acervo tem arquivo proprio de infancia para quatro quadros, e ele so vence se for chamado. Sem a idade na consulta, os dois casos do par recuperam o mesmo arquivo -- e o de 9 anos recebe conduta de adulto.",
+    "diferencial": "Casos em que a resposta certa EXIGE mais de um arquivo. Sao a razao de a busca nao ter filtro por transtorno: sob filtro, o segundo arquivo nunca entra.",
+    "cobertura": "Um caso por grupo do acervo, para ver se cada prateleira responde quando chamada.",
+    "fora": "Quadros que o acervo NAO cobre: clinica geral, neurologia, ortopedia, cardiologia e um caso administrativo. Aqui a resposta certa e RECUSAR. A neurologia e o teste mais duro -- enxaqueca, epilepsia e Parkinson sao vizinhas da psiquiatria e compartilham vocabulario, entao e nelas que uma recusa boa demais vira recusa de caso bom."
+  },
+  "casos": [
+    {
+      "id": "depressao-crianca",
+      "grupo": "faixa",
+      "par": "depressao",
+      "diagnostico": "Episodio depressivo maior, gravidade moderada",
+      "paciente": {
+        "nascimento": "2017-03-04",
+        "sexo": "Feminino"
+      },
+      "esperado": [
+        "Depressao_na_Infancia_e_Adolescencia.md"
+      ],
+      "nota": "Sem o arquivo da faixa, sai fluoxetina em dose de adulto.",
+      "sintomas": "irritabilidade persistente, queda no rendimento escolar, recusa de ir a escola, choro facil, hipersonia, isolamento dos colegas"
+    },
+    {
+      "id": "depressao-adulto",
+      "grupo": "faixa",
+      "par": "depressao",
+      "diagnostico": "Episodio depressivo maior, gravidade moderada",
+      "paciente": {
+        "nascimento": "1981-06-12",
+        "sexo": "Masculino"
+      },
+      "esperado": [
+        "Episodios_Depressivos_e_Depressao_Maior.md"
+      ],
+      "sintomas": "humor deprimido ha tres meses, anedonia, insonia terminal, fadiga, lentificacao psicomotora, ideacao de morte sem plano"
+    },
+    {
+      "id": "bipolar-adolescente",
+      "grupo": "faixa",
+      "par": "bipolar",
+      "diagnostico": "Transtorno afetivo bipolar tipo I, episodio maniaco",
+      "paciente": {
+        "nascimento": "2011-09-30",
+        "sexo": "Masculino"
+      },
+      "esperado": [
+        "Transtorno_Bipolar_na_Infancia_e_Adolescencia.md"
+      ],
+      "sintomas": "humor elevado, reducao da necessidade de sono, logorreia, gastos impulsivos, irritabilidade, queda do desempenho escolar"
+    },
+    {
+      "id": "bipolar-adulto",
+      "grupo": "faixa",
+      "par": "bipolar",
+      "diagnostico": "Transtorno afetivo bipolar tipo I, episodio maniaco",
+      "paciente": {
+        "nascimento": "1990-01-20",
+        "sexo": "Feminino"
+      },
+      "esperado": [
+        "Transtorno_Afetivo_Bipolar_TAB.md"
+      ],
+      "sintomas": "humor expansivo ha duas semanas, insonia sem cansaco, logorreia, grandiosidade, gastos excessivos, juizo critico prejudicado"
+    },
+    {
+      "id": "ansiedade-crianca",
+      "grupo": "faixa",
+      "par": "ansiedade",
+      "diagnostico": "Transtorno de ansiedade generalizada",
+      "paciente": {
+        "nascimento": "2015-11-02",
+        "sexo": "Feminino"
+      },
+      "esperado": [
+        "Transtornos_de_Ansiedade_na_Infancia_e_Adolescencia.md"
+      ],
+      "sintomas": "preocupacao excessiva, queixas somaticas matinais, recusa escolar, dificuldade para dormir sozinha, busca constante de reasseguramento"
+    },
+    {
+      "id": "ansiedade-adulto",
+      "grupo": "faixa",
+      "par": "ansiedade",
+      "diagnostico": "Transtorno de ansiedade generalizada",
+      "paciente": {
+        "nascimento": "1988-04-17",
+        "sexo": "Masculino"
+      },
+      "esperado": [
+        "Ansiedade.md"
+      ],
+      "sintomas": "preocupacao incontrolavel ha mais de seis meses, tensao muscular, irritabilidade, insonia inicial, dificuldade de concentracao"
+    },
+    {
+      "id": "psicose-adolescente",
+      "grupo": "faixa",
+      "par": "psicose",
+      "diagnostico": "Primeiro episodio psicotico",
+      "paciente": {
+        "nascimento": "2010-02-08",
+        "sexo": "Masculino"
+      },
+      "esperado": [
+        "Psicoses_de_Inicio_Precoce.md"
+      ],
+      "sintomas": "isolamento progressivo ha oito meses, discurso desorganizado, delirio persecutorio, alucinacoes auditivas, queda funcional"
+    },
+    {
+      "id": "psicose-adulto",
+      "grupo": "faixa",
+      "par": "psicose",
+      "diagnostico": "Esquizofrenia, episodio agudo",
+      "paciente": {
+        "nascimento": "1995-07-25",
+        "sexo": "Masculino"
+      },
+      "esperado": [
+        "Esquizofrenia.md"
+      ],
+      "sintomas": "alucinacoes auditivas comentadoras, delirio persecutorio sistematizado, embotamento afetivo, desorganizacao do pensamento"
+    },
+    {
+      "id": "depressao-antes-de-antidepressivo",
+      "grupo": "diferencial",
+      "diagnostico": "Episodio depressivo maior; investigar bipolaridade antes de antidepressivo",
+      "paciente": {
+        "nascimento": "1986-05-03",
+        "sexo": "Feminino"
+      },
+      "esperado": [
+        "Episodios_Depressivos_e_Depressao_Maior.md",
+        "Transtorno_Afetivo_Bipolar_TAB.md"
+      ],
+      "nota": "A propria diretriz de depressao manda excluir bipolaridade. Sob filtro por transtorno, o arquivo do TAB nunca entra -- e este caso e o teste dessa decisao.",
+      "sintomas": "episodio depressivo atual, historia de periodo de tres dias com reducao do sono e aumento de energia apos antidepressivo previo"
+    },
+    {
+      "id": "depressao-com-alcool",
+      "grupo": "diferencial",
+      "diagnostico": "Episodio depressivo maior em comorbidade com transtorno por uso de alcool",
+      "paciente": {
+        "nascimento": "1975-10-11",
+        "sexo": "Masculino"
+      },
+      "esperado": [
+        "Episodios_Depressivos_e_Depressao_Maior.md",
+        "Transtorno_por_Uso_de_Alcool.md"
+      ],
+      "sintomas": "humor deprimido, anedonia, uso diario de destilado, tolerancia aumentada, tremor matinal, tentativas de reducao sem sucesso"
+    },
+    {
+      "id": "tdah-com-opositor",
+      "grupo": "diferencial",
+      "diagnostico": "TDAH tipo combinado com transtorno opositivo desafiador",
+      "paciente": {
+        "nascimento": "2016-01-15",
+        "sexo": "Masculino"
+      },
+      "esperado": [
+        "Transtorno_de_Deficit_de_Atencao_e_Hiperatividade_TDAH.md",
+        "Transtorno_Opositivo_Desafiador_TOD.md"
+      ],
+      "sintomas": "desatencao e hiperatividade em dois ambientes, impulsividade, alem de desafio a figuras de autoridade e explosoes de raiva frequentes"
+    },
+    {
+      "id": "toc",
+      "grupo": "cobertura",
+      "diagnostico": "Transtorno obsessivo-compulsivo, rituais de verificacao",
+      "paciente": {
+        "nascimento": "1993-12-01",
+        "sexo": "Feminino"
+      },
+      "esperado": [
+        "Transtorno_Obsessivo_Compulsivo.md"
+      ],
+      "sintomas": "obsessoes de contaminacao e duvida, rituais de verificacao de portas e gas, mais de tres horas por dia, critica preservada"
+    },
+    {
+      "id": "tept",
+      "grupo": "cobertura",
+      "diagnostico": "Transtorno de estresse pos-traumatico apos acidente de transito",
+      "paciente": {
+        "nascimento": "1984-08-22",
+        "sexo": "Masculino"
+      },
+      "esperado": [
+        "Transtorno_de_Estresse_Pos_Traumatico.md"
+      ],
+      "sintomas": "revivescencias, pesadelos, evitacao de dirigir, hipervigilancia e sobressalto exagerado apos colisao ha seis meses"
+    },
+    {
+      "id": "borderline",
+      "grupo": "cobertura",
+      "diagnostico": "Transtorno de personalidade borderline com autolesao de repeticao",
+      "paciente": {
+        "nascimento": "1999-03-19",
+        "sexo": "Feminino"
+      },
+      "esperado": [
+        "Transtorno_de_Personalidade_Borderline.md"
+      ],
+      "sintomas": "instabilidade afetiva, medo de abandono, relacoes intensas e instaveis, autolesao de repeticao, impulsividade, sensacao cronica de vazio"
+    },
+    {
+      "id": "demencia",
+      "grupo": "cobertura",
+      "diagnostico": "Demencia na doenca de Alzheimer, fase moderada, com agitacao",
+      "paciente": {
+        "nascimento": "1946-06-06",
+        "sexo": "Feminino"
+      },
+      "esperado": [
+        "Doenca_de_Alzheimer_e_Outras_Demencias.md"
+      ],
+      "sintomas": "declinio de memoria episodica ha dois anos, desorientacao temporal, perda de autonomia instrumental, agitacao vespertina"
+    },
+    {
+      "id": "anorexia",
+      "grupo": "cobertura",
+      "diagnostico": "Anorexia nervosa, tipo restritivo, com baixo peso",
+      "paciente": {
+        "nascimento": "2006-09-09",
+        "sexo": "Feminino"
+      },
+      "esperado": [
+        "Transtornos_Alimentares.md"
+      ],
+      "sintomas": "restricao alimentar, medo intenso de engordar, distorcao da imagem corporal, IMC 15, amenorreia, exercicio compulsivo"
+    },
+    {
+      "id": "insonia",
+      "grupo": "cobertura",
+      "diagnostico": "Transtorno de insonia cronica",
+      "paciente": {
+        "nascimento": "1979-02-14",
+        "sexo": "Masculino"
+      },
+      "esperado": [
+        "Transtornos_do_Sono_Vigilia.md"
+      ],
+      "sintomas": "dificuldade para iniciar o sono ha mais de um ano, latencia acima de uma hora, cansaco diurno, preocupacao com o dormir"
+    },
+    {
+      "id": "tea",
+      "grupo": "cobertura",
+      "diagnostico": "Transtorno do espectro autista, nivel 1 de suporte",
+      "paciente": {
+        "nascimento": "2018-07-07",
+        "sexo": "Masculino"
+      },
+      "esperado": [
+        "Transtorno_do_Espectro_Autista_TEA.md"
+      ],
+      "sintomas": "atraso de linguagem, contato visual reduzido, interesses restritos, ecolalia, dificuldade de reciprocidade social, rigidez a mudancas"
+    },
+    {
+      "id": "burnout",
+      "grupo": "cobertura",
+      "diagnostico": "Sindrome de burnout, esgotamento profissional",
+      "paciente": {
+        "nascimento": "1987-11-28",
+        "sexo": "Feminino"
+      },
+      "esperado": [
+        "Burnout_Esgotamento_Profissional.md"
+      ],
+      "sintomas": "exaustao emocional, distanciamento afetivo do trabalho, queda de eficacia profissional, insonia, irritabilidade, sintomas so no contexto laboral"
+    },
+    {
+      "id": "jogo",
+      "grupo": "cobertura",
+      "diagnostico": "Transtorno do jogo, apostas online",
+      "paciente": {
+        "nascimento": "1996-04-04",
+        "sexo": "Masculino"
+      },
+      "esperado": [
+        "Transtorno_do_Jogo.md"
+      ],
+      "sintomas": "apostas online crescentes, perseguicao de perdas, mentiras sobre o valor perdido, endividamento, irritabilidade ao tentar parar"
+    },
+    {
+      "id": "tdpm",
+      "grupo": "cobertura",
+      "diagnostico": "Transtorno disforico pre-menstrual",
+      "paciente": {
+        "nascimento": "1994-05-16",
+        "sexo": "Feminino"
+      },
+      "esperado": [
+        "Transtorno_Disforico_Pre_Menstrual.md"
+      ],
+      "sintomas": "irritabilidade, labilidade afetiva e tensao na semana anterior a menstruacao, com remissao apos o fluxo, em ciclos consecutivos"
+    },
+    {
+      "id": "fora-hipotireoidismo",
+      "grupo": "fora",
+      "diagnostico": "Hipotireoidismo primario, reposicao de levotiroxina",
+      "paciente": {
+        "nascimento": "1972-01-30",
+        "sexo": "Feminino"
+      },
+      "esperado": [],
+      "nota": "Nao e quadro psiquiatrico. Recuperar com folga aqui indica limiar baixo demais.",
+      "sintomas": "fadiga, ganho de peso, intolerancia ao frio, pele seca, TSH elevado com T4 livre baixo"
+    },
+    {
+      "id": "fora-hipertensao",
+      "grupo": "fora",
+      "diagnostico": "Hipertensao arterial sistemica, ajuste de anti-hipertensivo",
+      "paciente": {
+        "nascimento": "1965-08-08",
+        "sexo": "Masculino"
+      },
+      "esperado": [],
+      "sintomas": "pressao arterial 158/96 em duas medidas, sem sintomas, sem lesao de orgao alvo conhecida"
+    },
+    {
+      "id": "fora-diabetes",
+      "grupo": "fora",
+      "diagnostico": "Diabetes mellitus tipo 2, ajuste de metformina",
+      "paciente": {
+        "nascimento": "1968-04-12",
+        "sexo": "Masculino"
+      },
+      "esperado": [],
+      "sintomas": "poliuria, polidipsia, hemoglobina glicada 8,4%, sem sintomas psiquicos"
+    },
+    {
+      "id": "fora-anemia",
+      "grupo": "fora",
+      "diagnostico": "Anemia ferropriva, reposicao de sulfato ferroso",
+      "paciente": {
+        "nascimento": "1990-02-20",
+        "sexo": "Feminino"
+      },
+      "esperado": [],
+      "sintomas": "fadiga, palidez, ferritina baixa, menorragia"
+    },
+    {
+      "id": "fora-asma",
+      "grupo": "fora",
+      "diagnostico": "Asma persistente moderada, ajuste de corticoide inalatorio",
+      "paciente": {
+        "nascimento": "2012-06-05",
+        "sexo": "Masculino"
+      },
+      "esperado": [],
+      "sintomas": "sibilancia, despertares noturnos, uso frequente de broncodilatador de resgate"
+    },
+    {
+      "id": "fora-refluxo",
+      "grupo": "fora",
+      "diagnostico": "Doenca do refluxo gastroesofagico, ajuste de inibidor de bomba",
+      "paciente": {
+        "nascimento": "1975-09-14",
+        "sexo": "Masculino"
+      },
+      "esperado": [],
+      "sintomas": "pirose retroesternal, regurgitacao, piora pos-prandial"
+    },
+    {
+      "id": "fora-infeccao-urinaria",
+      "grupo": "fora",
+      "diagnostico": "Infeccao do trato urinario nao complicada",
+      "paciente": {
+        "nascimento": "1995-01-08",
+        "sexo": "Feminino"
+      },
+      "esperado": [],
+      "sintomas": "disuria, urgencia miccional, urina II com leucocituria"
+    },
+    {
+      "id": "fora-enxaqueca",
+      "grupo": "fora",
+      "diagnostico": "Enxaqueca com aura, profilaxia",
+      "paciente": {
+        "nascimento": "1988-07-30",
+        "sexo": "Feminino"
+      },
+      "esperado": [],
+      "sintomas": "cefaleia hemicraniana pulsatil, fotofobia, escotomas cintilantes precedendo a dor"
+    },
+    {
+      "id": "fora-epilepsia",
+      "grupo": "fora",
+      "diagnostico": "Epilepsia focal, ajuste de anticonvulsivante",
+      "paciente": {
+        "nascimento": "1999-11-11",
+        "sexo": "Masculino"
+      },
+      "esperado": [],
+      "sintomas": "crises focais com automatismos, eletroencefalograma com atividade epileptiforme temporal"
+    },
+    {
+      "id": "fora-parkinson",
+      "grupo": "fora",
+      "diagnostico": "Doenca de Parkinson, ajuste de levodopa para sintomas motores",
+      "paciente": {
+        "nascimento": "1952-03-03",
+        "sexo": "Masculino"
+      },
+      "esperado": [],
+      "sintomas": "bradicinesia, rigidez em roda denteada, tremor de repouso assimetrico"
+    },
+    {
+      "id": "fora-fratura",
+      "grupo": "fora",
+      "diagnostico": "Fratura de colo de femur, conduta cirurgica",
+      "paciente": {
+        "nascimento": "1940-12-25",
+        "sexo": "Feminino"
+      },
+      "esperado": [],
+      "sintomas": "queda da propria altura, dor inguinal, impotencia funcional, membro encurtado e rodado"
+    },
+    {
+      "id": "fora-fibrilacao",
+      "grupo": "fora",
+      "diagnostico": "Fibrilacao atrial, anticoagulacao e controle de frequencia",
+      "paciente": {
+        "nascimento": "1955-05-19",
+        "sexo": "Masculino"
+      },
+      "esperado": [],
+      "sintomas": "palpitacoes, pulso irregular, eletrocardiograma sem onda P"
+    },
+    {
+      "id": "fora-atestado",
+      "grupo": "fora",
+      "diagnostico": "Emissao de atestado de aptidao para atividade fisica",
+      "paciente": {
+        "nascimento": "1993-08-08",
+        "sexo": "Feminino"
+      },
+      "esperado": [],
+      "sintomas": "exame clinico sem alteracoes, sem queixas"
+    }
+  ]
+}
