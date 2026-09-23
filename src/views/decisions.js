@@ -7,7 +7,8 @@ import { optionGroups } from "../data/examOptions.js";
 import { CARE_LEVELS_REQUIRING_JUSTIFICATION, careLevelNotes, careLevelOptions } from "../data/careLevels.js";
 import { scaleAcuteRisk } from "../clinical/scoring.js";
 import { monitoringFor } from "../data/monitoring.js";
-import { chips, textarea } from "../ui/controls.js";
+import { optionParts } from "../clinical/optionParts.js";
+import { chips, statusLine, textarea } from "../ui/controls.js";
 import { referenceFor } from "../data/references.js";
 import { escapeAttr, escapeHtml } from "../ui/html.js";
 
@@ -32,7 +33,7 @@ export function diagnosisModule(form) {
         <button class="primary" type="button" data-action="generate-diagnosis">Gerar</button>
         ${refineButton("refine-diagnosis", selectedValues.length > 0)}
       </div>
-      ${aiStatus ? `<p class="online-status">${escapeHtml(aiStatus)}</p>` : ""}
+      ${statusLine(aiStatus)}
       ${ragSourcesView(form.ragSourcesDiagnostico)}
       ${firstPassView(form.diagnosticoRefinoAnterior, [["Sindrômico", "sindromico"], ["Nosológico", "nosologico"], ["Etiológico", "etiologico"]])}
     </div>
@@ -342,7 +343,7 @@ export function treatmentModule(form, { podeEngravidar = false } = {}) {
         <button class="primary" type="button" data-action="generate-treatment">Gerar</button>
         ${treatmentAiMode(form) === "guidelines" ? "" : refineButton("refine-treatment", medicationOptions.length || approachOptions.length)}
       </div>
-      ${form.treatmentStatus ? `<p class="online-status">${escapeHtml(form.treatmentStatus)}</p>` : ""}
+      ${statusLine(form.treatmentStatus)}
       ${ragSourcesView(form.ragSourcesTratamento)}
       ${firstPassView(form.tratamentoRefinoAnterior, [["Medicamentos", "medicamentos"], ["Outras abordagens", "abordagens"]])}
     </div>
@@ -353,7 +354,7 @@ export function treatmentModule(form, { podeEngravidar = false } = {}) {
         <textarea hidden name="tratamentoAiMedicamentos">${escapeHtml(medicationOptions.join("\n"))}</textarea>
         <textarea hidden name="tratamentoMedicamentoso">${escapeHtml(form.tratamentoMedicamentoso || "")}</textarea>
         <div class="diagnosis-options">
-          ${medicationOptions.length ? medicationOptions.map((option, index) => `<article class="treatment-card"><h4>${index === 0 ? "1ª opção" : index === 1 ? "2ª opção" : "Off-label"}</h4><label class="diagnosis-option treatment-option"><input type="checkbox" name="tratamentoMedicamentosSelecionados" value="${escapeAttr(option)}" ${arrayValue(form.tratamentoMedicamentosSelecionados).includes(option) ? "checked" : ""} /><span>${escapeHtml(option)}</span></label></article>`).join("") : `<p class="diagnosis-empty">As opções aparecerão após a geração.</p>`}
+          ${medicationOptions.length ? medicationOptions.map((option, index) => `<article class="treatment-card"><h4>${index === 0 ? "1ª opção" : index === 1 ? "2ª opção" : "Off-label"}</h4><label class="diagnosis-option treatment-option"><input type="checkbox" name="tratamentoMedicamentosSelecionados" value="${escapeAttr(option)}" ${arrayValue(form.tratamentoMedicamentosSelecionados).includes(option) ? "checked" : ""} />${optionLabelBody(option)}</label></article>`).join("") : `<p class="diagnosis-empty">As opções aparecerão após a geração.</p>`}
         </div>
       </div>
       <div class="treatment-card">
@@ -413,9 +414,27 @@ function treatmentOptionCheckboxes(name, options, selectedValues) {
   return options.map(option => `
     <label class="diagnosis-option treatment-option">
       <input type="checkbox" name="${name}" value="${escapeAttr(option)}" ${selectedValues.includes(option) ? "checked" : ""} />
-      <span>${escapeHtml(option)}</span>
+      ${optionLabelBody(option)}
     </label>
   `).join("");
+}
+
+// O texto da caixa de marcar. A STRING nao muda -- continua inteira no `value`,
+// porque e ela que a narrativa, o Resumo e o Tratamento leem de volta. Muda o
+// desenho: o farmaco no topo, e dose, progressao e interacao como campos, em vez
+// de uma frase corrida separada por barras. Ver clinical/optionParts.js.
+//
+// Linha sem barra -- "Psicoterapia cognitivo-comportamental" -- continua uma
+// frase: frase de um campo so nao vira ficha.
+function optionLabelBody(option) {
+  const { titulo, partes } = optionParts(option);
+  if (!partes.length) return `<span>${escapeHtml(option)}</span>`;
+  return `<span class="option-parts">
+    <span class="option-title">${escapeHtml(titulo)}</span>
+    ${partes.map(({ rotulo, valor }) => rotulo
+      ? `<span class="option-part"><span class="option-part-rotulo">${escapeHtml(rotulo)}</span><span class="option-part-valor">${escapeHtml(valor)}</span></span>`
+      : `<span class="option-part option-part-livre"><span class="option-part-valor">${escapeHtml(valor)}</span></span>`).join("")}
+  </span>`;
 }
 
 // A segunda pagina do retorno, criada em 02/09/2026. Ordem da tela e a ordem da
@@ -441,7 +460,7 @@ export function returnPlanModule(form) {
       <div class="actions">
         <button class="primary" type="button" data-action="generate-return-plan">Gerar</button>
       </div>
-      ${form.returnPlanStatus ? `<p class="online-status">${escapeHtml(form.returnPlanStatus)}</p>` : ""}
+      ${statusLine(form.returnPlanStatus)}
       ${ragSourcesView(form.ragSourcesAjuste)}
     </div>
     ${riscoAgudoView(scaleAcuteRisk(form), "deste retorno", "O retorno não tem nível de cuidado próprio: se a conduta seguir ambulatorial, registre a razão em Acrescentar.")}
@@ -500,7 +519,7 @@ export function evolutionBody(form, patient, previous = null, isReturn = false) 
       <div class="actions">
         <button class="primary" type="button" data-action="generate-evolution">${isReturn ? "Atualizar evolução" : "Atualizar história clínica"}</button>
       </div>
-      ${form.aiStatus ? `<p class="online-status">${escapeHtml(form.aiStatus)}</p>` : ""}
+      ${statusLine(form.aiStatus)}
       ${ragSourcesView(form.ragSourcesEvolucao)}
     </div>
     ${textarea("evolution", "", evolution || generatedEvolution)}
@@ -525,7 +544,7 @@ function psychopathologicalAnalysisView(linhas) {
   if (!linhas.length) return "";
   return `<div class="clinical-card analysis-card">
     <h4>Análise psicopatológica</h4>
-    <p class="online-status">Cada achado vem com o trecho do registro que o sustenta. Achado sem evidência no prontuário não entra — e o catálogo local, que casa termo, não produz esta análise.</p>
+    <p class="panel-note">Cada achado vem com o trecho do registro que o sustenta. Achado sem evidência no prontuário não entra — e o catálogo local, que casa termo, não produz esta análise.</p>
     <ul class="analysis-list">
       ${linhas.map(linha => {
         const [dominio, ...resto] = linha.split(/:\s*/);
@@ -575,7 +594,7 @@ export function careLevelView(form = {}) {
   const ambulatorialSemRazao = riscoAgudo.length > 0 && escolhido === "Ambulatorial" && !justificativa;
   return `<div class="clinical-card care-card">
     <h4>Nível de cuidado</h4>
-    <p class="online-status">${proposto
+    <p class="panel-note">${proposto
       ? `Proposto pela literatura: <strong>${escapeHtml(proposto)}</strong>${justificativaIa ? ` — ${escapeHtml(justificativaIa)}` : ""}`
       : "A IA propõe uma modalidade após a geração. A escolha é sempre sua."}</p>
     ${riscoAgudoView(riscoAgudo, "desta consulta")}

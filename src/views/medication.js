@@ -1,3 +1,4 @@
+import { statusLine } from "../ui/controls.js";
 import { escapeHtml } from "../ui/html.js";
 
 export function medicationReferenceCard(form) {
@@ -91,18 +92,27 @@ function bippTips(value = "") {
 // marcador.
 export function bookChapterView(form) {
   if (form.medicationChapterStatus) {
-    return `<p class="medication-source-status">${escapeHtml(form.medicationChapterStatus)}</p>`;
+    return statusLine(form.medicationChapterStatus, "medication-source-status");
   }
   const capitulo = form.medicationChapter;
   if (!Array.isArray(capitulo?.blocos) || !capitulo.blocos.length) return "";
-  const corpo = capitulo.blocos.filter(bloco => bloco.t !== "titulo").map(chapterBlock).join("");
+  const blocos = capitulo.blocos.filter(bloco => bloco.t !== "titulo");
+  const corpo = blocos.map(chapterBlock).join("");
+  const letras = blocos.reduce((total, bloco) => total + String(bloco.v || "").length, 0);
   // O cabecalho e o proprio botao de fechar: <details> guarda o aberto/fechado
   // no elemento, sem estado no rascunho e sem um terceiro botao na barra de
-  // acoes. Abre por padrao, que e o motivo de o capitulo carregar sozinho.
-  return `<details class="book-chapter" open>
+  // acoes.
+  //
+  // FECHADO por padrao desde 23/09/2026. Sao 13 a 30 mil caracteres de capitulo
+  // por farmaco, e eles abriam entre a ficha e a conduta: escolher o
+  // medicamento empurrava para fora da tela justamente o que ele foi ali
+  // decidir. O capitulo continua carregando sozinho -- o que mudou foi so quem
+  // pede para le-lo. O cabecalho diz o tamanho, para a decisao de abrir ser
+  // tomada antes e nao depois da rolagem.
+  return `<details class="book-chapter">
     <summary>
       <h3>${escapeHtml(capitulo.nome)}</h3>
-      <p class="medication-bipp-source">${escapeHtml(capitulo.livro)} — capítulo integral, sem as referências</p>
+      <p class="medication-bipp-source">${escapeHtml(capitulo.livro)} — capítulo integral, sem as referências${letras ? ` · ${Math.round(letras / 1000)} mil caracteres` : ""}</p>
     </summary>
     ${corpo}
   </details>`;

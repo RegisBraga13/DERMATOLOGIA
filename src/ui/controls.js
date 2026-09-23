@@ -1,7 +1,18 @@
 import { formatPhone, whatsappLink } from "../clinical/phone.js";
 import { arrayValue, normalizedSingleChoiceValue, normalizeText, optionDisplayLabel, optionScreenLabel } from "../clinical/textFormat.js";
+import { statusToneClass, statusToneRole } from "../clinical/statusTone.js";
 import { escapeAttr, escapeHtml } from "./html.js";
 import { microphoneIcon, whatsappIcon } from "./icons.js";
+
+// A caixa de status da IA, com a cor e o papel tirados do TOM da mensagem --
+// ver clinical/statusTone.js. Ate 23/09/2026 cada uma das seis caixas escrevia
+// o proprio <p class="online-status">, e falha, espera e sucesso saiam iguais.
+export function statusLine(texto = "", classeBase = "online-status") {
+  const conteudo = String(texto || "").trim();
+  if (!conteudo) return "";
+  const tom = statusToneClass(conteudo);
+  return `<p class="${classeBase}${tom ? ` ${tom}` : ""}" role="${statusToneRole(conteudo)}">${escapeHtml(conteudo)}</p>`;
+}
 
 export function formatSummaryDate(value = "") {
   const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);

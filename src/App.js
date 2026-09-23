@@ -2,6 +2,8 @@ import { returnPlanSuggestionFromAi, treatmentSuggestionFromAi } from "./clinica
 import { createDraftGuard } from "./clinical/draftGuard.js";
 import { anamnesisAiMarks, hasAiMarks, withoutAiMarks } from "./clinical/anamnesisOrigin.js";
 import { createAiOperations } from "./clinical/aiOperations.js";
+import { createUnsavedWork } from "./clinical/unsavedWork.js";
+import { statusFailure } from "./clinical/statusTone.js";
 import { countLabel, diagnosisReviewFailure, diagnosisSuggestionFromAi, diagnosisSuggestionFromLocalCatalogue } from "./clinical/aiDiagnosisResult.js";
 import { diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
 import { anamnesisText, buildEvolutionNarrative, evolutionNeedsRebuild, evolutionSuggestionOnAiFailure, normalizeEvolutionNarrative, removeReturnBoilerplate, requestedExamsText, treatmentDiagnosisText } from "./clinical/narrative.js";
@@ -17,7 +19,7 @@ import { buildMedicationAutofill, localMedicationSuggestions } from "./services/
 import { exportTextAsPdf } from "./services/pdfService.js";
 import { archiveEntry, archivePatient, isActive, isArchived, loadState, mergeStates, purgePatient, restorePatient, saveState, stateSignature, uid } from "./services/storageService.js";
 import { currentSession, signIn, signOut, syncState } from "./services/supabaseService.js";
-import { anamnesisStructuredFields, chips, field, phoneField, selectField, summaryColumns, textarea, voiceTextarea } from "./ui/controls.js";
+import { anamnesisStructuredFields, chips, field, phoneField, selectField, statusLine, summaryColumns, textarea, voiceTextarea } from "./ui/controls.js";
 import { escapeAttr, escapeHtml } from "./ui/html.js";
 import { createVoiceRecording } from "./ui/voiceRecording.js";
 import { clipboardIcon, folderIcon, homeIcon, lockIcon, personIcon, repeatIcon, themeIcon } from "./ui/icons.js";
@@ -65,6 +67,8 @@ const draftGuard = createDraftGuard();
 // Qual etapa tem chamada de IA em voo. O botao dela fecha enquanto isso; o
 // formulario nao. Ver clinical/aiOperations.js.
 const aiOperations = createAiOperations(() => paintAiBusyState());
+// O que foi digitado e ainda nao foi gravado. Ver clinical/unsavedWork.js.
+const unsavedWork = createUnsavedWork();
 // Que botao pertence a que etapa. "Gerar" e "Refinar" do mesmo assunto sao a
 // mesma vaga: escrevem nos mesmos campos e nao podem correr juntos.
 const AI_BUSY_BUTTONS = {
@@ -107,6 +111,27 @@ const icons = {
   record: folderIcon(),
   exit: lockIcon()
 };
+
+// Fechar a aba com a consulta na tela descartava tudo em silencio: o programa
+// so grava no clique, e nao havia pergunta nem rastro. Registrado UMA vez, aqui,
+// e nao em bindViewEvents -- aquele roda a cada render(), e empilharia um ouvinte
+// por desenho da tela.
+//
+// O texto da caixa e do navegador, e nao nosso: nenhum navegador atual deixa a
+// pagina escolher o que ela diz. O que esta em nossa mao e a pergunta existir.
+window.addEventListener("beforeunload", event => {
+  if (!haTrabalhoNaoSalvo()) return;
+  event.preventDefault();
+  // Firefox e Safari antigos so respeitam returnValue.
+  event.returnValue = "";
+});
+
+// Gravacao em andamento conta como trabalho nao salvo: o audio ainda nao virou
+// texto, e recarregar a pagina o perde inteiro. Mesmo criterio que ja barra
+// Salvar, Finalizar e Sair enquanto o microfone esta aberto.
+function haTrabalhoNaoSalvo() {
+  return unsavedWork.ha() || voiceRecording.isBusy();
+}
 
 Promise.all([loadState(), currentSession()]).then(async ([local, session]) => {
   state = withoutBookChapters(local.state);
@@ -531,7 +556,7 @@ function refinementBody(form = {}) {
   const origem = plan.origem === "local"
     ? `<div class="warning">A IA não respondeu. Estas perguntas são um roteiro fixo de contingência, iguais para qualquer paciente: não saíram do protocolo de entrevista nem da literatura.</div>`
     : plan.origem === "ia"
-      ? `<p class="online-status">O protocolo de entrevista não carregou: as perguntas abaixo foram propostas pela IA, sem a lista fechada dos livros.</p>`
+      ? statusLine("O protocolo de entrevista não carregou: as perguntas abaixo foram propostas pela IA, sem a lista fechada dos livros.")
       : "";
   return `
     ${origem}
@@ -599,7 +624,7 @@ function medicationBody(form) {
           <button class="primary" type="button" data-action="generate-medication-ai">Gerar</button>
         </div>
         ${form.medicationAcervoAviso ? `<p class="warning" role="alert">${escapeHtml(form.medicationAcervoAviso)}</p>` : ""}
-        ${form.medicationOnlineStatus ? `<p class="medication-source-status" role="status">${escapeHtml(form.medicationOnlineStatus)}</p>` : ""}
+        ${statusLine(form.medicationOnlineStatus, "medication-source-status")}
         ${ragSourcesView(form.ragSourcesMedicamento)}
         ${bookChapterView(form)}
         ${hasInformation ? medicationReferenceCard(form) : (form.medicationChapter ? "" : `
@@ -622,7 +647,7 @@ function medicationBody(form) {
         <div class="actions">
           <button class="primary" type="button" data-action="generate-appendix-symptom">Gerar</button>
         </div>
-        ${form.appendixSymptomStatus ? `<p class="medication-source-status">${escapeHtml(form.appendixSymptomStatus)}</p>` : ""}
+        ${statusLine(form.appendixSymptomStatus, "medication-source-status")}
         ${ragSourcesView(form.ragSourcesSintomatico)}
         ${condutas.length ? `
           <section class="appendix-symptom-results">
@@ -842,7 +867,7 @@ function bindGlobalEvents() {
   });
   app.querySelectorAll("[data-action='select-patient']").forEach(select => select.addEventListener("change", event => {
     selectedPatientId = event.target.value;
-    draftGuard.replaced(); aiOperations.reset();
+    draftGuard.replaced(); aiOperations.reset(); unsavedWork.limpar();
     draft.consultation = selectedPatientId ? defaultConsultation() : {};
     draft.return = selectedPatientId ? defaultReturn() : {};
     consultationPage = "anamnese";
@@ -1030,11 +1055,18 @@ function clearMedicationLookup() {
   render();
 }
 
+// Qual ramo do rascunho este formulario alimenta. O mesmo mapa que
+// updateDraftFromForm usa, e por isso o mesmo que saveClinicalRecord limpa.
+function draftScopeOfForm(form) {
+  return { "consult-form": "consultation", "return-form": "return", "patient-form": "patient" }[form?.id] || "";
+}
+
 function bindAutoDraft() {
   const forms = app.querySelectorAll("form");
   forms.forEach(form => {
     form.addEventListener("input", event => {
       clinicalDraftRevision += 1;
+      unsavedWork.tocou(draftScopeOfForm(form));
       updateDraftFromForm(form);
       // Texto do documento mexido a mao: a partir daqui, mudar dias ou destino
       // nao o remonta por cima do que o medico escreveu.
@@ -1057,6 +1089,7 @@ function bindAutoDraft() {
     });
     form.addEventListener("change", event => {
       clinicalDraftRevision += 1;
+      unsavedWork.tocou(draftScopeOfForm(form));
       if (["maniaHipomaniaSintomas", "psicoseSintomas", "riscoSuicidioIndicadores", "eventos", "efeitos", "funcionalidadeEventosRetorno"].includes(event.target?.name) && event.target.checked) {
         const options = form.querySelectorAll(`input[name='${event.target.name}']`);
         const denialOptions = ["Nega sintomas relacionados", "Nega ideacao, plano ou intencao suicida", "Nenhum"];
@@ -1172,9 +1205,10 @@ function bindPatientForm() {
     }
     selectedPatientId = data.id;
     draft.patient = structuredClone(data);
+    unsavedWork.salvo("patient");
     persist();
     view = pendingViewAfterPatient || "consultation";
-    draftGuard.replaced(); aiOperations.reset();
+    draftGuard.replaced(); aiOperations.reset(); unsavedWork.limpar();
     if (view === "consultation") draft.consultation = defaultConsultation();
     if (view === "return") draft.return = defaultReturn();
     pendingViewAfterPatient = "";
@@ -1306,7 +1340,7 @@ function bindActions() {
       if (action === "voice") voiceRecording.startVoice(element.dataset.target, element);
       if (action === "edit-current-patient") { view = "patient"; draft.patient = structuredClone(getPatient()); render(); }
       if (action === "edit-entry") editEntry(element.dataset.id, element.dataset.type);
-      if (action === "new-consultation") { draftGuard.replaced(); aiOperations.reset(); draft.consultation = defaultConsultation(); consultationPage = "anamnese"; consultationUnlocked = 1; render(); }
+      if (action === "new-consultation") { draftGuard.replaced(); aiOperations.reset(); unsavedWork.limpar(); draft.consultation = defaultConsultation(); consultationPage = "anamnese"; consultationUnlocked = 1; render(); }
       if (action === "new-return") startNewReturn();
       if (action === "back-to-record") { view = "record"; render(); }
       if (action === "pdf-entry") pdfEntry(element.dataset.id, element.dataset.type);
@@ -1631,6 +1665,7 @@ function saveClinicalRecord(scope) {
     const registro = withVersionHistory(findEntry(data.id, "consultation"), data, now);
     upsert("consultations", registro);
     draft.consultation = { ...structuredClone(registro), ...screenOnlyFields(draft.consultation) };
+    unsavedWork.salvo("consultation");
     persist();
     return registro;
   }
@@ -1662,6 +1697,7 @@ function saveClinicalRecord(scope) {
     const registro = withVersionHistory(findEntry(data.id, "return"), data, now);
     upsert("returns", registro);
     draft.return = { ...structuredClone(registro), ...screenOnlyFields(draft.return) };
+    unsavedWork.salvo("return");
     persist();
     return registro;
   }
@@ -1766,7 +1802,7 @@ async function generateTreatmentFromClinicalData(element, kind = "treatment") {
     // diretrizes nao cobrem este caso --, e chama-la de "RAG indisponivel"
     // mandaria procurar defeito onde nao ha.
     const rotulo = { rag: "RAG", guidelines: "Diretrizes", current: "IA" }[treatmentAiMode(target || {})];
-    const recado = `${rotulo} sem resposta: ${error.message}`;
+    const recado = statusFailure(`${rotulo} sem resposta`, error.message);
     suggestion = { ragSourcesTratamento: [], treatmentStatus: recado, aiStatus: recado };
   }
   // Uma chamada mais nova desta etapa ja assumiu: esta resposta esta velha e
@@ -1815,7 +1851,7 @@ async function generateReturnPlanFromClinicalData(element) {
   } catch (error) {
     gravar({
       ragSourcesAjuste: [],
-      returnPlanStatus: `${{ rag: "RAG", guidelines: "Diretrizes", current: "IA" }[target?.returnPlanAiMode || "rag"] || "IA"} sem resposta: ${error.message}`
+      returnPlanStatus: statusFailure(`${{ rag: "RAG", guidelines: "Diretrizes", current: "IA" }[target?.returnPlanAiMode || "rag"] || "IA"} sem resposta`, error.message)
     });
   }
   // Uma chamada mais nova desta etapa ja assumiu: esta resposta esta velha e
@@ -1890,7 +1926,7 @@ async function generateAppendixSymptomConduct(element) {
         : "Nenhuma conduta encontrada para este sintoma."
     });
   } catch (error) {
-    gravar({ ragSourcesSintomatico: [], appendixSymptomStatus: `Literatura de manejo sintomatico indisponivel: ${error.message}` });
+    gravar({ ragSourcesSintomatico: [], appendixSymptomStatus: statusFailure("Literatura de manejo sintomático indisponível", error.message) });
   }
   // Uma chamada mais nova desta etapa ja assumiu: esta resposta esta velha e
   // nao grava. Nao libera o botao tampouco -- quem o fechou foi a mais nova.
@@ -2058,8 +2094,8 @@ async function generateMedicationFromClinicalData(element) {
     suggestion = {
       ragSourcesMedicamento: [],
       medicationAcervoAviso: "",
-      medicationOnlineStatus: wasRag ? `RAG indisponivel: ${error.message}. Use pesquisa online ou prompt manual.` : `IA indisponível: ${error.message}. Use pesquisa online ou prompt manual.`,
-      aiStatus: wasRag ? `RAG indisponivel: ${error.message}.` : `IA indisponível: ${error.message}.`
+      medicationOnlineStatus: statusFailure(wasRag ? "RAG indisponível" : "IA indisponível", error.message, "Use pesquisa online ou prompt manual."),
+      aiStatus: statusFailure(wasRag ? "RAG indisponível" : "IA indisponível", error.message)
     };
   }
   // Uma chamada mais nova desta etapa ja assumiu: esta resposta esta velha e
@@ -2110,7 +2146,7 @@ async function loadBookChapter(scope, nome) {
     if (!resposta.ok) return aplica({ medicationChapter: null, medicationChapterStatus: dados.error || "Nao foi possivel abrir o capitulo." });
     aplica({ medicationChapter: dados, medicationChapterStatus: "" });
   } catch (error) {
-    aplica({ medicationChapter: null, medicationChapterStatus: `Capitulo indisponivel: ${error.message}` });
+    aplica({ medicationChapter: null, medicationChapterStatus: statusFailure("Capítulo indisponível", error.message) });
   }
 }
 
@@ -2510,6 +2546,10 @@ function startNewReturn() {
     type: "return",
     previousEntryId: pendingEntry.id
   };
+  // O rascunho de retorno que estava na tela deixou de existir: nao ha o que
+  // avisar na saida sobre um rascunho que nao esta mais em lugar nenhum. So o
+  // ramo do retorno -- a consulta aberta continua como estava.
+  unsavedWork.salvo("return");
   returnPage = "evolucao-retorno";
   returnUnlocked = 1;
   render();
@@ -2723,7 +2763,7 @@ function editEntry(id, type) {
   const entry = findEntry(id, type);
   if (!entry) return;
   selectedPatientId = entry.patientId;
-  draftGuard.replaced(); aiOperations.reset();
+  draftGuard.replaced(); aiOperations.reset(); unsavedWork.limpar();
   // Registro salvo e reaberto: o atendimento ja foi percorrido inteiro, entao
   // as abas voltam a ser livres. O travamento existe para o atendimento novo.
   if (type === "consultation") {
@@ -2803,7 +2843,7 @@ async function endSession() {
   authSession = null;
   authError = "";
   syncError = "";
-  draftGuard.replaced(); aiOperations.reset();
+  draftGuard.replaced(); aiOperations.reset(); unsavedWork.limpar();
   draft = {};
   view = "dashboard";
   consultationPage = "anamnese";

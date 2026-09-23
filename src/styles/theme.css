@@ -1058,7 +1058,12 @@ input[type="radio"]:focus-visible {
   font-size: 17px;
 }
 
-.online-status {
+/* Duas coisas diferentes com a mesma cara ate 23/09/2026. `.online-status` e a
+   caixa de status da IA, e agora carrega o TOM da mensagem -- falha, espera ou
+   feito. `.panel-note` e a nota explicativa fixa do cartao, que nunca foi
+   status: usava a classe so pelo cinza, e ganhava role="status" por tabela. */
+.online-status,
+.panel-note {
   margin: 10px 0 0;
   color: var(--muted);
   line-height: 1.4;
@@ -1575,6 +1580,7 @@ button,
 }
 
 .online-status,
+.panel-note,
 .voice-status,
 .medication-source-status,
 .diagnosis-empty,
@@ -2775,3 +2781,71 @@ textarea:focus-visible {
 /* Botao de IA com chamada em voo. O cinza sozinho lia como "indisponivel";
    com o cursor de espera, le como "estou indo". */
 [data-ai-busy="1"] { cursor: progress; opacity: .6; }
+
+/* A linha de proposta achatada com barras, desenhada como ficha. A string
+   guardada nao muda -- ver clinical/optionParts.js. O rotulo fica na primeira
+   coluna, em corpo menor, porque o que se le aqui e o VALOR: a dose, a
+   progressao, a interacao. */
+.option-parts {
+  display: grid;
+  gap: 5px;
+  overflow-wrap: anywhere;
+}
+
+.diagnosis-option .option-title {
+  font-weight: var(--w-strong);
+}
+
+.option-part {
+  display: grid;
+  grid-template-columns: minmax(0, 11ch) minmax(0, 1fr);
+  gap: 2px 12px;
+  align-items: baseline;
+}
+
+/* Detalhe sem rotulo conhecido continua texto, e ocupa a linha inteira: coluna
+   de rotulo vazia sugeriria campo que ficou por preencher. */
+.option-part-livre {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.diagnosis-option .option-part-rotulo {
+  font-size: 13px;
+  font-weight: var(--w-strong);
+  letter-spacing: .02em;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.diagnosis-option .option-part-valor {
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+/* Sem largura para duas colunas, o rotulo vira rotulo de cima, que e como um
+   formulario estreito se le. */
+@media (max-width: 720px) {
+  .option-part { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Falha e sucesso sairam no mesmo cinza ate 23/09/2026. A distincao nao e so
+   cor: a falha ganha barra, peso e o sinal antes do texto, e vai com
+   role="alert" -- ver clinical/statusTone.js. */
+.online-status.status-falha,
+.medication-source-status.status-falha {
+  color: var(--danger);
+  font-weight: var(--w-strong);
+  border-left: 3px solid var(--danger);
+  padding-left: 10px;
+}
+
+.status-falha::before {
+  content: "⚠ ";
+}
+
+/* Espera nao e resultado: fica em italico e sem barra, para nao ser lida como
+   a resposta que ainda nao chegou. */
+.online-status.status-espera,
+.medication-source-status.status-espera {
+  font-style: italic;
+}
