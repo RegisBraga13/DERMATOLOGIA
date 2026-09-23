@@ -49,7 +49,7 @@ describe("farmaco com nome unico", () => {
 
   it("le a decisao do Ajuste de conduta", () => {
     assert.deepEqual(parseMedicationDecision("Sertralina — Aumentar dose | 100 mg/dia | resposta parcial"),
-      { nome: "Sertralina", acao: "Aumentar dose", tipo: "aumentar", detalhe: "100 mg/dia" });
+      { nome: "Sertralina", acao: "Aumentar dose", tipo: "aumentar", detalhe: "100 mg/dia", motivo: "resposta parcial" });
     assert.equal(parseMedicationDecision("Clonazepam — Retirar | reduzir 0,25 mg por semana").tipo, "retirar");
   });
 });

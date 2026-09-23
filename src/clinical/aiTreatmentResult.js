@@ -17,7 +17,7 @@ import { arrayValue } from "./textFormat.js";
 // -- e mandaria toda geracao seguinte para a web -- sem ele pedir. A fonte que
 // respondeu ja aparece no painel de fontes.
 
-export function treatmentSuggestionFromAi({ result = {}, target = {}, sources = [], mode = "", revisao = false }) {
+export function treatmentSuggestionFromAi({ result = {}, target = {}, sources = [], mode = "", revisao = false, doseWarnings = [] }) {
   const medicationOptions = result.medication_options.map(formatMedicationTreatmentOption);
   const approachOptions = result.non_pharmacological_options.map(formatNonPharmacologicalOption);
   return {
@@ -40,6 +40,10 @@ export function treatmentSuggestionFromAi({ result = {}, target = {}, sources = 
     examesLaboratoriais: requestedExamsText(target || {}),
     condutaMedica: target?.condutaMedica || "",
     ragSourcesTratamento: sources,
+    // A conferencia de posologia do servidor, guardada com a proposta. Fica no
+    // registro pelo mesmo motivo das fontes: o que sustentou a decisao tem de
+    // sobreviver a ela. Geracao nova troca a lista inteira, como as opcoes.
+    tratamentoDoseAvisos: Array.isArray(doseWarnings) ? doseWarnings : [],
     // A primeira proposta, guardada quando o refino a substitui. Geracao nova
     // limpa: a comparacao so vale entre a proposta e a revisao dela.
     tratamentoRefinoAnterior: revisao ? {

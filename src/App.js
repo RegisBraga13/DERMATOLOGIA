@@ -32,9 +32,10 @@ import { bookChapterView, medicationReferenceCard } from "./views/medication.js"
 import { scalesBody, scaleResultView, scaleTrendsView } from "./views/scales.js";
 import { suggestedScales } from "./clinical/scaleSuggestions.js";
 import { monitoringExamSelection, monitoringFor } from "./data/monitoring.js";
-import { buildDocumentText, documentDraftFields, documentType, doctorFromForm, issuedDocument, withoutDocumentDraftFields } from "./clinical/documents.js";
+import { buildDocumentText, documentType, doctorFromForm, issuedDocument } from "./clinical/documents.js";
 import { documentsBody } from "./views/documents.js";
-import { previousScaleEntries, scaleFieldName, withoutUnappliedScaleAnswers } from "./clinical/scoring.js";
+import { previousScaleEntries, scaleFieldName } from "./clinical/scoring.js";
+import { sanitizeConsultationRecord, screenOnlyFields, withoutBookChapters } from "./clinical/consultationRecord.js";
 import { withVersionHistory } from "./clinical/versions.js";
 import { finalizationNote, finalizedNotice, recordStatusLine, versionsView } from "./views/versions.js";
 import { scaleById } from "./data/scales.js";
@@ -498,7 +499,11 @@ function consultationPageBody(form, patient) {
   if (consultationPage === "refinamento") return clinicalPage("", refinementBody(form), "consultation");
   if (consultationPage === "resumo") return clinicalPage("Resumo", clinicalSummaryPage(form, patient), "consultation");
   if (consultationPage === "diagnostico") return clinicalPage("Diagnostico e diferenciais", diagnosisModule(form), "consultation");
-  if (consultationPage === "tratamento") return clinicalPage("Tratamento e orientacoes", treatmentModule(form, { podeEngravidar: mayBePregnant(patient) }), "consultation");
+  // O historico farmacologico vai a tela pelo mesmo motivo que vai ao prompt, e
+  // tem de ser o MESMO: o medico precisa poder ver por que a proposta evitou um
+  // farmaco que ele esperaria ali. Proposta cuja razao nao aparece na tela e
+  // proposta que ele tem de aceitar no escuro.
+  if (consultationPage === "tratamento") return clinicalPage("Tratamento e orientacoes", treatmentModule(form, { podeEngravidar: mayBePregnant(patient), historico: entriesForPatient(patient.id) }), "consultation");
   if (consultationPage === "evolucao") return clinicalPage("Historia clinica", evolutionBody(form, patient), "consultation");
   if (consultationPage === "medicamentos") return clinicalPage("Medicamentos", medicationBody(form), "consultation");
   if (consultationPage === "escalas") return clinicalPage("Escalas", scalesBody(form, scaleHistory(form), false, suggestedScales(form, patient)), "consultation");
@@ -1748,7 +1753,7 @@ async function generateDiagnosisFromClinicalData(element, kind = "diagnosis") {
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result, sources, webSources, mode, codeWarnings } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), revisao ? "rag" : context.target?.aiMode, buildRagQuery(kind, context.target), buildWebQuery(kind, context.target), "", ragPatientScopes(context.patient), revisao ? selectedDiagnosisText(context.target || {}).split("\n").filter(Boolean) : []);
+    const { result, sources, webSources, mode, codeWarnings } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn, null, context.history), revisao ? "rag" : context.target?.aiMode, buildRagQuery(kind, context.target), buildWebQuery(kind, context.target), "", ragPatientScopes(context.patient), revisao ? selectedDiagnosisText(context.target || {}).split("\n").filter(Boolean) : []);
     // A procedencia da resposta e a do modo que respondeu: trechos do acervo no
     // RAG, paginas da web na Nuvem. So um dos dois vem preenchido por chamada.
     suggestion = diagnosisSuggestionFromAi({ result, target: draftTarget(scope), sources: sourcesOfMode(mode, sources, webSources), mode, codeWarnings, revisao });
@@ -1791,11 +1796,11 @@ async function generateTreatmentFromClinicalData(element, kind = "treatment") {
     // A faixa etaria so entra na consulta das diretrizes: la o arquivo da
     // infancia e um documento a parte e precisa ser chamado; no acervo de
     // livros quem faz esse trabalho e o ragPatientScopes, por cima da busca.
-    const { result, sources, webSources, mode } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn), modoEscolhido, buildRagQuery(kind, context.target, modoEscolhido === "guidelines" ? { paciente: context.patient } : {}), buildWebQuery(kind, context.target), "", ragPatientScopes(context.patient), [], treatmentDiagnosisText(context.target || {}));
+    const { result, sources, webSources, mode, doseWarnings } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn, null, context.history), modoEscolhido, buildRagQuery(kind, context.target, modoEscolhido === "guidelines" ? { paciente: context.patient } : {}), buildWebQuery(kind, context.target), "", ragPatientScopes(context.patient), [], treatmentDiagnosisText(context.target || {}));
     // O rascunho de agora, nao o de antes da espera: o que ele marcou enquanto a
     // IA respondia tem de sobreviver. O seletor de modo fica de fora do que
     // volta -- guarda a ESCOLHA dele --, e por isso nada aqui o reescreve.
-    suggestion = treatmentSuggestionFromAi({ result, target: draftTarget(scope), sources: sourcesOfMode(mode, sources, webSources), mode, revisao });
+    suggestion = treatmentSuggestionFromAi({ result, target: draftTarget(scope), sources: sourcesOfMode(mode, sources, webSources), mode, revisao, doseWarnings });
   } catch (error) {
     // Tres modos, tres nomes. A falha precisa dizer QUE fonte falhou: em
     // Guidelines a recusa por falta de cobertura e resposta legitima -- as
@@ -1840,7 +1845,7 @@ async function generateReturnPlanFromClinicalData(element) {
     const modoEscolhido = context.target?.returnPlanAiMode || "rag";
     const { result, sources, webSources, mode } = await requestClinicalAi(
       "return_plan",
-      buildClinicalAiPrompt("return_plan", context.target, context.patient, context.previous, context.isReturn),
+      buildClinicalAiPrompt("return_plan", context.target, context.patient, context.previous, context.isReturn, null, context.history),
       modoEscolhido,
       buildRagQuery("return_plan", context.target, modoEscolhido === "guidelines" ? { paciente: context.patient } : {}),
       buildWebQuery("return_plan", context.target), "", ragPatientScopes(context.patient),
@@ -1914,7 +1919,7 @@ async function generateAppendixSymptomConduct(element) {
     const sombra = { ...(context.target || {}), sintomasResiduais: [sintoma], sintomasResiduaisOutro: "" };
     const { result, sources, webSources, mode } = await requestClinicalAi(
       "symptomatic",
-      buildClinicalAiPrompt("symptomatic", sombra, context.patient, context.previous, context.isReturn),
+      buildClinicalAiPrompt("symptomatic", sombra, context.patient, context.previous, context.isReturn, null, context.history),
       context.target?.symptomaticAiMode || "rag",
       buildRagQuery("symptomatic", sombra), buildWebQuery("symptomatic", sombra), "", ragPatientScopes(context.patient));
     const linhas = targetSymptomConductLines(result);
@@ -2186,7 +2191,12 @@ function clinicalAiContext(scope = view === "return" ? "return" : "consultation"
     target,
     previous: scope === "return" ? previousEntryForReturn(target, selectedPatientId) : null,
     patient: getPatient() || {},
-    isReturn: scope === "return"
+    isReturn: scope === "return",
+    // TODOS os atendimentos deste paciente, e nao os do caso. O que funcionou
+    // em outro episodio e justamente o que nao esta na cadeia deste -- e e a
+    // informacao que mais pesa na escolha do farmaco de hoje. Quem recorta por
+    // etapa e o proprio prompt (pharmacologicalHistoryLines).
+    history: entriesForPatient(selectedPatientId)
   };
 }
 
@@ -2271,6 +2281,13 @@ function paintAnamnesisAiMarks() {
   });
 }
 
+// Ate 23/09/2026 isto restaurava o scroll em ate quatro tentativas escalonadas
+// (imediata, requestAnimationFrame, 120ms, 450ms), porque a badge "IA" era
+// `::before` dentro do fluxo do chip e engordava a caixa ao marcar varias de
+// uma vez, deslocando a linha inteira. A badge passou a `position: absolute`
+// (ver `.chip-ai` em theme.css) e parou de mexer no layout -- caixa de marcar
+// tem tamanho fixo (22x22, `flex: none`) independente de marcada ou nao.
+// Sem deslocamento, uma chamada so basta.
 function syncAnamnesisControlsFromDraft() {
   if (view !== "consultation" || consultationPage !== "anamnese") return;
   const form = app.querySelector("#consult-form");
@@ -2286,9 +2303,6 @@ function syncAnamnesisControlsFromDraft() {
   });
   paintAnamnesisAiMarks();
   window.scrollTo(scrollLeft, scrollTop);
-  requestAnimationFrame(() => window.scrollTo(scrollLeft, scrollTop));
-  setTimeout(() => window.scrollTo(scrollLeft, scrollTop), 120);
-  setTimeout(() => window.scrollTo(scrollLeft, scrollTop), 450);
 }
 
 async function processAnamnesisTranscriptSilently(transcript = "", options = {}) {
@@ -2447,45 +2461,6 @@ function updateDraftFromForm(form) {
     // bindAutoDraft.
     draft[chave] = { ...(draft[chave] || {}), ...data };
   }
-}
-
-// O capitulo do livro e tela, e nao registro: 13 a 30 mil caracteres de obra
-// licenciada por farmaco. Ate 10/09/2026 ele ia junto com a consulta para o
-// localStorage e para o Supabase -- o rascunho carregava o capitulo, e salvar
-// gravava o rascunho inteiro. Agora sai do registro ao salvar e ao carregar; o
-// segundo limpa o que ja tinha sido gravado antes. Na tela ele continua.
-function screenOnlyFields(entry = {}) {
-  const campos = {};
-  ["medicationChapter", "medicationChapterStatus"].forEach(campo => {
-    if (entry && Object.hasOwn(entry, campo)) campos[campo] = entry[campo];
-  });
-  // Os campos de tela dos Documentos (documento_*, medico_*) seguem a mesma
-  // regra desde 10/09/2026: continuam na tela depois de salvar, e nao vao para
-  // o registro. Do documento, o prontuario guarda so documentosEmitidos.
-  return { ...campos, ...documentDraftFields(entry) };
-}
-
-function withoutScreenOnlyFields(entry = {}) {
-  const clean = { ...entry };
-  delete clean.medicationChapter;
-  delete clean.medicationChapterStatus;
-  return withoutDocumentDraftFields(clean);
-}
-
-function withoutBookChapters(current = {}) {
-  return {
-    ...current,
-    consultations: (current.consultations || []).map(withoutScreenOnlyFields),
-    returns: (current.returns || []).map(withoutScreenOnlyFields)
-  };
-}
-
-function sanitizeConsultationRecord(data = {}) {
-  const clean = withoutUnappliedScaleAnswers(withoutScreenOnlyFields(data));
-  clean.diagnosticoManual = arrayValue(clean.diagnosticoSelecionado).join("\n");
-  clean.tratamentoMedicamentoso = arrayValue(clean.tratamentoMedicamentosSelecionados).join("\n");
-  clean.abordagensTerapeuticas = arrayValue(clean.abordagensSelecionadas).join("\n");
-  return clean;
 }
 
 function currentClinicalDraft() {

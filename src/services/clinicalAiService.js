@@ -1,12 +1,13 @@
 import { diagnosticAggravatingOptionLines, diagnosticComorbidityOptionLines, diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSpecifierOptionLines, diagnosticSyndromicOptionLines, formatDiagnosticOption, formatMedicationTreatmentOption, formatNonPharmacologicalOption, normalizeDiagnosticOptions, parseTreatmentResponse, selectedAggravatingValues, selectedComorbidityValues, selectedDiagnosisValues, selectedSpecifierValues, treatmentOptionLines } from "../clinical/diagnosis.js";
 import { careLevelOptions as CARE_LEVELS } from "../data/careLevels.js";
 import { gestationalAgeText, lifeStageOf, lifeStagePromptText, patientAge } from "../clinical/lifeStage.js";
-import { anamnesisText, buildEvolutionNarrative, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, patientIdentificationText, professionalSelectedTreatmentItems, refinementAnswersText, requestedExamsText, returnStoryText, treatmentDiagnosisText } from "../clinical/narrative.js";
+import { anamnesisText, buildEvolutionNarrative, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, patientIdentificationText, professionalSelectedTreatmentItems, promptAnamnesisText, refinementAnswersText, requestedExamsText, returnStoryText, treatmentDiagnosisText } from "../clinical/narrative.js";
 import { arrayValue, cleanClinicalLine, compactText, formatClinicalList, joinValues, mentalExamKeys, normalizeText, stripFinalPeriod } from "../clinical/textFormat.js";
 import { ANAMNESIS_AI_FIELDS, MENTAL_EXAM_AI_FIELDS, MENTAL_EXAM_NORMAL } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js";
 import { scalesNarrativeText } from "../clinical/scoring.js";
 
+import { medicationTrials, medicationTrialsText } from "../clinical/medicationTrial.js";
 import { protocolCatalogText, protocolItemById, protocolLoaded } from "../clinical/protocol.js";
 import { parseMedicationResponse } from "./medicationService.js";
 
@@ -80,6 +81,15 @@ export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery
     // chega sem codigo, e sem o aviso isso passaria por sindrome descritiva,
     // que legitimamente nao tem codigo.
     codeWarnings: Array.isArray(data.code_warnings) ? data.code_warnings : [],
+    // Divergencias de posologia que o SERVIDOR viu, pela tabela gerada do
+    // catalogo. Vao ao registro junto com a proposta: conferencia guardada com
+    // o que foi proposto vale para auditoria depois, e refazer a conta na tela
+    // so responde pelo catalogo de hoje.
+    doseWarnings: Array.isArray(data.dose_warnings) ? data.dose_warnings : [],
+    // O numero da decisao que o servidor registrou no log. Chega aqui para que
+    // o que apareceu na tela e a linha do log sejam a mesma coisa quando for
+    // preciso conferir depois por que uma resposta saiu como saiu.
+    decisionId: data.decision_id || "",
     mode: data.mode || "current"
   };
 }
@@ -715,7 +725,7 @@ export function buildWebQuery(kind, form = {}) {
   return "";
 }
 
-export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = null, isReturn = false, scope = null) {
+export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = null, isReturn = false, scope = null, history = []) {
   const taskByKind = {
     anamnesis: [
       "Use a literatura de semiologia psiquiatrica recuperada pelo RAG como guia de cobertura, mas extraia somente informacoes explicitamente presentes na transcricao da conversa.",
@@ -758,6 +768,14 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       // para robustecer as hipoteses. "Isso aqui e ouro."
       "A SINTESE DO CASO e a primeira historia clinica, montada so com anamnese, exame psiquico e exame fisico: ela mostra o caso inteiro e a cronologia, e serve para robustecer as hipoteses. Ela nao substitui o registro: a EVIDENCIA continua sendo o fato bruto do registro, nunca o termo tecnico nem a frase da sintese.",
       "A IDADE DE INICIO E CRITERIO, e nao contexto. Pese cada hipotese contra a faixa etaria: transtornos do neurodesenvolvimento comecam na infancia e nao surgem na vida adulta; esquizofrenia e transtorno bipolar tem inicio tipico da adolescencia ao adulto jovem; PRIMEIRO episodio de psicose, mania ou depressao grave no idoso e, ate prova em contrario, secundario a condicao medica, a medicamento ou a substancia — e a hipotese etiologica passa a ser obrigatoria.",
+      // Decisao dele, 23/09/2026: o historico farmacologico passa a chegar
+      // tambem a esta etapa. Resposta a tratamento e evidencia longitudinal, e
+      // e a unica que o caso tem sobre si mesmo ao longo do tempo. As quatro
+      // linhas abaixo dizem como le-la SEM que ela vire atalho diagnostico.
+      "A RESPOSTA A TRATAMENTO ANTERIOR E DADO DIAGNOSTICO, e nao conduta. Havendo HISTORICO FARMACOLOGICO, leia-o como evidencia longitudinal do caso: ele diz o que este paciente ja mostrou ao longo do tempo, e nenhum corte transversal mostra.",
+      "Dois ou mais ensaios ADEQUADOS de antidepressivo que falharam no mesmo episodio abrem duas perguntas antes de manter a hipotese depressiva unipolar: ha mania ou hipomania que a anamnese nao capturou, e o quadro preenche depressao resistente? Traga isso como DIFERENCIAL e como o que vigiar no seguimento, nunca como conclusao — falha de tratamento e um achado, e achado nao fecha entidade.",
+      "Resposta boa a estabilizador de humor, ou virada maniaca ou hipomaniaca durante antidepressivo, pesa a favor do espectro bipolar. Pesa: entra como hipotese a considerar e como especificador a investigar, e nao como diagnostico feito.",
+      "'Ensaio insuficiente' e 'nao testado' NAO sao falha e nao sustentam nada. Dose abaixo da faixa, tempo abaixo do minimo, interrupcao pelo paciente ou nao inicio significam que o farmaco nunca foi testado — ler isso como resistencia a tratamento e o erro mais facil desta leitura, e o que ele produz e um diagnostico de resistencia em quem nunca tratou.",
       "Hipotese incompativel com a idade so entra se o registro trouxer o que a sustente, e o motivo tem de aparecer na justificativa. Nao proponha transtorno de personalidade a partir de crise recente em adolescente ou adulto jovem: exige padrao ja estavel.",
       "Em mulher em idade fertil, considere no diferencial e nos especificadores o que depende do eixo reprodutivo: transtorno disforico pre-menstrual, inicio no periparto, e quadro do climaterio.",
       // Pedido dele, 28/08/2026: "Os diagnosticos devem ter o DSM-5-TR e CID-11
@@ -854,6 +872,16 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
     ],
     treatment: [
       "A SINTESE DO CASO e a primeira historia clinica, montada so com anamnese, exame psiquico e exame fisico, e a ANALISE PSICOPATOLOGICA traz os achados que sustentam as hipoteses. Use as duas para ver o caso inteiro e propor o tratamento dos sintomas que o paciente de fato tem, e nao so o do rotulo diagnostico.",
+      // Regra dele, 23/09/2026. O que ja foi tentado neste paciente vale mais
+      // que a ordem de preferencia geral da literatura: a literatura fala da
+      // populacao, e o historico fala DELE. As quatro linhas abaixo dizem o que
+      // fazer com cada veredito que o HISTORICO FARMACOLOGICO traz apurado --
+      // a apuracao e deterministica e esta em clinical/medicationTrial.js.
+      "O HISTORICO FARMACOLOGICO, quando presente, manda na escolha, acima da ordem de preferencia geral da literatura: ele e o unico dado de resposta A TRATAMENTO que existe deste paciente.",
+      "Farmaco marcado 'FALHA com ensaio adequado' -- tomado na dose da faixa usual pelo tempo minimo e sem resposta -- NAO deve ser proposto de novo. Repetir um ensaio adequado ja feito gasta semanas do paciente para chegar a resposta que ele ja deu. Proponha outro, e diga na justificativa qual ensaio anterior exclui o que voce nao propos.",
+      "Farmaco marcado 'RESPOSTA BOA em episodio anterior' e a PRIMEIRA escolha para o episodio atual, salvo contraindicacao nova registrada agora. Resposta previa e o melhor preditor de resposta que este caso tem; propor outra coisa no lugar dele exige dizer por que.",
+      "'Ensaio insuficiente' e 'nao testado' NAO excluem o farmaco, e nao devem ser lidos como falha: dose abaixo da faixa, tempo abaixo do minimo, interrupcao pelo paciente ou nao inicio significam que ele nunca chegou a ser testado. Um ensaio adequado pode ser exatamente o que falta -- se propuser um destes, diga que o ensaio anterior foi insuficiente e por que.",
+      "'INTOLERANCIA' exclui o farmaco pelo efeito registrado, e nao por ineficacia: nao o proponha, e leve em conta que farmacos da mesma classe tendem a repetir o mesmo efeito.",
       "A faixa etaria muda a prescricao antes da dose. No idoso, comece com metade da dose do adulto, suba mais devagar, e evite benzodiazepinico e anticolinergico pelo risco de queda e de piora cognitiva. Em crianca e adolescente, so farmaco com indicacao para a idade, e antidepressivo com vigilancia de ativacao e de ideacao suicida nas primeiras semanas.",
       "Gestacao e amamentacao mudam a ESCOLHA do farmaco, e nao apenas a dose. Havendo gestacao, puerperio ou amamentacao no registro, a opcao proposta tem de ser compativel com isso, e a justificativa tem de dizer por que. Sendo mulher em idade fertil sem esse dado registrado, sinalize a necessidade de confirmar antes de prescrever teratogeno conhecido.",
       // Primeira instrucao da etapa, e nao a ultima: onde tratar decide-se antes
@@ -899,6 +927,7 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "SINTOMA-ALVO e a queixa mais urgente, incomoda ou incapacitante do caso, e orienta a conduta terapeutica imediata mesmo sem diagnostico nosologico estabelecido.",
       "Os sintomas-alvo desta consulta sao APENAS os listados no registro sob 'Sintomas-alvo assinalados'. Nunca proponha conduta para sintoma que nao esteja ali, e nunca crie um sintoma-alvo por conta propria. Sem sintoma listado, devolva a lista VAZIA.",
       "Para cada sintoma assinalado devolva uma entrada em 'target_symptom_options': 'symptom' repete o nome exato do sintoma e 'conduct' diz a conduta imediata para ele — manejo, orientacao, monitorizacao.",
+      "Havendo HISTORICO FARMACOLOGICO, a opcao medicamentosa do alvo obedece a ele: nao proponha farmaco marcado 'FALHA com ensaio adequado' nem 'INTOLERANCIA'.",
       // Num teste, a opcao medicamentosa voltou como "Ajuste de sertralina;
       // intervencoes comportamentais para sono" — prosa repetindo a conduta,
       // ocupando a caixa que devia trazer o remedio. Conduta e prescricao tem
@@ -928,6 +957,10 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "'detail' diz o que muda na receita, em numero: 'para 100 mg/dia', 'reduzir 25 mg por semana ate suspender', 'trocar por escitalopram 10 mg/dia'. Em Manter dose, 'detail' fica vazio.",
       "'rationale' e UMA frase curta ligando a acao ao que o medico registrou: qual achado dele sustenta esta decisao. Sem repetir a acao e sem prosa.",
       "Adesao irregular muda a leitura: dose que nao foi tomada nao falhou, e subir dose de remedio que o paciente nao toma e erro. Diga isso no 'rationale' quando for o caso.",
+      // O ajuste de conduta e onde a troca acontece, e e onde o historico pesa:
+      // trocar por um farmaco que ja falhou com ensaio adequado e refazer um
+      // ensaio pronto.
+      "Ao propor 'Trocar medicamento' ou 'Acrescentar medicamento', leia o HISTORICO FARMACOLOGICO antes de escolher o substituto: nao proponha farmaco marcado 'FALHA com ensaio adequado' nem 'INTOLERANCIA', e prefira o marcado 'RESPOSTA BOA em episodio anterior'. Diga no 'rationale' qual ensaio anterior sustenta a escolha.",
       "Efeito colateral registrado tem de aparecer em alguma acao — reduzir, trocar, dividir a tomada, manter e monitorar. Efeito que o medico anotou e a conduta ignora e a falha mais grave desta etapa.",
       "Respeite o tempo de resposta da classe: nao troque antidepressivo por falta de resposta antes do prazo que a literatura recuperada estabelece. Quando o prazo ainda nao passou, mantenha e diga no 'rationale' quanto tempo ainda se espera.",
       "Em 'conduct_options' vao ate 6 ajustes que NAO sao receita: exame a pedir, encaminhamento, psicoterapia, orientacao ao paciente, intervalo ate o proximo retorno, monitorizacao. Uma linha cada, direta, sem verbo de enfeite e sem justificativa dentro da linha.",
@@ -1028,10 +1061,11 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
     kind === "evolution"
         ? clinicalEvolutionPromptData(form, patient, previous, isReturn)
         : kind === "medication"
-          ? `Medicamento pesquisado: ${form.medicationGeneric || "nao informado"}.\n${clinicalPromptData(form, patient, previous, isReturn)}`
-          : clinicalPromptData(form, patient, previous, isReturn),
+          ? `Medicamento pesquisado: ${form.medicationGeneric || "nao informado"}.\n${clinicalPromptData(form, patient, previous, isReturn, kind)}`
+          : clinicalPromptData(form, patient, previous, isReturn, kind),
     "",
     ...caseSynthesisLines(kind, form, patient, isReturn),
+    ...pharmacologicalHistoryLines(kind, history),
     "FORMATO DA RESPOSTA:",
     promptResponseFormat(kind)
   ].join("\n");
@@ -1052,6 +1086,35 @@ function caseSynthesisLines(kind, form = {}, patient = {}, isReturn = false) {
   return linhas;
 }
 
+// As etapas que prescrevem, MAIS o diagnostico.
+//
+// O diagnostico entrou por decisao dele em 23/09/2026, e pela razao certa:
+// resposta a tratamento e dado diagnostico longitudinal. Falha a dois
+// antidepressivos bem conduzidos no mesmo episodio levanta bipolaridade e
+// resistencia; resposta boa a estabilizador aponta espectro bipolar. Nenhuma
+// das duas fecha diagnostico sozinha, e a tarefa da etapa diz isso -- aqui so
+// se decide que o dado chega la.
+const KINDS_COM_HISTORICO_FARMACOLOGICO = new Set(["diagnosis", "treatment", "return_plan", "symptomatic"]);
+
+// O historico vai por ULTIMO, depois da sintese e colado no formato da
+// resposta. Ele e o dado mais especifico que o prompt carrega -- o unico que
+// fala de resposta a tratamento DESTE paciente --, e a posicao e o que sobra
+// de controle sobre a atencao do modelo depois que a instrucao ja foi escrita.
+function pharmacologicalHistoryLines(kind, history = []) {
+  const base = REVIEW_OF_KIND[kind] || kind;
+  if (!KINDS_COM_HISTORICO_FARMACOLOGICO.has(base)) return [];
+  const texto = medicationTrialsText(medicationTrials(history));
+  if (!texto) return [];
+  return [
+    "HISTORICO FARMACOLOGICO DESTE PACIENTE (todos os atendimentos, inclusive de outros episodios):",
+    texto,
+    // Sem esta linha, a ausencia de um farmaco no historico poderia ser lida
+    // como "nunca usou", quando pode ser "usou antes de existir registro".
+    "Este historico cobre o que foi registrado neste programa. Farmaco que o paciente relatou na anamnese e nao aparece aqui nao foi avaliado como ensaio.",
+    ""
+  ];
+}
+
 function clinicalEvolutionPromptData(form = {}, patient = {}, previous = null, isReturn = false) {
   return [
     `Identidade: ${conciseIdentityText(patient)}.`,
@@ -1068,15 +1131,24 @@ function clinicalEvolutionPromptData(form = {}, patient = {}, previous = null, i
   ].join("\n");
 }
 
-function clinicalPromptData(form = {}, patient = {}, previous = null, isReturn = false) {
+function clinicalPromptData(form = {}, patient = {}, previous = null, isReturn = false, kind = "") {
+  // A transcricao crua so vale na etapa que a LE. `anamnesis` recebe o dialogo
+  // como entrada -- e a tarefa dela e justamente separar quem falou o que --,
+  // entao ali o texto vai inteiro. Nas demais, o que entra e o QP/HDA que a
+  // extracao produziu e o medico revisou (promptAnamnesisText, em narrative.js).
+  const qphdaDoPrompt = kind === "anamnesis" ? anamnesisText(form) : promptAnamnesisText(form);
   return [
     `Identificacao: ${patientIdentificationText(patient, true)}`,
     // A idade em linha PROPRIA, e com o que ela implica. Na identificacao ela
     // ficava ao lado do estado civil e da ocupacao, lida como cadastro.
     lifeStagePromptText(patient),
     `Tipo de atendimento: ${isReturn ? "retorno" : "consulta inicial/nova consulta"}.`,
-    previous ? `Registro anterior: ${new Date(previous.createdAt || Date.now()).toLocaleDateString("pt-BR")} - ${stripFinalPeriod(normalizeEvolutionNarrative(previous.evolution) || anamnesisText(previous) || previous.observacoesRetorno || "")}.` : "",
-    `QP/HDA: ${stripFinalPeriod(anamnesisText(form)) || "nao informado"}.`,
+    // Mesma regra para o registro anterior: sem evolucao escrita, o que o
+    // atendimento passado tem a dizer e o QP/HDA revisado dele, e nao a
+    // transcricao daquele dia -- que aqui seria a segunda conversa inteira
+    // dentro do mesmo prompt.
+    previous ? `Registro anterior: ${new Date(previous.createdAt || Date.now()).toLocaleDateString("pt-BR")} - ${stripFinalPeriod(normalizeEvolutionNarrative(previous.evolution) || promptAnamnesisText(previous) || previous.observacoesRetorno || "")}.` : "",
+    `QP/HDA: ${stripFinalPeriod(qphdaDoPrompt) || "nao informado"}.`,
     `Fatores associados/desencadeantes: ${joinWithOutro(form.fatores, form.fatoresOutro) || "nao informado"}.`,
     `Fatores de melhora: ${joinWithOutro(form.fatoresMelhora, form.fatoresMelhoraOutro) || "nao informado"}.`,
     `Impacto funcional: ${joinValues(form.impacto) || "nao informado"}.`,

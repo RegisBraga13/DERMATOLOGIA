@@ -1,0 +1,96 @@
+{
+  "gerado_por": "scripts/build_medication_table.mjs",
+  "fonte": "src/data/medications.js + src/data/medicationDoses.js (so os revisados)",
+  "medicamentos": [
+    {
+      "generic": "Sertralina",
+      "brands": "Zoloft, Assert, Tolrest",
+      "className": "ISRS",
+      "initialDose": "25 a 50 mg/dia",
+      "usualDose": "50 a 200 mg/dia",
+      "progression": "Aumentar em intervalos de 1 a 2 semanas, usualmente em passos de 25 a 50 mg, conforme resposta e tolerabilidade.",
+      "contraindications": "Uso com IMAO, hipersensibilidade.",
+      "interactions": "IMAO, outros serotoninergicos, anticoagulantes, AINEs."
+    },
+    {
+      "generic": "Escitalopram",
+      "brands": "Lexapro, Exodus, Reconter",
+      "className": "ISRS",
+      "initialDose": "5 a 10 mg/dia",
+      "usualDose": "10 a 20 mg/dia",
+      "progression": "Aumentar apos 1 a 2 semanas se necessario; observar limite menor em idosos, hepatopatia e risco de QT.",
+      "contraindications": "Uso com IMAO, QT prolongado relevante.",
+      "interactions": "IMAO, antiarritmicos, macrolideos, outros serotoninergicos."
+    },
+    {
+      "generic": "Quetiapina",
+      "brands": "Seroquel, Quet, Kitapen",
+      "className": "Antipsicotico atipico",
+      "initialDose": "25 a 50 mg/noite conforme indicacao",
+      "usualDose": "150 a 800 mg/dia conforme alvo clinico",
+      "progression": "Titular gradualmente, com maior cautela em idosos, hipotensao, sedacao e risco metabolico.",
+      "contraindications": "Hipersensibilidade; cautela em QT prolongado.",
+      "interactions": "Inibidores/indutores CYP3A4, alcool, sedativos."
+    },
+    {
+      "generic": "Lisdexanfetamina",
+      "brands": "Venvanse, Juneve",
+      "className": "Psicoestimulante",
+      "initialDose": "30 mg pela manha",
+      "usualDose": "30 a 70 mg/dia",
+      "progression": "Ajustar em intervalos semanais conforme resposta, apetite, sono, PA, FC e risco de abuso.",
+      "contraindications": "IMAO, doenca cardiovascular grave, hipertensao nao controlada.",
+      "interactions": "IMAO, simpatomimeticos, alcalinizantes urinarios."
+    },
+    {
+      "generic": "Fluoxetina",
+      "brands": "Prozac, Daforin, Fluxene",
+      "className": "ISRS",
+      "initialDose": "10 a 20 mg/dia",
+      "usualDose": "20 a 60 mg/dia conforme indicacao",
+      "progression": "Aumentar gradualmente apos algumas semanas conforme resposta; lembrar meia-vida longa.",
+      "contraindications": "Uso com IMAO; cautela em bipolaridade nao estabilizada.",
+      "interactions": "IMAO, outros serotoninergicos, anticoagulantes, AINEs; inibicao de CYP2D6 pode elevar niveis de outros farmacos."
+    },
+    {
+      "generic": "Venlafaxina",
+      "brands": "Efexor XR, Venlift, Alenthus XR",
+      "className": "IRSN",
+      "initialDose": "37,5 a 75 mg/dia",
+      "usualDose": "75 a 225 mg/dia",
+      "progression": "Aumentar em intervalos de 1 a 2 semanas conforme resposta e pressao arterial.",
+      "contraindications": "Uso com IMAO; hipertensao nao controlada exige cautela.",
+      "interactions": "IMAO, serotoninergicos, drogas que aumentem risco de sangramento."
+    },
+    {
+      "generic": "Mirtazapina",
+      "brands": "Remeron, Menelat, Razapina",
+      "className": "Antidepressivo noradrenergico e serotoninergico especifico",
+      "initialDose": "15 mg/noite",
+      "usualDose": "15 a 45 mg/noite",
+      "progression": "Aumentar apos 1 a 2 semanas conforme resposta, sedacao e peso.",
+      "contraindications": "Uso com IMAO; cautela em obesidade, dislipidemia e diabetes.",
+      "interactions": "Alcool, sedativos, serotoninergicos, indutores/inibidores metabolicos."
+    },
+    {
+      "generic": "Carbonato de litio",
+      "brands": "Carbolitium",
+      "className": "Estabilizador do humor",
+      "initialDose": "300 mg/noite ou 300 mg 12/12 h",
+      "usualDose": "Ajustar por resposta e litemia, frequentemente 600 a 1200 mg/dia",
+      "progression": "Titular com litemia e funcao renal/tireoidiana; evitar aumentos rapidos sem monitorizacao.",
+      "contraindications": "Insuficiencia renal relevante, desidratacao, uso sem possibilidade de monitorizacao; cautela em gestacao.",
+      "interactions": "AINEs, IECA/BRA, diureticos tiazidicos, desidratacao e alteracoes de sodio."
+    },
+    {
+      "generic": "Risperidona",
+      "brands": "Risperdal, Risperidon",
+      "className": "Antipsicotico atipico",
+      "initialDose": "0,5 a 1 mg/noite",
+      "usualDose": "1 a 6 mg/dia conforme indicacao",
+      "progression": "Aumentar gradualmente conforme resposta, sintomas extrapiramidais, sedacao e prolactina.",
+      "contraindications": "Hipersensibilidade; cautela em demencia, Parkinson, QT prolongado.",
+      "interactions": "Depressores SNC, anti-hipertensivos, drogas que prolongam QT, inibidores CYP2D6."
+    }
+  ]
+}

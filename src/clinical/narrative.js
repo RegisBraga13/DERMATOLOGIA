@@ -606,6 +606,39 @@ export function anamnesisText(form = {}) {
   return form.qphda || [form.queixa && `QP: ${form.queixa}`, form.hdaManual && `HDA: ${form.hdaManual}`].filter(Boolean).join("\n");
 }
 
+// O QP/HDA que vai ao PROMPT das etapas seguintes -- que nao e o mesmo texto
+// que vai a etapa da anamnese.
+//
+// Depois de uma entrevista por voz, `qphda` guarda a transcricao inteira, com
+// "Falante A:" e tudo (App.js, applyAnamnesisAiResult). Ali ela e a ENTRADA da
+// extracao e precisa chegar crua, porque a tarefa daquela etapa e ler o
+// dialogo. Da extracao em diante ela deixa de ser entrada e vira lastro: mil e
+// quinhentas linhas de fala coloquial repetidas no Diagnostico, no Tratamento,
+// no Sintoma-Alvo, no Medicamento, no Ajuste de conduta e no BIPP TIPS, em
+// toda chamada, competindo por atencao com o que o medico revisou.
+//
+// E a mesma licao que o buildRagQuery aprendeu do outro lado: os campos
+// estruturados dizem em vocabulario clinico o que a conversa diz em prosa, e
+// sao o que a propria extracao produziu a partir dela. O que muda aqui e so
+// quem le -- a busca vetorial la, o modelo aqui.
+//
+// A troca so acontece quando ha certeza de que `qphda` E a transcricao: o
+// marcador `anamnesisProcessedTranscript` guarda o texto que a extracao
+// consumiu, e so vale enquanto for identico ao campo. No modo manual `qphda` e
+// a "Anotacao clinica livre", escrita pelo medico, e nao ha marcador -- entao
+// ela segue inteira, como sempre seguiu. Transcricao gravada e ainda nao
+// extraida tambem segue: ali ela e o unico registro do caso.
+export function promptAnamnesisText(form = {}) {
+  const marcador = form.anamnesisProcessedTranscript;
+  const transcricaoJaExtraida = Boolean(marcador) && String(marcador) === String(form.qphda || "");
+  if (!transcricaoJaExtraida) return anamnesisText(form);
+  // Extracao que nao devolveu nem queixa nem HDA deixaria o prompt sem
+  // historia nenhuma. Ai a transcricao volta: texto demais e pior que texto
+  // certo, mas prompt sem caso nao responde nada.
+  return [form.queixa && `QP: ${form.queixa}`, form.hdaManual && `HDA: ${form.hdaManual}`].filter(Boolean).join("\n")
+    || anamnesisText(form);
+}
+
 // O refinamento fechava em si mesmo: o medico respondia as perguntas,
 // classificava as red flags e escrevia sua observacao, e nada disso saia da
 // tela e do resumo. O prompt do diagnostico ficava byte a byte identico ao de

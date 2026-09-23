@@ -161,7 +161,7 @@ describe("as tres correcoes chegam de fato a tela", () => {
   });
 
   it("a marca de origem nao e so cor", () => {
-    assert.ok(css.includes(".chip.chip-ai { border-style: dashed"),
+    assert.ok(/\.chip\.chip-ai\s*\{[^}]*border-style:\s*dashed/.test(css),
       "cor sozinha nao serve a quem nao a distingue");
     assert.ok(app.includes("Marcado pela extração da IA"), "e precisa existir por extenso para leitor de tela");
   });

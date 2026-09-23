@@ -62,8 +62,16 @@ function drugKey(linha = "") {
 }
 
 // Linha do Ajuste de conduta: "Sertralina — Aumentar dose | 100 mg/dia | por que".
+//
+// O `motivo` entrou em 23/09/2026, com o historico farmacologico. Ele sempre
+// esteve na linha -- returnPlanMedicationLines o escreve -- e este leitor o
+// jogava fora, entao a razao pela qual um farmaco saiu ficava legivel na tela e
+// invisivel para quem lesse o caso depois. E a diferenca entre "retirado porque
+// nao respondeu" e "retirado porque deu efeito colateral": a primeira exclui o
+// farmaco por ineficacia, a segunda por intolerancia, e as duas levam a
+// condutas diferentes no proximo episodio.
 export function parseMedicationDecision(linha = "") {
-  const [cabeca = "", detalhe = ""] = String(linha).split("|").map(parte => parte.trim());
+  const [cabeca = "", detalhe = "", motivo = ""] = String(linha).split("|").map(parte => parte.trim());
   const [farmaco = "", acao = ""] = cabeca.split(" — ").map(parte => parte.trim());
   const a = normalizeText(acao);
   const tipo = /aument/.test(a) ? "aumentar"
@@ -72,7 +80,7 @@ export function parseMedicationDecision(linha = "") {
         : /retir|suspend/.test(a) ? "retirar"
           : /acrescent|inici|associ/.test(a) ? "iniciar"
             : /mant/.test(a) ? "manter" : "";
-  return { nome: drugLabel(farmaco), acao, tipo, detalhe };
+  return { nome: drugLabel(farmaco), acao, tipo, detalhe, motivo };
 }
 
 // ---------------------------------------------------------------- cadeia
@@ -128,7 +136,12 @@ const SITUACAO_POR_DECISAO = {
   trocar: "suspenso (troca)"
 };
 
-function respostasDeFarmaco(entry) {
+// As respostas "Em uso como prescrito / Em uso com dose alterada / Interrompeu
+// / Nunca iniciou", uma por farmaco prescrito, com o rotulo que viajou no campo
+// oculto. Exportada para o historico farmacologico (medicationTrial.js), que le
+// a mesma coisa por outro recorte: aqui interessa a situacao de hoje, la
+// interessa o ensaio inteiro.
+export function respostasDeFarmaco(entry) {
   const respostas = [];
   for (let indice = 0; indice < 12; indice += 1) {
     const rotulo = String(entry[`retornoFarmaco_${indice}Rotulo`] || "").trim();

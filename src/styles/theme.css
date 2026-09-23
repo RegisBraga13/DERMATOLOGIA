@@ -2737,6 +2737,40 @@ textarea:focus-visible {
 .monitoring-block ul { margin: 0 0 10px; padding-left: 18px; display: grid; gap: 6px; line-height: 1.5; }
 .monitoring-exams { color: var(--muted); }
 
+/* Conferencia de posologia, embaixo de cada opcao medicamentosa.
+   A divergencia usa o mesmo desenho do alerta de risco da anamnese -- barra
+   vermelha a esquerda sobre fundo esmaecido --, porque e o mesmo tipo de aviso:
+   algo que precisa ser lido antes de continuar. Os outros dois estados sao
+   discretos de proposito: "conferido" e "nao conferi" informam, nao alarmam. */
+.dose-alert {
+  border-left: 4px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--text);
+}
+.dose-alert-title { margin: 0 0 4px; font-weight: 600; }
+.dose-alert ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; line-height: 1.5; }
+.dose-alert small { display: block; margin-top: 6px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+.dose-checked,
+.dose-unchecked { margin: 8px 0 0; font-size: 12px; line-height: 1.4; color: var(--muted); }
+.dose-unchecked { font-style: italic; }
+
+/* Histórico farmacológico no painel da IA do Tratamento: os ensaios já
+   encerrados, com o mesmo veredito que foi ao prompt. Verde para o que se deve
+   repetir, vermelho para o que não se deve, e neutro para o que nunca chegou a
+   ser testado -- que não é meio-termo entre os dois, é pergunta em aberto. */
+.trial-history { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.trial-history-title { margin: 0 0 6px; font-weight: 600; }
+.trial-history ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; line-height: 1.5; }
+.trial-verdict { margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 11px; white-space: nowrap; }
+.trial-neutro { background: color-mix(in srgb, var(--muted) 18%, var(--surface)); color: var(--text); }
+.trial-bom { background: color-mix(in srgb, var(--sage) 26%, var(--surface)); color: var(--text); }
+.trial-ruim { background: color-mix(in srgb, var(--danger) 18%, var(--surface)); color: var(--text); }
+.trial-evidence { display: block; color: var(--muted); font-size: 12px; }
+
 /* Documentos (10/09/2026): tipo e campos em cima, texto editavel embaixo. */
 .document-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px 14px; margin: 10px 0; }
 .document-recommendations { grid-column: 1 / -1; }
@@ -2768,9 +2802,25 @@ textarea:focus-visible {
    tracejado quer dizer "proposto", continuo quer dizer "decidido".
    A marca some no instante em que ele toca a caixa: dali em diante e dele.
    Nao e cor sozinha: quem nao distingue a cor ainda ve o tracejado, e o
-   `title` diz a frase inteira. */
-.chip.chip-ai { border-style: dashed; border-color: var(--primary-2); }
-.chip.chip-ai::before { content: "IA"; font-size: 10px; font-weight: 700; letter-spacing: .04em; color: var(--primary-2); }
+   `title` diz a frase inteira.
+   A badge "IA" e `position: absolute`, de proposito: ate 23/09/2026 era
+   `::before` dentro do fluxo do flex, e engordava o chip. Marcar varias
+   caixas de uma vez (uma extracao tipica) deslocava a linha inteira e exigia
+   forcar o scroll de volta em cascata depois de pintar as marcas -- ver
+   `syncAnamnesisControlsFromDraft` em App.js. Sem largura propria, a badge
+   nunca mais empurra nada, e o forcar-scroll deixou de ser necessario. */
+.chip.chip-ai { position: relative; border-style: dashed; border-color: var(--primary-2); }
+.chip.chip-ai::before {
+  content: "IA";
+  position: absolute;
+  top: -8px; right: -6px;
+  font-size: 9px; font-weight: 700; letter-spacing: .04em;
+  color: var(--primary-2);
+  background: var(--surface);
+  padding: 0 3px;
+  border-radius: 4px;
+  line-height: 1.4;
+}
 .ai-origin-legend { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 12px; padding: 10px 12px; border-radius: var(--radius); border: 1px dashed color-mix(in srgb, var(--primary-2) 55%, var(--line)); color: var(--muted); line-height: 1.45; }
 .ai-origin-legend .chip { pointer-events: none; padding: 2px 8px; font-size: 12px; }
 

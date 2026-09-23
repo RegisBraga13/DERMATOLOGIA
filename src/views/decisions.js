@@ -7,6 +7,9 @@ import { optionGroups } from "../data/examOptions.js";
 import { CARE_LEVELS_REQUIRING_JUSTIFICATION, careLevelNotes, careLevelOptions } from "../data/careLevels.js";
 import { scaleAcuteRisk } from "../clinical/scoring.js";
 import { monitoringFor } from "../data/monitoring.js";
+import { CATALOGO_LOCAL_TAMANHO, gestacaoConfirmadaEm, treatmentDoseReview } from "../clinical/doseCheck.js";
+import { aguardandoRevisao } from "../data/medicationCatalog.js";
+import { medicationTrials } from "../clinical/medicationTrial.js";
 import { optionParts } from "../clinical/optionParts.js";
 import { chips, statusLine, textarea } from "../ui/controls.js";
 import { referenceFor } from "../data/references.js";
@@ -331,9 +334,83 @@ function monitoringView(form, podeEngravidar) {
   </div>`;
 }
 
-export function treatmentModule(form, { podeEngravidar = false } = {}) {
+// A conferencia de posologia embaixo da opcao, e nao num painel a parte: o que
+// se confere e AQUELA linha, e o alerta que mora longe da caixa e alerta que se
+// assinala por cima. Os tres estados aparecem sempre -- inclusive o "nao
+// conferi" --, porque silencio ao lado de uma caixa de marcar e lido como aval.
+function doseReviewView(revisao) {
+  if (!revisao) return "";
+  if (revisao.estado === "divergencia") {
+    return `<div class="dose-alert" role="alert">
+      <p class="dose-alert-title">Confira antes de assinalar</p>
+      <ul>${revisao.alertas.map(alerta => `<li>${escapeHtml(alerta.texto)}</li>`).join("")}</ul>
+      ${revisao.referencia ? `<small>Catálogo local — ${escapeHtml(revisao.referencia)}</small>` : ""}
+    </div>`;
+  }
+  if (revisao.estado === "conferido") {
+    return `<p class="dose-checked">Posologia conferida com o catálogo local. ${escapeHtml(revisao.referencia)}</p>`;
+  }
+  // A pendência de revisão aparece AQUI, e não num painel de configuração: é
+  // neste ponto que a falta dela custa alguma coisa, e é aqui que ele vê que
+  // há trabalho parado que ampliaria a conferência.
+  const pendentes = aguardandoRevisao().length;
+  return `<p class="dose-unchecked">Sem conferência automática: este fármaco não está no catálogo conferido, que cobre ${CATALOGO_LOCAL_TAMANHO} fármacos.${
+    pendentes ? ` Há ${pendentes} extraído(s) da literatura aguardando sua revisão.` : ""}</p>`;
+}
+
+// O historico farmacologico como o medico o le, com os mesmos vereditos que
+// foram ao prompt. So os ensaios ENCERRADOS: o que esta em uso ja esta na tela
+// inteira, e repeti-lo aqui faria a lista do passado competir com a do presente.
+function pharmacologicalHistoryView(historico = []) {
+  const ensaios = medicationTrials(historico).filter(item => item.veredito !== "EM_USO");
+  if (!ensaios.length) return "";
+  return `<div class="trial-history">
+    <p class="trial-history-title">Histórico farmacológico considerado pela IA</p>
+    <ul>${ensaios.map(ensaio => `<li>
+      <strong>${escapeHtml(ensaio.nome)}</strong>
+      <span class="trial-verdict trial-${ROTULO_DA_CLASSE[ensaio.veredito] || "neutro"}">${escapeHtml(ROTULO_NA_TELA[ensaio.veredito] || ensaio.veredito)}</span>
+      <span class="trial-evidence">${escapeHtml(trialEvidenceText(ensaio))}</span>
+    </li>`).join("")}</ul>
+  </div>`;
+}
+
+const ROTULO_NA_TELA = {
+  RESPOSTA_BOA: "respondeu bem antes",
+  FALHA_COM_ENSAIO_ADEQUADO: "falhou com ensaio adequado",
+  ENSAIO_INSUFICIENTE: "ensaio insuficiente",
+  NAO_TESTADO: "não testado",
+  INTOLERANCIA: "intolerância",
+  INDETERMINADO: "sem dados suficientes"
+};
+
+// Verde para o que se deve repetir, vermelho para o que nao se deve, neutro
+// para o que nao foi testado: o terceiro grupo nao e uma nota intermediaria
+// entre os dois, e uma pergunta ainda em aberto.
+const ROTULO_DA_CLASSE = {
+  RESPOSTA_BOA: "bom",
+  FALHA_COM_ENSAIO_ADEQUADO: "ruim",
+  INTOLERANCIA: "ruim"
+};
+
+function trialEvidenceText(ensaio) {
+  return [
+    ensaio.doseTexto ? `dose ${ensaio.doseTexto}` : "dose não registrada",
+    ensaio.semanas === null ? "" : `${ensaio.semanas} semana(s)`,
+    ensaio.evolucao ? ensaio.evolucao.toLowerCase() : "",
+    ensaio.motivo ? `"${ensaio.motivo}"` : ""
+  ].filter(Boolean).join(" · ");
+}
+
+export function treatmentModule(form, { podeEngravidar = false, historico = [] } = {}) {
   const examesText = requestedExamsText(form);
   const medicationOptions = treatmentOptionLines(form.tratamentoAiMedicamentos);
+  // A gestacao sai da resposta da anamnese, e so a confirmada conta. O
+  // `podeEngravidar` da faixa de vida continua sendo outra coisa: ele decide
+  // beta-hCG na monitorizacao, nao alerta de teratogenicidade.
+  const revisaoDeDose = treatmentDoseReview(medicationOptions, {
+    gestacaoConfirmada: gestacaoConfirmadaEm(form),
+    alertasDoServidor: form.tratamentoDoseAvisos
+  });
   const approachOptions = treatmentOptionLines(form.tratamentoAiAbordagens);
   const selectedApproaches = arrayValue(form.abordagensSelecionadas);
   return `
@@ -346,6 +423,7 @@ export function treatmentModule(form, { podeEngravidar = false } = {}) {
       ${statusLine(form.treatmentStatus)}
       ${ragSourcesView(form.ragSourcesTratamento)}
       ${firstPassView(form.tratamentoRefinoAnterior, [["Medicamentos", "medicamentos"], ["Outras abordagens", "abordagens"]])}
+      ${pharmacologicalHistoryView(historico)}
     </div>
     ${careLevelView(form)}
     <div class="treatment-card-grid">
@@ -354,7 +432,7 @@ export function treatmentModule(form, { podeEngravidar = false } = {}) {
         <textarea hidden name="tratamentoAiMedicamentos">${escapeHtml(medicationOptions.join("\n"))}</textarea>
         <textarea hidden name="tratamentoMedicamentoso">${escapeHtml(form.tratamentoMedicamentoso || "")}</textarea>
         <div class="diagnosis-options">
-          ${medicationOptions.length ? medicationOptions.map((option, index) => `<article class="treatment-card"><h4>${index === 0 ? "1ª opção" : index === 1 ? "2ª opção" : "Off-label"}</h4><label class="diagnosis-option treatment-option"><input type="checkbox" name="tratamentoMedicamentosSelecionados" value="${escapeAttr(option)}" ${arrayValue(form.tratamentoMedicamentosSelecionados).includes(option) ? "checked" : ""} />${optionLabelBody(option)}</label></article>`).join("") : `<p class="diagnosis-empty">As opções aparecerão após a geração.</p>`}
+          ${medicationOptions.length ? medicationOptions.map((option, index) => `<article class="treatment-card"><h4>${index === 0 ? "1ª opção" : index === 1 ? "2ª opção" : "Off-label"}</h4><label class="diagnosis-option treatment-option"><input type="checkbox" name="tratamentoMedicamentosSelecionados" value="${escapeAttr(option)}" ${arrayValue(form.tratamentoMedicamentosSelecionados).includes(option) ? "checked" : ""} />${optionLabelBody(option)}</label>${doseReviewView(revisaoDeDose[index])}</article>`).join("") : `<p class="diagnosis-empty">As opções aparecerão após a geração.</p>`}
         </div>
       </div>
       <div class="treatment-card">

@@ -9,6 +9,7 @@ import re
 import secrets
 import unicodedata
 import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -131,7 +132,27 @@ MAX_CLINICAL_BODY_BYTES = MAX_PROMPT_CHARS * 4 + 64 * 1024
 # por minuto, a OpenAI desconta o teto pedido desse limite, e cada Diagnostico
 # ja manda ~12,5 mil de entrada. Com teto maior, cabe um Diagnostico por minuto.
 MAX_OUTPUT_TOKENS = 3000
+# O teto da SEGUNDA tentativa, quando a primeira volta cortada no meio do JSON.
+# Dobra uma vez e para: se 6 mil tokens de saida nao fecharem a resposta, o
+# problema nao e o teto. A conta paga o dobro so nessa chamada, e so quando a
+# primeira ja tinha sido perdida inteira.
+MAX_OUTPUT_TOKENS_RETENTATIVA = 6000
 MAX_AUDIO_BYTES = 30 * 1024 * 1024
+# O TETO DO CONTEXTO RECUPERADO, que o teto do prompt nao cobria.
+#
+# `MAX_PROMPT_CHARS` confere o que o cliente manda. As fontes entram DEPOIS
+# dessa conferencia -- 8 trechos do acervo, mais ate 4 secoes inteiras de
+# criterios do DSM, nenhuma delas com limite de caractere. Nao havia ponto no
+# codigo onde o tamanho final da requisicao fosse conhecido, e o limite que se
+# bate primeiro nao e o do modelo (1M de contexto): e o da conta, 30 mil tokens
+# por minuto.
+#
+# 48 mil caracteres sao uns 13,7 mil tokens, e cabem as 8 fontes medidas mais o
+# criterio. O corte e no RABO da lista, e nunca no meio de um trecho: excerto
+# cortado ao meio pode perder uma dose ou a segunda metade de um criterio, e
+# meia informacao clinica e pior do que nenhuma. Fonte que nao coube nao entra
+# no contexto nem na lista de procedencia da tela -- ela nao foi lida.
+MAX_SOURCES_CHARS = 48000
 ALLOWED_KINDS = {"anamnesis", "mental_exam", "refinement", "diagnosis", "diagnosis_review",
                  "treatment", "treatment_review", "symptomatic", "return_plan", "evolution", "medication",
                  "medication_review", "medication_tips"}
@@ -239,8 +260,7 @@ def call_typesafe_noul_batch(api_key, state, questions):
             "Content-Type": "application/json",
         },
     )
-    with urllib.request.urlopen(request, timeout=30) as response:
-        return json.loads(response.read().decode("utf-8"))
+    return read_json_response(request, timeout=30, rotulo="TypeSafe")
 
 
 def call_typesafe_risk_screen(api_key, text):
@@ -1147,6 +1167,63 @@ def load_rxnav_terms():
     return RXNAV_DISPLAY_TERMS
 
 
+# ------------------------------------------------------------------ rede
+#
+# ERRO QUE PASSA SOZINHO NAO PODE CHEGAR AO MEDICO.
+#
+# O 429 e o mais provavel de todos os erros desta aplicacao: a conta tem teto de
+# 30 mil tokens por minuto, a OpenAI desconta o teto de SAIDA pedido desse
+# limite, e Gerar seguido de Refinar na mesma etapa chega perto sozinho. E o
+# unico erro que se resolve esperando vinte segundos -- e, ate aqui, ele subia
+# cru para a tela no meio da consulta.
+#
+# Tres tentativas, esperando o que o servidor mandar esperar (`Retry-After`) ou
+# 2 e 6 segundos. Repete so o que vale a pena repetir: 429 e 5xx, que sao
+# estado do outro lado, e falha de rede. 400 e 401 nao mudam por insistencia.
+#
+# A transcricao fica de fora por escolha: repetir um envio de 30 MB custa mais
+# do que a falha.
+TENTATIVAS_DE_REDE = 3
+ESPERA_ENTRE_TENTATIVAS = (2, 6)
+CODIGOS_QUE_VALE_REPETIR = {408, 409, 429, 500, 502, 503, 504}
+
+
+def read_json_response(request, timeout=60, tentativas=TENTATIVAS_DE_REDE, rotulo=""):
+    """POST que repete o que e transitorio e devolve o JSON da resposta.
+
+    O corpo do erro NAO e lido aqui: quem trata a excecao la em cima o le para
+    o log, e um corpo ja consumido chegaria vazio.
+    """
+    for tentativa in range(tentativas):
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as error:
+            ultima = tentativa == tentativas - 1
+            if ultima or error.code not in CODIGOS_QUE_VALE_REPETIR:
+                raise
+            espera = ESPERA_ENTRE_TENTATIVAS[min(tentativa, len(ESPERA_ENTRE_TENTATIVAS) - 1)]
+            # O servidor sabe melhor que a gente quanto falta para a janela
+            # virar; quando ele diz, obedece -- com teto, para nao prender a
+            # consulta atras de um Retry-After de dez minutos.
+            try:
+                pedido = int(error.headers.get("Retry-After", "0"))
+                if 0 < pedido <= 30:
+                    espera = pedido
+            except (TypeError, ValueError):
+                pass
+            logger.warning("%s %s: repetindo em %ss (tentativa %d de %d)",
+                           rotulo or "chamada", error.code, espera, tentativa + 2, tentativas)
+            time.sleep(espera)
+        except (urllib.error.URLError, TimeoutError) as error:
+            if tentativa == tentativas - 1:
+                raise
+            espera = ESPERA_ENTRE_TENTATIVAS[min(tentativa, len(ESPERA_ENTRE_TENTATIVAS) - 1)]
+            logger.warning("%s sem resposta (%s): repetindo em %ss", rotulo or "chamada", error, espera)
+            time.sleep(espera)
+    raise RuntimeError("tentativas de rede esgotadas")
+
+
 def extract_response_text(data):
     if data.get("output_text"):
         return data["output_text"]
@@ -1197,8 +1274,7 @@ def search_web_sources(query, api_key):
         API_URL, data=json.dumps(body, ensure_ascii=False).encode("utf-8"), method="POST",
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(request, timeout=120) as response:
-            data = json.loads(response.read().decode("utf-8"))
+        data = read_json_response(request, timeout=120, rotulo="busca na web")
     except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as error:
         # Busca falhou nao derruba a etapa: a Nuvem responde do que sabe, e a
         # tela fica sem procedencia -- que e a verdade daquela resposta.
@@ -1755,8 +1831,7 @@ def vector_store_search(vector_store_id, query, api_key, filtros=None):
         method="POST",
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(request, timeout=60) as response:
-        payload = json.loads(response.read().decode("utf-8"))
+    payload = read_json_response(request, timeout=60, rotulo="busca vetorial")
 
     threshold = float(os.environ.get("OPENAI_RAG_SCORE_THRESHOLD", str(RAG_SCORE_THRESHOLD)))
     sources = []
@@ -1785,6 +1860,29 @@ def rag_context(sources):
         label = source["filename"] + (f" ({details})" if details else "")
         blocks.append(f"[FONTE {index}: {label}; relevancia={source['score']}]\n{source['excerpt']}")
     return "\n\n---\n\n".join(blocks)
+
+
+def fit_sources(sources, limite=MAX_SOURCES_CHARS):
+    """As fontes que cabem no teto de contexto, na ordem em que chegaram.
+
+    A ORDEM E A PRIORIDADE, e por isso o corte e no fim: quem monta a lista ja
+    poe na frente o que nao pode faltar -- os criterios do DSM no Refinar, os
+    trechos de maior relevancia no resto. Cortar pelo escore aqui desfaria essa
+    decisao, que foi tomada com mais contexto do que esta funcao tem.
+
+    A primeira fonte entra sempre, mesmo estourando sozinha: uma resposta com
+    uma fonte grande demais ainda e uma resposta com fonte, e a alternativa e
+    devolver contexto vazio a uma etapa que pediu literatura.
+    """
+    cabem = []
+    total = 0
+    for source in sources:
+        tamanho = len(source.get("excerpt") or "") + len(source.get("filename") or "") + 64
+        if cabem and total + tamanho > limite:
+            break
+        cabem.append(source)
+        total += tamanho
+    return cabem, len(sources) - len(cabem), total
 
 
 def parse_model_json(text):
@@ -2032,6 +2130,247 @@ def validate_result(kind, result):
             if not isinstance(result.get(key), str):
                 raise ValueError("Resposta de medicamento fora do formato esperado.")
     return result
+
+
+# ------------------------------------------------------- conferencia de dose
+#
+# A MESMA REGRA DO NAVEGADOR, DO LADO DE CA.
+#
+# O `validate_result` acima pergunta "isto e uma string nao vazia?" sobre
+# `initial_dose`, `target_dose` e `progression`. "Sertralina 400 mg/dia,
+# aumentar a cada 3 dias" passava em todos os portoes do servidor e so era
+# conferida no navegador, por `src/clinical/doseCheck.js`.
+#
+# DUAS IMPLEMENTACOES DA MESMA REGRA CLINICA, e isso e um risco declarado: elas
+# divergem com o tempo, e uma divergencia aqui e a tela dizendo uma coisa e o
+# registro dizendo outra. Duas coisas seguram isso no lugar:
+#
+#   * a TABELA e uma so -- `src/data/medications.json`, gerada do modulo que
+#     ele edita, por scripts/build_medication_table.mjs;
+#   * os CASOS sao os mesmos -- `testes/casos_de_dose.json`, lido pela bateria
+#     do node e pela deste arquivo. Regra que divergir quebra as duas.
+#
+# O que NAO esta aqui e a gestacao: ela depende da resposta da anamnese, que
+# nao viaja nesta rota. Essa conferencia continua so no navegador, onde o
+# formulario esta.
+MEDICATION_TABLE_PATH = ROOT / "src" / "data" / "medications.json"
+MEDICATION_TABLE = None
+MEDICATION_TABLE_LOCK = threading.Lock()
+
+# Espelho de src/clinical/optionParts.js: lista fechada, e nao palpite sobre o
+# que vem antes dos dois pontos.
+ROTULOS_DA_OPCAO = ("Dose inicial", "Dose final", "Dose alvo", "Progressão", "Titulação",
+                    "Interação", "Apresentação", "Posologia", "Alerta", "Limite",
+                    "Evitar com", "Efeitos colaterais", "Monitorização", "Observação")
+MEDIDA_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(mg|mcg|µg|g)\b", re.I)
+POR_PESO_RE = re.compile(r"mg\s*/\s*kg", re.I)
+FAIXA_DE_DOSE_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:a|-|ate|até)\s*(\d+(?:[.,]\d+)?)\s*(mg|mcg|µg|g)\b", re.I)
+FAIXA_DE_TEMPO_RE = re.compile(r"(\d+)\s*(?:a|-|ate)\s*(\d+)\s*(dias?|semanas?|mes|meses)")
+TEMPO_SIMPLES_RE = re.compile(r"(\d+)\s*(dias?|semanas?|mes|meses)")
+DIAS_POR_UNIDADE = {"dia": 1, "dias": 1, "semana": 7, "semanas": 7, "mes": 30, "meses": 30}
+
+
+def load_medication_table():
+    """A tabela gerada do catalogo. Ausente, a conferencia nao acontece --
+    mesma regra das tabelas de codigo."""
+    global MEDICATION_TABLE
+    with MEDICATION_TABLE_LOCK:
+        if MEDICATION_TABLE is None:
+            if not MEDICATION_TABLE_PATH.exists():
+                MEDICATION_TABLE = []
+            else:
+                dados = json.loads(MEDICATION_TABLE_PATH.read_text(encoding="utf-8"))
+                MEDICATION_TABLE = dados.get("medicamentos") or []
+    return MEDICATION_TABLE
+
+
+def texto_normalizado(valor):
+    """Espelho de normalizeText (textFormat.js): NFKD, sem marca de acento,
+    minusculo -- e pontuacao PRESERVADA, ao contrario de normalize_name."""
+    decomposto = unicodedata.normalize("NFKD", str(valor or ""))
+    return "".join(c for c in decomposto if not unicodedata.combining(c)).lower()
+
+
+def _numero(valor):
+    try:
+        return float(str(valor).replace(",", "."))
+    except (TypeError, ValueError):
+        return None
+
+
+def valores_em_mg(texto):
+    """Todos os valores em mg, ou None quando nao da para afirmar.
+
+    None significa "nao conferido", nunca "conferido e certo": sem numero, com
+    unidade que nao e mg (comparar mcg como mg erra por fator de mil), ou com
+    dose por peso.
+    """
+    limpo = str(texto or "")
+    if not limpo.strip() or POR_PESO_RE.search(limpo):
+        return None
+    # "50 a 200 mg/dia" tem um numero com unidade colada e outro sem. A faixa
+    # ganha a unidade nos dois lados antes de qualquer leitura.
+    com_unidade = FAIXA_DE_DOSE_RE.sub(lambda m: f"{m.group(1)} {m.group(3)} a {m.group(2)} {m.group(3)}", limpo)
+    valores = []
+    for valor, unidade in MEDIDA_RE.findall(com_unidade):
+        if texto_normalizado(unidade) != "mg":
+            return None
+        numero = _numero(valor)
+        if numero and numero > 0:
+            valores.append(numero)
+    return valores or None
+
+
+def teto_em_mg(texto):
+    valores = valores_em_mg(texto)
+    return max(valores) if valores else None
+
+
+def piso_em_mg(texto):
+    valores = valores_em_mg(texto)
+    return min(valores) if valores else None
+
+
+def intervalo_minimo_em_dias(texto):
+    """O menor intervalo entre aumentos, em dias. A faixa e lida pelo PISO:
+    titular a cada 7 dias esta dentro de 'intervalos de 1 a 2 semanas'."""
+    limpo = texto_normalizado(texto)
+    if not limpo:
+        return None
+    dias = []
+
+    def guardar_faixa(match):
+        unidade = DIAS_POR_UNIDADE.get(match.group(3), 0)
+        numero = _numero(match.group(1))
+        if numero and unidade:
+            dias.append(numero * unidade)
+        return " "
+
+    sem_faixas = FAIXA_DE_TEMPO_RE.sub(guardar_faixa, limpo)
+    for valor, unidade in TEMPO_SIMPLES_RE.findall(sem_faixas):
+        numero = _numero(valor)
+        passo = DIAS_POR_UNIDADE.get(unidade, 0)
+        if numero and passo:
+            dias.append(numero * passo)
+    for palavra, quantos in (("semanal", 7), ("quinzenal", 15), ("mensal", 30)):
+        if re.search(rf"\b{palavra}(mente)?\b", sem_faixas):
+            dias.append(quantos)
+    return min(dias) if dias else None
+
+
+def partes_da_opcao(linha):
+    """Titulo e campos rotulados da linha, como optionParts.js os le."""
+    pedacos = [p.strip() for p in str(linha or "").split("|") if p.strip()]
+    titulo = pedacos.pop(0) if pedacos else ""
+    rotulos = {texto_normalizado(r): r for r in ROTULOS_DA_OPCAO}
+    partes = {}
+    for pedaco in pedacos:
+        corte = pedaco.find(":")
+        if corte <= 0:
+            continue
+        rotulo = rotulos.get(texto_normalizado(pedaco[:corte].strip()))
+        valor = pedaco[corte + 1:].strip()
+        if rotulo and valor:
+            partes.setdefault(rotulo, valor)
+    return titulo, partes
+
+
+def catalogo_do_farmaco(linha):
+    """O farmaco sai do TITULO da linha -- o pedaco antes da primeira barra.
+    A justificativa cita outros nomes, e deixar o texto todo escolher puxaria o
+    teto do farmaco errado."""
+    titulo, _ = partes_da_opcao(linha)
+    titulo = texto_normalizado(titulo)
+    if not titulo:
+        return None
+    tabela = load_medication_table()
+    for item in tabela:
+        if texto_normalizado(item.get("generic")) in titulo:
+            return item
+    for item in tabela:
+        for marca in str(item.get("brands") or "").split(","):
+            marca = texto_normalizado(marca.strip())
+            if marca and marca in titulo:
+                return item
+    return None
+
+
+def medication_line_review(linha):
+    """Espelho de medicationLineReview (doseCheck.js), sem a parte da gestacao.
+
+    Tres estados, e o terceiro importa tanto quanto os outros: `conferido` diz
+    que a conferencia rodou e nao achou divergencia; `sem_catalogo` diz que ela
+    NAO rodou. Ausencia de alerta nao pode passar por dose conferida.
+    """
+    texto = str(linha or "").strip()
+    if not texto:
+        return None
+    catalogo = catalogo_do_farmaco(texto)
+    if not catalogo:
+        return {"linha": texto, "estado": "sem_catalogo", "farmaco": "", "alertas": []}
+    _, partes = partes_da_opcao(texto)
+    alertas = []
+    teto = teto_em_mg(catalogo.get("usualDose"))
+    for rotulo, valor in (("Dose final", partes.get("Dose final") or partes.get("Dose alvo")),
+                          ("Dose inicial", partes.get("Dose inicial"))):
+        proposta = teto_em_mg(valor) if valor else None
+        if teto and proposta and proposta > teto:
+            alertas.append({
+                "codigo": "dose_acima_do_teto",
+                "texto": f"{rotulo} proposta ({valor}) acima da faixa usual para "
+                         f"{catalogo['generic']}: {catalogo['usualDose']}.",
+            })
+    do_catalogo = intervalo_minimo_em_dias(catalogo.get("progression"))
+    proposto = intervalo_minimo_em_dias(partes.get("Progressão") or partes.get("Titulação"))
+    if do_catalogo and proposto and proposto < do_catalogo:
+        alertas.append({
+            "codigo": "titulacao_mais_rapida",
+            "texto": f"Titulação proposta a cada {int(proposto)} {'dia' if proposto == 1 else 'dias'}, "
+                     f"mais rápida que a usual para {catalogo['generic']}: {catalogo['progression']}",
+        })
+    return {
+        "linha": texto,
+        "estado": "divergencia" if alertas else "conferido",
+        "farmaco": catalogo["generic"],
+        "alertas": alertas,
+    }
+
+
+def linha_da_opcao(option):
+    """A opcao estruturada na mesma linha que o front monta em
+    formatMedicationTreatmentOption -- e que e o valor da caixa de marcar."""
+    partes = [str(option.get("medication") or "").strip()]
+    for rotulo, chave in (("Dose inicial", "initial_dose"), ("Progressão", "progression"),
+                          ("Dose final", "target_dose")):
+        valor = str(option.get(chave) or "").strip()
+        if valor:
+            partes.append(f"{rotulo}: {valor}")
+    return " | ".join(partes)
+
+
+KINDS_COM_CONFERENCIA_DE_DOSE = {"treatment", "symptomatic"}
+
+
+def dose_warnings(kind, result):
+    """As divergencias de posologia da resposta inteira, na ordem da tela."""
+    base = REVIEW_OF_KIND.get(kind, kind)
+    if base not in KINDS_COM_CONFERENCIA_DE_DOSE:
+        return []
+    if base == "treatment":
+        opcoes = result.get("medication_options") or []
+    else:
+        opcoes = [m for alvo in (result.get("target_symptom_options") or [])
+                  for m in (alvo.get("medication_options") or [])]
+    avisos = []
+    for option in opcoes:
+        linha = linha_da_opcao(option)
+        revisao = medication_line_review(linha)
+        for alerta in (revisao or {}).get("alertas", []):
+            # A LINHA vai junto porque e ela que a tela usa como chave: e o
+            # valor da caixa de marcar, e o unico identificador estavel que a
+            # opcao tem. O nome do farmaco sozinho repetiria entre as opcoes.
+            avisos.append({"medication": option.get("medication", ""), "linha": linha, **alerta})
+    return avisos
 
 
 def load_code_tables():
@@ -2434,6 +2773,49 @@ def safe_plain_text(kind, result):
         return ""
 
 
+# ---------------------------------------------------------------- observabilidade
+#
+# UMA LINHA POR DECISAO, e nenhum dado de paciente nela.
+#
+# Ate aqui o log dizia o que tinha dado errado -- opcao descartada, codigo
+# desancorado, resposta rejeitada -- e nada sobre o que tinha dado certo. Com
+# isso nao havia como responder a pergunta mais basica de calibragem: com que
+# frequencia o limiar de 0.55 do RAG devolve fonte de menos, quantos tokens uma
+# etapa custa de verdade, e se a troca de modelo piorou alguma coisa. Limiar sem
+# medicao e palpite com numero.
+#
+# O QUE ENTRA: identificador da decisao, etapa, modo, modelo, versao do schema,
+# tamanho da entrada, quantas fontes, tokens cobrados, quanto demorou e como
+# terminou. O `status` da resposta entra junto porque e ele que separa "o modelo
+# respondeu errado" de "a resposta foi cortada no teto de saida" -- os dois
+# chegam ao medico como o mesmo 502.
+#
+# O QUE NAO ENTRA, e nao entra por decisao e nao por esquecimento: prompt,
+# trecho recuperado, resposta, nome, idade, diagnostico. O log e local, mas
+# prontuario nao vira linha de log por conveniencia de depuracao. O decision_id
+# e o que costura esta linha ao que o medico viu na tela, e ele nao identifica
+# paciente nenhum -- e sorteado por chamada.
+SCHEMA_VERSION = "2026-09-23"
+
+
+def log_decision(**campos):
+    partes = " ".join(f"{chave}={valor}" for chave, valor in campos.items() if valor not in (None, ""))
+    logger.info("decisao %s", partes)
+
+
+def usage_fields(response_data):
+    """Tokens cobrados pela chamada, do jeito que a API os devolve."""
+    usage = (response_data or {}).get("usage") or {}
+    detalhe = usage.get("input_tokens_details") or {}
+    return {
+        "tokens_in": usage.get("input_tokens"),
+        "tokens_out": usage.get("output_tokens"),
+        "tokens_cache": detalhe.get("cached_tokens"),
+        "status": response_data.get("status"),
+        "corte": (response_data.get("incomplete_details") or {}).get("reason"),
+    }
+
+
 class PrototypeHandler(SimpleHTTPRequestHandler):
     # Definido em send_head/do_GET para escolher a política de cache da resposta.
     _cacheable = False
@@ -2587,6 +2969,11 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 self.send_json(500, {"error": "Erro interno ao transcrever a gravacao."})
             return
 
+        # Sorteado antes de qualquer coisa: a decisao existe a partir do pedido,
+        # e nao a partir da resposta. Recusa tambem e decisao, e tambem precisa
+        # de numero para ser contada depois.
+        decision_id = secrets.token_hex(8)
+        comecou = time.monotonic()
         try:
             try:
                 length = int(self.headers.get("Content-Length", "0"))
@@ -2704,6 +3091,9 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                     if web_findings:
                         mode = "current"
                     else:
+                        log_decision(id=decision_id, rota="clinical-ai", kind=kind, modo="rag",
+                                     resultado="recusa", causa="rag_insufficient_evidence",
+                                     ms=int((time.monotonic() - comecou) * 1000))
                         self.send_json(422, {
                             "error": "A base RAG nao encontrou evidencia suficientemente relevante para responder com seguranca.",
                             "code": "rag_insufficient_evidence",
@@ -2753,6 +3143,9 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 # tem o manejo motor. Asma casa `persistente`, palavra que ficou
                 # fora das stopwords porque nomeia uma entidade de verdade.
                 if not guideline_entity_matches(entidade, "infantojuvenil" in do_paciente):
+                    log_decision(id=decision_id, rota="clinical-ai", kind=kind, modo="guidelines",
+                                 resultado="recusa", causa="guidelines_sem_cobertura",
+                                 ms=int((time.monotonic() - comecou) * 1000))
                     self.send_json(422, {
                         "error": "As diretrizes nao cobrem esta hipotese. "
                                  "O acervo e de psiquiatria, e responde a partir do "
@@ -2772,11 +3165,23 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                     # de modo em silencio seria a tela mentindo sobre a
                     # procedencia -- o defeito que a coluna de fontes existe
                     # para nao repetir.
+                    log_decision(id=decision_id, rota="clinical-ai", kind=kind, modo="guidelines",
+                                 resultado="recusa", causa="guidelines_insufficient_evidence",
+                                 ms=int((time.monotonic() - comecou) * 1000))
                     self.send_json(422, {
                         "error": "As diretrizes nao cobrem este caso com relevancia suficiente para responder com seguranca.",
                         "code": "guidelines_insufficient_evidence",
                     })
                     return
+
+            # O teto do contexto recuperado, o unico tamanho que ninguem
+            # conferia. Aplicado aqui, antes de montar o corpo, e sobre a mesma
+            # lista que vira procedencia na tela: fonte que nao entrou no
+            # contexto tambem nao aparece como lida.
+            sources, fontes_cortadas, contexto_chars = fit_sources(sources)
+            if fontes_cortadas:
+                logger.warning("%s: %d fonte(s) fora do teto de contexto (%d caracteres)",
+                               kind, fontes_cortadas, MAX_SOURCES_CHARS)
 
             request_body = {
                 "model": os.environ.get("OPENAI_MODEL", DEFAULT_MODEL),
@@ -2832,32 +3237,87 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             # o que ela tem de bom -- bula vigente, alerta regulatorio, diretriz
             # atualizada depois do corte do modelo -- e de ruim, que a linha
             # abaixo enderaca.
-            data = json.dumps(request_body, ensure_ascii=False).encode("utf-8")
-            request = urllib.request.Request(
-                API_URL,
-                data=data,
-                method="POST",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-            )
-            with urllib.request.urlopen(request, timeout=60) as response:
-                response_data = json.loads(response.read().decode("utf-8"))
+            def pedir(corpo):
+                pedido = urllib.request.Request(
+                    API_URL,
+                    data=json.dumps(corpo, ensure_ascii=False).encode("utf-8"),
+                    method="POST",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                    },
+                )
+                return read_json_response(pedido, timeout=60, rotulo=f"OpenAI ({kind})")
 
+            response_data = pedir(request_body)
+
+            # RESPOSTA CORTADA NAO E RESPOSTA FORA DO FORMATO.
+            #
+            # As duas chegavam a tela como o mesmo 502 -- "fora do formato
+            # clinico validado" --, que manda procurar defeito no modelo quando
+            # o que houve foi o teto de saida. E a segunda nao se resolve
+            # clicando de novo: o teto e o mesmo, e o corte se repete igual.
+            #
+            # Entao a segunda tentativa vai com o teto dobrado, uma vez so. O
+            # medico perde os segundos da repeticao, e nao a consulta inteira.
+            corte = (response_data.get("incomplete_details") or {}).get("reason")
+            if corte == "max_output_tokens":
+                teto_maior = max(MAX_OUTPUT_TOKENS_RETENTATIVA, request_body["max_output_tokens"] * 2)
+                logger.warning("%s: resposta cortada no teto de saida (%d); repetindo com %d",
+                               kind, request_body["max_output_tokens"], teto_maior)
+                log_decision(id=decision_id, rota="clinical-ai", kind=kind, modo=mode,
+                             resultado="cortada", causa="max_output_tokens",
+                             teto=request_body["max_output_tokens"], novo_teto=teto_maior,
+                             ms=int((time.monotonic() - comecou) * 1000))
+                request_body["max_output_tokens"] = teto_maior
+                response_data = pedir(request_body)
+
+            # Os campos da chamada, iguais nos desfechos abaixo: o que custou e
+            # como terminou pertencem a mesma linha, senao comparar sucesso com
+            # falha vira juntar dois logs pelo horario.
+            medicao = {
+                "id": decision_id, "rota": "clinical-ai", "kind": kind, "modo": mode,
+                "modelo": request_body["model"], "schema": SCHEMA_VERSION,
+                "prompt_chars": len(prompt), "fontes": len(sources),
+                "contexto_chars": contexto_chars or None, "fontes_cortadas": fontes_cortadas or None,
+                **usage_fields(response_data),
+                "ms": int((time.monotonic() - comecou) * 1000),
+            }
             text = extract_response_text(response_data)
             if not text:
+                log_decision(**medicao, resultado="vazia")
                 self.send_json(502, {"error": "A API retornou resposta vazia."})
                 return
             try:
                 result = validate_result(kind, parse_model_json(text))
             except (ValueError, json.JSONDecodeError) as error:
+                log_decision(**medicao, resultado="rejeitada", causa=type(error).__name__)
                 logger.error("resposta rejeitada (%s): %s", kind, text[:1200])
+                # Cortada DE NOVO, ja com o teto dobrado. A mensagem diz o que
+                # aconteceu e o que fazer, em vez de mandar procurar defeito de
+                # formato num texto que so nao chegou ao fim.
+                if (response_data.get("incomplete_details") or {}).get("reason") == "max_output_tokens":
+                    self.send_json(502, {
+                        "error": "A resposta foi cortada no limite de saida antes de fechar o formato, "
+                                 "mesmo na segunda tentativa com o dobro do teto.",
+                        "code": "resposta_truncada",
+                        "detail": f"Teto usado: {request_body['max_output_tokens']} tokens. "
+                                  "Aumente OPENAI_MAX_OUTPUT_TOKENS no .env, ou reduza o caso enviado "
+                                  "(menos hipoteses assinaladas no Refinar).",
+                    })
+                    return
                 self.send_json(502, {"error": "Resposta da IA fora do formato clinico validado.", "detail": str(error)})
                 return
             code_warnings = verify_diagnostic_codes(result) if kind in {"diagnosis", "diagnosis_review"} else []
             if code_warnings:
                 logger.warning("ancoragem de codigos: %s", "; ".join(item["text"] for item in code_warnings))
+            # Conferencia de posologia contra o catalogo, do lado do servidor.
+            # Ela AVISA e nao recusa, por decisao dele em 23/09/2026: o alarme
+            # falso de um catalogo de 9 farmacos nao pode virar obstaculo, e
+            # quem assinala continua sendo o medico.
+            avisos_de_dose = dose_warnings(kind, result)
+            if avisos_de_dose:
+                logger.warning("posologia: %s", "; ".join(item["texto"] for item in avisos_de_dose))
             public_sources_by_file = {}
             for source in sources:
                 key = source["file_id"] or source["filename"]
@@ -2870,22 +3330,33 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                         "attributes": source["attributes"],
                     }
             public_sources = sorted(public_sources_by_file.values(), key=lambda item: item["score"], reverse=True)
+            log_decision(**medicao, resultado="ok", avisos=len(code_warnings) or None,
+                         dose_alertas=len(avisos_de_dose) or None)
             self.send_json(200, {
                 "ok": True,
                 "kind": kind,
                 "mode": mode,
+                # Vai ao cliente para que a linha do log e o que apareceu na
+                # tela sejam a mesma decisao. Nao identifica paciente: e sorteio
+                # por chamada.
+                "decision_id": decision_id,
                 "result": result,
                 "text": safe_plain_text(kind, result),
                 "sources": public_sources,
                 "web_sources": web_findings[0]["citations"] if web_findings else [],
                 "code_warnings": code_warnings,
+                "dose_warnings": avisos_de_dose,
             })
         except urllib.error.HTTPError as error:
             # O corpo da OpenAI pode ecoar trechos do prompt (dado clínico) e
             # metadados da conta. Fica no log local, não na resposta HTTP.
+            log_decision(id=decision_id, rota="clinical-ai", resultado="erro_api", causa=error.code,
+                         ms=int((time.monotonic() - comecou) * 1000))
             logger.error("OpenAI %s: %s", error.code, error.read().decode("utf-8", errors="replace"))
             self.send_json(error.code, {"error": "Erro retornado pela OpenAI. Detalhes no log do servidor."})
         except Exception as error:
+            log_decision(id=decision_id, rota="clinical-ai", resultado="erro_interno",
+                         causa=type(error).__name__, ms=int((time.monotonic() - comecou) * 1000))
             logger.exception("Falha em /api/clinical-ai")
             self.send_json(500, {"error": "Erro interno ao processar a solicitacao."})
 
@@ -2911,6 +3382,8 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             self.send_json(400, {"error": "Texto vazio."})
             return
         text = text[-RISK_SCREEN_MAX_CHARS:]
+        decision_id = secrets.token_hex(8)
+        comecou = time.monotonic()
         try:
             response_data = call_typesafe_risk_screen(api_key, text)
             answers = response_data.get("answers", {})
@@ -2920,6 +3393,16 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 if isinstance(probability, (int, float)):
                     indicators.append({"key": key, "probability": probability})
             flagged = any(item["probability"] >= RISK_SCREEN_THRESHOLD for item in indicators)
+            # QUANTOS indicadores passaram do limiar, e nunca a probabilidade
+            # nem qual deles. O que a calibragem do 0.6 precisa e da taxa de
+            # acionamento; a probabilidade de risco suicida, carimbada com a
+            # hora num consultorio que atende um paciente por vez, seria dado
+            # clinico em arquivo de log -- e log nao e prontuario.
+            log_decision(id=decision_id, rota="risk-screen", limiar=RISK_SCREEN_THRESHOLD,
+                         indicadores=len(indicators),
+                         acima=sum(1 for item in indicators if item["probability"] >= RISK_SCREEN_THRESHOLD),
+                         resultado="acionou" if flagged else "limpo",
+                         ms=int((time.monotonic() - comecou) * 1000))
             self.send_json(200, {
                 "ok": True,
                 "indicators": indicators,
@@ -2991,6 +3474,8 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 self.send_json(400, {"error": f"Pergunta '{key}' com criteria fora do formato esperado."})
                 return
             questions[key] = {"instructions": instructions.strip()[:600], "criteria": criteria}
+        decision_id = secrets.token_hex(8)
+        comecou = time.monotonic()
         try:
             response_data = call_typesafe_noul_batch(api_key, state, questions)
             answers = response_data.get("answers", {})
@@ -2999,6 +3484,14 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 probability = (answers.get(key) or {}).get("noul")
                 if isinstance(probability, (int, float)):
                     result[key] = probability
+            # Quantas perguntas foram feitas e quantas voltaram com julgamento.
+            # A diferenca entre os dois numeros e o que mostra o Jev deixando
+            # pergunta sem resposta -- que no Refinamento vira bloco fora do
+            # escopo sem ninguem ter decidido isso.
+            log_decision(id=decision_id, rota="jev-judge", modelo=TYPESAFE_MODEL,
+                         perguntas=len(questions), respondidas=len(result),
+                         state_chars=len(state), resultado="ok",
+                         ms=int((time.monotonic() - comecou) * 1000))
             self.send_json(200, {"ok": True, "answers": result})
         except urllib.error.HTTPError as error:
             logger.error("TypeSafe %s: %s", error.code, error.read().decode("utf-8", errors="replace"))
