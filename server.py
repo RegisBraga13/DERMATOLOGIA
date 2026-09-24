@@ -161,8 +161,6 @@ ALLOWED_KINDS = {"anamnesis", "mental_exam", "refinement", "diagnosis", "diagnos
 # schema, validacao e texto plano do "kind" que ela revisa — a tela recebe a
 # resposta da revisao exatamente como recebeu a da geracao.
 REVIEW_OF_KIND = {"diagnosis_review": "diagnosis", "treatment_review": "treatment", "medication_review": "medication"}
-RXNAV_DISPLAY_TERMS_URL = "https://rxnav.nlm.nih.gov/REST/displaynames.json"
-RXNAV_DISPLAY_TERMS = None
 
 TYPESAFE_API_URL = "https://api.typesafe.ai/v1/systemone"
 TYPESAFE_MODEL = "jev-latest"
@@ -271,7 +269,6 @@ def call_typesafe_risk_screen(api_key, text):
     return call_typesafe_noul_batch(api_key, text, questions)
 
 
-RXNAV_LOCK = threading.Lock()
 RAG_MAX_RESULTS = 8
 RAG_SCORE_THRESHOLD = 0.55
 
@@ -500,13 +497,20 @@ SCHEMAS = {
             "worsening_factors": {"type": "array", "items": {"type": "string"}},
             "improving_factors": {"type": "array", "items": {"type": "string"}},
             "functional_impact": {"type": "array", "items": {"type": "string"}},
+            # So transporte -- nenhum codigo classifica ou valida o que vem
+            # aqui, so leva para a tela do Tratamento. Decisao do Dr. Regis,
+            # 24/09/2026: "sem analise de IA para validar essas informacoes".
+            # Por isso e string livre, e nao lista de opcoes canonicas como as
+            # de cima -- dose, tempo e resultado sao do paciente, nao de um
+            # vocabulario fechado.
+            "previous_pharmacological_treatment_report": {"type": "string"},
         },
         "required": [
             "chief_complaint", "hda", "depressive_symptoms", "mania_hypomania",
             "anxiety_symptoms", "sleep", "appetite", "symptom_impact",
             "substances_behaviors", "psychosis", "suicide_risk", "previous_diagnoses",
             "previous_treatments", "medical_history", "family_history", "worsening_factors",
-            "improving_factors", "functional_impact"
+            "improving_factors", "functional_impact", "previous_pharmacological_treatment_report"
         ],
     },
     "mental_exam": {
@@ -619,7 +623,6 @@ SCHEMAS = {
             "syndromic_options": {
                 "type": "array",
                 "minItems": 0,
-                "maxItems": 3,
                 "items": {
                     "type": "object",
                     "additionalProperties": False,
@@ -648,7 +651,6 @@ SCHEMAS = {
             "nosological_options": {
                 "type": "array",
                 "minItems": 0,
-                "maxItems": 3,
                 "items": {
                     "type": "object",
                     "additionalProperties": False,
@@ -697,7 +699,6 @@ SCHEMAS = {
             "etiological_options": {
                 "type": "array",
                 "minItems": 0,
-                "maxItems": 2,
                 "items": {
                     "type": "object",
                     "additionalProperties": False,
@@ -1151,20 +1152,6 @@ def load_env():
         key = key.strip()
         value = value.strip().strip('"').strip("'")
         os.environ.setdefault(key, value)
-
-
-def load_rxnav_terms():
-    """Lista RxNav em cache, pré-normalizada. ThreadingHTTPServer -> precisa de lock."""
-    global RXNAV_DISPLAY_TERMS
-    if RXNAV_DISPLAY_TERMS is None:
-        with RXNAV_LOCK:
-            if RXNAV_DISPLAY_TERMS is None:
-                with urllib.request.urlopen(RXNAV_DISPLAY_TERMS_URL, timeout=30) as response:
-                    data = json.loads(response.read().decode("utf-8"))
-                terms = data.get("displayTermsList", {}).get("term", [])
-                # Guarda (original, minúsculo) para não chamar .lower() por termo a cada tecla.
-                RXNAV_DISPLAY_TERMS = [(term, term.lower()) for term in terms]
-    return RXNAV_DISPLAY_TERMS
 
 
 # ------------------------------------------------------------------ rede
@@ -1896,19 +1883,24 @@ def parse_model_json(text):
         raise
 
 
-def diagnostic_group(result, group, limit):
+def diagnostic_group(result, group, limit=None):
     """Um grupo de opcoes do diagnostico, com as tres falhas separadas.
 
     As tres davam a mesma mensagem — "aceita no maximo N opcoes" —, e so uma
     delas fala de quantidade. Campo ausente lendo "aceita no maximo 3 opcoes"
     manda procurar opcao demais onde nao veio opcao nenhuma.
+
+    limit=None e teto removido, e nao teto esquecido: por decisao do Dr. Regis
+    (24/09/2026), diagnostico diferencial (sindromica, nosologica, etiologica)
+    nao tem mais numero maximo de hipoteses. Comorbidade continua limitada —
+    ela nao concorre no diferencial, soma sobre a hipotese principal.
     """
     options = result.get(group)
     if options is None:
         raise ValueError(f"O grupo {group} nao veio na resposta.")
     if not isinstance(options, list):
         raise ValueError(f"O grupo {group} deveria ser uma lista.")
-    if len(options) > limit:
+    if limit is not None and len(options) > limit:
         raise ValueError(f"O grupo {group} aceita no maximo {limit} opcoes.")
     return options
 
@@ -1917,7 +1909,7 @@ def validate_result(kind, result):
     kind = REVIEW_OF_KIND.get(kind, kind)
     if kind == "anamnesis":
         for key, value in result.items():
-            if key in {"chief_complaint", "hda", "medical_history"}:
+            if key in {"chief_complaint", "hda", "medical_history", "previous_pharmacological_treatment_report"}:
                 if not isinstance(value, str):
                     raise ValueError("Campo narrativo da anamnese invalido.")
             elif not isinstance(value, list) or not all(isinstance(item, str) for item in value):
@@ -1957,7 +1949,7 @@ def validate_result(kind, result):
         # Teto, nao piso: menos hipoteses e uma resposta legitima quando o
         # registro nao sustenta mais. So o nome e obrigatorio — sindrome
         # descritiva nao tem codigo, e exigir um so produzia "N/A".
-        for group, limit in (("syndromic_options", 3), ("nosological_options", 3), ("etiological_options", 2),
+        for group, limit in (("syndromic_options", None), ("nosological_options", None), ("etiological_options", None),
                              ("comorbidity_options", 3)):
             options = diagnostic_group(result, group, limit)
             # Opcao sem nome e descartada, nao fatal. Ela aparece de vez em
@@ -2130,247 +2122,6 @@ def validate_result(kind, result):
             if not isinstance(result.get(key), str):
                 raise ValueError("Resposta de medicamento fora do formato esperado.")
     return result
-
-
-# ------------------------------------------------------- conferencia de dose
-#
-# A MESMA REGRA DO NAVEGADOR, DO LADO DE CA.
-#
-# O `validate_result` acima pergunta "isto e uma string nao vazia?" sobre
-# `initial_dose`, `target_dose` e `progression`. "Sertralina 400 mg/dia,
-# aumentar a cada 3 dias" passava em todos os portoes do servidor e so era
-# conferida no navegador, por `src/clinical/doseCheck.js`.
-#
-# DUAS IMPLEMENTACOES DA MESMA REGRA CLINICA, e isso e um risco declarado: elas
-# divergem com o tempo, e uma divergencia aqui e a tela dizendo uma coisa e o
-# registro dizendo outra. Duas coisas seguram isso no lugar:
-#
-#   * a TABELA e uma so -- `src/data/medications.json`, gerada do modulo que
-#     ele edita, por scripts/build_medication_table.mjs;
-#   * os CASOS sao os mesmos -- `testes/casos_de_dose.json`, lido pela bateria
-#     do node e pela deste arquivo. Regra que divergir quebra as duas.
-#
-# O que NAO esta aqui e a gestacao: ela depende da resposta da anamnese, que
-# nao viaja nesta rota. Essa conferencia continua so no navegador, onde o
-# formulario esta.
-MEDICATION_TABLE_PATH = ROOT / "src" / "data" / "medications.json"
-MEDICATION_TABLE = None
-MEDICATION_TABLE_LOCK = threading.Lock()
-
-# Espelho de src/clinical/optionParts.js: lista fechada, e nao palpite sobre o
-# que vem antes dos dois pontos.
-ROTULOS_DA_OPCAO = ("Dose inicial", "Dose final", "Dose alvo", "Progressão", "Titulação",
-                    "Interação", "Apresentação", "Posologia", "Alerta", "Limite",
-                    "Evitar com", "Efeitos colaterais", "Monitorização", "Observação")
-MEDIDA_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(mg|mcg|µg|g)\b", re.I)
-POR_PESO_RE = re.compile(r"mg\s*/\s*kg", re.I)
-FAIXA_DE_DOSE_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:a|-|ate|até)\s*(\d+(?:[.,]\d+)?)\s*(mg|mcg|µg|g)\b", re.I)
-FAIXA_DE_TEMPO_RE = re.compile(r"(\d+)\s*(?:a|-|ate)\s*(\d+)\s*(dias?|semanas?|mes|meses)")
-TEMPO_SIMPLES_RE = re.compile(r"(\d+)\s*(dias?|semanas?|mes|meses)")
-DIAS_POR_UNIDADE = {"dia": 1, "dias": 1, "semana": 7, "semanas": 7, "mes": 30, "meses": 30}
-
-
-def load_medication_table():
-    """A tabela gerada do catalogo. Ausente, a conferencia nao acontece --
-    mesma regra das tabelas de codigo."""
-    global MEDICATION_TABLE
-    with MEDICATION_TABLE_LOCK:
-        if MEDICATION_TABLE is None:
-            if not MEDICATION_TABLE_PATH.exists():
-                MEDICATION_TABLE = []
-            else:
-                dados = json.loads(MEDICATION_TABLE_PATH.read_text(encoding="utf-8"))
-                MEDICATION_TABLE = dados.get("medicamentos") or []
-    return MEDICATION_TABLE
-
-
-def texto_normalizado(valor):
-    """Espelho de normalizeText (textFormat.js): NFKD, sem marca de acento,
-    minusculo -- e pontuacao PRESERVADA, ao contrario de normalize_name."""
-    decomposto = unicodedata.normalize("NFKD", str(valor or ""))
-    return "".join(c for c in decomposto if not unicodedata.combining(c)).lower()
-
-
-def _numero(valor):
-    try:
-        return float(str(valor).replace(",", "."))
-    except (TypeError, ValueError):
-        return None
-
-
-def valores_em_mg(texto):
-    """Todos os valores em mg, ou None quando nao da para afirmar.
-
-    None significa "nao conferido", nunca "conferido e certo": sem numero, com
-    unidade que nao e mg (comparar mcg como mg erra por fator de mil), ou com
-    dose por peso.
-    """
-    limpo = str(texto or "")
-    if not limpo.strip() or POR_PESO_RE.search(limpo):
-        return None
-    # "50 a 200 mg/dia" tem um numero com unidade colada e outro sem. A faixa
-    # ganha a unidade nos dois lados antes de qualquer leitura.
-    com_unidade = FAIXA_DE_DOSE_RE.sub(lambda m: f"{m.group(1)} {m.group(3)} a {m.group(2)} {m.group(3)}", limpo)
-    valores = []
-    for valor, unidade in MEDIDA_RE.findall(com_unidade):
-        if texto_normalizado(unidade) != "mg":
-            return None
-        numero = _numero(valor)
-        if numero and numero > 0:
-            valores.append(numero)
-    return valores or None
-
-
-def teto_em_mg(texto):
-    valores = valores_em_mg(texto)
-    return max(valores) if valores else None
-
-
-def piso_em_mg(texto):
-    valores = valores_em_mg(texto)
-    return min(valores) if valores else None
-
-
-def intervalo_minimo_em_dias(texto):
-    """O menor intervalo entre aumentos, em dias. A faixa e lida pelo PISO:
-    titular a cada 7 dias esta dentro de 'intervalos de 1 a 2 semanas'."""
-    limpo = texto_normalizado(texto)
-    if not limpo:
-        return None
-    dias = []
-
-    def guardar_faixa(match):
-        unidade = DIAS_POR_UNIDADE.get(match.group(3), 0)
-        numero = _numero(match.group(1))
-        if numero and unidade:
-            dias.append(numero * unidade)
-        return " "
-
-    sem_faixas = FAIXA_DE_TEMPO_RE.sub(guardar_faixa, limpo)
-    for valor, unidade in TEMPO_SIMPLES_RE.findall(sem_faixas):
-        numero = _numero(valor)
-        passo = DIAS_POR_UNIDADE.get(unidade, 0)
-        if numero and passo:
-            dias.append(numero * passo)
-    for palavra, quantos in (("semanal", 7), ("quinzenal", 15), ("mensal", 30)):
-        if re.search(rf"\b{palavra}(mente)?\b", sem_faixas):
-            dias.append(quantos)
-    return min(dias) if dias else None
-
-
-def partes_da_opcao(linha):
-    """Titulo e campos rotulados da linha, como optionParts.js os le."""
-    pedacos = [p.strip() for p in str(linha or "").split("|") if p.strip()]
-    titulo = pedacos.pop(0) if pedacos else ""
-    rotulos = {texto_normalizado(r): r for r in ROTULOS_DA_OPCAO}
-    partes = {}
-    for pedaco in pedacos:
-        corte = pedaco.find(":")
-        if corte <= 0:
-            continue
-        rotulo = rotulos.get(texto_normalizado(pedaco[:corte].strip()))
-        valor = pedaco[corte + 1:].strip()
-        if rotulo and valor:
-            partes.setdefault(rotulo, valor)
-    return titulo, partes
-
-
-def catalogo_do_farmaco(linha):
-    """O farmaco sai do TITULO da linha -- o pedaco antes da primeira barra.
-    A justificativa cita outros nomes, e deixar o texto todo escolher puxaria o
-    teto do farmaco errado."""
-    titulo, _ = partes_da_opcao(linha)
-    titulo = texto_normalizado(titulo)
-    if not titulo:
-        return None
-    tabela = load_medication_table()
-    for item in tabela:
-        if texto_normalizado(item.get("generic")) in titulo:
-            return item
-    for item in tabela:
-        for marca in str(item.get("brands") or "").split(","):
-            marca = texto_normalizado(marca.strip())
-            if marca and marca in titulo:
-                return item
-    return None
-
-
-def medication_line_review(linha):
-    """Espelho de medicationLineReview (doseCheck.js), sem a parte da gestacao.
-
-    Tres estados, e o terceiro importa tanto quanto os outros: `conferido` diz
-    que a conferencia rodou e nao achou divergencia; `sem_catalogo` diz que ela
-    NAO rodou. Ausencia de alerta nao pode passar por dose conferida.
-    """
-    texto = str(linha or "").strip()
-    if not texto:
-        return None
-    catalogo = catalogo_do_farmaco(texto)
-    if not catalogo:
-        return {"linha": texto, "estado": "sem_catalogo", "farmaco": "", "alertas": []}
-    _, partes = partes_da_opcao(texto)
-    alertas = []
-    teto = teto_em_mg(catalogo.get("usualDose"))
-    for rotulo, valor in (("Dose final", partes.get("Dose final") or partes.get("Dose alvo")),
-                          ("Dose inicial", partes.get("Dose inicial"))):
-        proposta = teto_em_mg(valor) if valor else None
-        if teto and proposta and proposta > teto:
-            alertas.append({
-                "codigo": "dose_acima_do_teto",
-                "texto": f"{rotulo} proposta ({valor}) acima da faixa usual para "
-                         f"{catalogo['generic']}: {catalogo['usualDose']}.",
-            })
-    do_catalogo = intervalo_minimo_em_dias(catalogo.get("progression"))
-    proposto = intervalo_minimo_em_dias(partes.get("Progressão") or partes.get("Titulação"))
-    if do_catalogo and proposto and proposto < do_catalogo:
-        alertas.append({
-            "codigo": "titulacao_mais_rapida",
-            "texto": f"Titulação proposta a cada {int(proposto)} {'dia' if proposto == 1 else 'dias'}, "
-                     f"mais rápida que a usual para {catalogo['generic']}: {catalogo['progression']}",
-        })
-    return {
-        "linha": texto,
-        "estado": "divergencia" if alertas else "conferido",
-        "farmaco": catalogo["generic"],
-        "alertas": alertas,
-    }
-
-
-def linha_da_opcao(option):
-    """A opcao estruturada na mesma linha que o front monta em
-    formatMedicationTreatmentOption -- e que e o valor da caixa de marcar."""
-    partes = [str(option.get("medication") or "").strip()]
-    for rotulo, chave in (("Dose inicial", "initial_dose"), ("Progressão", "progression"),
-                          ("Dose final", "target_dose")):
-        valor = str(option.get(chave) or "").strip()
-        if valor:
-            partes.append(f"{rotulo}: {valor}")
-    return " | ".join(partes)
-
-
-KINDS_COM_CONFERENCIA_DE_DOSE = {"treatment", "symptomatic"}
-
-
-def dose_warnings(kind, result):
-    """As divergencias de posologia da resposta inteira, na ordem da tela."""
-    base = REVIEW_OF_KIND.get(kind, kind)
-    if base not in KINDS_COM_CONFERENCIA_DE_DOSE:
-        return []
-    if base == "treatment":
-        opcoes = result.get("medication_options") or []
-    else:
-        opcoes = [m for alvo in (result.get("target_symptom_options") or [])
-                  for m in (alvo.get("medication_options") or [])]
-    avisos = []
-    for option in opcoes:
-        linha = linha_da_opcao(option)
-        revisao = medication_line_review(linha)
-        for alerta in (revisao or {}).get("alertas", []):
-            # A LINHA vai junto porque e ela que a tela usa como chave: e o
-            # valor da caixa de marcar, e o unico identificador estavel que a
-            # opcao tem. O nome do farmaco sozinho repetiria entre as opcoes.
-            avisos.append({"medication": option.get("medication", ""), "linha": linha, **alerta})
-    return avisos
 
 
 def load_code_tables():
@@ -2895,27 +2646,6 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 return
             self.send_json(200, capitulo)
             return
-        if parsed_path.path == "/api/medication-suggest":
-            query = urllib.parse.parse_qs(parsed_path.query).get("q", [""])[0].strip().lower()
-            if len(query) < 2:
-                self.send_json(200, {"suggestions": []})
-                return
-            try:
-                terms = load_rxnav_terms()
-                prefix = []
-                contains = []
-                for term, lowered in terms:
-                    if lowered.startswith(query):
-                        prefix.append(term)
-                        if len(prefix) >= 12:
-                            break
-                    elif len(contains) < 12 and query in lowered:
-                        contains.append(term)
-                self.send_json(200, {"suggestions": (prefix + contains)[:12]})
-            except Exception as error:
-                logger.warning("RxNav indisponivel: %s", error)
-                self.send_json(502, {"error": "RxNav indisponivel.", "suggestions": []})
-            return
         return super().do_GET()
 
     def do_POST(self):
@@ -3311,13 +3041,6 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             code_warnings = verify_diagnostic_codes(result) if kind in {"diagnosis", "diagnosis_review"} else []
             if code_warnings:
                 logger.warning("ancoragem de codigos: %s", "; ".join(item["text"] for item in code_warnings))
-            # Conferencia de posologia contra o catalogo, do lado do servidor.
-            # Ela AVISA e nao recusa, por decisao dele em 23/09/2026: o alarme
-            # falso de um catalogo de 9 farmacos nao pode virar obstaculo, e
-            # quem assinala continua sendo o medico.
-            avisos_de_dose = dose_warnings(kind, result)
-            if avisos_de_dose:
-                logger.warning("posologia: %s", "; ".join(item["texto"] for item in avisos_de_dose))
             public_sources_by_file = {}
             for source in sources:
                 key = source["file_id"] or source["filename"]
@@ -3330,8 +3053,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                         "attributes": source["attributes"],
                     }
             public_sources = sorted(public_sources_by_file.values(), key=lambda item: item["score"], reverse=True)
-            log_decision(**medicao, resultado="ok", avisos=len(code_warnings) or None,
-                         dose_alertas=len(avisos_de_dose) or None)
+            log_decision(**medicao, resultado="ok", avisos=len(code_warnings) or None)
             self.send_json(200, {
                 "ok": True,
                 "kind": kind,
@@ -3345,7 +3067,6 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 "sources": public_sources,
                 "web_sources": web_findings[0]["citations"] if web_findings else [],
                 "code_warnings": code_warnings,
-                "dose_warnings": avisos_de_dose,
             })
         except urllib.error.HTTPError as error:
             # O corpo da OpenAI pode ecoar trechos do prompt (dado clínico) e

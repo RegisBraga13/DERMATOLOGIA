@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { ENSAIO_MINIMO_SEMANAS, medicationTrials, medicationTrialsText } from "../../src/clinical/medicationTrial.js";
+import { ENSAIO_MINIMO_SEMANAS, medicationTrials, medicationTrialsText, reportedMedicationTreatmentLines } from "../../src/clinical/medicationTrial.js";
 import { buildClinicalAiPrompt } from "../../src/services/clinicalAiService.js";
 
 // Regra dele, 23/09/2026: o que falhou com ensaio adequado nao se represcreve;
@@ -30,7 +30,7 @@ function umEnsaio(entries) {
   return ensaios[0];
 }
 
-describe("falha com ensaio adequado", () => {
+describe("sem tabela de dose, ensaio longo sem resposta vira indeterminado", () => {
   const ensaio = umEnsaio([
     consulta("c1", "2026-01-05T10:00:00.000Z", [SERTRALINA_150]),
     retorno("r1", "2026-03-20T10:00:00.000Z", {
@@ -40,9 +40,14 @@ describe("falha com ensaio adequado", () => {
     })
   ]);
 
-  it("dose dentro da faixa usual e tempo acima do minimo fecham como falha", () => {
-    assert.equal(ensaio.veredito, "FALHA_COM_ENSAIO_ADEQUADO");
-    assert.equal(ensaio.adequado, true);
+  // Ate 23/09/2026 este caso fechava como FALHA_COM_ENSAIO_ADEQUADO: a tabela
+  // de faixa usual confirmava que 150 mg era dose adequada. Retirada a tabela
+  // (decisao dele, mesma data), tempo suficiente sem dose para comparar cai em
+  // INDETERMINADO -- a dose e o tempo continuam registrados, so a afirmacao
+  // "foi adequada" deixou de existir.
+  it("tempo acima do minimo, sem tabela para confirmar a dose, fecha como indeterminado", () => {
+    assert.equal(ensaio.veredito, "INDETERMINADO");
+    assert.equal(ensaio.adequado, null);
     assert.equal(ensaio.doseMg, 150);
     assert.ok(ensaio.semanas >= ENSAIO_MINIMO_SEMANAS);
   });
@@ -53,7 +58,10 @@ describe("falha com ensaio adequado", () => {
 });
 
 describe("o que NAO e falha", () => {
-  it("dose abaixo da faixa usual e ensaio insuficiente, e nao falha do farmaco", () => {
+  // Sem tabela de faixa usual, dose baixa deixou de ser detectavel: o unico
+  // criterio que sobrou para "ensaio insuficiente" e o TEMPO. Dose baixa com
+  // tempo longo agora fecha como indeterminado, nao mais insuficiente.
+  it("dose baixa mas tempo longo, sem tabela para comparar, fecha como indeterminado", () => {
     const ensaio = umEnsaio([
       consulta("c1", "2026-01-05T10:00:00.000Z", [SERTRALINA_25]),
       retorno("r1", "2026-05-20T10:00:00.000Z", {
@@ -62,8 +70,8 @@ describe("o que NAO e falha", () => {
         ajusteMedicacaoSelecionada: ["Sertralina — Retirar | suspender | sem resposta"]
       })
     ]);
-    assert.equal(ensaio.veredito, "ENSAIO_INSUFICIENTE");
-    assert.equal(ensaio.adequado, false);
+    assert.equal(ensaio.veredito, "INDETERMINADO");
+    assert.equal(ensaio.adequado, null);
   });
 
   it("tempo abaixo do minimo e ensaio insuficiente, mesmo na dose certa", () => {
@@ -175,7 +183,7 @@ describe("intolerancia", () => {
         ajusteMedicacaoSelecionada: ["Sertralina — Retirar | suspender | sem resposta"]
       })
     ]);
-    assert.equal(ensaio.veredito, "FALHA_COM_ENSAIO_ADEQUADO");
+    assert.equal(ensaio.veredito, "INDETERMINADO");
     assert.match(medicationTrialsText([ensaio]), /efeitos no periodo: sedacao ou sonolencia/);
   });
 });
@@ -197,7 +205,7 @@ describe("um farmaco pode ter mais de um ensaio", () => {
 
   it("a interrupcao de 2025 e o ensaio pleno de 2026 nao viram um registro so", () => {
     assert.equal(ensaios.length, 2);
-    assert.deepEqual(ensaios.map(item => item.veredito), ["NAO_TESTADO", "FALHA_COM_ENSAIO_ADEQUADO"]);
+    assert.deepEqual(ensaios.map(item => item.veredito), ["NAO_TESTADO", "INDETERMINADO"]);
   });
 });
 
@@ -218,7 +226,7 @@ describe("a dose do ensaio e a maior que ele chegou a tomar", () => {
     ], { agora: Date.parse("2026-09-01T10:00:00.000Z") });
     assert.equal(ensaios.length, 1);
     assert.equal(ensaios[0].doseMg, 100);
-    assert.equal(ensaios[0].veredito, "FALHA_COM_ENSAIO_ADEQUADO");
+    assert.equal(ensaios[0].veredito, "INDETERMINADO");
   });
 });
 
@@ -246,7 +254,7 @@ describe("o historico chega ao prompt das etapas que prescrevem", () => {
     assert.match(prompt, /HISTORICO FARMACOLOGICO DESTE PACIENTE/);
     assert.match(prompt, /Fluoxetina — RESPOSTA BOA em episodio anterior/);
     assert.match(prompt, /e a PRIMEIRA escolha para o episodio atual/);
-    assert.match(prompt, /NAO deve ser proposto de novo/);
+    assert.match(prompt, /'INTOLERANCIA' exclui o farmaco/);
   });
 
   it("o refino do tratamento recebe o mesmo, porque revisa a mesma decisao", () => {
@@ -282,5 +290,34 @@ describe("o historico chega ao prompt das etapas que prescrevem", () => {
   it("a secao diz ate onde ela alcanca", () => {
     assert.match(buildClinicalAiPrompt("treatment", caso, {}, null, false, null, historia),
       /nao foi avaliado como ensaio/);
+  });
+});
+
+// P8 do PENDENCIAS.md, parte simples: o que o paciente RELATA de tratamento
+// anterior fora deste programa. Decisao do Dr. Regis, 24/09/2026: SO
+// transporte, texto livre, sem classificar Sim/Nao e sem entrar no prompt da
+// IA -- o medico le no Tratamento e decide.
+describe("o que o paciente relata de tratamento anterior, fora do programa", () => {
+  it("uma linha por frase, exatamente como foi escrita", () => {
+    const linhas = reportedMedicationTreatmentLines({
+      tratamentoFarmacoPrevioRelato: "Diazepam 5mg 2x dia, durante vários anos.\nEscitalopram 5mg 4 meses e parei pois não tive melhora"
+    });
+    assert.deepEqual(linhas, [
+      "Diazepam 5mg 2x dia, durante vários anos.",
+      "Escitalopram 5mg 4 meses e parei pois não tive melhora"
+    ]);
+  });
+
+  it("sem relato nenhum, lista vazia", () => {
+    assert.deepEqual(reportedMedicationTreatmentLines({}), []);
+  });
+
+  it("nao entra no prompt do tratamento -- e so transporte para a tela, sem analise de IA", () => {
+    const caso = {
+      queixa: "Novo episodio depressivo.", diagnosticoSelecionado: ["Depressão Maior"],
+      tratamentoFarmacoPrevioRelato: "Venlafaxina 150mg por 3 meses, melhorou bastante."
+    };
+    const prompt = buildClinicalAiPrompt("treatment", caso, {}, null, false, null, []);
+    assert.doesNotMatch(prompt, /Venlafaxina/);
   });
 });

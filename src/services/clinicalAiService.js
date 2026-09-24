@@ -81,11 +81,6 @@ export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery
     // chega sem codigo, e sem o aviso isso passaria por sindrome descritiva,
     // que legitimamente nao tem codigo.
     codeWarnings: Array.isArray(data.code_warnings) ? data.code_warnings : [],
-    // Divergencias de posologia que o SERVIDOR viu, pela tabela gerada do
-    // catalogo. Vao ao registro junto com a proposta: conferencia guardada com
-    // o que foi proposto vale para auditoria depois, e refazer a conta na tela
-    // so responde pelo catalogo de hoje.
-    doseWarnings: Array.isArray(data.dose_warnings) ? data.dose_warnings : [],
     // O numero da decisao que o servidor registrou no log. Chega aqui para que
     // o que apareceu na tela e a linha do log sejam a mesma coisa quando for
     // preciso conferir depois por que uma resposta saiu como saiu.
@@ -400,7 +395,7 @@ function validateClinicalAiPayload(kind, result, text = "") {
   if (!result && text) result = parseFallbackClinicalText(kind, text);
   if (!result || typeof result !== "object") throw new Error("Resposta estruturada ausente.");
   if (kind === "anamnesis") {
-    ["chief_complaint", "hda", "medical_history"].forEach(key => {
+    ["chief_complaint", "hda", "medical_history", "previous_pharmacological_treatment_report"].forEach(key => {
       if (typeof result[key] !== "string") throw new Error("Anamnese narrativa fora do formato esperado.");
     });
   }
@@ -424,8 +419,11 @@ function validateClinicalAiPayload(kind, result, text = "") {
     result.psychopathological_analysis = result.psychopathological_analysis
       .filter(item => ["domain", "finding", "evidence"].every(key => typeof item?.[key] === "string" && item[key].trim()))
       .slice(0, 8);
-    [["syndromic_options", 3], ["nosological_options", 3], ["etiological_options", 2]].forEach(([group, limit]) => {
-      if (!Array.isArray(result[group]) || result[group].length > limit) throw new Error(`O grupo ${group} aceita no maximo ${limit} opcoes.`);
+    // Sem teto de quantidade desde 24/09/2026, por decisao do Dr. Regis: o
+    // diagnostico diferencial (sindromico, nosologico, etiologico) nao compete
+    // por um numero fixo de vagas. Continua exigindo lista e nome por opcao.
+    ["syndromic_options", "nosological_options", "etiological_options"].forEach(group => {
+      if (!Array.isArray(result[group])) throw new Error(`O grupo ${group} deveria ser uma lista.`);
       result[group].forEach(option => {
         if (!option?.name) throw new Error("Opcao diagnostica sem nome.");
       });
@@ -736,8 +734,10 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "Organize a anamnese por queixa principal, cronologia e curso, sintomas nucleares e associados, polaridade depressiva/maníaca, ansiedade/pânico, sono, apetite, psicose, risco suicida, substâncias, causas médicas, antecedentes, funcionamento e fatores de proteção.",
       "Leia o sintoma na forma que ele tem NAQUELA idade: irritabilidade, recusa escolar e queixa somatica sao apresentacao depressiva na crianca; queixa cognitiva e apatia sao apresentacao depressiva no idoso. Nao exija a forma adulta do sintoma para reconhece-lo.",
       "Diferencie sintoma negado, sintoma presente e domínio não investigado; campo vazio significa dado não informado e nunca normalidade.",
+      "Cada grupo de sintomas tem uma opção de negação explícita (ex.: \"Nega sintomas relacionados\", \"Apetite preservado\", \"Nega tratamento prévio\"). Marque essa opção quando o paciente negar aquele domínio; deixe o campo vazio somente quando o domínio não foi investigado na conversa.",
       "A cobertura muda com a faixa etaria informada em DADOS DO PACIENTE: cubra os dominios que aquela idade exige e nao force os que ela nao comporta. Numa crianca, escola, desenvolvimento e quem relata; num idoso, cognicao, quedas, polifarmacia e deficit sensorial; em mulher em idade fertil, ciclo, gestacao e amamentacao.",
       "Preencha queixa principal, HDA e campos estruturados da anamnese sem perder a narrativa temporal, intensidade, frequência, duração, gatilhos, fatores de melhora/piora e prejuízo funcional.",
+      "Em 'previous_pharmacological_treatment_report', transcreva em prosa o que o paciente contar de psicofármaco usado antes (fora deste programa) que já não esteja coberto por 'previous_treatments' -- fármaco, dose, tempo de uso e resultado, do jeito que ele relatar. Não classifique nem julgue se houve melhora: é transporte do relato, não uma conclusão sua.",
       "Nao diagnostique, nao sugira tratamento e nao acrescente observacoes ao usuario.",
       `Nos campos de selecao, use exclusivamente estes rotulos canonicos: ${JSON.stringify(Object.fromEntries(Object.entries(ANAMNESIS_AI_FIELDS).map(([key, [, options]]) => [key, options])))}`
     ],
@@ -790,7 +790,7 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "Confira os criterios na literatura recuperada antes de propor: numero de sintomas, duracao minima, prejuizo funcional e exclusoes. Proponha o que o registro sustenta, e nao o que o quadro sugere de longe. Quando um criterio decisivo nao puder ser verificado com o que esta registrado, marque-o 'nao avaliavel' em vez de assumir que esta preenchido.",
       "Os especificadores devem sair das listas oficiais do DSM-5-TR ou da CID-11 para AQUELA entidade: gravidade; com sintomas psicoticos, dizendo se sao congruentes ou incongruentes com o humor; caracteristicas melancolicas, atipicas, catatonicas, ansiosas; padrao sazonal; curso e remissao. Nao invente especificador descritivo fora dessas listas.",
       "Analise de forma integrada e nao superficial toda a anamnese, os antecedentes, o impacto funcional, os riscos e cada dominio preenchido do exame psiquico.",
-      "Gere ate 3 hipoteses nosologicas, ate 3 sindromicas e ate 2 etiologicas: e teto, nao piso. Grupo vazio e resposta legitima quando o registro nao sustenta.",
+      "Gere quantas hipoteses nosologicas, sindromicas e etiologicas o registro sustentar, sem numero maximo: liste toda entidade que seja diferencial genuino deste caso, e nao so as mais prováveis. Grupo vazio e resposta legitima quando o registro nao sustenta nenhuma; hipotese fraca ou repetida nao entra so para preencher o grupo.",
       // As tres camadas nao sao rotulos alternativos do mesmo achado: sao
       // perguntas clinicas diferentes. Escrever isso no prompt e o que impede
       // a IA de devolver a mesma entidade tres vezes com nomes trocados.
@@ -874,13 +874,18 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "A SINTESE DO CASO e a primeira historia clinica, montada so com anamnese, exame psiquico e exame fisico, e a ANALISE PSICOPATOLOGICA traz os achados que sustentam as hipoteses. Use as duas para ver o caso inteiro e propor o tratamento dos sintomas que o paciente de fato tem, e nao so o do rotulo diagnostico.",
       // Regra dele, 23/09/2026. O que ja foi tentado neste paciente vale mais
       // que a ordem de preferencia geral da literatura: a literatura fala da
-      // populacao, e o historico fala DELE. As quatro linhas abaixo dizem o que
-      // fazer com cada veredito que o HISTORICO FARMACOLOGICO traz apurado --
-      // a apuracao e deterministica e esta em clinical/medicationTrial.js.
+      // populacao, e o historico fala DELE. As linhas abaixo dizem o que fazer
+      // com cada veredito que o HISTORICO FARMACOLOGICO traz apurado -- a
+      // apuracao e deterministica e esta em clinical/medicationTrial.js.
+      //
+      // NAO HA MAIS veredito de "falha com ensaio adequado": a tabela de faixa
+      // usual por farmaco que confirmava a dose foi retirada por decisao dele
+      // (23/09/2026), e sem ela nao ha como afirmar que uma dose foi adequada.
+      // O que antes fechava como falha confirmada agora cai em "ensaio
+      // insuficiente" ou "indeterminado", abaixo.
       "O HISTORICO FARMACOLOGICO, quando presente, manda na escolha, acima da ordem de preferencia geral da literatura: ele e o unico dado de resposta A TRATAMENTO que existe deste paciente.",
-      "Farmaco marcado 'FALHA com ensaio adequado' -- tomado na dose da faixa usual pelo tempo minimo e sem resposta -- NAO deve ser proposto de novo. Repetir um ensaio adequado ja feito gasta semanas do paciente para chegar a resposta que ele ja deu. Proponha outro, e diga na justificativa qual ensaio anterior exclui o que voce nao propos.",
       "Farmaco marcado 'RESPOSTA BOA em episodio anterior' e a PRIMEIRA escolha para o episodio atual, salvo contraindicacao nova registrada agora. Resposta previa e o melhor preditor de resposta que este caso tem; propor outra coisa no lugar dele exige dizer por que.",
-      "'Ensaio insuficiente' e 'nao testado' NAO excluem o farmaco, e nao devem ser lidos como falha: dose abaixo da faixa, tempo abaixo do minimo, interrupcao pelo paciente ou nao inicio significam que ele nunca chegou a ser testado. Um ensaio adequado pode ser exatamente o que falta -- se propuser um destes, diga que o ensaio anterior foi insuficiente e por que.",
+      "'Ensaio insuficiente', 'nao testado' e 'sem dados suficientes' NAO excluem o farmaco, e nao devem ser lidos como falha: dose ou tempo desconhecidos, tempo abaixo do minimo, interrupcao pelo paciente ou nao inicio significam que ele nunca chegou a ser testado o bastante para provar nada. Um ensaio mais longo, numa dose clara, pode ser exatamente o que falta -- se propuser um destes, diga isso na justificativa.",
       "'INTOLERANCIA' exclui o farmaco pelo efeito registrado, e nao por ineficacia: nao o proponha, e leve em conta que farmacos da mesma classe tendem a repetir o mesmo efeito.",
       "A faixa etaria muda a prescricao antes da dose. No idoso, comece com metade da dose do adulto, suba mais devagar, e evite benzodiazepinico e anticolinergico pelo risco de queda e de piora cognitiva. Em crianca e adolescente, so farmaco com indicacao para a idade, e antidepressivo com vigilancia de ativacao e de ideacao suicida nas primeiras semanas.",
       "Gestacao e amamentacao mudam a ESCOLHA do farmaco, e nao apenas a dose. Havendo gestacao, puerperio ou amamentacao no registro, a opcao proposta tem de ser compativel com isso, e a justificativa tem de dizer por que. Sendo mulher em idade fertil sem esse dado registrado, sinalize a necessidade de confirmar antes de prescrever teratogeno conhecido.",
@@ -927,7 +932,7 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "SINTOMA-ALVO e a queixa mais urgente, incomoda ou incapacitante do caso, e orienta a conduta terapeutica imediata mesmo sem diagnostico nosologico estabelecido.",
       "Os sintomas-alvo desta consulta sao APENAS os listados no registro sob 'Sintomas-alvo assinalados'. Nunca proponha conduta para sintoma que nao esteja ali, e nunca crie um sintoma-alvo por conta propria. Sem sintoma listado, devolva a lista VAZIA.",
       "Para cada sintoma assinalado devolva uma entrada em 'target_symptom_options': 'symptom' repete o nome exato do sintoma e 'conduct' diz a conduta imediata para ele — manejo, orientacao, monitorizacao.",
-      "Havendo HISTORICO FARMACOLOGICO, a opcao medicamentosa do alvo obedece a ele: nao proponha farmaco marcado 'FALHA com ensaio adequado' nem 'INTOLERANCIA'.",
+      "Havendo HISTORICO FARMACOLOGICO, a opcao medicamentosa do alvo obedece a ele: nao proponha farmaco marcado 'INTOLERANCIA'.",
       // Num teste, a opcao medicamentosa voltou como "Ajuste de sertralina;
       // intervencoes comportamentais para sono" — prosa repetindo a conduta,
       // ocupando a caixa que devia trazer o remedio. Conduta e prescricao tem
@@ -958,9 +963,9 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "'rationale' e UMA frase curta ligando a acao ao que o medico registrou: qual achado dele sustenta esta decisao. Sem repetir a acao e sem prosa.",
       "Adesao irregular muda a leitura: dose que nao foi tomada nao falhou, e subir dose de remedio que o paciente nao toma e erro. Diga isso no 'rationale' quando for o caso.",
       // O ajuste de conduta e onde a troca acontece, e e onde o historico pesa:
-      // trocar por um farmaco que ja falhou com ensaio adequado e refazer um
-      // ensaio pronto.
-      "Ao propor 'Trocar medicamento' ou 'Acrescentar medicamento', leia o HISTORICO FARMACOLOGICO antes de escolher o substituto: nao proponha farmaco marcado 'FALHA com ensaio adequado' nem 'INTOLERANCIA', e prefira o marcado 'RESPOSTA BOA em episodio anterior'. Diga no 'rationale' qual ensaio anterior sustenta a escolha.",
+      // trocar por um farmaco que ja causou intolerancia repete o problema, nao
+      // o ensaio.
+      "Ao propor 'Trocar medicamento' ou 'Acrescentar medicamento', leia o HISTORICO FARMACOLOGICO antes de escolher o substituto: nao proponha farmaco marcado 'INTOLERANCIA', e prefira o marcado 'RESPOSTA BOA em episodio anterior'. Diga no 'rationale' qual ensaio anterior sustenta a escolha.",
       "Efeito colateral registrado tem de aparecer em alguma acao — reduzir, trocar, dividir a tomada, manter e monitorar. Efeito que o medico anotou e a conduta ignora e a falha mais grave desta etapa.",
       "Respeite o tempo de resposta da classe: nao troque antidepressivo por falta de resposta antes do prazo que a literatura recuperada estabelece. Quando o prazo ainda nao passou, mantenha e diga no 'rationale' quanto tempo ainda se espera.",
       "Em 'conduct_options' vao ate 6 ajustes que NAO sao receita: exame a pedir, encaminhamento, psicoterapia, orientacao ao paciente, intervalo ate o proximo retorno, monitorizacao. Uma linha cada, direta, sem verbo de enfeite e sem justificativa dentro da linha.",
@@ -1243,12 +1248,12 @@ function promptResponseFormat(kind) {
       "cognicao, psicomotricidade, juizo critico, funcionalidade, risco.",
       "So os dominios que este caso sustenta: dominio sem achado nao entra.",
       "",
-      "DIAGNOSTICO NOSOLOGICO: ate 3 hipoteses, uma por linha.",
+      "DIAGNOSTICO NOSOLOGICO: uma hipotese por linha, sem numero maximo -- liste toda entidade que seja diferencial genuino deste caso.",
       "ESPECIFICADORES: ate 4, uma por linha, no formato Nome - hipotese nosologica que ele qualifica.",
       "COMORBIDADES: ate 3, uma por linha, com os dois codigos.",
       "FATORES AGRAVANTES: ate 4, uma por linha, no formato Nome - o que ele piora.",
-      "DIAGNOSTICO SINDROMICO: ate 3 hipoteses, uma por linha.",
-      "DIAGNOSTICO ETIOLOGICO: ate 2 hipoteses, uma por linha.",
+      "DIAGNOSTICO SINDROMICO: uma hipotese por linha, sem numero maximo.",
+      "DIAGNOSTICO ETIOLOGICO: uma hipotese por linha, sem numero maximo.",
       "Formato de cada linha das hipoteses: Nome - CID-11: ... - DSM-5-TR: ...",
       "",
       "Toda hipotese leva os dois codigos: CID-11 e DSM-5-TR. Sao classificacoes",

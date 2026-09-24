@@ -1,8 +1,6 @@
 export const medications = [
   {
     generic: "Sertralina",
-    // Escrito e revisado por ele; entra na conferencia.
-    revisado: true,
     brands: "Zoloft, Assert, Tolrest",
     className: "ISRS",
     mechanism: "Inibicao seletiva da recaptacao de serotonina.",
@@ -26,8 +24,6 @@ export const medications = [
   },
   {
     generic: "Escitalopram",
-    // Escrito e revisado por ele; entra na conferencia.
-    revisado: true,
     brands: "Lexapro, Exodus, Reconter",
     className: "ISRS",
     mechanism: "Inibicao seletiva da recaptacao de serotonina.",
@@ -51,8 +47,6 @@ export const medications = [
   },
   {
     generic: "Quetiapina",
-    // Escrito e revisado por ele; entra na conferencia.
-    revisado: true,
     brands: "Seroquel, Quet, Kitapen",
     className: "Antipsicotico atipico",
     mechanism: "Antagonismo serotoninergico e dopaminergico com efeito sedativo.",
@@ -76,8 +70,6 @@ export const medications = [
   },
   {
     generic: "Lisdexanfetamina",
-    // Escrito e revisado por ele; entra na conferencia.
-    revisado: true,
     brands: "Venvanse, Juneve",
     className: "Psicoestimulante",
     mechanism: "Pro-farmaco de dextroanfetamina com aumento de dopamina e noradrenalina.",
@@ -101,8 +93,6 @@ export const medications = [
   },
   {
     generic: "Fluoxetina",
-    // Escrito e revisado por ele; entra na conferencia.
-    revisado: true,
     brands: "Prozac, Daforin, Fluxene",
     className: "ISRS",
     mechanism: "Inibicao seletiva da recaptacao de serotonina, com meia-vida longa.",
@@ -126,8 +116,6 @@ export const medications = [
   },
   {
     generic: "Venlafaxina",
-    // Escrito e revisado por ele; entra na conferencia.
-    revisado: true,
     brands: "Efexor XR, Venlift, Alenthus XR",
     className: "IRSN",
     mechanism: "Inibicao da recaptacao de serotonina e noradrenalina, especialmente em doses maiores.",
@@ -151,8 +139,6 @@ export const medications = [
   },
   {
     generic: "Mirtazapina",
-    // Escrito e revisado por ele; entra na conferencia.
-    revisado: true,
     brands: "Remeron, Menelat, Razapina",
     className: "Antidepressivo noradrenergico e serotoninergico especifico",
     mechanism: "Antagonismo alfa-2 e modulacao serotoninergica; potente efeito anti-H1.",
@@ -176,8 +162,6 @@ export const medications = [
   },
   {
     generic: "Carbonato de litio",
-    // Escrito e revisado por ele; entra na conferencia.
-    revisado: true,
     brands: "Carbolitium",
     className: "Estabilizador do humor",
     mechanism: "Modulacao de segundos mensageiros e neuroplasticidade; efeito estabilizador do humor e antissuicida.",
@@ -201,8 +185,6 @@ export const medications = [
   },
   {
     generic: "Risperidona",
-    // Escrito e revisado por ele; entra na conferencia.
-    revisado: true,
     brands: "Risperdal, Risperidon",
     className: "Antipsicotico atipico",
     mechanism: "Antagonismo dopaminergico D2 e serotoninergico 5-HT2A.",

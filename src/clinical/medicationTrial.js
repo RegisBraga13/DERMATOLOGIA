@@ -1,8 +1,51 @@
-import { canonicalDrug, curtaData, drugLabel, parseMedicationDecision, respostasDeFarmaco } from "./caseTimeline.js";
-import { catalogoConferido } from "../data/medicationCatalog.js";
-import { pisoEmMg, tetoEmMg } from "./doseCheck.js";
+import { curtaData, drugLabel, parseMedicationDecision, respostasDeFarmaco } from "./caseTimeline.js";
 import { arrayValue, normalizeText } from "./textFormat.js";
 import { optionParts } from "./optionParts.js";
+
+// O que o paciente RELATA de tratamento anterior, fora deste programa --
+// P8 do PENDENCIAS.md, na parte simples. So transporte: nenhum codigo
+// classifica, resume ou valida o que esta aqui -- e por isso que fica em
+// texto livre, e nao em campo com Sim/Nao. Decisao do Dr. Regis, 24/09/2026:
+// "so isso, sem analise de IA para validar essas informacoes".
+//
+// So filtra linha vazia. A frase inteira, do jeito que foi escrita ou
+// extraida da transcricao, e o que chega ao Tratamento.
+export function reportedMedicationTreatmentLines(form = {}) {
+  return String(form.tratamentoFarmacoPrevioRelato || "")
+    .split("\n")
+    .map(linha => linha.trim())
+    .filter(Boolean);
+}
+
+// Leitura de dose em mg, so o suficiente para saber QUANTO foi usado num
+// ensaio -- nao para comparar contra tabela nenhuma (essa comparacao, e o
+// catalogo que a sustentava, foram retirados por decisao dele em 23/09/2026).
+const MEDIDA = /(\d+(?:[.,]\d+)?)\s*(mg|mcg|µg|g)\b/gi;
+const POR_PESO = /mg\s*\/\s*kg/i;
+const FAIXA_DE_DOSE = /(\d+(?:[.,]\d+)?)\s*(?:a|-|ate|até)\s*(\d+(?:[.,]\d+)?)\s*(mg|mcg|µg|g)\b/gi;
+
+function numero(texto) {
+  return Number(String(texto).replace(",", "."));
+}
+
+function valoresEmMg(texto = "") {
+  const limpo = String(texto || "");
+  if (!limpo.trim() || POR_PESO.test(limpo)) return null;
+  const comUnidade = limpo.replace(FAIXA_DE_DOSE, (_, piso, teto, unidade) => `${piso} ${unidade} a ${teto} ${unidade}`);
+  const valores = [];
+  for (const [, valor, unidade] of comUnidade.matchAll(MEDIDA)) {
+    if (normalizeText(unidade) !== "mg") return null;
+    valores.push(numero(valor));
+  }
+  const validos = valores.filter(valor => Number.isFinite(valor) && valor > 0);
+  return validos.length ? validos : null;
+}
+
+/** O maior valor em mg do texto, ou null -- o topo do que a linha propoe. */
+function tetoEmMg(texto = "") {
+  const valores = valoresEmMg(texto);
+  return valores ? Math.max(...valores) : null;
+}
 
 // O HISTORICO FARMACOLOGICO COMO ENSAIO, e nao como lista de nomes.
 //
@@ -77,31 +120,15 @@ function doseDaPrescricao(linha = "") {
   return { mg: tetoEmMg(alvo?.valor || ""), texto: alvo?.valor || "" };
 }
 
-// O casamento e nos dois sentidos porque os dois catalogos nomeiam o mesmo
-// farmaco por lados diferentes: o `drugNames` canoniza para o principio
-// ("Litio"), e o `medications` guarda o sal da receita ("Carbonato de litio").
-// Sem a segunda direcao o litio nunca acharia a propria faixa de dose.
-function catalogoDe(nome = "") {
-  const alvo = normalizeText(canonicalDrug(nome) || nome);
-  if (alvo.length < 5) return null;
-  return catalogoConferido().find(item => {
-    const generico = normalizeText(item.generic);
-    return alvo.includes(generico) || generico.includes(alvo);
-  }) || null;
-}
-
 /**
- * O ensaio foi adequado em dose e em tempo?
- *
- * Tres valores, e o terceiro importa tanto quanto os outros dois: `null` e
- * "nao da para afirmar", e nao "nao foi". Dose que ninguem registrou nao vira
- * ensaio insuficiente -- viraria um farmaco descartado por falta de anotacao.
+ * O ensaio teve tempo suficiente? Dose deixou de entrar nesta conta: a tabela
+ * de faixa usual por farmaco foi retirada por decisao dele em 23/09/2026, e
+ * sem ela nao ha piso para comparar. Tempo insuficiente ainda fecha como
+ * `false`; tempo suficiente nunca mais confirma "adequado" -- vira `null`,
+ * "nao da para afirmar", e o veredito cai em INDETERMINADO.
  */
-function ensaioAdequado(ensaio, catalogo) {
-  if (ensaio.semanas === null || ensaio.semanas < ENSAIO_MINIMO_SEMANAS) return false;
-  const piso = catalogo ? pisoEmMg(catalogo.usualDose) : null;
-  if (ensaio.doseMg === null || piso === null) return null;
-  return ensaio.doseMg >= piso;
+function ensaioAdequado(ensaio) {
+  return ensaio.semanas === null || ensaio.semanas < ENSAIO_MINIMO_SEMANAS ? false : null;
 }
 
 function veredito(ensaio) {
@@ -112,7 +139,6 @@ function veredito(ensaio) {
   // e outro motivo, que vale tambem para a classe dele.
   if (ensaio.intolerancia) return "INTOLERANCIA";
   if (RESPOSTA_BOA.test(normalizeText(ensaio.evolucao))) return "RESPOSTA_BOA";
-  if (ensaio.adequado === true) return "FALHA_COM_ENSAIO_ADEQUADO";
   if (ensaio.adequado === false) return "ENSAIO_INSUFICIENTE";
   return "INDETERMINADO";
 }
@@ -211,9 +237,8 @@ export function medicationTrials(entries = [], { agora = Date.now() } = {}) {
     item.semanas = item.fechadoPor === "nunca iniciou" ? 0
       : item.fechadoPor === "interrompeu" ? null
         : semanas;
-    item.adequado = ensaioAdequado(item, catalogoDe(item.nome));
+    item.adequado = ensaioAdequado(item);
     item.veredito = veredito(item);
-    item.faixaUsual = catalogoDe(item.nome)?.usualDose || "";
     return item;
   });
 }
@@ -221,7 +246,6 @@ export function medicationTrials(entries = [], { agora = Date.now() } = {}) {
 const ROTULO_DO_VEREDITO = {
   EM_USO: "em uso agora",
   RESPOSTA_BOA: "RESPOSTA BOA em episodio anterior",
-  FALHA_COM_ENSAIO_ADEQUADO: "FALHA com ensaio adequado",
   ENSAIO_INSUFICIENTE: "ensaio insuficiente",
   NAO_TESTADO: "nao testado",
   INTOLERANCIA: "INTOLERANCIA",
@@ -230,9 +254,7 @@ const ROTULO_DO_VEREDITO = {
 
 function evidencia(ensaio) {
   const partes = [];
-  partes.push(ensaio.doseTexto
-    ? `dose ${ensaio.doseTexto}${ensaio.faixaUsual ? ` (faixa usual ${ensaio.faixaUsual})` : ""}`
-    : "dose nao registrada");
+  partes.push(ensaio.doseTexto ? `dose ${ensaio.doseTexto}` : "dose nao registrada");
   partes.push(ensaio.semanas === null ? "tempo nao registrado"
     : `${ensaio.semanas} semana(s) de uso`);
   if (ensaio.adesao) partes.push(`adesao: ${ensaio.adesao.toLowerCase()}`);
@@ -250,3 +272,4 @@ export function medicationTrialsText(ensaios = []) {
     .map(ensaio => `- ${ensaio.nome} — ${ROTULO_DO_VEREDITO[ensaio.veredito] || ensaio.veredito}: ${evidencia(ensaio)}.`)
     .join("\n");
 }
+

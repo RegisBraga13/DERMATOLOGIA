@@ -262,9 +262,23 @@ class ValidateResultTests(unittest.TestCase):
                 psychopathological_analysis=[dict(item) for _ in range(9)]))
 
     def test_diagnosis_rejects_wrong_option_count(self):
+        # Comorbidade continua limitada: ela nao concorre no diferencial, soma
+        # sobre a hipotese principal. So por isso mantem teto de quantidade.
         with self.assertRaisesRegex(ValueError, "aceita no maximo 3 opcoes"):
             server.validate_result("diagnosis", self.diagnosis_result(
-                nosological_options=[{"name": "x", "cid11": "y", "dsm5tr": "z"}] * 4))
+                comorbidity_options=[{"name": "x", "cid11": "y", "dsm5tr": "z"}] * 4))
+
+    def test_diagnosis_differential_groups_have_no_cap(self):
+        # Por decisao do Dr. Regis (24/09/2026): diagnostico diferencial
+        # (sindromico, nosologico, etiologico) nao tem mais numero maximo de
+        # hipoteses -- so comorbidade, especificador e agravante continuam com
+        # teto, porque nao concorrem no diferencial.
+        muitas = [{"name": f"hipotese {i}", "cid11": "y", "dsm5tr": "z"} for i in range(7)]
+        validado = server.validate_result("diagnosis", self.diagnosis_result(
+            syndromic_options=list(muitas), nosological_options=list(muitas), etiological_options=list(muitas)))
+        self.assertEqual(len(validado["nosological_options"]), 7)
+        self.assertEqual(len(validado["syndromic_options"]), 7)
+        self.assertEqual(len(validado["etiological_options"]), 7)
 
     # Campo ausente e campo com opcoes demais sao problemas diferentes e agora
     # dizem coisas diferentes. Enquanto davam a mesma mensagem, a falha deste
@@ -289,7 +303,7 @@ class ValidateResultTests(unittest.TestCase):
             self.assertIn(revisao, server.ALLOWED_KINDS)
         with self.assertRaisesRegex(ValueError, "aceita no maximo 3 opcoes"):
             server.validate_result("diagnosis_review", self.diagnosis_result(
-                nosological_options=[{"name": "x", "cid11": "y", "dsm5tr": "z"}] * 4))
+                comorbidity_options=[{"name": "x", "cid11": "y", "dsm5tr": "z"}] * 4))
 
     def test_each_kind_reads_its_own_books(self):
         """Uma etapa por escopo, e o escopo aponta para onde se espera.

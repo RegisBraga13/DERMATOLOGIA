@@ -1,16 +1,22 @@
-import { anamnesisText } from "../clinical/narrative.js";
+import { selectedAggravatingValues, selectedComorbidityValues, selectedDiagnosisText, selectedSpecifierValues } from "../clinical/diagnosis.js";
+import { anamnesisText, normalizeEvolutionNarrative, promptAnamnesisText } from "../clinical/narrative.js";
 import { scaleSummaryRows } from "../clinical/scoring.js";
 import { arrayValue, calculateAge, joinValues, mentalExamKeys, normalizeText } from "../clinical/textFormat.js";
 import { orderedAnamnesisSections } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js";
 import { formatSummaryDate, section, summaryGroupedOptionRow, summaryTable, summaryTextRow } from "../ui/controls.js";
 
-export function clinicalSummaryPage(form = {}, patient = {}) {
-  const groups = clinicalSummaryGroups(form, patient);
+export function clinicalSummaryPage(form = {}, patient = {}, retornos = []) {
+  const groups = clinicalSummaryGroups(form, patient, retornos);
   return groups.map(group => summaryTable(group.title, group.rows, group.layout)).join("");
 }
 
-export function clinicalSummaryGroups(form = {}, patient = {}) {
+// retornos: os atendimentos de retorno ja salvos deste paciente, mais
+// recentes primeiro (ver returnsForPatient em App.js). O Resumo nao guarda
+// nada proprio -- cada vez que a aba abre, ele le de novo o que existe ate
+// aquele momento. Por isso um retorno futuro aparece aqui sozinho, sem
+// nenhuma acao de "acrescentar": a proxima leitura ja o inclui.
+export function clinicalSummaryGroups(form = {}, patient = {}, retornos = []) {
   const age = calculateAge(patient.nascimento);
   const address = [patient.endereco, patient.numero, patient.complemento, patient.bairro, patient.cidade, patient.estado]
     .filter(Boolean).join(", ");
@@ -93,6 +99,29 @@ export function clinicalSummaryGroups(form = {}, patient = {}) {
     { section: "Sintoma-Alvo", item: "Assinalados", value: residualValues.join("; ") }
   ].filter(row => row.value);
   const refinementRows = refinementSummaryRows(form);
+  // So o que foi ASSINALADO pelo medico -- nunca a lista de opcoes propostas
+  // que ele nao escolheu. Mesmo filtro que firstPassDiagnosisLines/
+  // firstPassTreatmentLines ja aplicam em clinicalAiService.js: o Resumo e
+  // leitura rapida, nao auditoria da primeira passada da IA.
+  const diagnosisRows = [
+    summaryTextRow("Diagnóstico", "Hipótese", selectedDiagnosisText(form)),
+    summaryTextRow("Diagnóstico", "Especificadores", joinValues(selectedSpecifierValues(form))),
+    summaryTextRow("Diagnóstico", "Comorbidades", joinValues(selectedComorbidityValues(form))),
+    summaryTextRow("Diagnóstico", "Fatores agravantes", joinValues(selectedAggravatingValues(form)))
+  ].filter(row => row.value);
+  const treatmentRows = [
+    summaryTextRow("Tratamento", "Medicamentos adotados", joinValues(arrayValue(form.tratamentoMedicamentosSelecionados))),
+    summaryTextRow("Tratamento", "Abordagens não farmacológicas", joinValues(arrayValue(form.abordagensSelecionadas)))
+  ].filter(row => row.value);
+  // Cada retorno entra so com data e um resumo de ate 3 frases -- a mesma
+  // reducao que a IA ja usa para ler "o registro anterior" (ver
+  // buildClinicalAiPrompt em clinicalAiService.js). O retorno inteiro continua
+  // no proprio registro; aqui e so o que orienta a leitura rapida.
+  const returnRows = retornos.map(entry => summaryTextRow(
+    "Evolução e retornos anteriores",
+    new Date(entry.createdAt || Date.now()).toLocaleDateString("pt-BR"),
+    conciseQphdaSummary(normalizeEvolutionNarrative(entry.evolution) || promptAnamnesisText(entry) || entry.observacoesRetorno || "")
+  )).filter(row => row.value);
   return [
     { title: "Identificação do paciente", rows: identityRows, layout: "item-record" },
     { title: "Dados narrativos", rows: narrativeRows, layout: "item-record" },
@@ -106,9 +135,13 @@ export function clinicalSummaryGroups(form = {}, patient = {}) {
     // Escala marcada e sem resposta nao aparece: foi aberta, nao aplicada.
     { title: "Escalas aplicadas", rows: scaleSummaryRows(form), layout: "item-record" },
     { title: "Sintomas marginais e residuais", rows: residualRows },
-    { title: "Refinamento clínico", rows: refinementRows, layout: "area-record" }
-    // Exame fisico e Refinamento so tem linhas depois de preenchidos; sem o
-    // filtro, o resumo mostraria a tabela vazia (so o cabecalho).
+    { title: "Refinamento clínico", rows: refinementRows, layout: "area-record" },
+    { title: "Diagnóstico", rows: diagnosisRows, layout: "item-record" },
+    { title: "Tratamento", rows: treatmentRows, layout: "item-record" },
+    { title: "Evolução e retornos anteriores", rows: returnRows, layout: "item-record" }
+    // Exame fisico, Refinamento, Diagnostico, Tratamento e Retornos so tem
+    // linhas depois de preenchidos/existirem; sem o filtro, o resumo mostraria
+    // a tabela vazia (so o cabecalho).
   ].filter(group => group.rows.length);
 }
 

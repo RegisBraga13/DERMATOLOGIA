@@ -76,7 +76,6 @@ export const consultationPages = [
   ["psiquico", "Exame psíquico"],
   ["neurologico", "Exame físico"],
   ["refinamento", "Refinamento"],
-  ["resumo", "Resumo"],
   ["diagnostico", "Diagnóstico"],
   // O Sintoma-Alvo teve pagina propria de 21/08 a 31/08/2026. Saiu do fluxo por
   // decisao dele: a escolha era feita numa lista fixa de trinta sintomas, igual
@@ -86,6 +85,12 @@ export const consultationPages = [
   // prontuario registra. Uma etapa a menos, e o campo continua no registro.
   ["tratamento", "Tratamento"],
   ["evolucao", "História clínica"],
+  // Movido para o fim do ciclo em 24/09/2026 -- por decisao do Dr. Regis. Ate
+  // ali ficava antes do Diagnostico, como conferencia previa; nessa posicao
+  // nunca podia mostrar diagnostico nem tratamento, porque eles ainda nao
+  // existiam. No fim ele fecha o atendimento: anamnese, exame, diagnostico,
+  // tratamento e historia clinica, mais os retornos ja salvos deste paciente.
+  ["resumo", "Resumo"],
   ["medicamentos", "Medicamentos"],
   // Escalas entrou em 10/09/2026, apendice como Medicamentos: aplica-se quando
   // o caso pede, em qualquer ponto do atendimento, e nao numa etapa fixa.
@@ -370,6 +375,10 @@ export const optionShortLabels = {
   "Dificuldade de concentracao": "Baixa concentracao",
   "Comportamento desorganizado": "Conduta desorganizada",
   "Nega sintomas relacionados": "Nega sintomas",
+  "Nega uso de substancias ou comportamentos": "Nega uso/comportamento",
+  "Nega diagnostico psiquiatrico previo": "Nega diagnostico previo",
+  "Nega historico familiar psiquiatrico": "Nega historico familiar",
+  "Sem fator de melhora identificado": "Sem fator de melhora",
   "Dificuldade para adormecer": "Insonia inicial",
   "Comportamento preparatorio": "Atos preparatorios",
   "Fazendo coisas impulsivas": "Impulsividade",
@@ -384,14 +393,14 @@ export const optionShortLabels = {
 };
 
 export const ANAMNESIS_AI_FIELDS = {
-  depressive_symptoms: ["depressaoSintomas", ["Desinteresse ou falta de prazer", "Desanimo ou desesperanca", "Cansaco ou falta de energia", "Dificuldade de concentracao", "Fala lenta", "Agitacao", "Baixa autoestima", "Sentimento de ruina", "Sentimento de estorvo para a familia"]],
+  depressive_symptoms: ["depressaoSintomas", ["Nega sintomas relacionados", "Desinteresse ou falta de prazer", "Desanimo ou desesperanca", "Cansaco ou falta de energia", "Dificuldade de concentracao", "Fala lenta", "Agitacao", "Baixa autoestima", "Sentimento de ruina", "Sentimento de estorvo para a familia"]],
   mania_hypomania: ["maniaHipomaniaSintomas", ["Nega sintomas relacionados", "Muito acelerado", "Com muita energia", "Falando mais", "Dormindo pouco", "Fazendo coisas impulsivas", "Outro"]],
-  anxiety_symptoms: ["ansiedadeSintomas", ["Falta de controle", "Preocupacao excessiva", "Tensao corporal", "Dificuldade de focar", "Agitacao", "Irritabilidade", "Sintomas fisicos"]],
+  anxiety_symptoms: ["ansiedadeSintomas", ["Nega sintomas relacionados", "Falta de controle", "Preocupacao excessiva", "Tensao corporal", "Dificuldade de focar", "Agitacao", "Irritabilidade", "Sintomas fisicos"]],
   sleep: ["sonoCaracteristicas", ["Sono reparador", "Sono nao reparador", "Dificuldade para adormecer", "Despertares noturnos", "Despertar precoce", "Dormir em excesso"]],
-  appetite: ["apetiteCaracteristicas", ["Reducao do apetite", "Aumento do apetite", "Compulsao alimentar", "Perda de peso recente", "Ganho de peso recente"]],
+  appetite: ["apetiteCaracteristicas", ["Apetite preservado", "Reducao do apetite", "Aumento do apetite", "Compulsao alimentar", "Perda de peso recente", "Ganho de peso recente"]],
   // symptom_impact continua no schema do servidor, mas nao tem mais campo na
   // tela: o grau de impacto saiu da anamnese. O que fica e functional_impact.
-  substances_behaviors: ["usoSubstanciasComportamentos", ["Nicotina", "Alcool", "Cafeina", "Calmantes", "Estimulantes", "Cocaina", "Opioides", "Canabinoides", "Jogos de Azar", "Redes Sociais", "Compras Compulsivas", "Transtornos Alimentares"]],
+  substances_behaviors: ["usoSubstanciasComportamentos", ["Nega uso de substancias ou comportamentos", "Nicotina", "Alcool", "Cafeina", "Calmantes", "Estimulantes", "Cocaina", "Opioides", "Canabinoides", "Jogos de Azar", "Redes Sociais", "Compras Compulsivas", "Transtornos Alimentares"]],
   psychosis: ["psicoseSintomas", ["Nega sintomas relacionados", "Ideias de perseguicao", "Sensacao de estar sendo observado ou comentado", "Ideias de referencia", "Desconfianca excessiva", "Vozes ou ruidos sem fonte externa", "Visoes sem fonte externa", "Sensacoes tateis ou odores sem fonte externa", "Pensamento desorganizado", "Comportamento desorganizado", "Sensacao de controle ou interferencia no pensamento", "Outro"]],
   suicide_risk: ["riscoSuicidioIndicadores", ["Nega ideacao, plano ou intencao suicida", "Desesperanca", "Desejo de morrer ou de nao acordar", "Ideacao suicida", "Plano suicida definido", "Intencao suicida", "Acesso a meios potencialmente letais", "Comportamento preparatorio", "Tentativa de suicidio previa", "Autoagressao sem intencao suicida"]],
   previous_diagnoses: ["psiPrevios", optionGroups.psiPrevios],

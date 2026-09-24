@@ -2737,27 +2737,6 @@ textarea:focus-visible {
 .monitoring-block ul { margin: 0 0 10px; padding-left: 18px; display: grid; gap: 6px; line-height: 1.5; }
 .monitoring-exams { color: var(--muted); }
 
-/* Conferencia de posologia, embaixo de cada opcao medicamentosa.
-   A divergencia usa o mesmo desenho do alerta de risco da anamnese -- barra
-   vermelha a esquerda sobre fundo esmaecido --, porque e o mesmo tipo de aviso:
-   algo que precisa ser lido antes de continuar. Os outros dois estados sao
-   discretos de proposito: "conferido" e "nao conferi" informam, nao alarmam. */
-.dose-alert {
-  border-left: 4px solid var(--danger);
-  background: color-mix(in srgb, var(--danger) 14%, var(--surface));
-  padding: 10px 12px;
-  border-radius: var(--radius);
-  margin: 8px 0 0;
-  font-size: 13px;
-  color: var(--text);
-}
-.dose-alert-title { margin: 0 0 4px; font-weight: 600; }
-.dose-alert ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; line-height: 1.5; }
-.dose-alert small { display: block; margin-top: 6px; color: var(--muted); font-size: 11px; line-height: 1.4; }
-.dose-checked,
-.dose-unchecked { margin: 8px 0 0; font-size: 12px; line-height: 1.4; color: var(--muted); }
-.dose-unchecked { font-style: italic; }
-
 /* Histórico farmacológico no painel da IA do Tratamento: os ensaios já
    encerrados, com o mesmo veredito que foi ao prompt. Verde para o que se deve
    repetir, vermelho para o que não se deve, e neutro para o que nunca chegou a

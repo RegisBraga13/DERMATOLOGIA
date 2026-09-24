@@ -7,11 +7,15 @@ export function treatmentOptionLines(value = "") {
   return String(value || "").split("\n").map(item => item.trim()).filter(Boolean);
 }
 
-export function diagnosticSyndromicOptionLines(form = {}) { return normalizeDiagnosticOptions(form.diagnosticoAiSindromico || form.diagnosticoAiOpcoes || "", 3); }
+// Sem teto de quantidade desde 24/09/2026 (decisao do Dr. Regis): o
+// diagnostico diferencial nao compete por um numero fixo de vagas. Mesma
+// mudanca do schema em server.py e da validacao em clinicalAiService.js --
+// aqui e o caminho de texto plano, quando a resposta nao vem em JSON.
+export function diagnosticSyndromicOptionLines(form = {}) { return normalizeDiagnosticOptions(form.diagnosticoAiSindromico || form.diagnosticoAiOpcoes || "", Infinity); }
 
-export function diagnosticNosologicalOptionLines(form = {}) { return normalizeDiagnosticOptions(form.diagnosticoAiNosologico || form.diagnosticoAiOutrasOpcoes || "", 3); }
+export function diagnosticNosologicalOptionLines(form = {}) { return normalizeDiagnosticOptions(form.diagnosticoAiNosologico || form.diagnosticoAiOutrasOpcoes || "", Infinity); }
 
-export function diagnosticEtiologicalOptionLines(form = {}) { return normalizeDiagnosticOptions(form.diagnosticoAiEtiologico || "", 2); }
+export function diagnosticEtiologicalOptionLines(form = {}) { return normalizeDiagnosticOptions(form.diagnosticoAiEtiologico || "", Infinity); }
 
 // O catalogo local nao propoe especificador: ele casa termo, e gravidade,
 // remissao e curso nao se leem de uma palavra solta no prontuario. Quando a IA

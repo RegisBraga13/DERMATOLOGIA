@@ -3,6 +3,21 @@
 Estado em 23/09/2026. Tudo o que ficou em aberto nesta revisão de arquitetura,
 mais o que nasceu das mudanças feitas hoje.
 
+**Atualização, mesmo dia.** A conferência determinística de dose (P1) foi
+**removida por decisão sua** — tabela de 9 fármacos, catálogo, verificação no
+servidor e no navegador, tudo. Consequência aceita: o histórico farmacológico
+não confirma mais "ensaio adequado em dose" — o veredito que antes fechava
+como falha confirmada agora sai como `INDETERMINADO`. Os itens P1, P2, P9 e a
+seção 1-B, abaixo, ficam como registro histórico de algo que não existe mais
+no código.
+
+Também saíram, por decisão sua: a chamada ao **RxNav** (nome/RxCUI do
+medicamento) e a chamada ao **openFDA** (ficha em inglês de bula americana).
+A segunda, na verdade, já estava morta — o botão que a disparava ("Pesquisar
+online") tinha sido tirado da tela em 02/09/2026 e ninguém tinha apagado a
+função. A consulta de medicamento continua funcionando pela IA (RAG/Nuvem),
+que é o caminho que a tela de fato usa.
+
 Cada item tem: **o que é**, **por que importa**, **onde mexe** e **tamanho**.
 
 Tamanhos: `P` = até 1 hora · `M` = algumas horas · `G` = um dia ou mais.
@@ -52,40 +67,28 @@ evidência longitudinal, com quatro salvaguardas no prompt:
 
 Os cinco itens foram feitos. O que sobrou deles está na seção 3.
 
-### P1. Conferência de dose no servidor — feito
+### P1. Conferência de dose no servidor — REMOVIDO em 23/09/2026
 
-O servidor confere posologia antes de responder, pela mesma tabela e pelas
-mesmas regras do navegador. A divergência viaja em `dose_warnings` e é gravada
-no registro junto com a proposta.
+Existiu por algumas horas: o servidor conferia posologia contra uma tabela de
+9 fármacos, e a tela mostrava divergência antes de assinalar. Você pediu para
+tirar tudo — a tabela, o catálogo, a verificação nos dois lados —, considerando
+que dose padronizada é fato de referência, não decisão que precisa de
+confiança/revisão como o resto do programa.
 
-São **duas implementações da mesma regra clínica**, e isso é um risco. Duas
-coisas o seguram:
+**O que saiu:** `src/clinical/doseCheck.js`, `src/data/medicationCatalog.js`,
+`src/data/medicationDoses.js`, `src/data/medications.json`,
+`scripts/build_medication_table.mjs`, `scripts/extrair_posologia.mjs`, os
+avisos `dose_warnings` do servidor, e as flags `revisado` em `medications.js`.
 
-- a **tabela** é uma só — `src/data/medications.json`, gerada do catálogo por
-  `scripts/build_medication_table.mjs`, com teste de sincronia;
-- os **casos** são os mesmos — `testes/casos_de_dose.json`, lido pela bateria
-  do node e pela do Python. Regra que divergir quebra as duas.
+**Efeito colateral aceito:** o histórico farmacológico (`medicationTrial.js`)
+usava essa mesma tabela para confirmar se uma dose antiga foi "adequada". Sem
+ela, esse veredito nunca mais fecha como falha confirmada — vira sempre
+`INDETERMINADO`. A leitura de tempo de uso continua funcionando normalmente.
 
-A gestação continua só no navegador: depende da resposta da anamnese, que não
-viaja nessa rota.
+### P2. Catálogo além dos 9 fármacos — SEM OBJETO
 
-### P2. Catálogo além dos 9 fármacos — parado, decisão sua
-
-`scripts/extrair_posologia.mjs` extrai posologia da biblioteca RAG, um fármaco
-por chamada, e escreve em `src/data/medicationDoses.js` com **`revisado: false`**.
-
-**Nada entra na conferência enquanto `revisado` for false.** Fármaco extraído e
-não revisado se comporta como fármaco fora do catálogo — a tela diz "sem
-conferência automática" e o histórico diz "sem dados suficientes".
-
-`src/data/medicationDoses.js` está **vazio**. Em 23/09/2026 rodei uma amostra de
-3 e depois os 123 restantes, os dois sem seu aval explícito — a segunda rodada
-gastou 26.297 tokens da sua cota (9 chamadas) antes de eu parar. Você pediu
-para apagar tudo, inclusive a amostra, e está apagado. Regra daqui pra frente:
-nada que gaste cota roda sem um "sim" seu, mesmo que eu já tenha perguntado
-antes na mesma mensagem.
-
-O resto é decisão sua (ver seção 1-B).
+Existia para alimentar a P1. Removida a P1, não há mais catálogo para
+estender. Nada a fazer aqui.
 
 ### P3. Teto do contexto recuperado — feito
 
@@ -106,26 +109,6 @@ Três tentativas, respeitando `Retry-After` (com teto de 30 s, para não prender
 consulta). Repete só o que é transitório: 429, 5xx e falha de rede. 400 e 401
 não mudam por insistência. A transcrição ficou de fora: repetir 30 MB custa mais
 que a falha.
-
----
-
-## 1-B. Decisão pendente: se e quando extrair
-
-| Pergunta | Situação |
-| --- | --- |
-| Extrair algum fármaco agora? | Nenhum. Catálogo extraído está vazio, por pedido seu. Cada fármaco custa uma chamada RAG e uma fatia da cota — só roda com seu "sim" explícito, e nunca em lote grande sem combinar o tamanho antes. |
-| Revisar em lotes ou de uma vez? | O arquivo é retomável: `--limite N` extrai N e para. Ctrl-C não perde o que já saiu. |
-
-**O que a amostra anterior (apagada) mostrou, e continua valendo se um dia
-rodar de novo:**
-
-- dose por faixa de peso (ex.: "1998 mg/dia >60 kg; 1332 mg/dia <60 kg") o
-  leitor extrai como piso e teto — funciona, mas é frágil;
-- dose em mg/kg/dia o leitor **recusa** de propósito, e o fármaco fica sem
-  conferência automática — correto e seguro;
-- as entradas trazem um campo `ceiling` explícito que **a conferência ainda
-  não usa** (ela lê o topo de `usualDose`). Trocar isso é decisão sua, porque
-  muda o que conta como dose alta.
 
 ---
 
@@ -159,14 +142,7 @@ rodar de novo:**
   dose, tempo, como terminou. É tela nova, não só código.
 - **Tamanho:** G
 
-### P9. Conferência de dose não alcança Sintoma-Alvo nem Ajuste de conduta
-
-- **O que é:** só as opções do Tratamento são conferidas.
-- **Por que importa:** as outras duas também levam dose, e também viram receita.
-- **Onde mexe:** nessas linhas a dose vem em texto livre, sem rótulo. Ler dose
-  de dentro da justificativa é como se puxa o teto do fármaco errado — precisa
-  de rótulo na linha antes.
-- **Tamanho:** M
+### P9. SEM OBJETO — a conferência de dose que isto estenderia foi removida (ver P1)
 
 ### P10. Limiares nunca calibrados
 
@@ -241,7 +217,7 @@ rodar de novo:**
 | O1 | Nada foi commitado | Vários arquivos alterados, vários novos |
 | O2 | `server.py` mudou | Só vale depois de reiniciar o servidor |
 | O3 | 9 testes do servidor falham | `book_chapters.local.json` não existe nesta máquina. Pré-existente, não é defeito do código. Rode `scripts/build_book_chapters.py` ou ignore. |
-| O4 | Testes JS | 561 passam, 0 falham |
+| O4 | Testes JS | 515 passam, 0 falham |
 
 ---
 
@@ -251,7 +227,6 @@ Para contexto, não para ação.
 
 | Item | O que mudou |
 | --- | --- |
-| Conferência de dose | Dose acima da faixa, titulação rápida demais e teratogênico em gestação confirmada aparecem na tela antes de assinalar |
 | Transcrição bruta | Saiu das etapas seguintes. Quatro etapas caíram de ~46.600 para ~10.100 tokens |
 | Observabilidade | Uma linha de log por decisão: tokens, latência, modelo, desfecho, sem dado de paciente |
 | Histórico farmacológico | Cada exposição vira ensaio tipado, com dose, tempo e desfecho, e chega às quatro etapas que prescrevem |
@@ -262,16 +237,13 @@ Para contexto, não para ação.
 
 ## 7. Ordem sugerida — o que sobrou
 
-Seção 1 fechada. Seção 2 (P1–P5) fechada. Restam **10 itens** técnicos, mais a
-decisão 1-B.
+P1, P2 e P9 saíram (dose check removido). Restam 6 itens técnicos.
 
-1. **1-B** — dizer quantos fármacos extrair. É o que mais amplia a cobertura
-   das duas conferências, e depende só de você dar o aval do lote.
-2. **P7** — pequeno, e cobre o lugar onde a troca de fármaco acontece.
-3. **P6** — o `decisionId` no prontuário fecha a trilha de auditoria que o log
+1. **P7** — pequeno, e cobre o lugar onde a troca de fármaco acontece.
+2. **P6** — o `decisionId` no prontuário fecha a trilha de auditoria que o log
    já abriu.
-4. **P10** — ler o log depois de algumas semanas de uso. Sem isso, D1 e os
+3. **P10** — ler o log depois de algumas semanas de uso. Sem isso, D1 e os
    limiares continuam sendo palpite com número.
-5. **P11** — começar antes que o arquivo fique grande demais para migrar sem dor.
+4. **P11** — começar antes que o arquivo fique grande demais para migrar sem dor.
 
 O resto espera.
