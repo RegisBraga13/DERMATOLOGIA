@@ -2878,3 +2878,187 @@ textarea:focus-visible {
 .medication-source-status.status-espera {
   font-style: italic;
 }
+
+/* ============================================================
+   CAMADA DE IDENTIDADE 2 — "Vidro dourado"
+   Dourado/bronze sobre carvao quente, com prata de acabamento e vidro nas
+   superficies. Fontes, escala tipografica, --radius e toda a estrutura da
+   camada anterior ficam intactos -- so os TOKENS DE COR mudam, e e por isso
+   que uma camada pequena reskin o app inteiro: side, panel, section, dialog,
+   clinical-card, treatment-card, chip, botao, tudo ja lia --surface,
+   --primary-2, --sage, --line etc. de :root, entao redefinir os valores aqui
+   basta. Validado num mockup separado (_mockup-dashboard-premium.html) antes
+   de entrar aqui. Ultima camada do arquivo: prevalece sobre as anteriores.
+   ============================================================ */
+:root {
+  --bg:#15110d; --surface:#1e1811; --surface-2:#261e15;
+  --line: rgba(232,214,186,.16); --text:#f3ead9; --muted:#a99a86;
+
+  --primary:#3a2c1c; --primary-2:#d9a44e; --on-primary:#1a1206;
+  --sage:#cf9f7a; --amber:#e8c97a; --terracota-ink:#b8763f;
+  --danger:#c96a52; --on-danger:#1a1206;
+  /* Tokens crus (nao os semanticos acima) que alguma regra ainda le direto —
+     ex.: os 4 icones do Acesso rapido usam --verde/--terracota/--amarelo na
+     borda e --sage/--terracota-ink/--amber na cor do icone. Sem isto os dois
+     lados descasavam: icone dourado com aro verde. */
+  --verde: var(--sage); --terracota: var(--terracota-ink); --amarelo: var(--amber);
+
+  --accent:#d9a44e; --accent-soft:#261e15; --panel:#1e1811;
+
+  /* Prata: contraponto frio ao dourado, so em acabamento (RB do topo, botao
+     de tema, numeracao dos cards) -- nao e uma 5a cor de destaque. */
+  --silver:#cdd3da;
+
+  --shadow: 0 22px 50px rgba(6, 4, 2, .45);
+}
+
+body.light {
+  /* Cimento claro, pela referencia dele: cinza neutro e suave, sem tom
+     quente nem azulado. A tinta continua escura o bastante para contraste;
+     so deixou de ser marfim/cafe -- agora e a mesma familia neutra do fundo. */
+  color-scheme: light;
+  --bg:#d6d4cf; --surface:#e1dfda; --surface-2:#c9c7c1;
+  --line: rgba(40,36,28,.16); --text:#3d372c; --muted:#5c594f;
+
+  /* Mais escuras que no escuro de proposito: o mesmo dourado que passa em
+     9:1 sobre carvao cai pra 3:1 sobre cimento claro -- fundo claro precisa
+     de tinta mais escura pro mesmo contraste. Conferido com a formula do
+     WCAG antes de entrar aqui: as quatro passam de 4,5:1. */
+  --primary:#d6d4cf; --primary-2:#7a4d12; --on-primary:#fff8ec;
+  --sage:#6e4728; --terracota-ink:#7a4a1f; --amber:#6e5011;
+  --danger:#9b4436; --on-danger:#ffffff;
+
+  --accent:#7a4d12; --accent-soft:#c9c7c1; --panel:#e1dfda;
+  --silver:#7a7770;
+
+  --shadow: 0 16px 40px rgba(58,42,20,.14);
+}
+
+/* Cimento no fundo do CLARO, pela foto de referencia dele: manchas grandes,
+   macias e irregulares, nunca um padrao que se repete -- foi exatamente o
+   losango do rascunho anterior (repeating-linear-gradient) que ele recusou.
+   Cada radial-gradient e uma mancha isolada, em posicao e tamanho proprios,
+   igual concreto de verdade nao teria duas manchas iguais. O escuro nao
+   muda: era o fundo de antes, e ele so pediu o teste no claro. */
+body.light {
+  background:
+    radial-gradient(ellipse 55% 38% at 18% 12%, rgba(255,255,255,.55), transparent 60%),
+    radial-gradient(ellipse 46% 42% at 78% 22%, rgba(0,0,0,.05), transparent 62%),
+    radial-gradient(ellipse 50% 46% at 30% 68%, rgba(0,0,0,.045), transparent 60%),
+    radial-gradient(ellipse 42% 38% at 88% 78%, rgba(255,255,255,.4), transparent 58%),
+    radial-gradient(ellipse 60% 50% at 55% 95%, rgba(0,0,0,.035), transparent 65%),
+    var(--bg);
+}
+
+/* Vidro de verdade, em toda caixa E todo botao da interface -- nao so nos
+   4 cards do Acesso rapido. Dois erros da tentativa anterior, apontados:
+
+   1) O "reflexo" era um linear-gradient(135deg, branco, transparente) por
+      cima do fundo. Isso pinta um bloco diagonal solido que, sobre um fundo
+      opaco, le como um TRIANGULO de luz colado no canto superior esquerdo
+      de cada caixa. Removido -- nao ha mais gradiente nenhum, so um
+      preenchimento translucido chapado (sem direcao, sem forma).
+   2) O fundo ainda misturava a cor de superficie do tema (var(--surface))
+      com a transparencia -- isso e uma caixa meio-colorida, nao vidro.
+      Vidro de verdade nao tem tinta propria: e so um filme quase
+      transparente (rgba branco puro, opacidade baixa, ~5% no escuro) que
+      deixa o backdrop-filter borrar o que estiver atras -- a cor que
+      aparece dentro da caixa e sempre a cor borrada do fundo do body (ver
+      body::before mais abaixo), nunca uma tinta da propria caixa.
+
+   Selecao explicita, nao so `button`: cada variante (.primary, .dash-button,
+   .icon-button etc.) ja tinha um "background:" proprio vindo de uma camada
+   anterior do arquivo, e classe sempre vence tipo-de-elemento em
+   especificidade CSS independente da ordem -- um `button {}` sozinho no
+   fim do arquivo nao bastava pra sobrescrever ".dash-button { background:
+   var(--surface) }" declarado mais acima. Por isso cada classe esta listada
+   aqui, na ultima camada do arquivo (a que prevalece).
+
+   .primary/.secondary/.danger ficam de fora da regra de BORDA (2a regra
+   abaixo): eles mantêm a propria borda/cor semantica (acento de acao,
+   vermelho de risco) definida mais acima no arquivo -- so o preenchimento
+   vira vidro, pra continuar dando pra distinguir "botao de risco" de
+   "botao comum" sem precisar de uma caixa cheia. */
+.side, .panel, .section, dialog,
+button, .primary, .secondary, .danger, .dash-button,
+.icon-button, .compact-action, .nav-button {
+  background: rgba(255, 255, 255, .05);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: var(--shadow);
+}
+
+.side, .panel, .section, dialog,
+button, .dash-button, .icon-button, .compact-action, .nav-button {
+  border-width: 1px;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, .14);
+}
+
+.danger { color: var(--danger); }
+
+/* Claro: o mesmo filme de 5% branco sobre um fundo ja claro nao muda nada
+   visivel -- precisa de bem mais peso (40%) pra continuar lendo como vidro
+   fosco e nao como "fundo normal sem borda". */
+body.light .side, body.light .panel, body.light .section, body.light dialog,
+body.light button, body.light .primary, body.light .secondary, body.light .danger,
+body.light .dash-button, body.light .icon-button, body.light .compact-action,
+body.light .nav-button {
+  background: rgba(255, 255, 255, .4);
+}
+
+body.light .side, body.light .panel, body.light .section, body.light dialog,
+body.light button, body.light .dash-button, body.light .icon-button,
+body.light .compact-action, body.light .nav-button {
+  border-color: rgba(255, 255, 255, .6);
+}
+
+.topbar {
+  background: rgba(255, 255, 255, .05);
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  border-bottom-width: 1px;
+}
+body.light .topbar { background: rgba(255, 255, 255, .4); }
+
+.dash-button:hover {
+  box-shadow: 0 18px 40px -22px color-mix(in srgb, var(--primary-2) 55%, transparent);
+}
+.dash-button:nth-child(2):hover { box-shadow: 0 18px 40px -22px color-mix(in srgb, var(--sage) 55%, transparent); }
+.dash-button:nth-child(3):hover { box-shadow: 0 18px 40px -22px color-mix(in srgb, var(--terracota-ink) 55%, transparent); }
+.dash-button:nth-child(4):hover { box-shadow: 0 18px 40px -22px color-mix(in srgb, var(--amber) 55%, transparent); }
+
+.primary:hover {
+  box-shadow: 0 14px 30px -16px color-mix(in srgb, var(--primary-2) 60%, transparent);
+}
+
+/* RB do topo e o botao de tema: prata, nao dourado -- e acabamento neutro,
+   nao e o acento da marca. */
+.brand-mark {
+  color: var(--silver);
+  border-color: color-mix(in srgb, var(--silver) 42%, var(--line));
+  background: color-mix(in srgb, var(--silver) 12%, transparent);
+}
+.icon-button, .compact-action { color: var(--silver); }
+
+/* Cor por tras do vidro, pra valer: 5 manchas grandes espalhadas pelo
+   viewport inteiro (cantos + centro), nao 2 bolinhas de canto como antes --
+   e por isso que agora ha cor borrada atras de qualquer painel, nao so dos
+   que encostam no topo/rodape da tela. Mesmas 4 cores dos icones do Acesso
+   rapido (nenhuma paleta nova). position:fixed + inset negativo: cobre além
+   do viewport pra o blur não cortar a mancha na borda, e acompanha a tela ao
+   rolar -- qualquer painel translucido que passe por cima continua revelando
+   cor borrada atras de si. z-index:-1, pointer-events:none, sem animacao:
+   e decoracao pura, nunca bloqueia clique nem chama atencao sozinha. */
+body::before {
+  content: ""; position: fixed; inset: -10vh -10vw; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(40% 36% at 12% 8%, color-mix(in srgb, var(--primary-2) 65%, transparent), transparent 72%),
+    radial-gradient(36% 34% at 88% 14%, color-mix(in srgb, var(--sage) 60%, transparent), transparent 72%),
+    radial-gradient(44% 40% at 15% 68%, color-mix(in srgb, var(--terracota-ink) 62%, transparent), transparent 72%),
+    radial-gradient(40% 38% at 88% 66%, color-mix(in srgb, var(--amber) 62%, transparent), transparent 72%),
+    radial-gradient(36% 34% at 50% 60%, color-mix(in srgb, var(--primary-2) 40%, transparent), transparent 72%);
+  filter: blur(90px);
+  opacity: .55;
+}
+body.light::before { opacity: .32; }
