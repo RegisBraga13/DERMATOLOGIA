@@ -10,6 +10,7 @@ import { scalesNarrativeText } from "../clinical/scoring.js";
 import { medicationTrials, medicationTrialsText } from "../clinical/medicationTrial.js";
 import { protocolCatalogText, protocolItemById, protocolLoaded } from "../clinical/protocol.js";
 import { parseMedicationResponse } from "./medicationService.js";
+import { authHeaders } from "./supabaseService.js";
 
 export function canonicalAiSelections(values, allowed = []) {
   const byNormalized = new Map(allowed.map(option => [normalizeText(option), option]));
@@ -41,7 +42,7 @@ const AI_MODES = new Set(["current", "rag", "guidelines"]);
 export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery = "", webQuery = "", ragMustMention = "", ragPatientScopes = [], diagnosisSelection = [], guidelineEntity = "") {
   const response = await fetch("/api/clinical-ai", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
     // ragMustMention: o nome que o trecho recuperado TEM de citar para valer
     // como fonte. So a ficha do medicamento usa, porque so ali a resposta e
     // sobre um nome proprio -- e so ali a busca vetorial conseguia devolver oito
@@ -97,7 +98,7 @@ export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery
 export async function requestRiskScreen(text) {
   const response = await fetch("/api/risk-screen", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
     body: JSON.stringify({ text })
   });
   let data = {};
@@ -120,7 +121,7 @@ export async function requestRiskScreen(text) {
 export async function requestJevJudge(state, questions) {
   const response = await fetch("/api/jev-judge", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
     body: JSON.stringify({ state, questions })
   });
   let data = {};

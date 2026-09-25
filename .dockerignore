@@ -1,0 +1,17 @@
+.git
+.claude
+.env
+.env.*
+!.env.example
+__pycache__
+*.pyc
+node_modules
+testes
+docs/teste-jev
+chave*.txt
+*chave*.txt
+.stores_apagadas.json
+book_chapters.local.json
+dsm_criteria.local.json
+rag_sources.local.json
+guidelines_sources.local.json

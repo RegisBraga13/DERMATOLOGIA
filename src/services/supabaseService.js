@@ -10,6 +10,15 @@ export async function currentSession() {
   try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); } catch { return null; }
 }
 
+// O servidor so exige isto quando tem Supabase configurado (server.py,
+// verify_supabase_user); sem sessao aqui, a chamada de IA volta 401 la e nao
+// silenciosamente. Sem Supabase configurado no servidor, o header viaja vazio
+// e o servidor nem confere -- comportamento local de sempre.
+export async function authHeaders() {
+  const session = await currentSession();
+  return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+}
+
 // Sem URL/chave no .env do servidor, nao ha onde logar -- e sem isto a tela de
 // entrada travava para sempre quem nunca tinha uma sessao salva no navegador,
 // mesmo em modo local. O App.js le isto para pular o login e gravar so no

@@ -29,5 +29,12 @@
     <a class="skip-link" href="#app">Ir para o conteúdo</a>
     <div id="app" role="main"></div>
     <script type="module" src="src/App.js"></script>
+    <script>
+      // Casca em cache: so para a TELA abrir sem sinal no interior. Nunca cacheia
+      // /api/* (ver sw.js) -- IA e sync continuam exigindo rede normalmente.
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+      }
+    </script>
   </body>
 </html>

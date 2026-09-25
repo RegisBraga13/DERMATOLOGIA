@@ -401,6 +401,42 @@ def is_same_origin(handler):
     return parsed.netloc == host
 
 
+def verify_supabase_user(handler):
+    """Confere sessão Supabase válida nas rotas de IA, quando o servidor tem
+    Supabase configurado.
+
+    is_same_origin bloqueia OUTRO site chamando a API pelo navegador do
+    médico, mas não confere QUEM está do lado de cá — enquanto o servidor só
+    respondia em 127.0.0.1 isso não importava, porque só a própria máquina
+    alcançava a porta. Hospedado (0.0.0.0 + endereço público), qualquer um
+    que descobrisse a URL chamaria a IA sem nunca passar pela tela de login.
+    A tela de login barra a interface; isto barra a API.
+
+    Sem SUPABASE_URL/KEY no servidor (modo local, sem sync), não há projeto
+    contra o qual validar token nenhum -- mantém o comportamento de sempre.
+    """
+    supabase_url = os.environ.get("SUPABASE_URL", "").rstrip("/")
+    supabase_key = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")
+    if not supabase_url or not supabase_key:
+        return True
+    auth_header = handler.headers.get("Authorization", "")
+    token = auth_header[7:].strip() if auth_header.lower().startswith("bearer ") else ""
+    if not token:
+        return False
+    request = urllib.request.Request(
+        f"{supabase_url}/auth/v1/user",
+        headers={"apikey": supabase_key, "Authorization": f"Bearer {token}"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            return response.status == 200
+    except urllib.error.HTTPError:
+        return False
+    except urllib.error.URLError:
+        logger.warning("Nao foi possivel validar a sessao no Supabase (rede).")
+        return False
+
+
 def openai_multipart(fields, file_field, filename, content_type, file_bytes):
     """Monta um multipart/form-data sem dependências externas."""
     boundary = f"----prontuario-{secrets.token_hex(18)}"
@@ -2658,6 +2694,10 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             self.send_json(404, {"error": "Endpoint nao encontrado."})
             return
 
+        if not verify_supabase_user(self):
+            self.send_json(401, {"error": "Sessao invalida ou expirada. Faca login novamente."})
+            return
+
         if self.path == "/api/risk-screen":
             self.handle_risk_screen()
             return
@@ -3226,9 +3266,13 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     load_env()
     port = int(os.environ.get("PORT", "8000"))
+    # Default fica em 127.0.0.1: quem roda local continua so alcancavel pela
+    # propria maquina. HOST=0.0.0.0 e para hospedagem (Render/Fly/Railway),
+    # onde o processo precisa aceitar conexao de fora do proprio container.
+    host = os.environ.get("HOST", "127.0.0.1")
     os.chdir(ROOT)
-    server = ThreadingHTTPServer(("127.0.0.1", port), PrototypeHandler)
-    print(f"Prontuário em http://127.0.0.1:{port}")
+    server = ThreadingHTTPServer((host, port), PrototypeHandler)
+    print(f"Prontuário em http://{host}:{port}")
     print("Configure OPENAI_API_KEY no .env antes de usar os botões de IA.")
     try:
         server.serve_forever()

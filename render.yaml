@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: psiquiatria-prontuario
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python server.py
+    healthCheckPath: /api/health
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_GUIDELINES_VECTOR_STORE_ID
+        sync: false
+      - key: OPENAI_RAG_VECTOR_STORE_ID
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false

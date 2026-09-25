@@ -1,3 +1,5 @@
+import { authHeaders } from "./supabaseService.js";
+
 export function preferredRecordingMimeType() {
   return ["audio/webm;codecs=opus", "audio/mp4", "audio/webm", "audio/ogg;codecs=opus"]
     .find(type => MediaRecorder.isTypeSupported(type)) || "";
@@ -15,7 +17,8 @@ export async function requestConsultationTranscription(audio) {
     method: "POST",
     headers: {
       "Content-Type": audio.type || "audio/webm",
-      "X-Audio-Filename": recordingFilename(audio.type)
+      "X-Audio-Filename": recordingFilename(audio.type),
+      ...(await authHeaders())
     },
     body: audio
   });
