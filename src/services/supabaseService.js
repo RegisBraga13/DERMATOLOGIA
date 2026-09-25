@@ -10,6 +10,15 @@ export async function currentSession() {
   try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); } catch { return null; }
 }
 
+// Sem URL/chave no .env do servidor, nao ha onde logar -- e sem isto a tela de
+// entrada travava para sempre quem nunca tinha uma sessao salva no navegador,
+// mesmo em modo local. O App.js le isto para pular o login e gravar so no
+// aparelho, exatamente como o SUPABASE.md promete.
+export async function isConfigured() {
+  const settings = await config();
+  return Boolean(settings?.url && settings?.key);
+}
+
 export async function signIn(email, password) {
   const settings = await config();
   if (!settings?.url || !settings?.key) throw new Error("Supabase não configurado no servidor.");

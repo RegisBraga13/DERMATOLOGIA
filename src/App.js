@@ -18,7 +18,7 @@ import { buildClinicalAiPrompt, buildRagQuery, buildWebQuery, canonicalAiSelecti
 import { localMedicationSuggestions } from "./services/medicationService.js";
 import { exportTextAsPdf } from "./services/pdfService.js";
 import { archiveEntry, archivePatient, isActive, isArchived, loadState, mergeStates, purgePatient, restorePatient, saveState, stateSignature, uid } from "./services/storageService.js";
-import { currentSession, signIn, signOut, syncState } from "./services/supabaseService.js";
+import { currentSession, isConfigured as isSupabaseConfigured, signIn, signOut, syncState } from "./services/supabaseService.js";
 import { anamnesisStructuredFields, chips, field, phoneField, selectField, statusLine, summaryColumns, textarea, voiceTextarea } from "./ui/controls.js";
 import { escapeAttr, escapeHtml } from "./ui/html.js";
 import { createVoiceRecording } from "./ui/voiceRecording.js";
@@ -83,6 +83,11 @@ const AI_BUSY_BUTTONS = {
 let refinementGenerating = false;
 let authSession = null;
 let authError = "";
+// Sem Supabase configurado no servidor, ninguem nunca consegue logar -- a tela
+// de entrada travava ali para sempre. Modo local: sem conta, sem sincronizacao,
+// gravando so neste aparelho. So vale quando NAO ha sessao nenhuma; quem ja
+// esta logado continua logado e sincronizando normalmente.
+let localOnlyMode = false;
 // Falha de sincronizacao com o Supabase. Separada de authError, que so a tela
 // de login renderiza: aqui precisa aparecer com a sessao aberta.
 let syncError = "";
@@ -140,6 +145,7 @@ Promise.all([loadState(), currentSession()]).then(async ([local, session]) => {
   selectedPatientId = firstActivePatientId();
   authSession = session;
   if (authSession) await syncAfterLogin();
+  else localOnlyMode = !(await isSupabaseConfigured());
   render();
 });
 
@@ -164,7 +170,7 @@ async function syncAfterLogin() {
 
 function render() {
   document.body.classList.toggle("light", state.theme === "light");
-  if (!authSession) { app.innerHTML = loginView(); bindAuthEvents(); return; }
+  if (!authSession && !localOnlyMode) { app.innerHTML = loginView(); bindAuthEvents(); return; }
   app.innerHTML = `
     <div class="app-shell">
       ${topbar()}
@@ -181,7 +187,7 @@ function render() {
  * os dois depois de redesenhar.
  */
 function loginView() {
-  return `<main class="auth-shell"><section class="auth-card"><span class="brand-mark">RB</span><h1>Prontuário Psiquiátrico</h1><p>Entre para acessar seus prontuários com segurança.</p><form id="auth-form"><label>E-mail<input name="email" type="email" autocomplete="username" required /></label><label>Senha<input name="password" type="password" autocomplete="current-password" required /></label>${authError ? `<p class="warning">${escapeHtml(authError)}</p>` : ""}<button class="primary" type="submit">Entrar</button></form></section></main>`;
+  return `<main class="auth-shell"><section class="auth-card"><h1>Prontuário Psiquiátrico</h1><p>Entre para acessar seus prontuários com segurança.</p><form id="auth-form"><label>E-mail<input name="email" type="email" autocomplete="username" required /></label><label>Senha<input name="password" type="password" autocomplete="current-password" required /></label>${authError ? `<p class="warning">${escapeHtml(authError)}</p>` : ""}<button class="primary" type="submit">Entrar</button></form></section></main>`;
 }
 
 function bindAuthEvents() {
@@ -198,7 +204,6 @@ function topbar() {
   return `
     <header class="topbar">
       <div class="brand">
-        <span class="brand-mark" aria-hidden="true">RB</span>
         <div><h1>Regis Braga</h1></div>
       </div>
       <div class="top-actions">
@@ -206,7 +211,9 @@ function topbar() {
           ? `<span class="sync-status storage-failed" role="alert">${escapeHtml(storageError)}</span>`
           : syncError
             ? `<span class="sync-status sync-failed" role="status">Não sincronizado: ${escapeHtml(syncError)} O registro está salvo neste aparelho.</span>`
-            : `<span class="secure-status"><i></i> Ambiente clínico seguro</span>`}
+            : localOnlyMode
+              ? `<span class="sync-status" role="status">Modo local: sem Supabase configurado. Salvando só neste aparelho.</span>`
+              : `<span class="secure-status"><i></i> Ambiente clínico seguro</span>`}
         ${view === "dashboard" ? "" : `<button class="secondary compact-action" data-action="dashboard">${homeIcon()}<span>Início</span></button>`}
         <button class="icon-button" data-action="toggle-theme" aria-label="Alternar tema" title="Alternar tema">${themeIcon()}</button>
       </div>
@@ -257,7 +264,7 @@ function workspace() {
         ${navButton("return", "Retorno", "return")}
         ${navButton("record", "Prontuários", "record")}
         ${navButton("exit", "Sair", "exit")}
-        <div class="side-foot"><span>RB</span><div><strong>Dr. Regis Braga</strong><small>Psiquiatria</small></div></div>
+        <div class="side-foot"><div><strong>Dr. Regis Braga</strong><small>Psiquiatria</small></div></div>
       </aside>
       <section class="panel">${renderView()}</section>
     </div>
