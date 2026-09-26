@@ -33,6 +33,13 @@ export async function requestConsultationTranscription(audio) {
   return data;
 }
 
+// Contagem determinística de vozes na diarização -- nunca um palpite de
+// identidade, so a base de uma sugestão para o médico confirmar se havia
+// acompanhante (ver companionCard, em views/companion.js).
+export function countDistinctSpeakers(segments = []) {
+  return new Set(segments.map(segment => String(segment.speaker || "").trim()).filter(Boolean)).size;
+}
+
 export function formatDiarizedTranscript(segments = []) {
   const lines = [];
   let previousSpeaker = "";

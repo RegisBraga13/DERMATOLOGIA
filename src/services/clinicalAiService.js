@@ -3,11 +3,12 @@ import { careLevelOptions as CARE_LEVELS } from "../data/careLevels.js";
 import { gestationalAgeText, lifeStageOf, lifeStagePromptText, patientAge } from "../clinical/lifeStage.js";
 import { anamnesisText, buildEvolutionNarrative, conciseAntecedentsText, conciseComplaintText, conciseDiagnosticText, conciseHdaText, conciseIdentityText, conciseMentalExamText, joinWithOutro, mentalStateFindings, normalizeEvolutionNarrative, patientIdentificationText, professionalSelectedTreatmentItems, promptAnamnesisText, refinementAnswersText, requestedExamsText, returnStoryText, treatmentDiagnosisText } from "../clinical/narrative.js";
 import { arrayValue, cleanClinicalLine, compactText, formatClinicalList, joinValues, mentalExamKeys, normalizeText, stripFinalPeriod } from "../clinical/textFormat.js";
-import { ANAMNESIS_AI_FIELDS, MENTAL_EXAM_AI_FIELDS, MENTAL_EXAM_NORMAL } from "../clinical/vocabulary.js";
+import { ANAMNESIS_AI_FIELDS, IDENTIFICATION_AI_FIELDS, MENTAL_EXAM_AI_FIELDS, MENTAL_EXAM_NORMAL } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js";
 import { scalesNarrativeText } from "../clinical/scoring.js";
 
 import { medicationTrials, medicationTrialsText } from "../clinical/medicationTrial.js";
+import { analysisFindingsForReturn, pendingCriteriaFromPrevious, pendingRefinementForReturn, returnHypothesisLabels } from "../clinical/returnCarryover.js";
 import { protocolCatalogText, protocolItemById, protocolLoaded } from "../clinical/protocol.js";
 import { parseMedicationResponse } from "./medicationService.js";
 import { authHeaders } from "./supabaseService.js";
@@ -219,6 +220,12 @@ export function buildRagQuery(kind, form = {}, { paciente = null } = {}) {
     const emUso = joinValues(arrayValue(form.tratamentoMedicamentosSelecionados)) || stripFinalPeriod(form.tratamentoMedicamentoso || "");
     return `Conduta no seguimento de ${diagnosis}${emPaciente} em uso de ${emUso || "tratamento nao informado"}: tempo esperado de resposta, quando aumentar dose, quando trocar, quando retirar, manejo de efeito adverso e de adesao irregular. Evolucao observada: ${symptoms}`.slice(0, 4000);
   }
+  // A extracao da conversa de retorno: mesma logica de cobertura da anamnese,
+  // mas sobre o relato do RETORNO, que nao tem qphda proprio.
+  if (kind === "return_assessment") {
+    const relato = compactText(String(form.relatoRetorno || ""), 1200);
+    return `Semiologia psiquiatrica para acompanhamento em retorno: evolucao do quadro, adesao ao tratamento, efeitos colaterais, resposta a tratamento, funcionalidade. Dados da conversa: ${relato || symptoms}`.slice(0, 4000);
+  }
   // O diagnostico continua LIDERANDO a consulta, e a faixa entra logo depois,
   // dentro da mesma oracao. Posta na frente, ela desloca o peso do embedding
   // para a idade e afasta a busca do que se pergunta; posta no fim, vira
@@ -399,6 +406,14 @@ function validateClinicalAiPayload(kind, result, text = "") {
     ["chief_complaint", "hda", "medical_history", "previous_pharmacological_treatment_report"].forEach(key => {
       if (typeof result[key] !== "string") throw new Error("Anamnese narrativa fora do formato esperado.");
     });
+    // Sugestao de identificacao: coage para um dict so de strings em vez de
+    // derrubar a resposta inteira -- mesma politica do resto desta funcao.
+    // Campo ausente ou mal formado vira string vazia, que e a mesma coisa que
+    // "nao mencionado" no restante do schema.
+    const suggestions = result.identification_suggestions;
+    result.identification_suggestions = Object.fromEntries(
+      Object.keys(IDENTIFICATION_AI_FIELDS).map(aiKey => [aiKey, typeof suggestions?.[aiKey] === "string" ? suggestions[aiKey].trim() : ""])
+    );
   }
   if (kind === "mental_exam") {
     if (!Object.values(result).every(value => Array.isArray(value))) throw new Error("Exame psiquico fora do formato esperado.");
@@ -482,6 +497,11 @@ function validateClinicalAiPayload(kind, result, text = "") {
       .slice(0, 6);
   }
   if (kind === "return_plan") {
+    if (!Array.isArray(result.hypothesis_updates)) throw new Error("Ajuste de conduta fora do formato esperado.");
+    result.hypothesis_updates = result.hypothesis_updates
+      .filter(item => item?.rotulo && item?.decisao)
+      .map(item => ({ rotulo: String(item.rotulo).trim(), nova: item.nova === true, decisao: String(item.decisao).trim() }))
+      .slice(0, 8);
     if (!Array.isArray(result.medication_actions)) throw new Error("Ajuste de conduta fora do formato esperado.");
     if (!Array.isArray(result.conduct_options)) throw new Error("Ajuste de conduta fora do formato esperado.");
     const texto = (valor) => typeof valor === "string" ? valor.trim() : "";
@@ -493,6 +513,24 @@ function validateClinicalAiPayload(kind, result, text = "") {
       .map(item => ({ ...item, detail: texto(item.detail), rationale: texto(item.rationale) }))
       .slice(0, 8);
     result.conduct_options = result.conduct_options.map(texto).filter(Boolean).slice(0, 6);
+  }
+  if (kind === "return_assessment") {
+    result.evolucao_clinica = typeof result.evolucao_clinica === "string" ? result.evolucao_clinica.trim() : "";
+    result.adesao = typeof result.adesao === "string" ? result.adesao.trim() : "";
+    ["efeitos", "funcionalidade_eventos"].forEach(key => {
+      result[key] = Array.isArray(result[key]) ? result[key].filter(item => typeof item === "string" && item.trim()) : [];
+    });
+    // Blocos dinamicos: item sem rotulo ou sem o segundo campo e descartado,
+    // sem derrubar a resposta -- mesma politica do resto desta funcao.
+    const bloco = (lista, chaveStatus) => (Array.isArray(lista) ? lista : [])
+      .filter(item => typeof item?.rotulo === "string" && item.rotulo.trim() && typeof item?.[chaveStatus] === "string" && item[chaveStatus].trim())
+      .map(item => ({ rotulo: item.rotulo.trim(), [chaveStatus]: item[chaveStatus].trim() }));
+    result.hipoteses = bloco(result.hipoteses, "evolucao");
+    result.criterios_pendentes = bloco(result.criterios_pendentes, "status");
+    result.medicamentos = bloco(result.medicamentos, "situacao");
+    result.sintomas_alvo = bloco(result.sintomas_alvo, "evolucao");
+    result.achados = bloco(result.achados, "evolucao");
+    result.pendencias_refino = bloco(result.pendencias_refino, "status");
   }
   if (kind === "medication_tips") {
     if (!Array.isArray(result.tips)) throw new Error("BIPP TIPS fora do formato esperado.");
@@ -740,7 +778,15 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "Preencha queixa principal, HDA e campos estruturados da anamnese sem perder a narrativa temporal, intensidade, frequência, duração, gatilhos, fatores de melhora/piora e prejuízo funcional.",
       "Em 'previous_pharmacological_treatment_report', transcreva em prosa o que o paciente contar de psicofármaco usado antes (fora deste programa) que já não esteja coberto por 'previous_treatments' -- fármaco, dose, tempo de uso e resultado, do jeito que ele relatar. Não classifique nem julgue se houve melhora: é transporte do relato, não uma conclusão sua.",
       "Nao diagnostique, nao sugira tratamento e nao acrescente observacoes ao usuario.",
-      `Nos campos de selecao, use exclusivamente estes rotulos canonicos: ${JSON.stringify(Object.fromEntries(Object.entries(ANAMNESIS_AI_FIELDS).map(([key, [, options]]) => [key, options])))}`
+      `Nos campos de selecao, use exclusivamente estes rotulos canonicos: ${JSON.stringify(Object.fromEntries(Object.entries(ANAMNESIS_AI_FIELDS).map(([key, [, options]]) => [key, options])))}`,
+      // Identificacao do paciente que surge na fala espontanea -- nome social,
+      // data de nascimento, ocupacao, religiao, estado civil, CEP. So entra o
+      // que foi dito explicitamente; nunca inferir a partir de indicios.
+      "Em 'identification_suggestions', extraia dados de identificacao do paciente SOMENTE quando ditos explicitamente na conversa -- nunca infira. Campo nao mencionado fica com string vazia.",
+      "Em 'nome_social', o nome ou apelido pelo qual o paciente disse preferir ser chamado -- so quando ele disser isso explicitamente, nunca repita o nome completo por conta propria.",
+      "Em 'nascimento', use o formato AAAA-MM-DD. Se dia, mes ou ano nao ficarem todos claros na fala, deixe vazio em vez de completar o que falta.",
+      "Em 'cep', so os digitos ouvidos, nunca inventados a partir do nome da cidade ou do bairro.",
+      `Em 'religiao' e 'estado_civil', prefira estes rotulos canonicos quando o que foi dito corresponder a um deles: ${JSON.stringify({ religiao: IDENTIFICATION_AI_FIELDS.religiao[1], estado_civil: IDENTIFICATION_AI_FIELDS.estado_civil[1] })}. Se o que foi dito nao corresponder a nenhum, escreva o termo como foi dito -- a tela decide se usa.`
     ],
     mental_exam: [
       "Prepare uma sugestao estruturada de exame psiquico somente a partir da anamnese ja revisada pelo medico.",
@@ -956,7 +1002,10 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
     // suposicao, com a mesma cara na tela.
     return_plan: [
       "Esta e a etapa de AJUSTE DE CONDUTA de um retorno. O medico ja avaliou o paciente e registrou o que viu: evolucao clinica, adesao, efeitos colaterais, funcionalidade, e o estado de cada hipotese, de cada farmaco e de cada sintoma-alvo do atendimento anterior. Tudo isso esta no registro abaixo.",
-      "Voce NAO reavalia e NAO reinterpreta esses achados: eles sao observacao do medico, e valem como fato. Sua tarefa e uma so — dizer o que decorre deles.",
+      "Voce NAO reinterpreta esses achados: eles sao observacao do medico, e valem como fato -- nao troque 'melhora parcial' por 'melhora', nem invente achado que o registro nao trouxe. O que voce faz e dizer o que DECORRE deles: para medicacao e conduta, a acao consequente; para hipoteses, se o conjunto dos achados sustenta manter, atualizar ou levantar uma hipotese nova.",
+      "Em 'hypothesis_updates', para CADA hipotese do atendimento anterior que o medico marcou no bloco 'Hipóteses do atendimento anterior', diga o que a evolucao registrada implica para ela: manter, e por que o quadro sustenta a mesma hipotese; atualizar (especificador, gravidade, remissao), com o que mudou; ou considerar descartar, quando a evolucao contradisser a hipotese. 'rotulo' repete o rotulo da hipotese exatamente como esta no registro, 'nova' fica falso, e 'decisao' e uma frase curta com a implicacao e o achado que a sustenta.",
+      "Alem disso, SE E SOMENTE SE a evolucao registrada sustentar um diferencial que nao estava entre as hipoteses do atendimento anterior, acrescente uma entrada com 'nova' verdadeiro, 'rotulo' com o nome da entidade nova, e 'decisao' com o achado que a levanta. Hipotese nova e excecao, nao regra: a maioria dos retornos so confirma ou atualiza o que ja estava aberto.",
+      "Sem hipotese do atendimento anterior para reavaliar e sem diferencial novo sustentado, devolva 'hypothesis_updates' vazio.",
       "Em 'medication_actions' entre com UMA acao para CADA medicamento que o paciente esta em uso, sem excecao. Um farmaco prescrito que nao aparece na lista e um farmaco esquecido no retorno.",
       "'medication' repete o nome do farmaco como esta no registro. 'action' e exatamente um destes: Manter dose, Aumentar dose, Diminuir dose, Trocar medicamento, Retirar, Acrescentar medicamento.",
       "Manter dose e uma decisao, e a decisao certa quando o quadro melhora com a dose atual e sem efeito limitante. Nao evite 'Manter dose' por parecer pouco.",
@@ -973,6 +1022,19 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
       "Nada de 'reavaliar em consulta', 'considerar ajuste' ou 'acompanhar evolucao' — isso e adiar a conduta, nao a conduta. Se nao ha o que propor, devolva a lista vazia.",
       "Cada linha e uma caixa que o medico marca ou nao: escreva uma por decisao, nunca duas coisas na mesma linha.",
       "Sucinto e objetivo. Sem introducao, sem fechamento, sem repetir o que ja esta no registro."
+    ],
+    // A extracao por voz da Avaliacao de evolucao do retorno. Mesma logica da
+    // anamnese -- so extrair o que foi dito, nunca inferir -- com um cuidado a
+    // mais: os blocos dinamicos so aceitam os ROTULOS EXATOS que a secao
+    // "ROTULOS DISPONIVEIS" do registro abaixo listar. Ver returnAssessmentPromptData.
+    return_assessment: [
+      "A entrada e a transcricao de uma conversa de RETORNO -- o medico revendo como o paciente esta desde o atendimento anterior. Extraia SOMENTE o que foi dito explicitamente; nunca infira a partir de indicios.",
+      "Em 'evolucao_clinica', descreva a evolucao geral com um dos termos usuais (inalterado, melhora parcial, melhora, piora) se a conversa permitir; senao string vazia.",
+      "Em 'adesao', diga a adesao ao tratamento (adequada, parcial/irregular, nao iniciou/interrompeu) so se foi dito; senao string vazia.",
+      "Em 'efeitos' e 'funcionalidade_eventos', liste em texto livre o que foi relatado; lista vazia quando o assunto nao foi abordado.",
+      "Os blocos 'hipoteses', 'criterios_pendentes', 'medicamentos', 'sintomas_alvo', 'achados' e 'pendencias_refino' SO aceitam 'rotulo' identico a um dos ROTULOS DISPONIVEIS do registro abaixo, cada um na sua propria lista. Nunca invente um rotulo fora dela, nunca resuma ou reformule o rotulo. Item do atendimento anterior nao mencionado na conversa fica de fora da lista -- nao adivinhe.",
+      "Em cada item desses blocos, o segundo campo ('evolucao', 'status' ou 'situacao', conforme o bloco) usa a mesma escala que a tela usaria: para 'hipoteses', 'sintomas_alvo' e 'achados', um destes -- Inalterado, Melhora parcial, Melhora, Piora; para 'criterios_pendentes' e 'pendencias_refino', um destes -- Confirmado, Descartado, Ainda não avaliado; para 'medicamentos', um destes -- Em uso como prescrito, Em uso com dose alterada, Interrompeu, Nunca iniciou.",
+      "Nao diagnostique, nao proponha conduta e nao repita aqui o que outra etapa decide: esta etapa so descreve o que a conversa relatou sobre a evolucao."
     ],
     evolution: [
       "Redija uma evolucao medica narrativa-descritiva, formal, tecnica, cientifica, objetiva e concisa.",
@@ -1068,7 +1130,9 @@ export function buildClinicalAiPrompt(kind, form = {}, patient = {}, previous = 
         ? clinicalEvolutionPromptData(form, patient, previous, isReturn)
         : kind === "medication"
           ? `Medicamento pesquisado: ${form.medicationGeneric || "nao informado"}.\n${clinicalPromptData(form, patient, previous, isReturn, kind)}`
-          : clinicalPromptData(form, patient, previous, isReturn, kind),
+          : kind === "return_assessment"
+            ? returnAssessmentPromptData(form, patient, previous)
+            : clinicalPromptData(form, patient, previous, isReturn, kind),
     "",
     ...caseSynthesisLines(kind, form, patient, isReturn),
     ...pharmacologicalHistoryLines(kind, history),
@@ -1119,6 +1183,28 @@ function pharmacologicalHistoryLines(kind, history = []) {
     "Este historico cobre o que foi registrado neste programa. Farmaco que o paciente relatou na anamnese e nao aparece aqui nao foi avaliado como ensaio.",
     ""
   ];
+}
+
+// Os rotulos exatos que a extracao do retorno pode usar em cada bloco
+// dinamico -- os mesmos que a tela usa para desenhar `previousCaseBlocks`
+// (src/views/exams.js). Sem eles no prompt, o modelo parafrasearia o rotulo, e
+// o casamento client-side (applyReturnAssessmentAiResult, em App.js) descarta
+// tudo que nao bater exatamente.
+function returnAssessmentPromptData(form = {}, patient = {}, previous = null) {
+  const rotulosDisponiveis = {
+    hipoteses: returnHypothesisLabels(previous || {}),
+    criterios_pendentes: pendingCriteriaFromPrevious(previous || {}),
+    medicamentos: arrayValue(previous?.tratamentoMedicamentosSelecionados),
+    sintomas_alvo: arrayValue(previous?.sintomasAlvoSelecionados),
+    achados: analysisFindingsForReturn(previous || {}),
+    pendencias_refino: pendingRefinementForReturn(previous || {})
+  };
+  return [
+    `Identidade: ${conciseIdentityText(patient)}.`,
+    `Transcricao da conversa de retorno:\n${stripFinalPeriod(String(form.relatoRetorno || "").trim()) || "nao informado"}`,
+    "ROTULOS DISPONIVEIS para os blocos dinamicos -- use 'rotulo' identico a um destes, um por lista; item nao mencionado na conversa fica de fora:",
+    JSON.stringify(rotulosDisponiveis)
+  ].join("\n");
 }
 
 function clinicalEvolutionPromptData(form = {}, patient = {}, previous = null, isReturn = false) {

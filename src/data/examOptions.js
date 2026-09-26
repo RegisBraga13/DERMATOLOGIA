@@ -4,6 +4,7 @@ export const optionGroups = {
   cicloReprodutivo: ["Ciclos regulares", "Ciclos irregulares", "Puerperio", "Amamentando", "Contraceptivo hormonal", "Climaterio", "Menopausa", "Outro"],
   sintomasCiclo: ["Sem relacao com o ciclo", "Piora na semana pre-menstrual", "Piora na menstruacao", "Iniciou na gestacao", "Iniciou no puerperio", "Iniciou no climaterio", "Outro"],
   informante: ["A propria pessoa", "Mae", "Pai", "Outro responsavel", "Escola", "Outro"],
+  acompanhanteVinculo: ["Conjuge/companheiro(a)", "Mae", "Pai", "Filho(a)", "Irmao(a)", "Outro familiar", "Cuidador(a) profissional", "Amigo(a)", "Outro"],
   escolaridadeContexto: ["Rendimento adequado", "Queda de rendimento", "Recusa escolar", "Repetencia", "Dificuldade de aprendizagem", "Conflito com colegas ou bullying", "Fora da escola", "Outro"],
   genero: ["Cis", "Trans", "Binário"],
   estadoCivil: ["Solteiro(a)", "Casado(a)", "Divorciado(a)", "Viuvo(a)"],

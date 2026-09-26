@@ -154,8 +154,8 @@ MAX_AUDIO_BYTES = 30 * 1024 * 1024
 # no contexto nem na lista de procedencia da tela -- ela nao foi lida.
 MAX_SOURCES_CHARS = 48000
 ALLOWED_KINDS = {"anamnesis", "mental_exam", "refinement", "diagnosis", "diagnosis_review",
-                 "treatment", "treatment_review", "symptomatic", "return_plan", "evolution", "medication",
-                 "medication_review", "medication_tips"}
+                 "treatment", "treatment_review", "symptomatic", "return_plan", "return_assessment",
+                 "evolution", "medication", "medication_review", "medication_tips"}
 # A segunda passada do Diagnostico e do Tratamento nao e outra tarefa: e a
 # mesma, refeita por um revisor com outro livro na mao. Por isso reaproveita
 # schema, validacao e texto plano do "kind" que ela revisa — a tela recebe a
@@ -540,13 +540,33 @@ SCHEMAS = {
             # de cima -- dose, tempo e resultado sao do paciente, nao de um
             # vocabulario fechado.
             "previous_pharmacological_treatment_report": {"type": "string"},
+            # Identificacao que surge na fala espontanea, e nao so na anamnese
+            # clinica -- nome social, nascimento, ocupacao, religiao, estado
+            # civil, CEP. String vazia = nao mencionado, mesma convencao do
+            # resto do schema. So preenche campo vazio na tela (ver
+            # applyIdentificationAiResult, em App.js), entao nunca sobrescreve
+            # o que o medico ja digitou.
+            "identification_suggestions": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "nome_social": {"type": "string"},
+                    "nascimento": {"type": "string"},
+                    "ocupacao": {"type": "string"},
+                    "religiao": {"type": "string"},
+                    "estado_civil": {"type": "string"},
+                    "cep": {"type": "string"},
+                },
+                "required": ["nome_social", "nascimento", "ocupacao", "religiao", "estado_civil", "cep"],
+            },
         },
         "required": [
             "chief_complaint", "hda", "depressive_symptoms", "mania_hypomania",
             "anxiety_symptoms", "sleep", "appetite", "symptom_impact",
             "substances_behaviors", "psychosis", "suicide_risk", "previous_diagnoses",
             "previous_treatments", "medical_history", "family_history", "worsening_factors",
-            "improving_factors", "functional_impact", "previous_pharmacological_treatment_report"
+            "improving_factors", "functional_impact", "previous_pharmacological_treatment_report",
+            "identification_suggestions"
         ],
     },
     "mental_exam": {
@@ -936,6 +956,32 @@ SCHEMAS = {
         "type": "object",
         "additionalProperties": False,
         "properties": {
+            # Confirma ou atualiza uma hipotese do atendimento anterior, ou
+            # propoe uma hipotese nova (diferencial que a evolucao levantou).
+            # Nao reabre o diagnostico completo -- so isso, por decisao do Dr.
+            # Regis: a reavaliacao de diagnostico foi tirada do retorno em
+            # 10/09/2026 por nao ter aba que levasse a ela.
+            "hypothesis_updates": {
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 8,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        # Um dos rotulos do atendimento anterior, para
+                        # confirmar/atualizar; ou um nome novo de entidade,
+                        # quando a linha e uma hipotese nova.
+                        "rotulo": {"type": "string"},
+                        # Verdadeiro so quando 'rotulo' e uma hipotese que NAO
+                        # estava no atendimento anterior -- a tela usa isto
+                        # para nao confundir "atualizacao" com "hipotese nova".
+                        "nova": {"type": "boolean"},
+                        "decisao": {"type": "string"},
+                    },
+                    "required": ["rotulo", "nova", "decisao"],
+                },
+            },
             "medication_actions": {
                 "type": "array",
                 "minItems": 0,
@@ -963,7 +1009,64 @@ SCHEMAS = {
                 "items": {"type": "string"},
             },
         },
-        "required": ["medication_actions", "conduct_options"],
+        "required": ["hypothesis_updates", "medication_actions", "conduct_options"],
+    },
+    # Extracao por voz da "Avaliacao de evolucao" do retorno -- mesma ideia da
+    # anamnese (transcricao bruta -> campos estruturados), com outro alvo: a
+    # espinha fixa (evolucao, adesao, efeitos, funcionalidade) e os blocos
+    # dinamicos derivados do atendimento anterior (uma linha por hipotese, por
+    # farmaco, por sintoma-alvo etc., que mudam de nome a cada paciente).
+    #
+    # Os blocos dinamicos NAO tem chave fixa no schema -- nao ha como saber de
+    # antemao quantas hipoteses ou farmacos um paciente vai ter. A saida e uma
+    # lista de {rotulo, status}, e o cliente casa 'rotulo' contra os mesmos
+    # rotulos que a propria tela usa para desenhar aquele bloco (ver
+    # applyReturnAssessmentAiResult, em App.js). O prompt recebe esses rotulos
+    # e a instrucao de nunca inventar um que nao esteja na lista.
+    "return_assessment": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "evolucao_clinica": {"type": "string"},
+            "adesao": {"type": "string"},
+            "efeitos": {"type": "array", "items": {"type": "string"}},
+            "funcionalidade_eventos": {"type": "array", "items": {"type": "string"}},
+            "hipoteses": {"type": "array", "items": {
+                "type": "object", "additionalProperties": False,
+                "properties": {"rotulo": {"type": "string"}, "evolucao": {"type": "string"}},
+                "required": ["rotulo", "evolucao"],
+            }},
+            "criterios_pendentes": {"type": "array", "items": {
+                "type": "object", "additionalProperties": False,
+                "properties": {"rotulo": {"type": "string"}, "status": {"type": "string"}},
+                "required": ["rotulo", "status"],
+            }},
+            "medicamentos": {"type": "array", "items": {
+                "type": "object", "additionalProperties": False,
+                "properties": {"rotulo": {"type": "string"}, "situacao": {"type": "string"}},
+                "required": ["rotulo", "situacao"],
+            }},
+            "sintomas_alvo": {"type": "array", "items": {
+                "type": "object", "additionalProperties": False,
+                "properties": {"rotulo": {"type": "string"}, "evolucao": {"type": "string"}},
+                "required": ["rotulo", "evolucao"],
+            }},
+            "achados": {"type": "array", "items": {
+                "type": "object", "additionalProperties": False,
+                "properties": {"rotulo": {"type": "string"}, "evolucao": {"type": "string"}},
+                "required": ["rotulo", "evolucao"],
+            }},
+            "pendencias_refino": {"type": "array", "items": {
+                "type": "object", "additionalProperties": False,
+                "properties": {"rotulo": {"type": "string"}, "status": {"type": "string"}},
+                "required": ["rotulo", "status"],
+            }},
+        },
+        "required": [
+            "evolucao_clinica", "adesao", "efeitos", "funcionalidade_eventos",
+            "hipoteses", "criterios_pendentes", "medicamentos", "sintomas_alvo",
+            "achados", "pendencias_refino"
+        ],
     },
     # Refeita em 31/08/2026, ao ver a ficha da risperidona: tres campos de prosa
     # longa que reescreviam a bula. Palavras dele: "nao e essa enxurrada de
@@ -1361,6 +1464,9 @@ RAG_SCOPE_BY_KIND = {
     # livro nao atrapalha.
     "anamnesis": ("psicopatologia", "entrevista"),
     "refinement": ("psicopatologia", "entrevista"),
+    # Mesma logica da anamnese: e extracao de cobertura a partir da
+    # transcricao, e nao decisao que precise de uma fonte so.
+    "return_assessment": ("psicopatologia", "entrevista"),
     # Nomear a sindrome exige os DOIS lados: o fenomeno e a entidade.
     # Dalgalarrondo e Cheniaux descrevem o quadro pelo fenomeno -- Cotard,
     # catatonia, delirio niilista, tracos melancolicos --, a FMUSP vol. 2
@@ -1465,7 +1571,7 @@ RAG_PATIENT_SCOPES = {"infantojuvenil", "saude-mulher"}
 KINDS_ACCEPTING_PATIENT_SCOPE = {
     "anamnesis", "refinement",
     "diagnosis", "diagnosis_review",
-    "treatment", "treatment_review", "symptomatic", "return_plan",
+    "treatment", "treatment_review", "symptomatic", "return_plan", "return_assessment",
 }
 
 
@@ -1948,6 +2054,9 @@ def validate_result(kind, result):
             if key in {"chief_complaint", "hda", "medical_history", "previous_pharmacological_treatment_report"}:
                 if not isinstance(value, str):
                     raise ValueError("Campo narrativo da anamnese invalido.")
+            elif key == "identification_suggestions":
+                if not isinstance(value, dict) or not all(isinstance(v, str) for v in value.values()):
+                    raise ValueError("Sugestoes de identificacao fora do formato esperado.")
             elif not isinstance(value, list) or not all(isinstance(item, str) for item in value):
                 raise ValueError("Campo estruturado da anamnese invalido.")
     elif kind == "mental_exam":
@@ -2123,6 +2232,22 @@ def validate_result(kind, result):
             logger.warning("sintomatico: %d conduta(s) incompleta(s) descartada(s)", len(alvos) - len(alvos_uteis))
         result["target_symptom_options"] = alvos_uteis
     elif kind == "return_plan":
+        hipoteses = result.get("hypothesis_updates")
+        if not isinstance(hipoteses, list):
+            raise ValueError("Ajuste de conduta fora do formato esperado.")
+        # Linha sem rotulo ou sem decisao nao vira caixa de assinalar. 'nova'
+        # ausente vira False -- confirmar/atualizar uma hipotese existente e o
+        # caso comum, e o padrao seguro na duvida e NAO tratar como diferencial
+        # novo.
+        hipoteses_uteis = [h for h in hipoteses
+                           if isinstance(h, dict)
+                           and isinstance(h.get("rotulo"), str) and h["rotulo"].strip()
+                           and isinstance(h.get("decisao"), str) and h["decisao"].strip()]
+        for h in hipoteses_uteis:
+            h["nova"] = bool(h.get("nova") is True)
+        if len(hipoteses_uteis) != len(hipoteses):
+            logger.warning("return_plan: %d hipotese(s) descartada(s)", len(hipoteses) - len(hipoteses_uteis))
+        result["hypothesis_updates"] = hipoteses_uteis[:8]
         acoes = result.get("medication_actions")
         if not isinstance(acoes, list):
             raise ValueError("Ajuste de conduta fora do formato esperado.")
@@ -2143,6 +2268,35 @@ def validate_result(kind, result):
         if not isinstance(condutas, list):
             raise ValueError("Ajuste de conduta fora do formato esperado.")
         result["conduct_options"] = [c.strip() for c in condutas if isinstance(c, str) and c.strip()][:6]
+    elif kind == "return_assessment":
+        for campo in ("evolucao_clinica", "adesao"):
+            if not isinstance(result.get(campo), str):
+                raise ValueError("Avaliacao de evolucao fora do formato esperado.")
+        for campo in ("efeitos", "funcionalidade_eventos"):
+            valor = result.get(campo)
+            if not isinstance(valor, list) or not all(isinstance(item, str) for item in valor):
+                raise ValueError("Avaliacao de evolucao fora do formato esperado.")
+        # Os blocos dinamicos: item sem rotulo ou sem o segundo campo e
+        # descartado, e nao derruba a resposta -- mesmo criterio do resto do
+        # arquivo. O casamento do rotulo com a linha certa da tela e todo do
+        # cliente (ver applyReturnAssessmentAiResult).
+        def bloco(nome_campo, chave_status):
+            itens = result.get(nome_campo)
+            if not isinstance(itens, list):
+                raise ValueError("Avaliacao de evolucao fora do formato esperado.")
+            uteis = [item for item in itens
+                     if isinstance(item, dict)
+                     and isinstance(item.get("rotulo"), str) and item["rotulo"].strip()
+                     and isinstance(item.get(chave_status), str) and item[chave_status].strip()]
+            if len(uteis) != len(itens):
+                logger.warning("return_assessment: %d item(ns) de %s descartado(s)", len(itens) - len(uteis), nome_campo)
+            result[nome_campo] = uteis
+        bloco("hipoteses", "evolucao")
+        bloco("criterios_pendentes", "status")
+        bloco("medicamentos", "situacao")
+        bloco("sintomas_alvo", "evolucao")
+        bloco("achados", "evolucao")
+        bloco("pendencias_refino", "status")
     elif kind == "medication_tips":
         tips = result.get("tips")
         if not isinstance(tips, list) or not all(isinstance(item, str) for item in tips):
@@ -2582,7 +2736,7 @@ def safe_plain_text(kind, result):
 # prontuario nao vira linha de log por conveniencia de depuracao. O decision_id
 # e o que costura esta linha ao que o medico viu na tela, e ele nao identifica
 # paciente nenhum -- e sorteado por chamada.
-SCHEMA_VERSION = "2026-09-23"
+SCHEMA_VERSION = "2026-09-26"
 
 
 def log_decision(**campos):

@@ -65,8 +65,13 @@ export function section(title, body, open = false) {
   return `<details class="section" ${open ? "open" : ""}><summary><strong>${title}</strong></summary><div class="section-body">${body}</div></details>`;
 }
 
-export function field(name, labelText, value = "", type = "text") {
-  return `<label>${labelText}<input name="${name}" type="${type}" value="${escapeAttr(value || "")}" /></label>`;
+// `aiFilled` marca o campo preenchido pela extracao por IA a partir da
+// transcricao (identificacao do paciente, hoje) -- mesma logica do `.chip-ai`
+// da anamnese, adaptada a campo de texto/select em vez de caixa de marcar. A
+// marca some no instante em que o medico edita o campo (ver
+// `identificationOrigin.js`).
+export function field(name, labelText, value = "", type = "text", aiFilled = false) {
+  return `<label${aiFilled ? ` class="field-ai" title="Preenchido pela extração da IA a partir da transcrição. Confira: ao editar, passa a ser seu."` : ""}>${labelText}<input name="${name}" type="${type}" value="${escapeAttr(value || "")}" /></label>`;
 }
 
 // Fone e WhatsApp no mesmo campo: teclado numerico no celular, mascara ao
@@ -80,8 +85,8 @@ export function phoneField(name, labelText, value = "") {
   </span></label>`;
 }
 
-export function selectField(name, labelText, options, value = "") {
-  return `<label>${labelText}<select name="${name}"><option value="">Selecionar</option>${options.map(option => `<option value="${escapeAttr(option)}" ${value === option ? "selected" : ""}>${escapeHtml(optionDisplayLabel(option))}</option>`).join("")}</select></label>`;
+export function selectField(name, labelText, options, value = "", aiFilled = false) {
+  return `<label${aiFilled ? ` class="field-ai" title="Preenchido pela extração da IA a partir da transcrição. Confira: ao editar, passa a ser seu."` : ""}>${labelText}<select name="${name}"><option value="">Selecionar</option>${options.map(option => `<option value="${escapeAttr(option)}" ${value === option ? "selected" : ""}>${escapeHtml(optionDisplayLabel(option))}</option>`).join("")}</select></label>`;
 }
 
 export function textarea(name, labelText, value = "", placeholder = "", rows = "") {

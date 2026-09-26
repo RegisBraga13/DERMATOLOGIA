@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { pendingCriteriaFromPrevious, returnAssessmentBody } from "../../src/views/exams.js";
+import { returnAssessmentBody } from "../../src/views/exams.js";
+import { pendingCriteriaFromPrevious } from "../../src/clinical/returnCarryover.js";
 import { returnStoryText } from "../../src/clinical/narrative.js";
 
 // A avaliacao de evolucao passou a ler o atendimento anterior em 31/08/2026.

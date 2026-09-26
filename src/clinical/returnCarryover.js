@@ -1,3 +1,5 @@
+import { CRITERION_SEPARATOR, entityName } from "./aiDiagnosisResult.js";
+import { diagnosticEtiologicalOptionLines } from "./diagnosis.js";
 import { stemsOf, termAlreadyWritten } from "./termMatch.js";
 import { arrayValue, cleanClinicalLine, normalizeText } from "./textFormat.js";
 
@@ -32,6 +34,48 @@ export function pendingRefinementItems(previous = {}) {
     });
   });
   return itens.slice(0, MAX_PENDENCIAS);
+}
+
+// AS HIPOTESES QUE EVOLUEM, e nao todas as que ele assinalou.
+//
+// A camada etiologica fica de fora. "Vulnerabilidade genetica para transtornos
+// do humor" chegou ao retorno pedindo melhora, piora ou inalterado -- e ela nao
+// e nenhuma das tres: nao evolui, nao muda, e nao ha o que responder ali. As
+// tres camadas respondem a perguntas diferentes, e so duas delas respondem "como
+// esta hoje": a nosologica diz QUAL entidade, a sindromica QUAL agrupamento --
+// as duas descrevem o quadro, e quadro melhora ou piora. A etiologica diz POR
+// QUE, e uma causa nao remite entre uma consulta e outra.
+//
+// O casamento e pelo nome da entidade porque a linha guardada carrega os codigos
+// e a etiologica declarada guarda a mesma entidade com outra formatacao.
+//
+// Movida de views/exams.js para ca (24/09/2026): so depende de outros modulos
+// clinical/, e o prompt (services/clinicalAiService.js) tambem precisa dela
+// para dizer a extracao do retorno com que rotulos casar -- e services/ nao
+// pode importar de views/ sem criar dependencia circular.
+export function returnHypothesisLabels(previous = {}) {
+  const etiologicas = new Set(diagnosticEtiologicalOptionLines(previous)
+    .map(linha => normalizeText(entityName(linha))));
+  return arrayValue(previous.diagnosticoSelecionado)
+    .filter(item => !etiologicas.has(normalizeText(entityName(item))));
+}
+
+// Le as linhas de criterio gravadas pelo diagnostico e devolve so os que
+// ficaram sem poder avaliar, com a pendencia que a IA apontou. Formato:
+// hipotese ::: criterio ::: status ::: evidencia.
+export function pendingCriteriaFromPrevious(previous = {}) {
+  return String(previous.diagnosticoAiCriterios || "").split("\n")
+    .map(linha => linha.split(CRITERION_SEPARATOR).map(parte => parte.trim()))
+    .filter(partes => partes.length === 4 && partes.every(Boolean) && partes[2] === "nao avaliavel")
+    .map(([, criterio, , pendencia]) => `${criterio} — falta: ${pendencia}`);
+}
+
+// No primeiro retorno o "anterior" e a propria consulta e as pendencias saem
+// dela; nos seguintes vem ja filtradas pela cadeia (caseViewForReturn), sem as
+// que um retorno confirmou ou descartou. Movida de views/exams.js pelo mesmo
+// motivo de returnHypothesisLabels, acima.
+export function pendingRefinementForReturn(previous = {}) {
+  return Array.isArray(previous.pendenciasRefino) ? previous.pendenciasRefino : pendingRefinementItems(previous);
 }
 
 export function analysisFindingsForReturn(previous = {}) {

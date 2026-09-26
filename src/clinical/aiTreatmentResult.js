@@ -54,6 +54,21 @@ export function treatmentSuggestionFromAi({ result = {}, target = {}, sources = 
   };
 }
 
+// Uma linha por hipotese, no mesmo espirito de returnPlanMedicationLines: a
+// linha carrega a decisao inteira, para a caixa assinalada nao virar marca sem
+// contexto no prontuario. O prefixo "Hipotese nova: " so entra quando a IA
+// marcou 'nova' -- e o que impede o medico de ler uma proposta de diferencial
+// como se fosse a confirmacao de uma hipotese que ja existia.
+export function returnPlanHypothesisLines(result = {}) {
+  return (result.hypothesis_updates || []).flatMap(item => {
+    const rotulo = String(item?.rotulo || "").trim();
+    const decisao = String(item?.decisao || "").trim();
+    if (!rotulo || !decisao) return [];
+    const prefixo = item?.nova ? "Hipótese nova: " : "";
+    return [`${prefixo}${rotulo} — ${decisao}`];
+  }).filter((linha, index, lista) => lista.indexOf(linha) === index);
+}
+
 // Uma linha por farmaco, e a linha carrega a decisao inteira: sem o "por que", a
 // caixa assinalada vira ordem sem motivo no prontuario, e o motivo e o que o
 // medico esta conferindo quando aceita ou recusa.
@@ -69,20 +84,23 @@ export function returnPlanMedicationLines(result = {}) {
 }
 
 export function returnPlanSuggestionFromAi({ result = {}, target = {}, sources = [], mode = "" }) {
+  const hipoteses = returnPlanHypothesisLines(result);
   const medicacao = returnPlanMedicationLines(result);
   const conduta = (result.conduct_options || []).map(item => String(item || "").trim()).filter(Boolean);
   return {
+    ajusteAiHipoteses: hipoteses.join("\n"),
     ajusteAiMedicacao: medicacao.join("\n"),
     ajusteAiConduta: conduta.join("\n"),
     // As escolhas anteriores sobrevivem a uma nova geracao, como no
     // Diagnostico e no Tratamento: regerar nao pode apagar o que ele ja
     // decidiu. As linhas que sumirem da nova proposta caem sozinhas, porque a
     // caixa so existe enquanto a linha existir.
+    ajusteHipotesesSelecionada: arrayValue(target?.ajusteHipotesesSelecionada),
     ajusteMedicacaoSelecionada: arrayValue(target?.ajusteMedicacaoSelecionada),
     ajusteCondutaSelecionada: arrayValue(target?.ajusteCondutaSelecionada),
     ragSourcesAjuste: sources,
-    returnPlanStatus: medicacao.length || conduta.length
-      ? `${countLabel(medicacao.length, "decisão de medicamento", "decisões de medicamento")} e ${countLabel(conduta.length, "ajuste de conduta", "ajustes de conduta")} para você assinalar. Nada entra no prontuário sem a sua marcação.`
+    returnPlanStatus: hipoteses.length || medicacao.length || conduta.length
+      ? `${countLabel(hipoteses.length, "hipótese", "hipóteses")}, ${countLabel(medicacao.length, "decisão de medicamento", "decisões de medicamento")} e ${countLabel(conduta.length, "ajuste de conduta", "ajustes de conduta")} para você assinalar. Nada entra no prontuário sem a sua marcação.`
       : "A IA não propôs ajuste algum. Verifique se o atendimento anterior tem medicamento assinalado."
   };
 }

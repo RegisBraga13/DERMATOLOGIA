@@ -2803,6 +2803,22 @@ textarea:focus-visible {
 .ai-origin-legend { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 12px; padding: 10px 12px; border-radius: var(--radius); border: 1px dashed color-mix(in srgb, var(--primary-2) 55%, var(--line)); color: var(--muted); line-height: 1.45; }
 .ai-origin-legend .chip { pointer-events: none; padding: 2px 8px; font-size: 12px; }
 
+/* Mesma marca do `.chip-ai`, para campo de texto/select em vez de caixa de
+   marcar -- identificacao do paciente preenchida pela extracao da IA. */
+.field-ai input, .field-ai select { border-style: dashed; border-color: var(--primary-2); }
+.field-ai { position: relative; }
+.field-ai::after {
+  content: "IA";
+  position: absolute;
+  top: -6px; right: 8px;
+  font-size: 9px; font-weight: 700; letter-spacing: .04em;
+  color: var(--primary-2);
+  background: var(--surface);
+  padding: 0 3px;
+  border-radius: 4px;
+  line-height: 1.4;
+}
+
 /* Atalho de quem chega com o diagnostico pronto. Cartao discreto: e desvio do
    fluxo, nao a acao principal da pagina. */
 .shortcut-card .actions { margin-top: 10px; }

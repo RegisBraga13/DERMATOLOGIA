@@ -1,10 +1,8 @@
-import { CRITERION_SEPARATOR, entityName } from "../clinical/aiDiagnosisResult.js";
-import { diagnosticEtiologicalOptionLines } from "../clinical/diagnosis.js";
-import { analysisFindingsForReturn, pendingRefinementItems } from "../clinical/returnCarryover.js";
-import { arrayValue, normalizeText } from "../clinical/textFormat.js";
+import { analysisFindingsForReturn, pendingCriteriaFromPrevious, pendingRefinementForReturn, returnHypothesisLabels } from "../clinical/returnCarryover.js";
+import { arrayValue } from "../clinical/textFormat.js";
 import { MENTAL_EXAM_KEYS, MENTAL_EXAM_NORMAL_OPTIONS } from "../clinical/vocabulary.js";
 import { optionGroups } from "../data/examOptions.js";
-import { chips, singleChoiceWithNotes, textarea } from "../ui/controls.js";
+import { chips, singleChoiceWithNotes, textarea, voiceTextarea } from "../ui/controls.js";
 import { escapeAttr, escapeHtml } from "../ui/html.js";
 
 export function consultationAccessPanel(consultations, form) {
@@ -60,6 +58,11 @@ export const EVOLUCAO_OPCOES = ["Inalterado", "Melhora parcial", "Melhora", "Pio
 
 export function returnAssessmentBody(form, previous = null) {
   return `
+    <div class="clinical-card">
+      <h4>Conversa deste retorno</h4>
+      <div class="online-status">O microfone grava a conversa inteira. Ao encerrar, a transcrição preenche os campos abaixo sem avançar a página.</div>
+      ${voiceTextarea("relatoRetorno", "Transcrição integral da conversa", form.relatoRetorno)}
+    </div>
     ${singleChoiceWithNotes("evolucaoClinicaRetorno", "Evolucao clinica", EVOLUCAO_OPCOES, form.evolucaoClinicaRetorno, form)}
     ${singleChoiceWithNotes("adesao", "Adesao ao tratamento", ["Adequada", "Parcial ou irregular", "Não iniciou ou interrompeu"], form.adesao)}
     ${chips("efeitos", "Efeitos colaterais", ["Nenhum", "Sedacao ou sonolencia", "Sintomas gastrointestinais", "Alteracao de peso ou metabolica", "Efeitos motores", "Disfuncao sexual", "Outro"], form.efeitos, form)}
@@ -94,25 +97,6 @@ function radioOther(name, opcao, valor = "", marcado = false) {
     <label class="chip"><input type="radio" name="${name}" value="${escapeAttr(opcao)}" ${marcado ? "checked" : ""}>${escapeHtml(opcao)}</label>
     <input class="chip-note" type="text" name="${name}Outro" value="${escapeAttr(valor)}" placeholder="Descreva" aria-label="Descreva o outro" />
   </div>`;
-}
-
-// AS HIPOTESES QUE EVOLUEM, e nao todas as que ele assinalou.
-//
-// A camada etiologica fica de fora. "Vulnerabilidade genetica para transtornos
-// do humor" chegou ao retorno pedindo melhora, piora ou inalterado -- e ela nao
-// e nenhuma das tres: nao evolui, nao muda, e nao ha o que responder ali. As
-// tres camadas respondem a perguntas diferentes, e so duas delas respondem "como
-// esta hoje": a nosologica diz QUAL entidade, a sindromica QUAL agrupamento --
-// as duas descrevem o quadro, e quadro melhora ou piora. A etiologica diz POR
-// QUE, e uma causa nao remite entre uma consulta e outra.
-//
-// O casamento e pelo nome da entidade porque a linha guardada carrega os codigos
-// e a etiologica declarada guarda a mesma entidade com outra formatacao.
-export function returnHypothesisLabels(previous = {}) {
-  const etiologicas = new Set(diagnosticEtiologicalOptionLines(previous)
-    .map(linha => normalizeText(entityName(linha))));
-  return arrayValue(previous.diagnosticoSelecionado)
-    .filter(item => !etiologicas.has(normalizeText(entityName(item))));
 }
 
 // Nada em branco sai da Evolucao, decisao dele em 02/09/2026: "garanta que eu
@@ -201,23 +185,6 @@ function previousCaseBlocks(form, previous) {
   ].filter(Boolean);
   if (!blocos.length) return "";
   return `<div class="return-case-blocks">${blocos.join("")}</div>`;
-}
-
-// No primeiro retorno o "anterior" e a propria consulta e as pendencias saem
-// dela; nos seguintes vem ja filtradas pela cadeia (caseViewForReturn), sem as
-// que um retorno confirmou ou descartou.
-function pendingRefinementForReturn(previous = {}) {
-  return Array.isArray(previous.pendenciasRefino) ? previous.pendenciasRefino : pendingRefinementItems(previous);
-}
-
-// Le as linhas de criterio gravadas pelo diagnostico e devolve so os que
-// ficaram sem poder avaliar, com a pendencia que a IA apontou. Formato:
-// hipotese ::: criterio ::: status ::: evidencia.
-export function pendingCriteriaFromPrevious(previous = {}) {
-  return String(previous.diagnosticoAiCriterios || "").split("\n")
-    .map(linha => linha.split(CRITERION_SEPARATOR).map(parte => parte.trim()))
-    .filter(partes => partes.length === 4 && partes.every(Boolean) && partes[2] === "nao avaliavel")
-    .map(([, criterio, , pendencia]) => `${criterio} — falta: ${pendencia}`);
 }
 
 export function mentalExamBody(form) {

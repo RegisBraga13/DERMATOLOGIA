@@ -1,4 +1,4 @@
-import { formatDiarizedTranscript, preferredRecordingMimeType, requestConsultationTranscription, showMicrophonePermissionHelp } from "../services/voiceService.js";
+import { countDistinctSpeakers, formatDiarizedTranscript, preferredRecordingMimeType, requestConsultationTranscription, showMicrophonePermissionHelp } from "../services/voiceService.js";
 
 // Gravacao da consulta inteira, tirada do App.js.
 //
@@ -11,7 +11,7 @@ import { formatDiarizedTranscript, preferredRecordingMimeType, requestConsultati
 // Recebe as dependencias em vez de importa-las porque elas sao o estado vivo do
 // App.js — o rascunho da consulta, o formulario na tela. Passar por parametro
 // deixa a fronteira explicita: e esta lista, e nada alem dela.
-export function createVoiceRecording({ app, getDraft, updateDraftFromForm, defaultConsultation, processAnamnesisTranscriptSilently }) {
+export function createVoiceRecording({ app, getDraft, updateDraftFromForm, defaultConsultation, processAnamnesisTranscriptSilently, defaultReturn, processReturnTranscriptSilently }) {
   let recorder = null;
   let stream = null;
   let chunks = [];
@@ -154,16 +154,28 @@ export function createVoiceRecording({ app, getDraft, updateDraftFromForm, defau
           fieldElement.value = transcript;
           updateDraftFromForm(fieldElement.closest("form"));
           const draft = getDraft();
-          const target = draft.consultation || defaultConsultation();
-          target.qphda = transcript;
-          target.anamnesisInputMode = "microphone";
+          // "relatoRetorno" e a mesma gravacao da conversa inteira, so que na
+          // tela do retorno: mesmo fluxo de permissao/blob/transcricao, o que
+          // muda e o rascunho que recebe o texto e quem processa em seguida.
+          const isReturnField = targetName === "relatoRetorno";
+          const target = isReturnField ? (draft.return || defaultReturn()) : (draft.consultation || defaultConsultation());
+          target[targetName] = transcript;
           target.transcriptionSegments = transcription.segments;
           target.transcriptionDuration = transcription.duration;
           target.transcribedAt = new Date().toISOString();
-          target.anamnesisDoctorTextOverrides = { ...(target.anamnesisDoctorTextOverrides || {}), qphda: false };
-          draft.consultation = target;
-          setVoiceStatus(button, "Transcrição concluída. Analisando a anamnese com a literatura…", "requesting");
-          if (targetName === "qphda") await processAnamnesisTranscriptSilently(transcript, { preserveFocus: false });
+          if (isReturnField) {
+            draft.return = target;
+          } else {
+            target.anamnesisInputMode = "microphone";
+            target.anamnesisDoctorTextOverrides = { ...(target.anamnesisDoctorTextOverrides || {}), qphda: false };
+            // Pista determinística para o card de acompanhante: nunca um
+            // palpite de identidade, so a contagem de vozes distintas.
+            target.multipleSpeakersDetected = countDistinctSpeakers(transcription.segments) > 2;
+            draft.consultation = target;
+          }
+          setVoiceStatus(button, isReturnField ? "Transcrição concluída. Analisando a evolução com a literatura…" : "Transcrição concluída. Analisando a anamnese com a literatura…", "requesting");
+          if (isReturnField) await processReturnTranscriptSilently(transcript, { preserveFocus: false });
+          else await processAnamnesisTranscriptSilently(transcript, { preserveFocus: false });
           setVoiceStatus(app.querySelector(`[data-action='voice'][data-target='${targetName}']`), "Conversa transcrita e campos atualizados. Revise antes de salvar.", "done");
         } catch (error) {
           setVoiceStatus(button, error.message || "Não foi possível transcrever a conversa", "error");

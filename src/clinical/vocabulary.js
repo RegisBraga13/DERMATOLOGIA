@@ -411,6 +411,20 @@ export const ANAMNESIS_AI_FIELDS = {
   functional_impact: ["impacto", optionGroups.impacto]
 };
 
+// Identificacao do paciente que pode surgir na fala espontanea durante a
+// anamnese -- nome social, data de nascimento, ocupacao, religiao, estado
+// civil, CEP. Mesmo formato de ANAMNESIS_AI_FIELDS: [chave do formulario,
+// opcoes permitidas ou null]. `null` marca campo de texto/formato livre (nome
+// social, data, CEP), onde nao ha lista fechada para casar.
+export const IDENTIFICATION_AI_FIELDS = {
+  nome_social: ["nomeSocial", null],
+  nascimento: ["nascimento", null],
+  ocupacao: ["ocupacao", null],
+  religiao: ["religiao", optionGroups.religiao],
+  estado_civil: ["estadoCivil", optionGroups.estadoCivil],
+  cep: ["cep", null]
+};
+
 // O que o resumo registra quando o medico nao marcou nada no dominio. Mesma
 // decisao do exame fisico: ausencia de marcacao significa exame sem alteracao,
 // e o prontuario passa a dizer isso em vez de deixar a celula muda.

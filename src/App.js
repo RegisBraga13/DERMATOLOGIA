@@ -1,6 +1,8 @@
 import { returnPlanSuggestionFromAi, treatmentSuggestionFromAi } from "./clinical/aiTreatmentResult.js";
 import { createDraftGuard } from "./clinical/draftGuard.js";
 import { anamnesisAiMarks, hasAiMarks, withoutAiMarks } from "./clinical/anamnesisOrigin.js";
+import { hasIdentificationAiMarks, withoutIdentificationAiMark } from "./clinical/identificationOrigin.js";
+import { analysisFindingsForReturn, pendingCriteriaFromPrevious, pendingRefinementForReturn, returnHypothesisLabels } from "./clinical/returnCarryover.js";
 import { createAiOperations } from "./clinical/aiOperations.js";
 import { createUnsavedWork } from "./clinical/unsavedWork.js";
 import { statusFailure } from "./clinical/statusTone.js";
@@ -10,7 +12,7 @@ import { anamnesisText, buildEvolutionNarrative, evolutionNeedsRebuild, evolutio
 import { loadProtocol, protocolLoaded, protocolScopeQuestions } from "./clinical/protocol.js";
 import { formatPhone, whatsappLink } from "./clinical/phone.js";
 import { arrayValue, joinValues, lowerFirst, normalizeText, stripFinalPeriod } from "./clinical/textFormat.js";
-import { ANAMNESIS_AI_FIELDS, orderedAnamnesisSections, pagesForScope, TELECONSULTA_CONSENTIMENTO } from "./clinical/vocabulary.js";
+import { ANAMNESIS_AI_FIELDS, IDENTIFICATION_AI_FIELDS, orderedAnamnesisSections, pagesForScope, TELECONSULTA_CONSENTIMENTO } from "./clinical/vocabulary.js";
 import { optionGroups } from "./data/examOptions.js";
 import { targetSymptomOptions } from "./data/targetSymptoms.js";
 import { fetchCep } from "./services/cepService.js";
@@ -25,8 +27,9 @@ import { createVoiceRecording } from "./ui/voiceRecording.js";
 import { clipboardIcon, folderIcon, homeIcon, lockIcon, personIcon, repeatIcon, themeIcon } from "./ui/icons.js";
 import { clinicalSummaryGroups, clinicalSummaryPage } from "./views/clinicalSummary.js";
 import { aiModeSelector, diagnosisModule, evolutionBody, ragSourcesView, returnPlanModule, returnPlanSettled, treatmentAiMode, treatmentModule } from "./views/decisions.js";
-import { consultationAccessPanel, mentalExamBody, mentalExamNormalFill, missingReturnAssessment, neurologicExamBody, recordReturnAction, returnAssessmentBody } from "./views/exams.js";
+import { consultationAccessPanel, EVOLUCAO_OPCOES, mentalExamBody, mentalExamNormalFill, missingReturnAssessment, neurologicExamBody, recordReturnAction, returnAssessmentBody } from "./views/exams.js";
 import { caregiverHistoryCard, reproductiveHistoryCard } from "./views/lifeStageBlocks.js";
+import { companionCard } from "./views/companion.js";
 import { lifeStageOf, mayBePregnant, needsCaregiverHistory, needsReproductiveHistory, ragPatientScopes } from "./clinical/lifeStage.js";
 import { bookChapterView, medicationReferenceCard } from "./views/medication.js";
 import { scalesBody, scaleResultView, scaleTrendsView } from "./views/scales.js";
@@ -100,7 +103,9 @@ const voiceRecording = createVoiceRecording({
   getDraft: () => draft,
   updateDraftFromForm,
   defaultConsultation,
-  processAnamnesisTranscriptSilently
+  processAnamnesisTranscriptSilently,
+  defaultReturn,
+  processReturnTranscriptSilently
 });
 const RECORD_SEARCH_TEXT_CACHE = new WeakMap();
 const ENTRY_TIMESTAMP_CACHE = new WeakMap();
@@ -286,33 +291,40 @@ function renderView() {
 
 function patientForm() {
   const patient = draft.patient || {};
+  const marcas = patient.identificationAiMarks || {};
   return `
     <div class="panel-title">
       <div><h2>Novo Paciente</h2></div>
       ${patientSelector("edit-patient")}
     </div>
+    ${hasIdentificationAiMarks(marcas) ? `
+      <p class="ai-origin-legend" role="status">
+        Campos com esta marca foram preenchidos pela extração da IA a partir da transcrição da consulta e ainda não foram conferidos por você. A marca sai quando você edita o campo.
+      </p>
+    ` : ""}
     <form id="patient-form">
       <div class="grid patient-grid">
         ${field("nome", "Nome completo", patient.nome)}
+        ${field("nomeSocial", "Nome social / como prefere ser chamado(a)", patient.nomeSocial, "text", Boolean(marcas.nomeSocial))}
         ${selectField("sexo", "Sexo", optionGroups.sexo, patient.sexo)}
         ${selectField("genero", "Identidade de gênero", optionGroups.genero, patient.genero)}
-        ${field("nascimento", "Data de nascimento", patient.nascimento, "date")}
-        ${selectField("estadoCivil", "Estado civil", optionGroups.estadoCivil, patient.estadoCivil)}
-        ${field("ocupacao", "Ocupacao", patient.ocupacao)}
+        ${field("nascimento", "Data de nascimento", patient.nascimento, "date", Boolean(marcas.nascimento))}
+        ${selectField("estadoCivil", "Estado civil", optionGroups.estadoCivil, patient.estadoCivil, Boolean(marcas.estadoCivil))}
+        ${field("ocupacao", "Ocupacao", patient.ocupacao, "text", Boolean(marcas.ocupacao))}
         ${selectField("escolaridade", "Escolaridade", optionGroups.escolaridade, patient.escolaridade)}
-        ${selectField("religiao", "Religiao", optionGroups.religiao, patient.religiao)}
+        ${selectField("religiao", "Religiao", optionGroups.religiao, patient.religiao, Boolean(marcas.religiao))}
         ${field("email", "E-mail", patient.email, "email")}
         ${phoneField("telefone", "Fone/WhatsApp", patient.telefone)}
         ${field("emergencia", "Nome e contato de emergencia", patient.emergencia)}
       </div>
       <div class="address-card">
         <div class="address-grid">
-          ${field("cep", "CEP", patient.cep)}
-          ${field("endereco", "Endereco", patient.endereco)}
+          ${field("cep", "CEP", patient.cep, "text", Boolean(marcas.cep))}
+          ${field("endereco", "Endereco", patient.endereco, "text", Boolean(marcas.endereco))}
           ${field("numero", "Numero", patient.numero)}
-          ${field("bairro", "Bairro", patient.bairro)}
-          ${field("cidade", "Cidade", patient.cidade)}
-          ${field("estado", "UF", patient.estado)}
+          ${field("bairro", "Bairro", patient.bairro, "text", Boolean(marcas.bairro))}
+          ${field("cidade", "Cidade", patient.cidade, "text", Boolean(marcas.cidade))}
+          ${field("estado", "UF", patient.estado, "text", Boolean(marcas.estado))}
           ${field("complemento", "Complemento", patient.complemento)}
         </div>
       </div>
@@ -491,6 +503,7 @@ function consultationPageBody(form, patient) {
         </div>
       `}
     </div>
+    ${companionCard(form)}
     <div class="clinical-card shortcut-card">
       <h4>Paciente com diagnóstico já definido</h4>
       <p class="field-hint">Salva o que estiver nesta página e vai direto ao Diagnóstico, para você escrever a hipótese e seguir ao Tratamento. As páginas intermediárias ficam liberadas e podem ser preenchidas depois, pelas abas.</p>
@@ -915,6 +928,8 @@ function bindGlobalEvents() {
 function bindViewEvents() {
   bindAutoDraft();
   paintAnamnesisAiMarks();
+  paintIdentificationAiMarks();
+  paintReturnAssessmentAiMarks();
   paintAiBusyState();
   bindAutoExpandingTextareas();
   bindMedicationLookup();
@@ -1117,6 +1132,12 @@ function bindAutoDraft() {
         target.anamnesisDoctorTextOverrides = { ...(target.anamnesisDoctorTextOverrides || {}), [event.target.name]: true };
         draft.consultation = target;
       }
+      // Editar um campo de identificacao marcado pela IA e a decisao dele por
+      // cima da dela: a marca sai no mesmo instante, sem esperar render().
+      if (form.id === "patient-form" && draft.patient?.identificationAiMarks?.[event.target?.name]) {
+        draft.patient.identificationAiMarks = withoutIdentificationAiMark(draft.patient.identificationAiMarks, event.target.name);
+        paintIdentificationAiMarks();
+      }
     });
     form.addEventListener("change", event => {
       clinicalDraftRevision += 1;
@@ -1146,6 +1167,7 @@ function bindAutoDraft() {
         return;
       }
       recordAnamnesisDoctorOverride(event.target);
+      recordReturnAssessmentDoctorOverride(event.target);
       if (event.target?.name === "examesSolicitados") {
         const hiddenExams = form.querySelector("textarea[name='examesLaboratoriais']");
         if (hiddenExams) hiddenExams.value = requestedExamsText(currentClinicalDraft() || {});
@@ -1166,13 +1188,16 @@ function bindAutoDraft() {
       // "ajusteAcrescimo" entra por `change`, e nao por `input`: redesenhar a
       // cada tecla tiraria o cursor de dentro do campo. Ao sair dele, o texto
       // aparece.
-      if (["ajusteMedicacaoSelecionada", "ajusteCondutaSelecionada", "ajusteAcrescimo"].includes(event.target?.name)) {
+      if (["ajusteHipotesesSelecionada", "ajusteMedicacaoSelecionada", "ajusteCondutaSelecionada", "ajusteAcrescimo"].includes(event.target?.name)) {
         render();
         return;
       }
       // A resposta da gestacao abre o campo seguinte -- data da DUM, ou o aviso
       // do beta-hCG. Sem redesenhar, a pergunta que ela levanta nao aparece.
       if (event.target?.name === "gravidez") { render(); return; }
+      // Responder se havia acompanhante abre (ou fecha) o vinculo, o nome e
+      // quem informou -- e apaga o aviso de multiplas vozes, se ele estava la.
+      if (event.target?.name === "acompanhantePresente") { render(); return; }
       // Trocar a fonte da resposta no Tratamento muda a propria barra de acoes:
       // Guidelines nao tem Refinar. Sem redesenhar, o botao ficaria na tela
       // depois de escolhido o modo que nao o tem -- e a tela ofereceria uma
@@ -2264,6 +2289,63 @@ function applyAnamnesisAiResult(result = {}, transcript = "") {
   draft.consultation = target;
 }
 
+// Preenche na ficha do paciente so o que a transcricao trouxe e o cadastro
+// ainda nao tinha -- nome social, nascimento, ocupacao, religiao, estado
+// civil, CEP. Escreve direto em state.patients (via getPatient()), nunca em
+// draft.patient: durante uma consulta em andamento draft.patient pode nao
+// existir ou estar desatualizado, mas toda tela que abre o cadastro relê de
+// getPatient(). Grava na hora (persist()) porque o cadastro tem ciclo de
+// salvamento proprio, que a consulta em andamento nao toca -- sem isso, o
+// dado extraido se perderia se a sessao terminasse antes de o medico abrir a
+// aba Paciente.
+async function applyIdentificationAiResult(suggestions = {}) {
+  const current = getPatient();
+  if (!current || !suggestions || typeof suggestions !== "object") return;
+  const patient = { ...current };
+  const marks = { ...(patient.identificationAiMarks || {}) };
+  let changed = false;
+  const setIfBlank = (campo, valor) => {
+    if (String(patient[campo] || "").trim()) return false;
+    const texto = String(valor || "").trim();
+    if (!texto) return false;
+    patient[campo] = texto;
+    marks[campo] = true;
+    changed = true;
+    return true;
+  };
+  setIfBlank("nomeSocial", suggestions.nome_social);
+  setIfBlank("ocupacao", suggestions.ocupacao);
+  // Data parcial ("marco de 1980") nao preenche: preferimos vazio a chutar dia.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(suggestions.nascimento || "").trim())) {
+    setIfBlank("nascimento", suggestions.nascimento);
+  }
+  // Sem lista fixa que bata, a proposta e descartada: os selects de religiao e
+  // estado civil nao tem "Outro" para guardar um texto fora da lista.
+  const religiao = canonicalAiSelections([suggestions.religiao], optionGroups.religiao)[0];
+  if (religiao) setIfBlank("religiao", religiao);
+  const estadoCivil = canonicalAiSelections([suggestions.estado_civil], optionGroups.estadoCivil)[0];
+  if (estadoCivil) setIfBlank("estadoCivil", estadoCivil);
+  const cepDigits = String(suggestions.cep || "").replace(/\D/g, "");
+  if (cepDigits.length === 8 && setIfBlank("cep", cepDigits)) {
+    try {
+      const address = await fetchCep(cepDigits);
+      setIfBlank("endereco", address.endereco);
+      setIfBlank("bairro", address.bairro);
+      setIfBlank("cidade", address.cidade);
+      setIfBlank("estado", address.estado);
+    } catch {
+      // CEP incompleto/invalido: falha silenciosa, mesmo comportamento do
+      // blur manual em bindPatientForm.
+    }
+  }
+  if (!changed) return;
+  patient.identificationAiMarks = marks;
+  patient.updatedAt = new Date().toISOString();
+  state.patients = state.patients.map(item => item.id === patient.id ? patient : item);
+  if (draft.patient?.id === patient.id) draft.patient = structuredClone(patient);
+  persist();
+}
+
 // A marca de origem e aplicada no DOM depois de desenhar, e nao dentro do HTML
 // dos chips. Duas razoes: as caixas da anamnese saem de tres renderizadores
 // diferentes (chips, multipleChoiceField, suicideRiskFields) e passar a marca
@@ -2310,6 +2392,58 @@ function paintAnamnesisAiMarks() {
   });
 }
 
+// Mesma ideia de paintAnamnesisAiMarks, para a Avaliacao de evolucao do
+// retorno. Aqui a marca e por CAMPO (nao por "campo:opcao"): a regra "so
+// preenche linha em branco" ja garante que todo campo marcado veio da IA, e um
+// campo radio so tem uma opcao marcada por vez, entao nao ha o que
+// reconciliar -- a mesma razao pela qual identificationOrigin.js dispensa a
+// logica de anamnesisOrigin.js.
+function paintReturnAssessmentAiMarks() {
+  if (view !== "return" || returnPage !== "evolucao-retorno") return;
+  const form = app.querySelector("#return-form");
+  if (!form) return;
+  const marcas = (draft.return || {}).returnAssessmentAiMarks || {};
+  form.querySelectorAll("input[type='radio'], input[type='checkbox']").forEach(control => {
+    if (!control.name) return;
+    const chip = control.closest(".chip");
+    if (!chip) return;
+    const daIa = control.checked && Boolean(marcas[control.name]);
+    chip.classList.toggle("chip-ai", daIa);
+    if (daIa) chip.title = "Preenchido pela extração da IA a partir da transcrição. Confira: ao tocar, passa a ser seu.";
+    else if (chip.title.startsWith("Preenchido pela extração")) chip.removeAttribute("title");
+  });
+}
+
+function recordReturnAssessmentDoctorOverride(control) {
+  if (view !== "return" || returnPage !== "evolucao-retorno" || !control?.name) return;
+  const target = draft.return || defaultReturn();
+  if (!target.returnAssessmentAiMarks?.[control.name]) return;
+  target.returnAssessmentAiMarks = withoutIdentificationAiMark(target.returnAssessmentAiMarks, control.name);
+  draft.return = target;
+  paintReturnAssessmentAiMarks();
+}
+
+const IDENTIFICATION_MARK_FIELDS = ["nomeSocial", "nascimento", "ocupacao", "religiao", "estadoCivil", "cep", "endereco", "bairro", "cidade", "estado"];
+
+// Mesma ideia de paintAnamnesisAiMarks, para campo de texto/select em vez de
+// caixa de marcar: toggle direto no DOM, sem render(), para nao tirar o
+// cursor do campo que o medico esta editando.
+function paintIdentificationAiMarks() {
+  if (view !== "patient") return;
+  const form = app.querySelector("#patient-form");
+  if (!form) return;
+  const marcas = (draft.patient || {}).identificationAiMarks || {};
+  IDENTIFICATION_MARK_FIELDS.forEach(campo => {
+    const control = form.querySelector(`[name="${CSS.escape(campo)}"]`);
+    const label = control?.closest("label");
+    if (!label) return;
+    const daIa = Boolean(marcas[campo]);
+    label.classList.toggle("field-ai", daIa);
+    if (daIa) label.title = "Preenchido pela extração da IA a partir da transcrição. Confira: ao editar, passa a ser seu.";
+    else if (label.title.startsWith("Preenchido pela extração")) label.removeAttribute("title");
+  });
+}
+
 // Ate 23/09/2026 isto restaurava o scroll em ate quatro tentativas escalonadas
 // (imediata, requestAnimationFrame, 120ms, 450ms), porque a badge "IA" era
 // `::before` dentro do fluxo do chip e engordava a caixa ao marcar varias de
@@ -2345,8 +2479,92 @@ async function processAnamnesisTranscriptSilently(transcript = "", options = {})
   const { result } = await requestClinicalAi("anamnesis", buildClinicalAiPrompt("anamnesis", anamnesisTarget, context.patient), "rag", buildRagQuery("anamnesis", anamnesisTarget), "", "", ragPatientScopes(context.patient));
   if (sequence !== anamnesisProcessingSequence || view !== "consultation" || baselineRevision !== clinicalDraftRevision || !vigente()) return;
   applyAnamnesisAiResult(result, cleanTranscript);
+  await applyIdentificationAiResult(result.identification_suggestions);
   if (options.preserveFocus) syncAnamnesisControlsFromDraft();
   else render();
+}
+
+// Mesma extracao por voz, agora para a conversa do retorno: transcreve, e a IA
+// distribui o que foi dito pelos campos da Avaliacao de evolucao -- espinha
+// fixa e blocos dinamicos do atendimento anterior. Espelha
+// processAnamnesisTranscriptSilently linha por linha; a diferenca e o kind, o
+// escopo do contexto e o aplicador.
+async function processReturnTranscriptSilently(transcript = "", options = {}) {
+  const cleanTranscript = String(transcript || "").trim();
+  if (!cleanTranscript || view !== "return") return;
+  const sequence = ++anamnesisProcessingSequence;
+  const baselineRevision = clinicalDraftRevision;
+  const vigente = draftGuard.capture();
+  const context = clinicalAiContext("return");
+  const returnTarget = { ...context.target, relatoRetorno: cleanTranscript };
+  const { result } = await requestClinicalAi("return_assessment", buildClinicalAiPrompt("return_assessment", returnTarget, context.patient, context.previous, true), "rag", buildRagQuery("return_assessment", returnTarget), "", "", ragPatientScopes(context.patient));
+  if (sequence !== anamnesisProcessingSequence || view !== "return" || baselineRevision !== clinicalDraftRevision || !vigente()) return;
+  applyReturnAssessmentAiResult(result, context.previous, cleanTranscript);
+  render();
+}
+
+// Mesmas opcoes de previousCaseRow, em views/exams.js -- os blocos dinamicos
+// tem de casar com a MESMA lista de status que a tela usa para desenhar cada
+// linha, senao a extracao proporia um valor que o radio nem sabe marcar.
+const RETORNO_CRITERIO_STATUS = ["Confirmado", "Descartado", "Ainda não avaliado"];
+const RETORNO_FARMACO_STATUS = ["Em uso como prescrito", "Em uso com dose alterada", "Interrompeu", "Nunca iniciou"];
+
+// Os seis blocos dinamicos da Avaliacao de evolucao, na mesma ordem e com os
+// mesmos rotulos que previousCaseBlocks (views/exams.js) usa para desenhar as
+// linhas -- e o mesmo casamento por rotulo que o prompt recebeu
+// (returnAssessmentPromptData, em clinicalAiService.js).
+function returnAssessmentDynamicGroups(previous) {
+  return [
+    ["retornoHipotese", returnHypothesisLabels(previous || {}), "hipoteses", "evolucao", EVOLUCAO_OPCOES],
+    ["retornoCriterio", pendingCriteriaFromPrevious(previous || {}), "criterios_pendentes", "status", RETORNO_CRITERIO_STATUS],
+    ["retornoFarmaco", arrayValue(previous?.tratamentoMedicamentosSelecionados), "medicamentos", "situacao", RETORNO_FARMACO_STATUS],
+    ["retornoAlvo", arrayValue(previous?.sintomasAlvoSelecionados), "sintomas_alvo", "evolucao", EVOLUCAO_OPCOES],
+    ["retornoAchado", analysisFindingsForReturn(previous || {}), "achados", "evolucao", EVOLUCAO_OPCOES],
+    ["retornoPendencia", pendingRefinementForReturn(previous || {}), "pendencias_refino", "status", RETORNO_CRITERIO_STATUS]
+  ];
+}
+
+// Preenche na Avaliacao de evolucao so o que a conversa trouxe e a linha ainda
+// nao tinha resposta -- espinha fixa (evolucao, adesao, efeitos,
+// funcionalidade) e cada linha dos blocos dinamicos, casada pelo rotulo exato.
+// Ao contrario da identificacao, aqui o alvo (draft.return) e o mesmo objeto
+// vivo da tela: nao ha registro separado para redirecionar.
+function applyReturnAssessmentAiResult(result = {}, previous = null, transcript = "") {
+  const target = draft.return || defaultReturn();
+  target.relatoRetorno = transcript || target.relatoRetorno || "";
+  const marks = { ...(target.returnAssessmentAiMarks || {}) };
+  let changed = false;
+  const setIfBlank = (campo, valorBruto, opcoesPermitidas) => {
+    if (arrayValue(target[campo]).filter(Boolean).length) return;
+    const casado = canonicalAiSelections([valorBruto], opcoesPermitidas)[0];
+    if (!casado) return;
+    target[campo] = casado;
+    marks[campo] = true;
+    changed = true;
+  };
+  const setChipsIfBlank = (campo, valores, opcoesPermitidas) => {
+    if (arrayValue(target[campo]).filter(Boolean).length) return;
+    const casados = canonicalAiSelections(valores, opcoesPermitidas);
+    if (!casados.length) return;
+    target[campo] = casados;
+    marks[campo] = true;
+    changed = true;
+  };
+  setIfBlank("evolucaoClinicaRetorno", result.evolucao_clinica, EVOLUCAO_OPCOES);
+  setIfBlank("adesao", result.adesao, ["Adequada", "Parcial ou irregular", "Não iniciou ou interrompeu"]);
+  setChipsIfBlank("efeitos", result.efeitos, ["Nenhum", "Sedacao ou sonolencia", "Sintomas gastrointestinais", "Alteracao de peso ou metabolica", "Efeitos motores", "Disfuncao sexual", "Outro"]);
+  setChipsIfBlank("funcionalidadeEventosRetorno", result.funcionalidade_eventos, ["Nenhum", "Prejuizo funcional", "Conflito, estressor ou luto", "Urgencia ou internacao", "Outro"]);
+  returnAssessmentDynamicGroups(previous).forEach(([prefixo, rotulos, chaveResultado, chaveStatus, opcoesPermitidas]) => {
+    const rotulosNormalizados = rotulos.map(normalizeText);
+    (result[chaveResultado] || []).forEach(item => {
+      const index = rotulosNormalizados.indexOf(normalizeText(item?.rotulo || ""));
+      if (index === -1) return;
+      setIfBlank(`${prefixo}_${index}`, item[chaveStatus], opcoesPermitidas);
+    });
+  });
+  if (!changed) return;
+  target.returnAssessmentAiMarks = marks;
+  draft.return = target;
 }
 
 // Abaixo deste limiar o bloco fica de fora do Refinamento. Baixo de proposito

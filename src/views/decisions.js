@@ -508,9 +508,10 @@ function optionLabelBody(option) {
 // alguma. Caixa ja marcada e mais facil de deixar passar do que campo vazio --
 // o custo de errar aqui e uma receita.
 export function returnPlanModule(form) {
+  const hipoteses = treatmentOptionLines(form.ajusteAiHipoteses);
   const medicacao = treatmentOptionLines(form.ajusteAiMedicacao);
   const conduta = treatmentOptionLines(form.ajusteAiConduta);
-  const gerado = medicacao.length || conduta.length;
+  const gerado = hipoteses.length || medicacao.length || conduta.length;
   return `
     <div class="diagnosis-ai-panel">
       ${aiModeSelector(form.returnPlanAiMode || "rag", "returnPlanAiMode", { guidelines: true })}
@@ -522,6 +523,15 @@ export function returnPlanModule(form) {
     </div>
     ${riscoAgudoView(scaleAcuteRisk(form), "deste retorno", "O retorno não tem nível de cuidado próprio: se a conduta seguir ambulatorial, registre a razão em Acrescentar.")}
     <div class="treatment-card-grid">
+      <div class="treatment-card">
+        <h4>Hipóteses diagnósticas</h4>
+        <textarea hidden name="ajusteAiHipoteses">${escapeHtml(hipoteses.join("\n"))}</textarea>
+        <div class="diagnosis-options">
+          ${hipoteses.length
+            ? treatmentOptionCheckboxes("ajusteHipotesesSelecionada", hipoteses, arrayValue(form.ajusteHipotesesSelecionada))
+            : `<p class="diagnosis-empty">${gerado ? "Nenhuma hipótese do atendimento anterior a confirmar." : "As hipóteses aparecerão após a geração."}</p>`}
+        </div>
+      </div>
       <div class="treatment-card">
         <h4>Medicação</h4>
         <textarea hidden name="ajusteAiMedicacao">${escapeHtml(medicacao.join("\n"))}</textarea>
@@ -560,7 +570,8 @@ export function returnPlanModule(form) {
 // Escrever no "Acrescentar" tambem conta como ajuste: e a saida para o caso em
 // que a IA nao propos nada de util e a conduta e toda dele.
 export function returnPlanSettled(form = {}) {
-  return arrayValue(form.ajusteMedicacaoSelecionada).length > 0
+  return arrayValue(form.ajusteHipotesesSelecionada).length > 0
+    || arrayValue(form.ajusteMedicacaoSelecionada).length > 0
     || arrayValue(form.ajusteCondutaSelecionada).length > 0
     || Boolean(String(form.ajusteAcrescimo || "").trim());
 }
