@@ -217,10 +217,6 @@ textarea  {
   resize: vertical;
 }
 
-textarea[name="medicos"] {
-  min-height: 54px;
-}
-
 details.section {
   margin-bottom: 12px;
   padding: 0;
@@ -477,14 +473,6 @@ input[type="radio"]:focus-visible {
   line-height: 1.45;
 }
 
-.risk-text textarea {
-  min-height: 74px;
-}
-
-.qphda-card textarea[name="qphda"] {
-  min-height: 195px;
-}
-
 .manual-anamnesis {
   display: grid;
   gap: 12px;
@@ -511,14 +499,6 @@ input[type="radio"]:focus-visible {
   background: color-mix(in srgb, var(--primary-2) 13%, var(--surface));
   color: var(--text);
   font-weight: 700;
-}
-
-.manual-anamnesis textarea[name="queixa"] {
-  min-height: 46px;
-}
-
-.manual-anamnesis textarea[name="historia"] {
-  min-height: 176px;
 }
 
 .address-card {
@@ -766,20 +746,12 @@ input[type="radio"]:focus-visible {
   color: var(--text);
 }
 
-.treatment-card textarea {
-  min-height: 230px;
-}
-
 .treatment-card textarea[hidden] {
   display: none;
 }
 
 .treatment-option {
   background: color-mix(in srgb, var(--surface-2) 82%, var(--accent-soft));
-}
-
-.physician-adjustments textarea {
-  min-height: 92px;
 }
 
 /* Sem max-width + margin:auto: isso encolhia e centralizava o bloco dentro
@@ -1504,8 +1476,10 @@ textarea {
   padding-block: 13px;
 }
 
+/* Sem min-height: a altura e o conteudo, como em toda caixa do app (ver
+   bindAutoExpandingTextareas). O piso de 300px deixava a Historia clinica com
+   um palmo de branco embaixo de duas linhas escritas. */
 textarea.evolution-textarea {
-  min-height: 300px;
   overflow-y: hidden;
   resize: none;
   line-height: 1.32;
@@ -2754,7 +2728,7 @@ textarea:focus-visible {
 .document-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px 14px; margin: 10px 0; }
 .document-recommendations { grid-column: 1 / -1; }
 .document-consent { margin: 4px 0 8px; }
-.document-editor textarea { width: 100%; min-height: 320px; line-height: 1.55; }
+.document-editor textarea { width: 100%; line-height: 1.55; }
 .document-editor .actions { margin-top: 10px; }
 .documents-issued ul { margin: 0 0 6px; padding: 0; list-style: none; display: grid; gap: 6px; }
 .documents-issued li { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }

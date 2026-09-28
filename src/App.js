@@ -1238,6 +1238,7 @@ function recordAnamnesisDoctorOverride(control) {
 function bindPatientForm() {
   const form = app.querySelector("#patient-form");
   if (!form) return;
+  bindEnterAvanca(form);
   form.querySelector("[name='cep']")?.addEventListener("blur", async event => {
     try {
       const address = await fetchCep(event.target.value);
@@ -1299,18 +1300,41 @@ function bindPhoneInput(input) {
   });
 }
 
+// O proximo campo na ordem da tela. Botoes ficam fora de proposito: Enter na QP
+// deve cair na HDA, nunca num botao que uma tecla a mais dispararia.
+function focarProximoCampo(form, atual) {
+  const campos = Array.from(form.querySelectorAll("input, select, textarea")).filter(campo =>
+    !campo.disabled && campo.type !== "hidden" && campo.offsetParent !== null);
+  const proximo = campos[campos.indexOf(atual) + 1];
+  if (proximo) proximo.focus();
+}
+
+// Enter ANDA, Shift+Enter quebra a linha -- em TODO campo de texto, inclusive
+// as caixas longas. A quebra automatica na margem ja cuida do paragrafo; quem
+// aperta Enter num formulario esta dizendo "terminei aqui", nao "quero uma
+// linha nova". Vale para os tres formularios (consulta, retorno, paciente)
+// para a tecla nao significar uma coisa numa tela e outra na seguinte.
+//
+// O preventDefault tambem guarda o que ja guardava: com o botao de salvar em
+// toda pagina, Enter num campo de uma linha submeteria o formulario e gravaria
+// a consulta no meio da digitacao. Salvar e clique.
+function bindEnterAvanca(form) {
+  form.addEventListener("keydown", event => {
+    const campo = event.target;
+    if (event.key !== "Enter" || event.shiftKey) return;
+    const tag = campo?.tagName;
+    const ehCampo = tag === "TEXTAREA"
+      || (tag === "INPUT" && campo.type !== "submit" && campo.type !== "button");
+    if (!ehCampo) return;
+    event.preventDefault();
+    focarProximoCampo(form, campo);
+  });
+}
+
 function bindConsultForm() {
   const form = app.querySelector("#consult-form");
   if (!form) return;
-  // Com o botao de salvar em toda pagina, Enter num campo de uma linha -- a
-  // busca do medicamento, o "Descreva" de um Outro -- submeteria o formulario e
-  // gravaria a consulta no meio da digitacao. Salvar e clique.
-  form.addEventListener("keydown", event => {
-    const campo = event.target;
-    if (event.key !== "Enter" || campo?.tagName !== "INPUT") return;
-    if (campo.type === "submit" || campo.type === "button") return;
-    event.preventDefault();
-  });
+  bindEnterAvanca(form);
   form.addEventListener("submit", event => {
     event.preventDefault();
     if (voiceRecording.isBusy()) {
@@ -1326,6 +1350,7 @@ function bindConsultForm() {
 function bindReturnForm() {
   const form = app.querySelector("#return-form");
   if (!form) return;
+  bindEnterAvanca(form);
   form.addEventListener("submit", event => {
     event.preventDefault();
     updateDraftFromForm(form);

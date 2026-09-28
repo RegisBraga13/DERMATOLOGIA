@@ -89,13 +89,24 @@ export function selectField(name, labelText, options, value = "", aiFilled = fal
   return `<label${aiFilled ? ` class="field-ai" title="Preenchido pela extração da IA a partir da transcrição. Confira: ao editar, passa a ser seu."` : ""}>${labelText}<select name="${name}"><option value="">Selecionar</option>${options.map(option => `<option value="${escapeAttr(option)}" ${value === option ? "selected" : ""}>${escapeHtml(optionDisplayLabel(option))}</option>`).join("")}</select></label>`;
 }
 
+// Altura inicial de quem nao se contenta com as duas linhas padrao. E so o
+// ponto de partida: daqui em diante TODA caixa cresce com o que se digita, e
+// nao havia razao para "fatores impeditivos" ou "razoes para viver" rolarem
+// dentro de duas linhas enquanto a QP crescia.
+// TODA caixa comeca com uma linha, como a QP. Ate 28/09/2026 cada uma tinha a
+// sua altura de partida -- 5 linhas na QP/HDA, 3 na historia, 12 na historia
+// clinica -- e o resultado era meia tela de branco esperando texto que
+// costumava caber em duas linhas. Agora a altura e sempre o que esta escrito:
+// uma linha quando nao ha nada, e cresce a cada linha digitada
+// (bindAutoExpandingTextareas, em App.js).
 export function textarea(name, labelText, value = "", placeholder = "", rows = "") {
-  const rowsAttr = rows ? ` rows="${rows}"` : "";
-  const evolutionAttrs = name === "evolution" ? ` class="evolution-textarea" data-auto-expand="true" rows="12"`
-    : name === "qphda" ? ` class="auto-expand" data-auto-expand="true" rows="5"`
-      : ["queixa", "hdaManual", "historiaReprodutiva"].includes(name) ? ` class="auto-expand" data-auto-expand="true" rows="1"`
-        : name === "historia" ? ` class="auto-expand" data-auto-expand="true" rows="3"` : rowsAttr;
-  return `<label>${labelText}<textarea name="${name}"${evolutionAttrs} placeholder="${escapeAttr(placeholder)}">${escapeHtml(value || "")}</textarea></label>`;
+  // `evolution` guarda a classe propria (entrelinha e overflow sao dela), mas
+  // leva `auto-expand` junto: sem essa classe ela ganhava piso de 300px, e a
+  // Historia clinica era a unica caixa que nao acompanhava o texto de verdade.
+  const atributos = name === "evolution"
+    ? ` class="evolution-textarea auto-expand" data-auto-expand="true" rows="1"`
+    : ` class="auto-expand" data-auto-expand="true" rows="1"`;
+  return `<label>${labelText}<textarea name="${name}"${atributos} placeholder="${escapeAttr(placeholder)}">${escapeHtml(value || "")}</textarea></label>`;
 }
 
 export function voiceTextarea(name, labelText, value = "", placeholder = "") {
@@ -153,7 +164,7 @@ function suicideRiskFields(questions, form) {
     ${questions.map(item => item.response === "text" ? `
       <label class="risk-text">
         <b>${escapeHtml(item.label)}:</b> ${escapeHtml(item.question)}
-        <textarea name="${item.key}" rows="2">${escapeHtml(form[item.key] || "")}</textarea>
+        <textarea name="${item.key}" class="auto-expand" data-auto-expand="true" rows="1">${escapeHtml(form[item.key] || "")}</textarea>
       </label>
     ` : `
       <div class="risk-choice">

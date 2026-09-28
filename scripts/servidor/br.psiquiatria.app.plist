@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>br.psiquiatria.app</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/regisbraga/Documents/Codex/2026-09-28/github-app-connector-76869538009648d5b282a4bb21c3d157/PSIQUIATRIA/.venv/bin/python</string>
+    <string>/Users/regisbraga/Documents/Codex/2026-09-28/github-app-connector-76869538009648d5b282a4bb21c3d157/PSIQUIATRIA/server.py</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/regisbraga/Documents/Codex/2026-09-28/github-app-connector-76869538009648d5b282a4bb21c3d157/PSIQUIATRIA</string>
+
+  <key>UserName</key>
+  <string>regisbraga</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PORT</key>
+    <string>8000</string>
+    <key>HOST</key>
+    <string>127.0.0.1</string>
+    <key>PYTHONUNBUFFERED</key>
+    <string>1</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+    <key>Crashed</key>
+    <true/>
+  </dict>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+
+  <key>StandardOutPath</key>
+  <string>/Users/regisbraga/Library/Logs/psiquiatria-app.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/regisbraga/Library/Logs/psiquiatria-app.err.log</string>
+</dict>
+</plist>
