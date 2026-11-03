@@ -54,9 +54,10 @@ automaticamente. A tabela e as politicas estao em
 
 1. Faca backup e ensaie a restauracao do banco e dos navegadores usados. A
    copia v1 nao sera removida pela migracao.
-2. Aplique a migracao SQL no projeto correto e verifique as quatro politicas
-   RLS com duas contas de teste: cada uma deve ler/escrever apenas as proprias
-   linhas. Nao confie apenas no teste automatizado do navegador.
+2. Aplique a migracao SQL no projeto correto e verifique RLS em ambas as tabelas
+   com duas contas de teste: cada uma deve acessar apenas as proprias linhas e
+   nao pode alterar/apagar o historico de conflitos. Nao confie apenas no teste
+   automatizado do navegador.
 3. Em ambiente de homologacao, configure `SUPABASE_STORAGE_VERSION=2`, abra
    uma conta com dados v1 e confira contagem e conteudo de pacientes, consultas
    e retornos no app, na tabela e apos recarregar outro dispositivo. A copia v1
@@ -71,9 +72,16 @@ automaticamente. A tabela e as politicas estao em
    de trocar a flag: so mudar a flag deixa edicoes v2 fora da copia antiga.
 
 Cada linha usa `owner_id` e chave composta por tipo/id. Atualizacoes usam
-`version` como comparacao atomica e repetem a leitura em disputa. Isto reduz
-colisoes entre pacientes distintos; edicoes concorrentes do **mesmo** registro
-ainda seguem o criterio de `updatedAt` do `mergeStates`, sem revisao humana.
+`version` como comparacao atomica e repetem a leitura em disputa. A ultima
+versao sincronizada tem apenas resumos SHA-256 por registro no armazenamento
+local: quando dois aparelhos alteram independentemente o mesmo registro, a
+sincronizacao para e mostra as duas copias ao medico. A escolha explicita so
+e aplicada apos arquivar ambas em `prontuario_conflitos`, onde o navegador
+tem permissao para inserir e consultar, mas nao alterar ou apagar. Em uma
+primeira sincronizacao sem historico local de versoes, o codigo ainda usa
+`updatedAt` para juntar dados antigos; por isso o ensaio com backup e uma
+janela sem clientes v1 continuam obrigatorios. A copia arquivada nao substitui
+backup externo nem uma politica de retencao.
 O app continua trazendo o conjunto da conta para o navegador; v2 ainda nao
 fornece paginacao na interface nem prontuario multiusuario.
 
@@ -82,9 +90,9 @@ fornece paginacao na interface nem prontuario multiusuario.
 - A v1 guarda o estado inteiro numa linha por medico. A v2 permite consulta
   por paciente no banco, mas ainda nao divide o paciente entre medicos nem
   restringe a leitura do conjunto da conta por tela ou funcao.
-- **Sem resolucao de conflito por horario.** `mergeStates` casa por `id` e a
-  versao local vence. Dois aparelhos editando o mesmo registro: o ultimo a
-  gravar fica com a palavra final.
+- A v1 ainda usa `mergeStates` por horario e nao detecta duas edicoes do mesmo
+  registro. A v2 detecta apos o primeiro sync concluido, mas nao faz fusao
+  automatica campo a campo: o medico deve comparar as duas versoes.
 - A sessao vive no `sessionStorage`; o botao Sair encerra a sessao e limpa
   o prontuario da memoria da pagina. Os dados offline dessa conta continuam
   no armazenamento do navegador, sem criptografia propria do aplicativo.

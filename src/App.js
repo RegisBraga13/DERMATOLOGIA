@@ -19,8 +19,9 @@ import { fetchCep } from "./services/cepService.js";
 import { buildClinicalAiPrompt, buildRagQuery, buildWebQuery, canonicalAiSelections, localRefinementPlan, requestClinicalAi, requestJevJudge, requestRiskScreen } from "./services/clinicalAiService.js";
 import { localMedicationSuggestions } from "./services/medicationService.js";
 import { exportTextAsPdf } from "./services/pdfService.js";
-import { archiveEntry, archivePatient, isActive, isArchived, loadState, mergeStates, purgePatient, restorePatient, saveState, stateSignature, uid, unassignedLocalState, waitForLocalSave } from "./services/storageService.js";
-import { authHeaders, verifiedSession, isConfigured as isSupabaseConfigured, signIn, signOut, syncState } from "./services/supabaseService.js";
+import { archiveEntry, archivePatient, isActive, isArchived, loadState, mergeStates, purgePatient, rebasePendingChanges, restorePatient, saveState, stateSignature, uid, unassignedLocalState, waitForLocalSave } from "./services/storageService.js";
+import { archiveSyncConflict, authHeaders, verifiedSession, isConfigured as isSupabaseConfigured, signIn, signOut, syncState } from "./services/supabaseService.js";
+import { resolveRecordConflict } from "./services/recordSyncService.js";
 import { anamnesisStructuredFields, chips, field, phoneField, selectField, statusLine, summaryColumns, textarea, voiceTextarea } from "./ui/controls.js";
 import { escapeAttr, escapeHtml } from "./ui/html.js";
 import { createVoiceRecording } from "./ui/voiceRecording.js";
@@ -95,6 +96,8 @@ let localOnlyMode = false;
 // Falha de sincronizacao com o Supabase. Separada de authError, que so a tela
 // de login renderiza: aqui precisa aparecer com a sessao aberta.
 let syncError = "";
+let syncConflict = null;
+let resolvingConflict = false;
 let storageError = "";
 // A gravacao da consulta mora em ui/voiceRecording.js. Ela recebe daqui o que
 // nao pode importar — o rascunho vivo e o formulario na tela — e devolve so
@@ -171,6 +174,7 @@ Promise.all([verifiedSession(), isSupabaseConfigured()]).then(async ([session, c
 });
 
 async function loadAccountState(ownerId) {
+  syncConflict = null;
   state = { patients: [], consultations: [], returns: [] };
   selectedPatientId = "";
   const local = await loadState(ownerId);
@@ -214,11 +218,11 @@ async function syncAfterLogin() {
     // devolve a copia que a conta passou a guardar.
     const daConta = await syncState(state, mergeStates, 3, ownerId);
     if (daConta && authSession?.user?.id === ownerId) {
-      state = withoutBookChapters(mergeStates(state, daConta));
+      state = withoutBookChapters(daConta);
       storageError = await saveState(state, ownerId);
       selectedPatientId = firstActivePatientId();
     }
-  } catch (error) { syncError = error.message; }
+  } catch (error) { syncError = error.message; syncConflict = error.conflict || null; }
 }
 
 function render() {
@@ -227,11 +231,27 @@ function render() {
   app.innerHTML = `
     <div class="app-shell">
       ${topbar()}
-      <main class="container">${view === "dashboard" ? dashboard() : workspace()}</main>
+      <main class="container">${syncConflict ? conflictReview() : ""}${view === "dashboard" ? dashboard() : workspace()}</main>
     </div>
   `;
   bindGlobalEvents();
   bindViewEvents();
+}
+
+function conflictReview() {
+  const { kind, recordId, local, remote } = syncConflict;
+  const label = { patient: "paciente", consultation: "consulta", return: "retorno", meta: "configuração" }[kind] || kind;
+  const copy = value => escapeHtml(JSON.stringify(value, null, 2));
+  return `<section class="conflict-review" role="alert" aria-label="Conflito de sincronização">
+    <h2>Revisar duas versões do mesmo ${label}</h2>
+    <p>Registro ${escapeHtml(recordId)}. As duas cópias permanecem separadas até sua decisão. Compare datas e conteúdo clínico; a versão descartada será guardada no histórico de conflitos da conta.</p>
+    <div class="conflict-copies">
+      <details open><summary>Neste aparelho</summary><pre>${copy(local)}</pre></details>
+      <details open><summary>Na conta</summary><pre>${copy(remote)}</pre></details>
+    </div>
+    <div class="actions"><button type="button" class="secondary" data-action="resolve-sync-conflict" data-choice="local">Manter versão deste aparelho</button>
+    <button type="button" class="secondary" data-action="resolve-sync-conflict" data-choice="remote">Usar versão da conta</button></div>
+  </section>`;
 }
 
 /**
@@ -949,6 +969,9 @@ function finalizeButton(scope, current = {}) {
 }
 
 function bindGlobalEvents() {
+  app.querySelectorAll('[data-action="resolve-sync-conflict"]').forEach(button => {
+    button.addEventListener("click", () => resolveVisibleConflict(button.dataset.choice));
+  });
   app.querySelectorAll("[data-view]").forEach(button => {
     button.addEventListener("click", () => {
       if ((button.dataset.view === "consultation" || button.dataset.view === "return" || button.dataset.view === "record") && !selectedPatientId) {
@@ -986,6 +1009,57 @@ function bindGlobalEvents() {
     draft.patient = structuredClone(getPatient() || {});
     render();
   }));
+}
+
+async function resolveVisibleConflict(choice) {
+  const conflict = syncConflict;
+  const ownerId = authSession?.user?.id;
+  if (resolvingConflict || !conflict || conflict.ownerId !== ownerId) return;
+  if (haTrabalhoNaoSalvo()) {
+    alert("Salve ou descarte o rascunho em edição antes de resolver o conflito.");
+    return;
+  }
+  const collection = { patient: "patients", consultation: "consultations", return: "returns" }[conflict.kind];
+  const current = collection ? state[collection].find(row => row.id === conflict.recordId)
+    : { theme: state.theme, doctor: state.doctor };
+  if (JSON.stringify(current) !== JSON.stringify(conflict.local)) {
+    syncError = "O registro foi editado desde a comparação. Recarregando as versões para revisão.";
+    syncConflict = null;
+    await syncWithAccount();
+    render();
+    return;
+  }
+  resolvingConflict = true;
+  try {
+    // Primeiro arquiva as duas versões no banco. Sem confirmação, a escolha
+    // não é aplicada nem a referência da versão anterior é alterada.
+    await archiveSyncConflict(conflict, choice, ownerId);
+    if (authSession?.user?.id !== ownerId || syncConflict !== conflict) return;
+    const stillCurrent = collection ? state[collection].find(row => row.id === conflict.recordId)
+      : { theme: state.theme, doctor: state.doctor };
+    if (JSON.stringify(stillCurrent) !== JSON.stringify(conflict.local)) {
+      syncConflict = null;
+      await syncWithAccount();
+      return;
+    }
+    if (choice === "remote") {
+      if (collection) state[collection] = state[collection].map(row =>
+        row.id === conflict.recordId ? conflict.remote : row);
+      else { state.theme = conflict.remote.theme; state.doctor = conflict.remote.doctor; }
+      const error = await saveState(state, ownerId);
+      if (error) throw new Error(error);
+    }
+    resolveRecordConflict(conflict, choice, ownerId);
+    syncConflict = null;
+    syncError = "";
+    await syncWithAccount();
+    render();
+  } catch (error) {
+    syncError = error.message;
+    render();
+  } finally {
+    resolvingConflict = false;
+  }
 }
 
 function bindViewEvents() {
@@ -2974,12 +3048,15 @@ function syncWithAccount() {
   syncChain = syncChain.then(async () => {
     if (authSession?.user?.id !== ownerId) return;
     try {
-      const daConta = await syncState(state, mergeStates, 3, ownerId);
+      const antes = structuredClone(state);
+      const daConta = await syncState(antes, mergeStates, 3, ownerId);
       if (authSession?.user?.id !== ownerId) return;
-      if (daConta) absorbAccountState(daConta);
+      if (daConta) absorbAccountState(daConta, antes);
+      syncConflict = null;
       if (syncError) { syncError = ""; render(); }
     } catch (error) {
       syncError = error.message;
+      syncConflict = error.conflict || null;
       render();
     }
   });
@@ -2990,10 +3067,10 @@ function syncWithAccount() {
 // novo com o estado de agora -- o medico pode ter salvo algo durante a ida a
 // rede -- e so redesenha se chegou coisa nova, para nao tirar o cursor do
 // campo a cada gravacao.
-function absorbAccountState(daConta) {
-  const antes = stateSignature(state);
-  state = withoutBookChapters(mergeStates(state, daConta));
-  if (stateSignature(state) === antes) return;
+function absorbAccountState(daConta, snapshot) {
+  const antes = JSON.stringify(state);
+  state = withoutBookChapters(rebasePendingChanges(snapshot, state, daConta));
+  if (JSON.stringify(state) === antes) return;
   saveLocally();
   if (!getPatient()) selectedPatientId = firstActivePatientId();
   render();
@@ -3154,6 +3231,7 @@ async function endSession() {
   unassignedRecords = 0;
   authError = "";
   syncError = "";
+  syncConflict = null;
   draftGuard.replaced(); aiOperations.reset(); unsavedWork.limpar();
   draft = {};
   view = "dashboard";

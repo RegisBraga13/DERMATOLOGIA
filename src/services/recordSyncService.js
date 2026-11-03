@@ -6,6 +6,57 @@ const COLLECTIONS = [
   ["consultations", "consultation"],
   ["returns", "return"]
 ];
+const MANIFEST_PREFIX = "psires_sync_manifest_v2:";
+
+// O JSONB pode devolver chaves em outra ordem. O resumo de cada versão precisa
+// ser estável e não duplica conteúdo clínico no localStorage.
+function canonical(value) {
+  if (Array.isArray(value)) return `[${value.map(item => canonical(item ?? null)).join(",")}]`;
+  if (value && typeof value === "object") return `{${Object.keys(value).sort()
+    .filter(key => value[key] !== undefined)
+    .map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`;
+  return JSON.stringify(value);
+}
+
+async function digest(value) {
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical(value)));
+  return Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function manifestFor(store, ownerId) {
+  if (!store) throw new Error("Armazenamento local indisponível para controlar conflitos de sincronização.");
+  try {
+    const value = store.getItem(`${MANIFEST_PREFIX}${ownerId}`);
+    const parsed = value ? JSON.parse(value) : {};
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error();
+    return parsed;
+  } catch {
+    throw new Error("Não foi possível ler o controle local de versões. Sincronização interrompida.");
+  }
+}
+
+function recordKey(row) { return `${row.kind}:${row.record_id}`; }
+
+function replaceRecord(state, row) {
+  if (row.kind === "meta") {
+    Object.assign(state, row.payload);
+    return;
+  }
+  const collection = COLLECTIONS.find(([, kind]) => kind === row.kind)?.[0];
+  if (!collection) return;
+  state[collection] = state[collection].map(entry => entry.id === row.record_id ? row.payload : entry);
+}
+
+export function resolveRecordConflict(conflict, choice, ownerId, store = globalThis.localStorage) {
+  if (!conflict || !["local", "remote"].includes(choice) || conflict.ownerId !== ownerId)
+    throw new Error("Conflito ou conta inválida.");
+  const manifest = manifestFor(store, ownerId);
+  // A próxima leitura valida de novo a versão: um terceiro aparelho pode ter
+  // editado o registro enquanto o médico comparava as duas cópias.
+  manifest[`${conflict.kind}:${conflict.recordId}`] = { hash: conflict.remoteHash, version: conflict.remoteVersion };
+  store.setItem(`${MANIFEST_PREFIX}${ownerId}`, JSON.stringify(manifest));
+  return choice === "remote" ? conflict.remote : conflict.local;
+}
 
 function rowsFromState(state, ownerId) {
   const rows = COLLECTIONS.flatMap(([collection, kind]) =>
@@ -85,7 +136,8 @@ async function writeRow(authorized, row, previous, ownerId) {
   return (await response.json()).length > 0;
 }
 
-export async function syncRecordRows(local, merge, authorized, ownerId, attempts = 3) {
+export async function syncRecordRows(local, merge, authorized, ownerId, attempts = 3, store = globalThis.localStorage) {
+  const manifest = manifestFor(store, ownerId);
   for (let attempt = 0; attempt < attempts; attempt++) {
     const remoteRows = await readRows(authorized, ownerId);
     if (!remoteRows) return null;
@@ -94,16 +146,41 @@ export async function syncRecordRows(local, merge, authorized, ownerId, attempts
     if (!migrated && !legacy) return null; // a sessão mudou durante a leitura
     const remote = stateFromRows(remoteRows);
     const combined = merge(merge(local, legacy || {}), remote);
-    const known = new Map(remoteRows.map(row => [`${row.kind}:${row.record_id}`, row]));
+    const known = new Map(remoteRows.map(row => [recordKey(row), row]));
+    const localRows = new Map(rowsFromState(local, ownerId).map(row => [recordKey(row), row]));
+    for (const remoteRow of remoteRows) {
+      const key = recordKey(remoteRow);
+      const localRow = localRows.get(key);
+      const base = manifest[key];
+      if (!base || !localRow || remoteRow.record_id === "_migration_v1") continue;
+      const [localHash, remoteHash] = await Promise.all([digest(localRow.payload), digest(remoteRow.payload)]);
+      const localChanged = localHash !== base.hash;
+      const remoteChanged = remoteHash !== base.hash;
+      if (localChanged && remoteChanged && localHash !== remoteHash) {
+        const error = new Error("Duas edições diferentes do mesmo registro precisam ser revisadas antes de sincronizar.");
+        error.conflict = { ownerId, kind: remoteRow.kind, recordId: remoteRow.record_id,
+          local: localRow.payload, remote: remoteRow.payload, remoteHash, remoteVersion: remoteRow.version };
+        throw error;
+      }
+      if (localChanged !== remoteChanged) replaceRecord(combined, localChanged ? localRow : remoteRow);
+    }
+    const nextManifest = { ...manifest };
     let conflict = false;
     for (const row of rowsFromState(combined, ownerId)) {
-      const previous = known.get(`${row.kind}:${row.record_id}`);
-      if (previous && JSON.stringify(previous.payload) === JSON.stringify(row.payload)) continue;
-      const written = await writeRow(authorized, row, previous, ownerId);
-      if (written === null) return null;
-      if (!written) { conflict = true; break; }
+      const previous = known.get(recordKey(row));
+      const rowHash = await digest(row.payload);
+      if (!previous || await digest(previous.payload) !== rowHash) {
+        const written = await writeRow(authorized, row, previous, ownerId);
+        if (written === null) return null;
+        if (!written) { conflict = true; break; }
+      }
+      nextManifest[recordKey(row)] = { hash: rowHash,
+        version: previous ? Number(previous.version) + (await digest(previous.payload) === rowHash ? 0 : 1) : 1 };
     }
     if (conflict) continue;
+    // Falha de quota não pode deixar um marcador remoto de migração concluída
+    // sem o controle local necessário para detectar conflitos posteriores.
+    store.setItem(`${MANIFEST_PREFIX}${ownerId}`, JSON.stringify(nextManifest));
     if (!migrated) {
       const marker = await writeRow(authorized,
         { owner_id: ownerId, kind: "meta", record_id: "_migration_v1",

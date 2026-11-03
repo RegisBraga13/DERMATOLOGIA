@@ -99,6 +99,23 @@ button:hover { border-color: var(--primary-2); }
   min-width: 0;
 }
 
+.conflict-review {
+  margin: 18px 0;
+  padding: 20px;
+  border: 2px solid var(--amber);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.conflict-review h2 { margin: 0 0 8px; }
+.conflict-review p { line-height: 1.5; }
+.conflict-copies { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.conflict-copies details { min-width: 0; border: 1px solid var(--line); padding: 12px; }
+.conflict-copies summary { cursor: pointer; font-weight: 700; }
+.conflict-copies pre { max-height: 360px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 800px) { .conflict-copies { grid-template-columns: 1fr; } }
+
 .dashboard  {
   gap: 14px;
   grid-template-columns: repeat(5, minmax(0, 1fr));

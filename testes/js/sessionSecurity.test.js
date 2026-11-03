@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
-import { authHeaders, verifiedSession } from "../../src/services/supabaseService.js";
+import { archiveSyncConflict, authHeaders, verifiedSession } from "../../src/services/supabaseService.js";
 
 const USER = "11111111-1111-4111-8111-111111111111";
 let session;
@@ -44,5 +44,21 @@ describe("sessão antes de abrir o prontuário local", () => {
   });
   it("aceita somente a conta confirmada pelo servidor", async () => {
     assert.equal((await verifiedSession()).user.id, USER);
+  });
+  it("arquiva ambas as versões somente na conta autenticada antes da escolha", async () => {
+    let request;
+    globalThis.fetch = async (url, options) => {
+      if (url === "/api/supabase-config")
+        return { ok: true, json: async () => ({ url: "https://auth.example", key: "public" }) };
+      request = { url, options };
+      return { ok: true, status: 201 };
+    };
+    const conflict = { ownerId: USER, kind: "patient", recordId: "p1",
+      local: { id: "p1", nome: "local" }, remote: { id: "p1", nome: "remota" }, remoteVersion: 2 };
+    await archiveSyncConflict(conflict, "local", USER);
+    assert.equal(request.options.method, "POST");
+    assert.equal(request.url, "https://auth.example/rest/v1/prontuario_conflitos");
+    assert.deepEqual(JSON.parse(request.options.body).remote_payload, conflict.remote);
+    await assert.rejects(archiveSyncConflict(conflict, "remote", "outra-conta"));
   });
 });

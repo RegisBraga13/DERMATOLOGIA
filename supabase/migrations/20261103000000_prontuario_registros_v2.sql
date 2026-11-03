@@ -29,3 +29,26 @@ create policy "prontuario_registros_delete_own" on public.prontuario_registros
   for delete to authenticated using ((select auth.uid()) = owner_id);
 
 grant select, insert, update, delete on public.prontuario_registros to authenticated;
+
+-- Guarda as duas cópias antes de resolver uma divergência. Sem UPDATE/DELETE
+-- para o papel do navegador; os dados continuam sujeitos a backup e retenção.
+create table if not exists public.prontuario_conflitos (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  kind text not null check (kind in ('patient', 'consultation', 'return', 'meta')),
+  record_id text not null,
+  local_payload jsonb not null,
+  remote_payload jsonb not null,
+  selected text not null check (selected in ('local', 'remote')),
+  remote_version bigint not null,
+  resolved_at timestamptz not null default now()
+);
+
+create index if not exists prontuario_conflitos_record_idx
+  on public.prontuario_conflitos (owner_id, kind, record_id, resolved_at desc);
+alter table public.prontuario_conflitos enable row level security;
+create policy "prontuario_conflitos_select_own" on public.prontuario_conflitos
+  for select to authenticated using ((select auth.uid()) = owner_id);
+create policy "prontuario_conflitos_insert_own" on public.prontuario_conflitos
+  for insert to authenticated with check ((select auth.uid()) = owner_id);
+grant select, insert on public.prontuario_conflitos to authenticated;

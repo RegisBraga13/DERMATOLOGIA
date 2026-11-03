@@ -158,16 +158,19 @@ export async function syncState(local, merge, tentativas = 3, expectedOwnerId = 
   const session = await currentSession();
   if (!session?.user?.id || (expectedOwnerId && session.user.id !== expectedOwnerId)) return null;
   const ownerId = session.user.id;
+  // A interface pode editar o objeto enquanto a rede responde. Congele a
+  // versão enviada, e deixe o App unir as alterações posteriores no retorno.
+  const snapshot = structuredClone(local);
   const settings = await config();
   if (settings.storage_version === 2) {
-    return syncRecordRows(local, merge, authorized, ownerId, tentativas);
+    return syncRecordRows(snapshot, merge, authorized, ownerId, tentativas);
   }
   for (let vez = 0; vez < tentativas; vez += 1) {
     const leitura = await authorized(`/rest/v1/prontuarios?select=id,payload,updated_at&owner_id=eq.${encodeURIComponent(ownerId)}&limit=1`, {}, true, ownerId);
     if (!leitura) return null;
     if (!leitura.ok) throw new Error("Não foi possível ler os prontuários do Supabase.");
     const [linha] = await leitura.json();
-    const juntos = linha?.payload ? merge(local, linha.payload) : local;
+    const juntos = linha?.payload ? merge(snapshot, linha.payload) : snapshot;
     const corpo = JSON.stringify({ owner_id: ownerId, payload: juntos, updated_at: new Date().toISOString() });
     if (!linha) {
       const criada = await authorized("/rest/v1/prontuarios", {
@@ -189,4 +192,18 @@ export async function syncState(local, merge, tentativas = 3, expectedOwnerId = 
     if (Array.isArray(alteradas) && alteradas.length) return juntos;
   }
   throw new Error("Outro aparelho gravou ao mesmo tempo; a cópia da conta será atualizada na próxima gravação.");
+}
+
+export async function archiveSyncConflict(conflict, choice, expectedOwnerId) {
+  if (!conflict || conflict.ownerId !== expectedOwnerId || !["local", "remote"].includes(choice))
+    throw new Error("Conflito ou conta inválida.");
+  const response = await authorized("/rest/v1/prontuario_conflitos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+    body: JSON.stringify({ owner_id: expectedOwnerId, kind: conflict.kind,
+      record_id: conflict.recordId, local_payload: conflict.local,
+      remote_payload: conflict.remote, selected: choice,
+      remote_version: conflict.remoteVersion })
+  }, true, expectedOwnerId);
+  if (!response?.ok) throw new Error("Não foi possível guardar as duas versões; nenhuma escolha foi aplicada.");
 }

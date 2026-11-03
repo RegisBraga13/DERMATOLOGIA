@@ -303,6 +303,27 @@ export function mergeStates(local = {}, remote = {}) {
   return merged;
 }
 
+// Aplica ao resultado do servidor apenas as edições feitas nesta aba enquanto
+// a chamada de rede estava em andamento. Não reintroduz uma cópia antiga com
+// relógio adiantado sobre a versão remota escolhida pelo sincronizador.
+export function rebasePendingChanges(before = {}, current = {}, synced = {}) {
+  const result = { ...synced };
+  for (const key of ["patients", "consultations", "returns"]) {
+    const old = new Map((before[key] || []).filter(entry => entry?.id).map(entry => [entry.id, entry]));
+    const now = new Map((current[key] || []).filter(entry => entry?.id).map(entry => [entry.id, entry]));
+    const next = new Map((synced[key] || []).filter(entry => entry?.id).map(entry => [entry.id, entry]));
+    for (const [id, entry] of now) {
+      if (!old.has(id) || JSON.stringify(entry) !== JSON.stringify(old.get(id))) next.set(id, entry);
+    }
+    for (const id of old.keys()) if (!now.has(id)) next.delete(id);
+    result[key] = [...next.values()];
+  }
+  for (const key of ["theme", "doctor"]) {
+    if (JSON.stringify(before[key]) !== JSON.stringify(current[key])) result[key] = current[key];
+  }
+  return result;
+}
+
 // ARQUIVAR, E NAO APAGAR, desde 11/09/2026.
 //
 // "Excluir paciente" apagava o cadastro e todos os registros, sem volta -- e a
