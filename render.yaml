@@ -9,6 +9,8 @@ services:
     envVars:
       - key: HOST
         value: 0.0.0.0
+      - key: APP_MODE
+        value: remote
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_GUIDELINES_VECTOR_STORE_ID

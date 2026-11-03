@@ -19,8 +19,8 @@ import { fetchCep } from "./services/cepService.js";
 import { buildClinicalAiPrompt, buildRagQuery, buildWebQuery, canonicalAiSelections, localRefinementPlan, requestClinicalAi, requestJevJudge, requestRiskScreen } from "./services/clinicalAiService.js";
 import { localMedicationSuggestions } from "./services/medicationService.js";
 import { exportTextAsPdf } from "./services/pdfService.js";
-import { archiveEntry, archivePatient, isActive, isArchived, loadState, mergeStates, purgePatient, restorePatient, saveState, stateSignature, uid } from "./services/storageService.js";
-import { currentSession, isConfigured as isSupabaseConfigured, signIn, signOut, syncState } from "./services/supabaseService.js";
+import { archiveEntry, archivePatient, isActive, isArchived, loadState, mergeStates, purgePatient, restorePatient, saveState, stateSignature, uid, unassignedLocalState, waitForLocalSave } from "./services/storageService.js";
+import { authHeaders, verifiedSession, isConfigured as isSupabaseConfigured, signIn, signOut, syncState } from "./services/supabaseService.js";
 import { anamnesisStructuredFields, chips, field, phoneField, selectField, statusLine, summaryColumns, textarea, voiceTextarea } from "./ui/controls.js";
 import { escapeAttr, escapeHtml } from "./ui/html.js";
 import { createVoiceRecording } from "./ui/voiceRecording.js";
@@ -85,6 +85,7 @@ const AI_BUSY_BUTTONS = {
 };
 let refinementGenerating = false;
 let authSession = null;
+let unassignedRecords = 0;
 let authError = "";
 // Sem Supabase configurado no servidor, ninguem nunca consegue logar -- a tela
 // de entrada travava ali para sempre. Modo local: sem conta, sem sincronizacao,
@@ -144,30 +145,77 @@ function haTrabalhoNaoSalvo() {
   return unsavedWork.ha() || voiceRecording.isBusy();
 }
 
-Promise.all([loadState(), currentSession()]).then(async ([local, session]) => {
+Promise.all([verifiedSession(), isSupabaseConfigured()]).then(async ([session, configured]) => {
+  localOnlyMode = !configured;
+  if (session && configured && session.user?.id) {
+    authSession = session;
+    await loadAccountState(session.user.id);
+    await syncAfterLogin();
+  } else if (localOnlyMode) {
+    authSession = null;
+    const local = await loadState();
+    state = withoutBookChapters(local.state);
+    storageError = local.aviso;
+    selectedPatientId = firstActivePatientId();
+  } else {
+    authSession = null;
+    state = { patients: [], consultations: [], returns: [] };
+  }
+  render();
+}).catch(error => {
+  authSession = null;
+  localOnlyMode = false;
+  state = { patients: [], consultations: [], returns: [] };
+  authError = `Falha ao abrir os prontuários: ${error.message}. Recarregue a página.`;
+  render();
+});
+
+async function loadAccountState(ownerId) {
+  state = { patients: [], consultations: [], returns: [] };
+  selectedPatientId = "";
+  const local = await loadState(ownerId);
   state = withoutBookChapters(local.state);
   storageError = local.aviso;
   selectedPatientId = firstActivePatientId();
-  authSession = session;
-  if (authSession) await syncAfterLogin();
-  else localOnlyMode = !(await isSupabaseConfigured());
+  const antigo = await unassignedLocalState();
+  let alreadyImported = false;
+  try { alreadyImported = Boolean(localStorage.getItem(`psires_legacy_claimed:${ownerId}`)); } catch {}
+  unassignedRecords = alreadyImported ? 0
+    : (antigo.patients || []).length + (antigo.consultations || []).length + (antigo.returns || []).length;
+}
+
+async function importUnassignedRecords() {
+  const ownerId = authSession?.user?.id;
+  if (!ownerId || !unassignedRecords) return;
+  if (!confirm(`Importar ${unassignedRecords} registros antigos deste navegador para a conta ${authSession.user.email || ownerId}? Confirme somente se estes prontuários pertencem a esta conta.`)) return;
+  const antigo = await unassignedLocalState();
+  const juntos = withoutBookChapters(mergeStates(state, antigo));
+  const erro = await saveState(juntos, ownerId);
+  if (erro) { storageError = erro; render(); return; }
+  state = juntos;
+  try { localStorage.setItem(`psires_legacy_claimed:${ownerId}`, "1"); } catch {}
+  unassignedRecords = 0;
+  selectedPatientId = firstActivePatientId();
+  syncWithAccount();
   render();
-});
+}
 
 // Une o que esta neste aparelho com o que esta na conta. Roda ao abrir o app
 // com sessao e, desde 10/09/2026, tambem logo depois de entrar: antes so rodava
 // ao abrir, entao quem saia e entrava de novo -- ou entrava pela primeira vez
 // num aparelho -- via apenas a copia local ate recarregar a pagina.
 async function syncAfterLogin() {
+  const ownerId = authSession?.user?.id;
+  if (!ownerId) return;
   syncError = "";
   try {
     // Une, nao substitui: o que foi escrito enquanto a sincronizacao estava
     // fora precisa sobreviver ao proximo carregamento. syncState le, junta e
     // devolve a copia que a conta passou a guardar.
-    const daConta = await syncState(state, mergeStates);
-    if (daConta) {
+    const daConta = await syncState(state, mergeStates, 3, ownerId);
+    if (daConta && authSession?.user?.id === ownerId) {
       state = withoutBookChapters(mergeStates(state, daConta));
-      storageError = await saveState(state);
+      storageError = await saveState(state, ownerId);
       selectedPatientId = firstActivePatientId();
     }
   } catch (error) { syncError = error.message; }
@@ -200,8 +248,22 @@ function bindAuthEvents() {
     event.preventDefault();
     const form = event.currentTarget;
     authError = "";
-    try { authSession = await signIn(form.email.value.trim(), form.password.value); await syncAfterLogin(); render(); }
-    catch (error) { authError = error.message; render(); }
+    try {
+      await waitForLocalSave();
+      authSession = await signIn(form.email.value.trim(), form.password.value);
+      await loadAccountState(authSession.user.id);
+      await syncAfterLogin();
+      render();
+    }
+    catch (error) {
+      signOut().catch(() => {});
+      authSession = null;
+      state = { patients: [], consultations: [], returns: [] };
+      selectedPatientId = "";
+      unassignedRecords = 0;
+      authError = error.message;
+      render();
+    }
   });
 }
 
@@ -218,7 +280,7 @@ function topbar() {
             ? `<span class="sync-status sync-failed" role="status">Não sincronizado: ${escapeHtml(syncError)} O registro está salvo neste aparelho.</span>`
             : localOnlyMode
               ? `<span class="sync-status" role="status">Modo local: sem Supabase configurado. Salvando só neste aparelho.</span>`
-              : `<span class="secure-status"><i></i> Ambiente clínico seguro</span>`}
+              : `<span class="secure-status"><i></i> Conta autenticada</span>`}
         ${view === "dashboard" ? "" : `<button class="secondary compact-action" data-action="dashboard">${homeIcon()}<span>Início</span></button>`}
         <button class="icon-button" data-action="toggle-theme" aria-label="Alternar tema" title="Alternar tema">${themeIcon()}</button>
       </div>
@@ -255,6 +317,7 @@ function dashboard() {
         <span class="card-number">${number}</span><span class="dash-icon">${icons[icon]}</span>
         <span class="dash-copy"><strong>${title}</strong></span><span class="card-arrow">→</span>
       </button>`).join("")}</div>
+    ${authSession && unassignedRecords ? `<div class="privacy-note" role="status"><span>Há ${unassignedRecords} registros antigos neste navegador, sem conta identificada. Eles não foram enviados à sua conta. <button type="button" class="secondary" data-action="import-unassigned">Importar para esta conta</button></span></div>` : ""}
     <button class="session-exit" data-view="exit">${icons.exit}<span>Encerrar sessão</span></button>
   </section>`;
 }
@@ -563,7 +626,7 @@ function returnPageBody(form, patient, previous) {
   // que se decide: o texto nao abre junto, aparece depois do ajuste, ja com o
   // ajuste dentro. Antes disso nao haveria o que escrever.
   return clinicalPage("Ajuste de conduta",
-    returnPlanModule(form) + (returnPlanSettled(form)
+    returnPlanModule(form, { historico: entriesForPatient(patient.id) }) + (returnPlanSettled(form)
       ? evolutionBody(form, patient, previous, true)
       : `<p class="diagnosis-empty">O texto da evolução aparece aqui depois que você assinalar a conduta acima.</p>`),
     "return");
@@ -1249,7 +1312,7 @@ function bindPatientForm() {
     }
   });
   bindPhoneInput(form.querySelector("[name='telefone']"));
-  form.addEventListener("submit", event => {
+  form.addEventListener("submit", async event => {
     event.preventDefault();
     const data = { ...(draft.patient || {}), ...formToObject(form) };
     if (!data.nome?.trim()) return alert("Informe o nome completo.");
@@ -1262,8 +1325,8 @@ function bindPatientForm() {
     }
     selectedPatientId = data.id;
     draft.patient = structuredClone(data);
+    if (!await persist()) return;
     unsavedWork.salvo("patient");
-    persist();
     view = pendingViewAfterPatient || "consultation";
     draftGuard.replaced(); aiOperations.reset(); unsavedWork.limpar();
     if (view === "consultation") draft.consultation = defaultConsultation();
@@ -1335,14 +1398,14 @@ function bindConsultForm() {
   const form = app.querySelector("#consult-form");
   if (!form) return;
   bindEnterAvanca(form);
-  form.addEventListener("submit", event => {
+  form.addEventListener("submit", async event => {
     event.preventDefault();
     if (voiceRecording.isBusy()) {
       alert("Encerre a gravação e aguarde a transcrição antes de salvar.");
       return;
     }
     updateDraftFromForm(form);
-    saveClinicalRecord("consultation");
+    if (!await saveClinicalRecord("consultation")) return;
     render();
   });
 }
@@ -1351,10 +1414,10 @@ function bindReturnForm() {
   const form = app.querySelector("#return-form");
   if (!form) return;
   bindEnterAvanca(form);
-  form.addEventListener("submit", event => {
+  form.addEventListener("submit", async event => {
     event.preventDefault();
     updateDraftFromForm(form);
-    saveClinicalRecord("return");
+    if (!await saveClinicalRecord("return")) return;
     render();
   });
 }
@@ -1391,7 +1454,7 @@ function bindActions() {
       if (action === "form-page") switchFormPage(element);
       if (action === "start-refinement") await startRefinement(element);
       if (action === "save-next-page") await saveCurrentPageAndAdvance(element);
-      if (action === "skip-to-diagnosis") skipToDiagnosis(element);
+      if (action === "skip-to-diagnosis") await skipToDiagnosis(element);
       if (action === "generate-diagnosis") await generateDiagnosisFromClinicalData(element);
       if (action === "refine-diagnosis") await generateDiagnosisFromClinicalData(element, "diagnosis_review");
       if (action === "generate-treatment") await generateTreatmentFromClinicalData(element);
@@ -1406,7 +1469,7 @@ function bindActions() {
       if (action === "clear-scale") clearScaleAnswers(element.dataset.escala);
       if (action === "apply-monitoring-exams") applyMonitoringExams(element);
       if (action === "mental-exam-normal") markMentalExamNormal(element);
-      if (action === "finalize-record") finalizeCurrentRecord(element);
+      if (action === "finalize-record") await finalizeCurrentRecord(element);
       if (action === "generate-document") generateDocument(element);
       if (action === "export-document") exportDocument(element);
       if (action === "reexport-document") reexportDocument(element.dataset.indice);
@@ -1427,6 +1490,7 @@ function bindActions() {
       if (action === "pdf-summary") pdfClinicalSummary();
       if (action === "delete-entry") deleteEntry(element.dataset.id, element.dataset.type);
       if (action === "exit-now") await endSession();
+      if (action === "import-unassigned") await importUnassignedRecords();
     }
   });
 }
@@ -1517,18 +1581,18 @@ function markMentalExamNormal(element) {
 // Salva e finaliza. Finalizado continua editavel; o que muda depois na
 // historia clinica, no diagnostico ou no tratamento guarda a versao anterior
 // (withVersionHistory).
-function finalizeCurrentRecord(element) {
+async function finalizeCurrentRecord(element) {
   const scope = element.dataset.scope === "return" ? "return" : "consultation";
   const tipo = scope === "return" ? "o retorno" : "a consulta";
   if (!confirm(`Finalizar ${tipo}? Depois de finalizado, o que for alterado na história clínica, no diagnóstico ou no tratamento fica registrado, e a versão anterior é guardada.`)) return;
   const formulario = element.closest("form");
   if (formulario) updateDraftFromForm(formulario);
-  const salvo = saveClinicalRecord(scope);
+  const salvo = await saveClinicalRecord(scope);
   if (!salvo) return;
   const agora = new Date().toISOString();
   upsert(scope === "return" ? "returns" : "consultations", { ...salvo, finalizadoEm: agora, updatedAt: agora });
   draft[scope] = { ...(draft[scope] || {}), finalizadoEm: agora, updatedAt: agora };
-  persist();
+  if (!await persist()) return;
   render();
 }
 
@@ -1671,7 +1735,7 @@ async function saveCurrentPageAndAdvance(element) {
       return;
     }
   }
-  saveClinicalRecord(scope);
+  if (!await saveClinicalRecord(scope)) return;
   const nextPage = nextPageForScope(scope);
   // A pagina seguinte e liberada de qualquer jeito, inclusive no desvio: o
   // fluxo avancou: o que muda e onde ele para. Sem isto, quem fosse desviado
@@ -1700,14 +1764,14 @@ async function saveCurrentPageAndAdvance(element) {
 //
 // O que ele perde ao pular a anamnese e a triagem de risco, que le o texto
 // dela. A pagina segue ali, e o aviso do cartao diz isso.
-function skipToDiagnosis(element) {
+async function skipToDiagnosis(element) {
   if (voiceRecording.isBusy()) {
     alert("Encerre a gravação e aguarde a transcrição antes de avançar.");
     return;
   }
   const form = element.closest("form");
   if (form) updateDraftFromForm(form);
-  saveClinicalRecord("consultation");
+  if (!await saveClinicalRecord("consultation")) return;
   unlockAllPages("consultation");
   consultationPage = "diagnostico";
   render();
@@ -1728,7 +1792,7 @@ function medicationDetour(scope, completedPage) {
   return marcados.length ? "medicamentos" : "";
 }
 
-function saveClinicalRecord(scope) {
+async function saveClinicalRecord(scope) {
   if (!selectedPatientId) return null;
   const now = new Date().toISOString();
   if (scope === "consultation") {
@@ -1745,8 +1809,8 @@ function saveClinicalRecord(scope) {
     const registro = withVersionHistory(findEntry(data.id, "consultation"), data, now);
     upsert("consultations", registro);
     draft.consultation = { ...structuredClone(registro), ...screenOnlyFields(draft.consultation) };
+    if (!await persist()) return null;
     unsavedWork.salvo("consultation");
-    persist();
     return registro;
   }
   if (scope === "return") {
@@ -1777,8 +1841,8 @@ function saveClinicalRecord(scope) {
     const registro = withVersionHistory(findEntry(data.id, "return"), data, now);
     upsert("returns", registro);
     draft.return = { ...structuredClone(registro), ...screenOnlyFields(draft.return) };
+    if (!await persist()) return null;
     unsavedWork.salvo("return");
-    persist();
     return registro;
   }
   return null;
@@ -1793,6 +1857,14 @@ function saveClinicalRecord(scope) {
 // esta velho: cada mesclagem cria um objeto novo, e o formulario segue editavel.
 function draftTarget(scope) {
   return (scope === "return" ? draft.return : draft.consultation) || {};
+}
+
+function withDecisionId(suggestion, scope, kind, id) {
+  if (!id) return suggestion;
+  return {
+    ...suggestion,
+    aiDecisionIds: { ...(draftTarget(scope).aiDecisionIds || {}), [kind]: id }
+  };
 }
 
 function syncedTarget(element) {
@@ -1828,10 +1900,10 @@ async function generateDiagnosisFromClinicalData(element, kind = "diagnosis") {
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result, sources, webSources, mode, codeWarnings } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn, null, context.history), revisao ? "rag" : context.target?.aiMode, buildRagQuery(kind, context.target), buildWebQuery(kind, context.target), "", ragPatientScopes(context.patient), revisao ? selectedDiagnosisText(context.target || {}).split("\n").filter(Boolean) : []);
+    const { result, sources, webSources, mode, codeWarnings, decisionId } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn, null, context.history), revisao ? "rag" : context.target?.aiMode, buildRagQuery(kind, context.target), buildWebQuery(kind, context.target), "", ragPatientScopes(context.patient), revisao ? selectedDiagnosisText(context.target || {}).split("\n").filter(Boolean) : []);
     // A procedencia da resposta e a do modo que respondeu: trechos do acervo no
     // RAG, paginas da web na Nuvem. So um dos dois vem preenchido por chamada.
-    suggestion = diagnosisSuggestionFromAi({ result, target: draftTarget(scope), sources: sourcesOfMode(mode, sources, webSources), mode, codeWarnings, revisao });
+    suggestion = withDecisionId(diagnosisSuggestionFromAi({ result, target: draftTarget(scope), sources: sourcesOfMode(mode, sources, webSources), mode, codeWarnings, revisao }), scope, kind, decisionId);
     if (revisao) suggestion.aiStatus = `${mode === "rag" ? "Refinado pela fonte especializada" : "Refinado pela web, porque o acervo não sustentou"}. ${suggestion.aiStatus}`;
   } catch (error) {
     suggestion = revisao ? diagnosisReviewFailure(error) : diagnosisSuggestionFromLocalCatalogue(draftTarget(scope), error);
@@ -1871,11 +1943,11 @@ async function generateTreatmentFromClinicalData(element, kind = "treatment") {
     // A faixa etaria so entra na consulta das diretrizes: la o arquivo da
     // infancia e um documento a parte e precisa ser chamado; no acervo de
     // livros quem faz esse trabalho e o ragPatientScopes, por cima da busca.
-    const { result, sources, webSources, mode } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn, null, context.history), modoEscolhido, buildRagQuery(kind, context.target, modoEscolhido === "guidelines" ? { paciente: context.patient } : {}), buildWebQuery(kind, context.target), "", ragPatientScopes(context.patient), [], treatmentDiagnosisText(context.target || {}));
+    const { result, sources, webSources, mode, decisionId } = await requestClinicalAi(kind, buildClinicalAiPrompt(kind, context.target, context.patient, context.previous, context.isReturn, null, context.history), modoEscolhido, buildRagQuery(kind, context.target, modoEscolhido === "guidelines" ? { paciente: context.patient } : {}), buildWebQuery(kind, context.target), "", ragPatientScopes(context.patient), [], treatmentDiagnosisText(context.target || {}));
     // O rascunho de agora, nao o de antes da espera: o que ele marcou enquanto a
     // IA respondia tem de sobreviver. O seletor de modo fica de fora do que
     // volta -- guarda a ESCOLHA dele --, e por isso nada aqui o reescreve.
-    suggestion = treatmentSuggestionFromAi({ result, target: draftTarget(scope), sources: sourcesOfMode(mode, sources, webSources), mode, revisao });
+    suggestion = withDecisionId(treatmentSuggestionFromAi({ result, target: draftTarget(scope), sources: sourcesOfMode(mode, sources, webSources), mode, revisao }), scope, kind, decisionId);
   } catch (error) {
     // Tres modos, tres nomes. A falha precisa dizer QUE fonte falhou: em
     // Guidelines a recusa por falta de cobertura e resposta legitima -- as
@@ -1918,7 +1990,7 @@ async function generateReturnPlanFromClinicalData(element) {
   try {
     const context = clinicalAiContext(scope);
     const modoEscolhido = context.target?.returnPlanAiMode || "rag";
-    const { result, sources, webSources, mode } = await requestClinicalAi(
+    const { result, sources, webSources, mode, decisionId } = await requestClinicalAi(
       "return_plan",
       buildClinicalAiPrompt("return_plan", context.target, context.patient, context.previous, context.isReturn, null, context.history),
       modoEscolhido,
@@ -1927,7 +1999,7 @@ async function generateReturnPlanFromClinicalData(element) {
       [], treatmentDiagnosisText(context.target || {}));
     // O rascunho de agora, nao o de antes da espera: o que ele marcou enquanto a
     // IA respondia tem de sobreviver.
-    gravar(returnPlanSuggestionFromAi({ result, target: draftTarget(scope), sources: sourcesOfMode(mode, sources, webSources), mode }));
+    gravar(withDecisionId(returnPlanSuggestionFromAi({ result, target: draftTarget(scope), sources: sourcesOfMode(mode, sources, webSources), mode }), scope, "return_plan", decisionId));
   } catch (error) {
     gravar({
       ragSourcesAjuste: [],
@@ -1992,19 +2064,19 @@ async function generateAppendixSymptomConduct(element) {
   try {
     const context = clinicalAiContext(scope);
     const sombra = { ...(context.target || {}), sintomasResiduais: [sintoma], sintomasResiduaisOutro: "" };
-    const { result, sources, webSources, mode } = await requestClinicalAi(
+    const { result, sources, webSources, mode, decisionId } = await requestClinicalAi(
       "symptomatic",
       buildClinicalAiPrompt("symptomatic", sombra, context.patient, context.previous, context.isReturn, null, context.history),
       context.target?.symptomaticAiMode || "rag",
       buildRagQuery("symptomatic", sombra), buildWebQuery("symptomatic", sombra), "", ragPatientScopes(context.patient));
     const linhas = targetSymptomConductLines(result);
-    gravar({
+    gravar(withDecisionId({
       appendixSymptomConducts: linhas.join("\n"),
       ragSourcesSintomatico: sourcesOfMode(mode, sources, webSources),
       appendixSymptomStatus: linhas.length
         ? `${countLabel(linhas.length, "linha")} de manejo. Leve para o Tratamento o que voce adotar — o resto fica so nesta consulta.`
         : "Nenhuma conduta encontrada para este sintoma."
-    });
+    }, scope, "symptomatic", decisionId));
   } catch (error) {
     gravar({ ragSourcesSintomatico: [], appendixSymptomStatus: statusFailure("Literatura de manejo sintomático indisponível", error.message) });
   }
@@ -2067,14 +2139,14 @@ async function generateEvolutionFromClinicalData(element) {
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result, sources, webSources, mode } = await requestClinicalAi(
+    const { result, sources, webSources, mode, decisionId } = await requestClinicalAi(
       "evolution",
       buildClinicalAiPrompt("evolution", context.target, context.patient, context.previous, context.isReturn),
       context.target?.evolutionAiMode || "rag",
       buildRagQuery("evolution", context.target),
       buildWebQuery("evolution", context.target));
     const text = normalizeEvolutionNarrative(result.markdown);
-    suggestion = {
+    suggestion = withDecisionId({
       evolution: text,
       // Texto da IA que ele revisa: nao pode ser trocado pelo modelo local ao
       // salvar -- ficaria a procedencia do RAG ao lado de um texto que nao
@@ -2083,7 +2155,7 @@ async function generateEvolutionFromClinicalData(element) {
       evolucaoOrigem: mode === "rag" ? "rag" : "nuvem",
       ragSourcesEvolucao: sourcesOfMode(mode, sources, webSources),
       aiStatus: "Evolução gerada pela IA real. Revise antes de salvar.",
-    };
+    }, scope, "evolution", decisionId);
   } catch (error) {
     const context = clinicalAiContext(scope);
     suggestion = evolutionSuggestionOnAiFailure({ target: context.target, patient: context.patient, previous: context.previous, isReturn: context.isReturn, error });
@@ -2121,7 +2193,7 @@ async function generateMedicationFromClinicalData(element) {
   let suggestion;
   try {
     const context = clinicalAiContext(scope);
-    const { result, sources, webSources, mode } = await requestClinicalAi(
+    const { result, sources, webSources, mode, decisionId } = await requestClinicalAi(
       "medication",
       buildClinicalAiPrompt("medication", context.target, context.patient, context.previous, context.isReturn),
       context.target?.pharmaAiMode || "rag",
@@ -2139,7 +2211,7 @@ async function generateMedicationFromClinicalData(element) {
     // acervo -- sairia da web sem ninguem ter pedido.
     const escolhido = context.target?.pharmaAiMode || "rag";
     const caiuParaWeb = escolhido === "rag" && mode === "current";
-    suggestion = {
+    suggestion = withDecisionId({
       medicationNameText: result.medication || target.medicationGeneric,
       medicationClassMechanism: result.class_and_mechanism || "",
       medicationInitialDose: result.initial_dose || "",
@@ -2168,7 +2240,7 @@ async function generateMedicationFromClinicalData(element) {
       medicationTips: await fetchMedicationTips(context, target),
       aiStatus: "Resposta gerada pela IA real. Revise antes de salvar.",
       ragSourcesMedicamento: sourcesOfMode(mode, sources, webSources)
-    };
+    }, scope, "medication", decisionId);
   } catch (error) {
     const wasRag = (target?.pharmaAiMode || "rag") === "rag";
     suggestion = {
@@ -2221,7 +2293,7 @@ async function loadBookChapter(scope, nome) {
   if (!alvo) return aplica({ medicationChapter: null, medicationChapterStatus: "" });
   aplica({ medicationChapterStatus: "Abrindo o capitulo do livro..." });
   try {
-    const resposta = await fetch(`/api/book-chapter?medicamento=${encodeURIComponent(alvo)}`);
+    const resposta = await fetch(`/api/book-chapter?medicamento=${encodeURIComponent(alvo)}`, { headers: await authHeaders() });
     const dados = await resposta.json().catch(() => ({}));
     if (!resposta.ok) return aplica({ medicationChapter: null, medicationChapterStatus: dados.error || "Nao foi possivel abrir o capitulo." });
     aplica({ medicationChapter: dados, medicationChapterStatus: "" });
@@ -2873,20 +2945,22 @@ function upsert(collection, data) {
   else list.push(data);
 }
 
-function persist() {
+async function persist() {
   // Gravacao local antes de tudo: se ela falhou, o aviso e mais grave que o de
   // sincronizacao — ali o registro existe no aparelho e so nao subiu; aqui ele
   // nao existe em lugar nenhum.
-  saveLocally();
-  if (!authSession) return;
-  syncWithAccount();
+  const ownerId = authSession?.user?.id || "";
+  const erro = await saveLocally(ownerId);
+  if (erro) return false;
+  if (ownerId && authSession?.user?.id === ownerId) syncWithAccount();
+  return true;
 }
 
 // A gravacao no aparelho e assincrona desde 14/09/2026 (IndexedDB). O aviso so
 // muda quando o resultado muda, para nao redesenhar a tela a cada tecla salva.
-function saveLocally() {
-  return saveState(state).then(erroLocal => {
-    if (erroLocal !== storageError) { storageError = erroLocal; render(); }
+function saveLocally(ownerId = authSession?.user?.id || "") {
+  return saveState(state, ownerId).then(erroLocal => {
+    if ((authSession?.user?.id || "") === ownerId && erroLocal !== storageError) { storageError = erroLocal; render(); }
     return erroLocal;
   });
 }
@@ -2895,9 +2969,13 @@ function saveLocally() {
 // acompanhou. Antes o erro ia para authError, que so aparece na tela de
 // login — na pratica, silencio.
 function syncWithAccount() {
+  const ownerId = authSession?.user?.id;
+  if (!ownerId) return syncChain;
   syncChain = syncChain.then(async () => {
+    if (authSession?.user?.id !== ownerId) return;
     try {
-      const daConta = await syncState(state, mergeStates);
+      const daConta = await syncState(state, mergeStates, 3, ownerId);
+      if (authSession?.user?.id !== ownerId) return;
       if (daConta) absorbAccountState(daConta);
       if (syncError) { syncError = ""; render(); }
     } catch (error) {
@@ -3067,8 +3145,13 @@ async function endSession() {
   }
   // Sem await: signOut() tira a sessao local na hora, e o aviso ao Supabase
   // termina sozinho. A tela de entrada nao espera a rede.
+  const erro = await waitForLocalSave();
+  if (erro) { storageError = erro; render(); return; }
   signOut().catch(() => {});
   authSession = null;
+  state = { patients: [], consultations: [], returns: [] };
+  selectedPatientId = "";
+  unassignedRecords = 0;
   authError = "";
   syncError = "";
   draftGuard.replaced(); aiOperations.reset(); unsavedWork.limpar();

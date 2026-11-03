@@ -25,6 +25,26 @@ python3 server.py
 O `.env` guarda a chave da OpenAI e o Supabase; `.env.example` lista tudo o que
 o servidor le. Sem chave, o app abre e as etapas de IA avisam que estao fora.
 
+### Dados locais e contas
+
+Em modo local (`APP_MODE=local`, apenas `127.0.0.1`), o aplicativo usa o
+armazenamento do navegador. Com Supabase configurado, cada conta usa chaves
+locais separadas. Ao sair, os dados da conta saem da memória da página; a
+cópia local continua no navegador dessa conta para funcionar sem rede.
+
+Dados escritos antes dessa separação ficam preservados nas chaves antigas,
+sem serem enviados automaticamente a nenhuma conta. Depois do login, o
+painel oferece **Importar para esta conta**. Confirme apenas depois de verificar
+que todos os registros antigos pertencem ao usuário exibido. Faça cópia
+do navegador e do banco antes de migrar dados clínicos reais.
+
+Para servidor acessível na rede, configure `APP_MODE=remote`,
+`SUPABASE_URL` HTTPS e `SUPABASE_PUBLISHABLE_KEY`. O servidor recusa
+iniciar sem essas duas variáveis. `APP_MODE=local` recusa `HOST=0.0.0.0`.
+O acesso via Tailscale alcança o app a partir de outros aparelhos, mesmo com
+o processo escutando em `127.0.0.1`. O serviço do Mac mini usa
+`APP_MODE=remote` e exige Supabase configurado antes de publicar.
+
 ## Testar
 
 ```bash
@@ -34,6 +54,11 @@ node --test 'testes/js/*.test.js'         # camada clinica do front
 
 Os modulos clinicos sao funcoes puras — sem DOM, sem rede, sem chave de API — e
 o Node os roda como estao, sem `package.json` e sem dependencia nenhuma.
+
+Os nove testes de busca de capítulos exigem `book_chapters.local.json` gerado
+localmente; esse arquivo licenciado não está no Git. A CI executa os testes
+JS e os testes Python independentes desse arquivo até a suíte completa poder
+ser reproduzida de forma isolada.
 
 ## Onde esta o resto
 

@@ -507,7 +507,7 @@ function optionLabelBody(option) {
 // deixa avancar incompleta; esta e inferencia da IA sobre aquilo, e vai errar
 // alguma. Caixa ja marcada e mais facil de deixar passar do que campo vazio --
 // o custo de errar aqui e uma receita.
-export function returnPlanModule(form) {
+export function returnPlanModule(form, { historico = [] } = {}) {
   const hipoteses = treatmentOptionLines(form.ajusteAiHipoteses);
   const medicacao = treatmentOptionLines(form.ajusteAiMedicacao);
   const conduta = treatmentOptionLines(form.ajusteAiConduta);
@@ -520,6 +520,8 @@ export function returnPlanModule(form) {
       </div>
       ${statusLine(form.returnPlanStatus)}
       ${ragSourcesView(form.ragSourcesAjuste)}
+      ${pharmacologicalHistoryView(historico)}
+      ${previousPharmacologicalTreatmentReportView(reportedMedicationTreatmentLines(form))}
     </div>
     ${riscoAgudoView(scaleAcuteRisk(form), "deste retorno", "O retorno não tem nível de cuidado próprio: se a conduta seguir ambulatorial, registre a razão em Acrescentar.")}
     <div class="treatment-card-grid">

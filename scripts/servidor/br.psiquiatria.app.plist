@@ -7,15 +7,15 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/regisbraga/Documents/Codex/2026-09-28/github-app-connector-76869538009648d5b282a4bb21c3d157/PSIQUIATRIA/.venv/bin/python</string>
-    <string>/Users/regisbraga/Documents/Codex/2026-09-28/github-app-connector-76869538009648d5b282a4bb21c3d157/PSIQUIATRIA/server.py</string>
+    <string>__PROJECT_ROOT__/.venv/bin/python</string>
+    <string>__PROJECT_ROOT__/server.py</string>
   </array>
 
   <key>WorkingDirectory</key>
-  <string>/Users/regisbraga/Documents/Codex/2026-09-28/github-app-connector-76869538009648d5b282a4bb21c3d157/PSIQUIATRIA</string>
+  <string>__PROJECT_ROOT__</string>
 
   <key>UserName</key>
-  <string>regisbraga</string>
+  <string>__APP_USER__</string>
 
   <key>EnvironmentVariables</key>
   <dict>
@@ -23,6 +23,8 @@
     <string>8000</string>
     <key>HOST</key>
     <string>127.0.0.1</string>
+    <key>APP_MODE</key>
+    <string>remote</string>
     <key>PYTHONUNBUFFERED</key>
     <string>1</string>
   </dict>
@@ -40,8 +42,8 @@
   <integer>10</integer>
 
   <key>StandardOutPath</key>
-  <string>/Users/regisbraga/Library/Logs/psiquiatria-app.log</string>
+  <string>__USER_HOME__/Library/Logs/psiquiatria-app.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/regisbraga/Library/Logs/psiquiatria-app.err.log</string>
+  <string>__USER_HOME__/Library/Logs/psiquiatria-app.err.log</string>
 </dict>
 </plist>

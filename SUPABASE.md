@@ -1,8 +1,8 @@
 # Supabase
 
 Os prontuarios sao gravados **no aparelho** e sincronizados com o Supabase, uma
-linha por medico. Nao e um ou outro: o `localStorage` e a gravacao que sempre
-acontece, e a copia remota e o que sobrevive a troca de computador.
+linha por medico. No aparelho a via principal e IndexedDB; localStorage e a
+reserva quando IndexedDB falha. As chaves locais sao separadas por id de conta.
 
 ## Como os dois convivem
 
@@ -12,13 +12,21 @@ o aviso e outro; falha de sincronizacao e o registro salvo aqui que ainda nao
 subiu, e a barra de status diz exatamente isso: "Não sincronizado: ... O
 registro está salvo neste aparelho."
 
-No login, o que vem do Supabase e **unido** ao que esta no aparelho, e nao posto
+No login, o que vem do Supabase e **unido** apenas ao espaco local dessa mesma
+conta, e nao posto
 no lugar (`mergeStates`, casado por `id`). Substituir apagaria o que foi escrito
 enquanto a sincronizacao estava fora.
+
+Registros anteriores a separacao por contas ficam sem titular atribuido.
+O painel pede confirmacao explicita antes de importa-los para a conta
+autenticada. A copia antiga nao e apagada automaticamente.
 
 O `access_token` do Supabase dura cerca de uma hora, e o `supabaseService.js`
 renova sozinho: sem isso, consulta comecada de manha e salva depois do almoco
 levava 401 e nunca subia.
+Ao abrir uma nova sessão do aplicativo, a identidade guardada no navegador é
+confirmada com Supabase antes de ler o espaço local daquela conta. Uma falha
+de rede nessa verificação mostra erro de abertura, não ativa o modo local.
 
 ## Configurar
 
@@ -44,5 +52,6 @@ A chave nao vai no HTML: o front pede `/api/supabase-config` ao `server.py`.
 - **Sem resolucao de conflito por horario.** `mergeStates` casa por `id` e a
   versao local vence. Dois aparelhos editando o mesmo registro: o ultimo a
   gravar fica com a palavra final.
-- **Sem `signOut`.** A sessao vive no `sessionStorage` e vai embora quando a
-  aba fecha.
+- A sessao vive no `sessionStorage`; o botao Sair encerra a sessao e limpa
+  o prontuario da memoria da pagina. Os dados offline dessa conta continuam
+  no armazenamento do navegador, sem criptografia propria do aplicativo.

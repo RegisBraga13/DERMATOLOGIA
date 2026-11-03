@@ -382,6 +382,37 @@ def is_blocked_path(relative_parts):
     return False
 
 
+def is_public_asset(relative_parts):
+    """A raiz do projeto contém código, scripts e dados que não são públicos."""
+    if not relative_parts:
+        return True  # / resolve para index.html; listagem de diretório é bloqueada abaixo.
+    if len(relative_parts) == 1:
+        return relative_parts[0] in {"index.html", "sw.js"}
+    if relative_parts[0] == "src":
+        return relative_parts[-1].lower().endswith((".js", ".css", ".json")) and len(relative_parts) >= 2
+    if relative_parts[0] == "fonts":
+        return len(relative_parts) == 2 and relative_parts[-1].lower().endswith((".woff2", ".woff"))
+    return False
+
+
+def is_remote_mode():
+    mode = os.environ.get("APP_MODE", "").strip().lower()
+    if mode not in {"", "local", "remote"}:
+        raise ValueError("APP_MODE deve ser local ou remote.")
+    host = os.environ.get("HOST", "127.0.0.1")
+    if mode == "local" and host not in {"127.0.0.1", "::1", "localhost"}:
+        raise ValueError("APP_MODE=local só permite escutar no próprio computador.")
+    return mode == "remote" or host not in {"127.0.0.1", "::1", "localhost"}
+
+
+def validate_server_config():
+    if is_remote_mode() and not (
+        os.environ.get("SUPABASE_URL", "").startswith("https://")
+        and os.environ.get("SUPABASE_PUBLISHABLE_KEY", "").strip()
+    ):
+        raise RuntimeError("Servidor remoto exige SUPABASE_URL HTTPS e SUPABASE_PUBLISHABLE_KEY.")
+
+
 def is_same_origin(handler):
     """Aceita apenas requisições vindas da própria página.
 
@@ -418,7 +449,7 @@ def verify_supabase_user(handler):
     supabase_url = os.environ.get("SUPABASE_URL", "").rstrip("/")
     supabase_key = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")
     if not supabase_url or not supabase_key:
-        return True
+        return not is_remote_mode()
     auth_header = handler.headers.get("Authorization", "")
     token = auth_header[7:].strip() if auth_header.lower().startswith("bearer ") else ""
     if not token:
@@ -2709,8 +2740,8 @@ def safe_plain_text(kind, result):
     try:
         return plain_text_from_result(kind, result)
     except (KeyError, TypeError, AttributeError) as error:
-        logger.warning("texto corrido de %s nao montado (%s: %s); o cliente o remonta do resultado",
-                       kind, type(error).__name__, error)
+        logger.warning("texto corrido de %s nao montado (%s); o cliente o remonta do resultado",
+                       kind, type(error).__name__)
         return ""
 
 
@@ -2769,7 +2800,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
         except ValueError:
             # Fora da raiz do projeto: devolve um caminho inexistente -> 404.
             return str(root / "__fora_da_raiz__")
-        if is_blocked_path(relative.parts):
+        if is_blocked_path(relative.parts) or not is_public_asset(relative.parts):
             return str(root / "__bloqueado__")
         return str(requested)
 
@@ -2825,6 +2856,9 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             })
             return
         if parsed_path.path == "/api/book-chapter":
+            if not verify_supabase_user(self):
+                self.send_json(401, {"error": "Sessao invalida ou expirada."})
+                return
             nome = urllib.parse.parse_qs(parsed_path.query).get("medicamento", [""])[0]
             try:
                 capitulo = find_book_chapter(nome)
@@ -2886,7 +2920,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                     return
                 self.send_json(200, {"ok": True, **result})
             except urllib.error.HTTPError as error:
-                logger.error("OpenAI transcription %s: %s", error.code, error.read().decode("utf-8", errors="replace"))
+                logger.error("OpenAI transcription %s: corpo de erro omitido para proteger dados clinicos", error.code)
                 self.send_json(error.code, {"error": "Erro retornado pela OpenAI durante a transcricao. Detalhes no log do servidor."})
             except Exception:
                 logger.exception("Falha em /api/transcribe-consultation")
@@ -3216,7 +3250,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 result = validate_result(kind, parse_model_json(text))
             except (ValueError, json.JSONDecodeError) as error:
                 log_decision(**medicao, resultado="rejeitada", causa=type(error).__name__)
-                logger.error("resposta rejeitada (%s): %s", kind, text[:1200])
+                logger.error("resposta rejeitada (%s): %s", kind, type(error).__name__)
                 # Cortada DE NOVO, ja com o teto dobrado. A mensagem diz o que
                 # aconteceu e o que fazer, em vez de mandar procurar defeito de
                 # formato num texto que so nao chegou ao fim.
@@ -3234,7 +3268,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 return
             code_warnings = verify_diagnostic_codes(result) if kind in {"diagnosis", "diagnosis_review"} else []
             if code_warnings:
-                logger.warning("ancoragem de codigos: %s", "; ".join(item["text"] for item in code_warnings))
+                logger.warning("ancoragem de codigos: %d aviso(s)", len(code_warnings))
             public_sources_by_file = {}
             for source in sources:
                 key = source["file_id"] or source["filename"]
@@ -3267,7 +3301,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             # metadados da conta. Fica no log local, não na resposta HTTP.
             log_decision(id=decision_id, rota="clinical-ai", resultado="erro_api", causa=error.code,
                          ms=int((time.monotonic() - comecou) * 1000))
-            logger.error("OpenAI %s: %s", error.code, error.read().decode("utf-8", errors="replace"))
+            logger.error("OpenAI %s: corpo de erro omitido para proteger dados clinicos", error.code)
             self.send_json(error.code, {"error": "Erro retornado pela OpenAI. Detalhes no log do servidor."})
         except Exception as error:
             log_decision(id=decision_id, rota="clinical-ai", resultado="erro_interno",
@@ -3325,7 +3359,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 "flagged": flagged,
             })
         except urllib.error.HTTPError as error:
-            logger.error("TypeSafe %s: %s", error.code, error.read().decode("utf-8", errors="replace"))
+            logger.error("TypeSafe %s: corpo de erro omitido para proteger dados clinicos", error.code)
             self.send_json(error.code, {"error": "Erro retornado pela TypeSafe. Detalhes no log do servidor."})
         except Exception:
             logger.exception("Falha em /api/risk-screen")
@@ -3409,7 +3443,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                          ms=int((time.monotonic() - comecou) * 1000))
             self.send_json(200, {"ok": True, "answers": result})
         except urllib.error.HTTPError as error:
-            logger.error("TypeSafe %s: %s", error.code, error.read().decode("utf-8", errors="replace"))
+            logger.error("TypeSafe %s: corpo de erro omitido para proteger dados clinicos", error.code)
             self.send_json(error.code, {"error": "Erro retornado pela TypeSafe. Detalhes no log do servidor."})
         except Exception:
             logger.exception("Falha em /api/jev-judge")
@@ -3419,6 +3453,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     load_env()
+    validate_server_config()
     port = int(os.environ.get("PORT", "8000"))
     # Default fica em 127.0.0.1: quem roda local continua so alcancavel pela
     # propria maquina. HOST=0.0.0.0 e para hospedagem (Render/Fly/Railway),
