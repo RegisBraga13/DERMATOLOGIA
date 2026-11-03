@@ -1,7 +1,8 @@
 # Supabase
 
-Os prontuarios sao gravados **no aparelho** e sincronizados com o Supabase, uma
-linha por medico. No aparelho a via principal e IndexedDB; localStorage e a
+Os prontuarios sao gravados **no aparelho** e sincronizados com o Supabase. Por
+padrao (versao 1), a copia remota usa uma linha por conta. O formato opcional
+v2 usa uma linha por paciente, consulta e retorno. No aparelho a via principal e IndexedDB; localStorage e a
 reserva quando IndexedDB falha. As chaves locais sao separadas por id de conta.
 
 ## Como os dois convivem
@@ -41,14 +42,46 @@ de rede nessa verificação mostra erro de abertura, não ativa o modo local.
 Sem `.env` preenchido o app nao quebra — a tela de login recusa com "Supabase
 não configurado no servidor.", e quem ja entrou continua gravando no aparelho.
 
-A chave nao vai no HTML: o front pede `/api/supabase-config` ao `server.py`.
+A chave publica vai ao navegador pelo endpoint `/api/supabase-config`; ela nao
+substitui as politicas RLS. Nunca coloque a chave `service_role` nessa variavel.
+
+## Migracao opcional para linhas por registro (v2)
+
+O valor padrao de `SUPABASE_STORAGE_VERSION` e `1`. O codigo da v2 existe para
+permitir ensaiar e revisar a migracao, sem mudar a persistencia de producao
+automaticamente. A tabela e as politicas estao em
+`supabase/migrations/20261103000000_prontuario_registros_v2.sql`.
+
+1. Faca backup e ensaie a restauracao do banco e dos navegadores usados. A
+   copia v1 nao sera removida pela migracao.
+2. Aplique a migracao SQL no projeto correto e verifique as quatro politicas
+   RLS com duas contas de teste: cada uma deve ler/escrever apenas as proprias
+   linhas. Nao confie apenas no teste automatizado do navegador.
+3. Em ambiente de homologacao, configure `SUPABASE_STORAGE_VERSION=2`, abra
+   uma conta com dados v1 e confira contagem e conteudo de pacientes, consultas
+   e retornos no app, na tabela e apos recarregar outro dispositivo. A copia v1
+   e combinada com os dados locais da mesma conta; `_migration_v1` so aparece
+   apos a escrita de todos os registros. Repita para contas e volumes reais
+   com dados sinteticos/anonimizados.
+4. Planeje janela em que **todos** os aparelhos parem de gravar com clientes
+   v1. Atualize os servidores/dispositivos antes de ativar v2. Um cliente v1
+   gravando depois do marcador v2 nao e importado novamente.
+5. Monitore falhas de sincronizacao e conte os registros por conta. Se precisar
+   voltar a v1, pare as escritas e reconcilie os dados v2 de volta a v1 antes
+   de trocar a flag: so mudar a flag deixa edicoes v2 fora da copia antiga.
+
+Cada linha usa `owner_id` e chave composta por tipo/id. Atualizacoes usam
+`version` como comparacao atomica e repetem a leitura em disputa. Isto reduz
+colisoes entre pacientes distintos; edicoes concorrentes do **mesmo** registro
+ainda seguem o criterio de `updatedAt` do `mergeStates`, sem revisao humana.
+O app continua trazendo o conjunto da conta para o navegador; v2 ainda nao
+fornece paginacao na interface nem prontuario multiusuario.
 
 ## O que ainda nao existe
 
-- **Um prontuario por medico, nao por paciente.** A tabela guarda o estado
-  inteiro num `payload` jsonb, numa linha so. Serve para um consultorio; nao
-  serve para dois medicos dividindo pacientes, nem para consulta por paciente
-  no banco.
+- A v1 guarda o estado inteiro numa linha por medico. A v2 permite consulta
+  por paciente no banco, mas ainda nao divide o paciente entre medicos nem
+  restringe a leitura do conjunto da conta por tela ou funcao.
 - **Sem resolucao de conflito por horario.** `mergeStates` casa por `id` e a
   versao local vence. Dois aparelhos editando o mesmo registro: o ultimo a
   gravar fica com a palavra final.

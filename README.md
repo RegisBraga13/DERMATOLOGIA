@@ -104,3 +104,10 @@ estatico, um a um.
 O RAG.md fecha com o que falta: validar recuperacao e respostas com um conjunto
 de casos revisado por especialista. Ate la, o programa e prototipo, e nenhuma
 resposta dele substitui julgamento clinico.
+
+# Persistência
+
+O formato de sincronização por registro está preparado como versão opcional,
+mas permanece desligado (`SUPABASE_STORAGE_VERSION=1`). Consulte
+[`SUPABASE.md`](SUPABASE.md) para ensaiar a migração com backup, validar RLS e
+coordenar a atualização dos dispositivos antes de ativá-lo.

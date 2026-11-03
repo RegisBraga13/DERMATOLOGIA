@@ -406,6 +406,8 @@ def is_remote_mode():
 
 
 def validate_server_config():
+    if os.environ.get("SUPABASE_STORAGE_VERSION", "1") not in {"1", "2"}:
+        raise ValueError("SUPABASE_STORAGE_VERSION deve ser 1 ou 2.")
     if is_remote_mode() and not (
         os.environ.get("SUPABASE_URL", "").startswith("https://")
         and os.environ.get("SUPABASE_PUBLISHABLE_KEY", "").strip()
@@ -2846,7 +2848,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed_path = urllib.parse.urlparse(self.path)
         if parsed_path.path == "/api/supabase-config":
-            self.send_json(200, {"url": os.environ.get("SUPABASE_URL", "").rstrip("/"), "key": os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")})
+            self.send_json(200, {"url": os.environ.get("SUPABASE_URL", "").rstrip("/"), "key": os.environ.get("SUPABASE_PUBLISHABLE_KEY", ""), "storage_version": int(os.environ.get("SUPABASE_STORAGE_VERSION", "1"))})
             return
         if parsed_path.path == "/api/health":
             self.send_json(200, {

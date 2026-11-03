@@ -1,3 +1,4 @@
+import { syncRecordRows } from "./recordSyncService.js";
 const SESSION_KEY = "psires_supabase_session";
 let configPromise;
 
@@ -157,6 +158,10 @@ export async function syncState(local, merge, tentativas = 3, expectedOwnerId = 
   const session = await currentSession();
   if (!session?.user?.id || (expectedOwnerId && session.user.id !== expectedOwnerId)) return null;
   const ownerId = session.user.id;
+  const settings = await config();
+  if (settings.storage_version === 2) {
+    return syncRecordRows(local, merge, authorized, ownerId, tentativas);
+  }
   for (let vez = 0; vez < tentativas; vez += 1) {
     const leitura = await authorized(`/rest/v1/prontuarios?select=id,payload,updated_at&owner_id=eq.${encodeURIComponent(ownerId)}&limit=1`, {}, true, ownerId);
     if (!leitura) return null;
