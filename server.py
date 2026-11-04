@@ -3042,7 +3042,12 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             # cair de modo sem dizer produz uma resposta sem diretriz numa tela
             # que diz "Guidelines".
             if kind not in AI_SOURCE_REGISTRY[mode]["kinds"]:
-                self.send_json(400, {"error": "O modo Guidelines nao se aplica a esta etapa."})
+                self.send_json(400, {"error": "Esta fonte de IA nao se aplica a esta etapa."})
+                return
+            # Um modo novo no catálogo não pode cair no contrato Nuvem abaixo
+            # antes de existir um ramo de busca e procedência para ele.
+            if mode not in {"current", "rag", "guidelines"}:
+                self.send_json(400, {"error": "Fonte de IA ainda sem implementacao no servidor."})
                 return
             # Tempo apenas das fontes: nao registra consulta, trecho ou caso.
             # Separa a espera por web/acervo da espera pela resposta estruturada.

@@ -1048,6 +1048,20 @@ class ClinicalAiEndpointTests(unittest.TestCase):
     def _resposta_final(chamadas):
         return [c for c in chamadas if "tools" not in c][-1]
 
+    def test_mode_in_catalog_without_handler_is_refused(self):
+        with patch.dict(server.AI_SOURCE_REGISTRY, {"future": {"label": "Futura", "kinds": frozenset({"evolution"})}}), \
+             patch.object(server, "AI_MODES", server.AI_MODES | {"future"}):
+            status, resposta, chamadas = self._answer({"kind": "evolution", "prompt": "Caso ficticio.", "mode": "future"})
+        self.assertEqual(status, 400)
+        self.assertIn("sem implementacao", resposta["error"])
+        self.assertEqual(chamadas, [])
+
+    def test_catalog_rejects_guidelines_for_medication(self):
+        status, resposta, chamadas = self._answer({"kind": "medication", "prompt": "Caso ficticio.", "mode": "guidelines"})
+        self.assertEqual(status, 400)
+        self.assertIn("nao se aplica", resposta["error"])
+        self.assertEqual(chamadas, [])
+
     def test_cloud_without_web_query_does_not_claim_a_search(self):
         """Sem consulta de busca nao ha pesquisa. O contrato antigo dizia ao
         modelo 'voce PESQUISA NA WEB', numa chamada sem ferramenta alguma."""
