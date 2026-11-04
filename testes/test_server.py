@@ -1069,6 +1069,15 @@ class ClinicalAiEndpointTests(unittest.TestCase):
         self.assertIn("Bula ANVISA", enviado["input"][1]["content"])
         self.assertEqual(resposta["mode"], "current")
 
+    def test_expired_generation_budget_returns_a_retryable_timeout(self):
+        import os
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "chave-de-teste"}), \
+             patch.object(server, "read_json_response", side_effect=TimeoutError("sem resposta")):
+            status, resposta = self._post({"kind": "evolution", "prompt": "Paciente estavel.", "mode": "current"})
+        self.assertEqual(status, 504)
+        self.assertIn("Tente novamente", resposta["error"])
+        self.assertNotIn("Paciente", str(resposta))
+
     def test_result_missing_a_derived_text_key_is_still_answered(self):
         """Pergunta do refinamento sem "topic" passa na validacao. O texto
         corrido nao monta, mas o resultado e aproveitavel: 200, e nao 500."""

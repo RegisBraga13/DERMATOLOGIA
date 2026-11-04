@@ -3342,6 +3342,10 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                          ms=int((time.monotonic() - comecou) * 1000))
             logger.error("OpenAI %s: corpo de erro omitido para proteger dados clinicos", error.code)
             self.send_json(error.code, {"error": "Erro retornado pela OpenAI. Tente novamente."})
+        except TimeoutError:
+            log_decision(id=decision_id, rota="clinical-ai", resultado="tempo_esgotado",
+                         ms=int((time.monotonic() - comecou) * 1000))
+            self.send_json(504, {"error": "A consulta demorou demais. Tente novamente em instantes."})
         except Exception as error:
             log_decision(id=decision_id, rota="clinical-ai", resultado="erro_interno",
                          causa=type(error).__name__, ms=int((time.monotonic() - comecou) * 1000))
