@@ -20,3 +20,34 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest discover -s testes -q
+  postgres-rls:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: test-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: test-only
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar cliente PostgreSQL
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Testar migrações e isolamento RLS com dados sintéticos
+        run: |
+          psql -v ON_ERROR_STOP=1 -f testes/sql/bootstrap.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260810000000_prontuarios.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261104015410_prontuarios_owner_unico.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/drafts/prontuario_registros_v2.sql
+          psql -v ON_ERROR_STOP=1 -f testes/sql/rls.sql
