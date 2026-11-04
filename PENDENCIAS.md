@@ -23,10 +23,15 @@ Esta seção prevalece sobre o estado histórico de 23/09/2026 abaixo.
   P1/P2/P9 continuam removidas conforme a decisão registrada abaixo.
 
 O projeto Supabase ativo contém uma linha e um usuário; a ramificação de teste
-não está disponível no plano atual. A tentativa de aplicar a migração única
-diretamente ao banco ativo foi recusada pela revisão automática por conter
-dado clínico real e não haver autorização específica para alteração de
-produção. O PR permanece em rascunho. O teste visual em Safari/iPhone/iPad
+não está disponível no plano Free. A tentativa inicial de aplicar a migração
+única diretamente ao banco ativo foi recusada pela revisão automática por
+conter dado clínico real e não haver autorização específica para alteração de
+produção. A autorização específica foi dada em seguida, mas ainda não há
+backup confirmado: o plano Free não oferece backup diário automático e não há
+credencial de exportação disponível nesta sessão. A nova conferência encontrou
+zero contas duplicadas, zero `owner_id` nulos e nenhum índice ou migração já
+aplicado. Nenhuma migração deste PR foi aplicada ao banco ativo. O PR permanece
+em rascunho. O teste visual em Safari/iPhone/iPad
 depende de acesso ao navegador/dispositivos em que o app é usado.
 O assessor de segurança do Supabase ainda aponta proteção contra senhas
 vazadas desativada; a configuração de Auth precisa ser revisada no painel.
