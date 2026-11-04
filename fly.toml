@@ -5,6 +5,7 @@ primary_region = "gru"
 
 [env]
   HOST = "0.0.0.0"
+  APP_MODE = "remote"
 
 [http_service]
   internal_port = 8000

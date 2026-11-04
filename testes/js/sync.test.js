@@ -15,7 +15,7 @@ import { syncState } from "../../src/services/supabaseService.js";
 let conta;
 
 function contaFalsa(linha = null) {
-  const falsa = { linha, versao: 1, antesDoPatch: null, patches: 0 };
+  const falsa = { linha, versao: 1, antesDoPatch: null, antesDoPost: null, patches: 0 };
   const resposta = dados => ({ ok: true, status: 200, json: async () => dados });
   globalThis.sessionStorage = {
     getItem: () => JSON.stringify({ access_token: "t", user: { id: "u1" } }),
@@ -28,6 +28,12 @@ function contaFalsa(linha = null) {
     if (metodo === "GET") return resposta(falsa.linha ? [structuredClone(falsa.linha)] : []);
     const corpo = JSON.parse(options.body);
     if (metodo === "POST") {
+      if (falsa.antesDoPost) {
+        const outro = falsa.antesDoPost;
+        falsa.antesDoPost = null;
+        outro(falsa);
+        return { ok: false, status: 409 };
+      }
       falsa.linha = { id: "row1", payload: corpo.payload, updated_at: "v1" };
       return resposta(null);
     }
@@ -73,6 +79,17 @@ describe("sincronizacao com a conta", () => {
     assert.equal(conta.patches, 2);
     assert.deepEqual(ids(juntos), ["p1", "p2", "p3"]);
     assert.deepEqual(ids(conta.linha.payload), ["p1", "p2", "p3"]);
+  });
+
+  it("dois primeiros acessos disputam o insert: relê a linha única", async () => {
+    conta = contaFalsa(null);
+    conta.antesDoPost = falsa => {
+      falsa.linha = { id: "row1", payload: estadoCom(paciente("p2", "Joao")), updated_at: "v1" };
+    };
+    const juntos = await syncState(estadoCom(paciente("p1", "Maria")), mergeStates);
+    assert.deepEqual(ids(juntos), ["p1", "p2"]);
+    assert.deepEqual(ids(conta.linha.payload), ["p1", "p2"]);
+    assert.equal(conta.patches, 1);
   });
 
   it("sem sessao nao sincroniza", async () => {

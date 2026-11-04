@@ -4,7 +4,14 @@
 // rodape e so a pagina.
 export function exportTextAsPdf(title, text, filename = "", { rodape } = {}) {
   const safeTitle = String(title || "Documento clínico").trim();
-  const pdfBytes = buildPdf(safeTitle, String(text || ""), rodape);
+  const content = String(text || "");
+  // Helvetica/WinAnsi troca caracteres fora desse conjunto por '?'. Nesse
+  // caso, o navegador imprime com fontes Unicode em uma aba própria.
+  if (needsUnicodePrint(safeTitle + content + (rodape || ""))) {
+    openPrintableDocument(safeTitle, content, rodape);
+    return;
+  }
+  const pdfBytes = buildPdf(safeTitle, content, rodape);
   const blob = new Blob([pdfBytes], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -15,6 +22,30 @@ export function exportTextAsPdf(title, text, filename = "", { rodape } = {}) {
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
+export function needsUnicodePrint(value) {
+  return [...String(value || "")].some(character => {
+    const code = character.codePointAt(0);
+    return code > 0xff && ![0x2013, 0x2014, 0x2018, 0x2019, 0x201c, 0x201d, 0x2026].includes(code);
+  });
+}
+
+function openPrintableDocument(title, content, rodape) {
+  const windowForPrint = window.open("", "_blank");
+  if (!windowForPrint) {
+    alert("O documento contém caracteres especiais. Permita abrir uma nova aba e tente exportar novamente; nenhum caractere foi removido.");
+    return;
+  }
+  const escape = value => String(value).replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  })[c]);
+  windowForPrint.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escape(title)}</title>
+    <style>body{font:12pt Arial,sans-serif;margin:2cm;color:#111}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}
+    button{padding:10px 16px;margin-bottom:20px}@media print{button{display:none}body{margin:0}}</style></head>
+    <body><button type="button">Imprimir ou salvar como PDF</button><h1>${escape(title)}</h1><pre>${escape(content)}</pre><footer>${escape(rodape === undefined ? "Documento gerado pelo Regis Braga Psiquiatria. Revisão médica obrigatória." : rodape)}</footer></body></html>`);
+  windowForPrint.document.close();
+  windowForPrint.document.querySelector("button")?.addEventListener("click", () => windowForPrint.print());
 }
 
 function buildPdf(title, text, rodape) {

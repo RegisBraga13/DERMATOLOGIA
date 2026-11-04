@@ -41,6 +41,7 @@ export function localRefinementPlan(form = {}) {
 const AI_MODES = new Set(["current", "rag", "guidelines"]);
 
 export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery = "", webQuery = "", ragMustMention = "", ragPatientScopes = [], diagnosisSelection = [], guidelineEntity = "") {
+  if (!AI_MODES.has(mode)) throw new Error("Modo de IA inválido. Escolha novamente a fonte da resposta.");
   const response = await fetch("/api/clinical-ai", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(await authHeaders()) },
@@ -58,7 +59,7 @@ export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery
     // acervo ganha vaga garantida. Vai separada da consulta porque a consulta
     // carrega sintomas, idade e sexo -- casar termo contra ela faria o quadro
     // clinico escolher o documento, e quem escolhe e o diagnostico.
-    body: JSON.stringify({ kind, prompt, mode: AI_MODES.has(mode) ? mode : "current", ragQuery, webQuery, ragMustMention, ragPatientScopes, diagnosisSelection, guidelineEntity })
+    body: JSON.stringify({ kind, prompt, mode, ragQuery, webQuery, ragMustMention, ragPatientScopes, diagnosisSelection, guidelineEntity })
   });
   let data = {};
   try {

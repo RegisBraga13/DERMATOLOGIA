@@ -12,8 +12,18 @@ sozinha.
 
 ## Abrir
 
-Duplo clique em **Abrir Aplicativo.command**. Ele sobe o `server.py` se ainda
-nao estiver no ar e abre `http://127.0.0.1:8000/`.
+No Mac, na pasta da versão que deseja testar, dê duplo clique em
+**Abrir Aplicativo.command**. Ele aguarda o `server.py` responder, confirma
+que a porta serve os arquivos desta pasta e abre o Safari em
+`http://127.0.0.1:8000/` (ou na porta definida em `.env`). Se outra versão
+estiver ocupando a porta, procura uma porta de teste livre entre 8001 e 8010
+sem encerrar o processo antigo. Se não iniciar,
+a janela mostra as últimas linhas do log. O arquivo precisa manter a permissão
+de execução ao copiar a pasta; se necessário, rode
+`chmod +x "Abrir Aplicativo.command"` no Terminal.
+
+Esse endereço é local ao próprio Mac. Para testar em iPhone ou iPad, é
+necessário publicar uma versão de teste ou configurar acesso privado pela rede.
 
 Na mao:
 
@@ -25,6 +35,33 @@ python3 server.py
 O `.env` guarda a chave da OpenAI e o Supabase; `.env.example` lista tudo o que
 o servidor le. Sem chave, o app abre e as etapas de IA avisam que estao fora.
 
+### Dados locais e contas
+
+Em modo local (`APP_MODE=local`, apenas `127.0.0.1`), o aplicativo usa o
+armazenamento do navegador. Com Supabase configurado, cada conta usa chaves
+locais separadas. Ao sair, os dados da conta saem da memória da página; a
+cópia local continua no navegador dessa conta para funcionar sem rede.
+
+Dados escritos antes dessa separação ficam preservados nas chaves antigas,
+sem serem enviados automaticamente a nenhuma conta. Depois do login, o
+painel oferece **Importar para esta conta**. Confirme apenas depois de verificar
+que todos os registros antigos pertencem ao usuário exibido. Faça cópia
+do navegador e do banco antes de migrar dados clínicos reais.
+
+Para servidor acessível na rede, configure `APP_MODE=remote`,
+`SUPABASE_URL` HTTPS e `SUPABASE_PUBLISHABLE_KEY`. O servidor recusa
+iniciar sem essas duas variáveis. `APP_MODE=local` recusa `HOST=0.0.0.0`.
+O acesso via Tailscale alcança o app a partir de outros aparelhos, mesmo com
+o processo escutando em `127.0.0.1`. O serviço do Mac mini usa
+`APP_MODE=remote` e exige Supabase configurado antes de publicar.
+
+O servidor permite scripts apenas do próprio aplicativo. Links de fontes da
+web só são clicáveis com URL HTTP(S), e o log HTTP registra método e status,
+sem a URL ou textos digitados na consulta. O armazenamento local do navegador
+**não é cifrado pelo app**; proteja o acesso ao dispositivo e mantenha cópias
+de segurança. Essas medidas não equivalem a uma auditoria externa de segurança
+nem validam decisões da IA.
+
 ## Testar
 
 ```bash
@@ -34,6 +71,10 @@ node --test 'testes/js/*.test.js'         # camada clinica do front
 
 Os modulos clinicos sao funcoes puras — sem DOM, sem rede, sem chave de API — e
 o Node os roda como estao, sem `package.json` e sem dependencia nenhuma.
+
+Os testes de busca de capítulos usam um índice sintético com nomes de fármacos
+e nenhum trecho de livro. Assim a CI executa a suíte Python completa sem
+`book_chapters.local.json`, que permanece fora do Git por ser obra licenciada.
 
 ## Onde esta o resto
 
@@ -79,3 +120,10 @@ estatico, um a um.
 O RAG.md fecha com o que falta: validar recuperacao e respostas com um conjunto
 de casos revisado por especialista. Ate la, o programa e prototipo, e nenhuma
 resposta dele substitui julgamento clinico.
+
+# Persistência
+
+O formato de sincronização por registro está preparado como versão opcional,
+mas permanece desligado (`SUPABASE_STORAGE_VERSION=1`). Consulte
+[`SUPABASE.md`](SUPABASE.md) para ensaiar a migração com backup, validar RLS e
+coordenar a atualização dos dispositivos antes de ativá-lo.

@@ -1,8 +1,17 @@
+import { syncRecordRows } from "./recordSyncService.js";
 const SESSION_KEY = "psires_supabase_session";
 let configPromise;
 
 async function config() {
-  configPromise ||= fetch("/api/supabase-config").then(response => response.ok ? response.json() : null).catch(() => null);
+  configPromise ||= fetch("/api/supabase-config")
+    .then(response => {
+      if (!response.ok) throw new Error("Não foi possível verificar a configuração do servidor.");
+      return response.json();
+    })
+    .catch(error => {
+      configPromise = null; // permite tentar novamente após uma falha de rede
+      throw error;
+    });
   return configPromise;
 }
 
@@ -10,12 +19,31 @@ export async function currentSession() {
   try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); } catch { return null; }
 }
 
+export async function verifiedSession() {
+  const session = await currentSession();
+  if (!session?.user?.id) return null;
+  const response = await authorized("/auth/v1/user", {}, true, session.user.id);
+  if (!response?.ok) {
+    sessionStorage.removeItem(SESSION_KEY);
+    return null;
+  }
+  const user = await response.json();
+  if (user?.id !== session.user.id) {
+    sessionStorage.removeItem(SESSION_KEY);
+    return null;
+  }
+  return currentSession(); // pode ter sido renovada durante a validação
+}
+
 // O servidor so exige isto quando tem Supabase configurado (server.py,
 // verify_supabase_user); sem sessao aqui, a chamada de IA volta 401 la e nao
 // silenciosamente. Sem Supabase configurado no servidor, o header viaja vazio
 // e o servidor nem confere -- comportamento local de sempre.
 export async function authHeaders() {
-  const session = await currentSession();
+  let session = await currentSession();
+  if (session?.expires_at && Date.now() / 1000 >= session.expires_at - 60) {
+    session = await refreshSession();
+  }
   return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
 }
 
@@ -68,7 +96,14 @@ export async function signOut() {
 // nunca subia: cada tentativa voltava 401 e o erro morria numa variavel que so
 // a tela de login le. O refresh_token vem junto no login e serve exatamente
 // para isso.
+let refreshInFlight = null;
 async function refreshSession() {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = doRefreshSession().finally(() => { refreshInFlight = null; });
+  return refreshInFlight;
+}
+
+async function doRefreshSession() {
   const session = await currentSession();
   const settings = await config();
   if (!session?.refresh_token || !settings?.url) return null;
@@ -80,16 +115,20 @@ async function refreshSession() {
   if (!response.ok) return null;
   const result = await response.json();
   if (!result?.access_token) return null;
+  // Uma resposta atrasada não pode restaurar a sessão depois de Sair ou
+  // substituir a sessão que outra pessoa iniciou no mesmo navegador.
+  const stillCurrent = await currentSession();
+  if (stillCurrent?.refresh_token !== session.refresh_token) return null;
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(result));
   return result;
 }
 
 // Uma repeticao so: se o 401 persistir depois de renovar, a sessao acabou de
 // verdade e quem chamou precisa saber.
-async function authorized(path, options = {}, allowRetry = true) {
+async function authorized(path, options = {}, allowRetry = true, expectedOwnerId = "") {
   const session = await currentSession();
   const settings = await config();
-  if (!session?.access_token || !settings?.url) return null;
+  if (!session?.access_token || !settings?.url || (expectedOwnerId && session.user?.id !== expectedOwnerId)) return null;
   const response = await fetch(`${settings.url}${path}`, {
     ...options,
     headers: {
@@ -99,7 +138,7 @@ async function authorized(path, options = {}, allowRetry = true) {
     }
   });
   if (response.status === 401 && allowRetry && await refreshSession()) {
-    return authorized(path, options, false);
+    return authorized(path, options, false, expectedOwnerId);
   }
   return response;
 }
@@ -115,23 +154,33 @@ async function authorized(path, options = {}, allowRetry = true) {
 // se updated_at ainda for o que foi lido. Se outro aparelho gravou no meio,
 // nenhuma linha muda, e a volta recomeca com a copia nova. Devolve o estado
 // juntado, que e o que a conta passou a guardar; null sem sessao.
-export async function syncState(local, merge, tentativas = 3) {
+export async function syncState(local, merge, tentativas = 3, expectedOwnerId = "") {
   const session = await currentSession();
-  if (!session?.user?.id) return null;
+  if (!session?.user?.id || (expectedOwnerId && session.user.id !== expectedOwnerId)) return null;
   const ownerId = session.user.id;
+  // A interface pode editar o objeto enquanto a rede responde. Congele a
+  // versão enviada, e deixe o App unir as alterações posteriores no retorno.
+  const snapshot = structuredClone(local);
+  const settings = await config();
+  if (settings.storage_version === 2) {
+    return syncRecordRows(snapshot, merge, authorized, ownerId, tentativas);
+  }
   for (let vez = 0; vez < tentativas; vez += 1) {
-    const leitura = await authorized(`/rest/v1/prontuarios?select=id,payload,updated_at&owner_id=eq.${encodeURIComponent(ownerId)}&limit=1`);
+    const leitura = await authorized(`/rest/v1/prontuarios?select=id,payload,updated_at&owner_id=eq.${encodeURIComponent(ownerId)}&limit=1`, {}, true, ownerId);
     if (!leitura) return null;
     if (!leitura.ok) throw new Error("Não foi possível ler os prontuários do Supabase.");
     const [linha] = await leitura.json();
-    const juntos = linha?.payload ? merge(local, linha.payload) : local;
+    const juntos = linha?.payload ? merge(snapshot, linha.payload) : snapshot;
     const corpo = JSON.stringify({ owner_id: ownerId, payload: juntos, updated_at: new Date().toISOString() });
     if (!linha) {
       const criada = await authorized("/rest/v1/prontuarios", {
         method: "POST",
         headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
         body: corpo
-      });
+      }, true, ownerId);
+      // O índice único de owner_id faz o segundo aparelho perder a corrida
+      // de INSERT; releia e una a linha que venceu, em vez de criar outra.
+      if (criada?.status === 409) continue;
       if (!criada?.ok) throw new Error("Não foi possível salvar no Supabase.");
       return juntos;
     }
@@ -140,10 +189,24 @@ export async function syncState(local, merge, tentativas = 3) {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Prefer: "return=representation" },
       body: corpo
-    });
+    }, true, ownerId);
     if (!escrita?.ok) throw new Error("Não foi possível salvar no Supabase.");
     const alteradas = await escrita.json();
     if (Array.isArray(alteradas) && alteradas.length) return juntos;
   }
   throw new Error("Outro aparelho gravou ao mesmo tempo; a cópia da conta será atualizada na próxima gravação.");
+}
+
+export async function archiveSyncConflict(conflict, choice, expectedOwnerId) {
+  if (!conflict || conflict.ownerId !== expectedOwnerId || !["local", "remote"].includes(choice))
+    throw new Error("Conflito ou conta inválida.");
+  const response = await authorized("/rest/v1/prontuario_conflitos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+    body: JSON.stringify({ owner_id: expectedOwnerId, kind: conflict.kind,
+      record_id: conflict.recordId, local_payload: conflict.local,
+      remote_payload: conflict.remote, selected: choice,
+      remote_version: conflict.remoteVersion })
+  }, true, expectedOwnerId);
+  if (!response?.ok) throw new Error("Não foi possível guardar as duas versões; nenhuma escolha foi aplicada.");
 }

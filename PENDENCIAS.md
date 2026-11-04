@@ -1,5 +1,68 @@
 # Pendências
 
+## Atualização de implementação — PR #3 (novembro de 2026)
+
+Esta seção prevalece sobre o estado histórico de 23/09/2026 abaixo.
+
+- P6 e P7 foram implementadas: IDs das decisões acompanham o atendimento e
+  o histórico farmacológico aparece no ajuste de conduta.
+- P8 já tinha sido atendida parcialmente por decisão posterior: o tratamento
+  prévio relatado fica em texto livre e chega à etapa de tratamento, sem ser
+  classificado automaticamente como ensaio adequado.
+- P11 tem SQL de migração em `supabase/drafts` e sincronizador por registro sob
+  `SUPABASE_STORAGE_VERSION=2`, ainda desligado. A CI aplica v1 e v2 em
+  PostgreSQL descartável com duas contas sintéticas e verifica RLS, colisões e
+  escrita por versão. Outro job sobe Supabase local, cria duas contas fictícias
+  e verifica Auth/REST, isolamento, versões e histórico de conflitos. Falta
+  ensaiar o fluxo completo da interface nos aparelhos antes de ativar. O SQL
+  permanece fora de `migrations`.
+- O1 e O3 foram resolvidas no PR: mudanças commitadas; a CI executa os 156
+  testes Python com índice sintético, sem copiar livro licenciado, além de
+  546 testes JavaScript. O2 depende de implantação e reinício reais.
+- O modo v1 tem uma migração adicional que exige uma linha por conta e o
+  cliente relê após colisão de insert. A migração foi aplicada ao projeto
+  `PrototipoMac` e o índice único foi verificado válido em 04/11/2026.
+- Permanecem P10 (calibração clínica), P12 (registro declarativo de fontes),
+  P13 (latência), P14 (interações estruturadas) e a ampliação multiusuário P15.
+- P13 agora separa no log os tempos de busca de fontes, geração e eventual
+  segunda tentativa, sem registrar consulta ou trechos clínicos. A otimização
+  depende das medições de uso; o fluxo web→resposta ainda é sequencial. A busca
+  web usa `OPENAI_WEB_SEARCH_MODEL=gpt-4.1-mini` por padrão, enquanto a geração
+  clínica permanece no `OPENAI_MODEL=gpt-4.1`; o log registra os dois modelos e
+  os tokens da busca para comparar o ganho sem confundir as etapas. Em uma
+  medição sintética em 04/11/2026, com a mesma consulta pública sobre bula da
+  sertralina, a busca caiu de 9,67 s (`gpt-4.1`, 1.532 tokens de saída e 7
+  referências) para 4,58 s (`gpt-4.1-mini`, 553 tokens e 3 referências): cerca
+  de 53% menos espera, mas com menos procedência recuperada. O ganho precisa ser
+  repetido num conjunto clínico revisado antes de publicar esta configuração. O
+  orçamento das tentativas de rede limita novas tentativas quando o prazo da
+  busca web (150 s) ou da geração (90 s) se esgota; não é um corte absoluto de
+  uma resposta HTTP que continua chegando aos poucos.
+  P1/P2/P9 continuam removidas conforme a decisão registrada abaixo.
+- P12 ganhou uma proteção intermediária: o cliente agora recusa modo de IA
+  desconhecido antes da chamada, em vez de trocar silenciosamente por Nuvem.
+- P1 de gravação: salvar e avançar aguarda a gravação local; a barra distingue
+  "salvando", "salvo no aparelho", "sincronizando", "sincronizado" e falhas.
+  Respostas atrasadas de outra revisão ou conta não confirmam a gravação atual.
+  A confirmação dos dados do médico também aguarda a gravação local. Falta
+  verificar o comportamento visual no Safari/iPad real.
+
+O projeto Supabase ativo contém uma linha e um usuário com dados de pacientes
+fictícios, conforme esclarecimento do usuário; a ramificação de teste não está
+disponível no plano Free. A autorização específica para o índice único foi
+dada; o usuário esclareceu que os dados fictícios são descartáveis. A
+conferência prévia encontrou zero contas duplicadas e zero `owner_id` nulos.
+O índice foi aplicado sem apagar a linha, e a verificação confirmou
+`indisunique=true`, `indisvalid=true` e a migração registrada como
+`20261104015410_prontuarios_owner_unico`. O plano Free não oferece backup diário
+automático; o ensaio da v2 permanece bloqueado até haver ambiente isolado e
+backup adequado para qualquer teste no projeto remoto. A CI local não precisa
+desses recursos e não altera os projetos hospedados. O PR permanece em rascunho.
+O teste visual em Safari/iPhone/iPad
+depende de acesso ao navegador/dispositivos em que o app é usado.
+O assessor de segurança do Supabase ainda aponta proteção contra senhas
+vazadas desativada; a configuração de Auth precisa ser revisada no painel.
+
 Estado em 23/09/2026. Tudo o que ficou em aberto nesta revisão de arquitetura,
 mais o que nasceu das mudanças feitas hoje.
 
@@ -182,9 +245,9 @@ que a falha.
 ### P13. Latência somada, sem streaming
 
 - **O que é:** no modo Nuvem são duas chamadas em série (busca web, depois
-  geração), com 60 s de tolerância cada.
-- **Por que importa:** até dois minutos de espera com o botão desligado e nada
-  na tela além do aviso.
+  geração), com 120 s e 60 s por tentativa respectivamente, além das repetições.
+- **Por que importa:** a soma das tentativas pode manter o botão desligado por
+  vários minutos, com nada na tela além do aviso.
 - **Onde mexe:** `server.py`. O paralelismo já existe nas duas buscas do RAG; a
   sequência web→geração não tem.
 - **Tamanho:** M

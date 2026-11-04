@@ -47,6 +47,11 @@ RETURN_MEDICATION_ACTIONS = [
 ]
 
 DEFAULT_MODEL = "gpt-4.1"
+# A busca e uma etapa estreita: recebe uma consulta curta, aciona a ferramenta
+# web e resume as fontes. A resposta clinica estruturada continua no modelo
+# principal. Separar os dois permite reduzir a latencia da primeira etapa sem
+# trocar o modelo que interpreta o prontuario e preenche o schema clinico.
+DEFAULT_WEB_SEARCH_MODEL = "gpt-4.1-mini"
 
 # A ferramenta de busca na web da Responses API. Configuravel porque o nome do
 # tipo ja mudou uma vez do lado da OpenAI ("web_search_preview"), e o dia em que
@@ -382,6 +387,39 @@ def is_blocked_path(relative_parts):
     return False
 
 
+def is_public_asset(relative_parts):
+    """A raiz do projeto contém código, scripts e dados que não são públicos."""
+    if not relative_parts:
+        return True  # / resolve para index.html; listagem de diretório é bloqueada abaixo.
+    if len(relative_parts) == 1:
+        return relative_parts[0] in {"index.html", "sw.js"}
+    if relative_parts[0] == "src":
+        return relative_parts[-1].lower().endswith((".js", ".css", ".json")) and len(relative_parts) >= 2
+    if relative_parts[0] == "fonts":
+        return len(relative_parts) == 2 and relative_parts[-1].lower().endswith((".woff2", ".woff"))
+    return False
+
+
+def is_remote_mode():
+    mode = os.environ.get("APP_MODE", "").strip().lower()
+    if mode not in {"", "local", "remote"}:
+        raise ValueError("APP_MODE deve ser local ou remote.")
+    host = os.environ.get("HOST", "127.0.0.1")
+    if mode == "local" and host not in {"127.0.0.1", "::1", "localhost"}:
+        raise ValueError("APP_MODE=local só permite escutar no próprio computador.")
+    return mode == "remote" or host not in {"127.0.0.1", "::1", "localhost"}
+
+
+def validate_server_config():
+    if os.environ.get("SUPABASE_STORAGE_VERSION", "1") not in {"1", "2"}:
+        raise ValueError("SUPABASE_STORAGE_VERSION deve ser 1 ou 2.")
+    if is_remote_mode() and not (
+        os.environ.get("SUPABASE_URL", "").startswith("https://")
+        and os.environ.get("SUPABASE_PUBLISHABLE_KEY", "").strip()
+    ):
+        raise RuntimeError("Servidor remoto exige SUPABASE_URL HTTPS e SUPABASE_PUBLISHABLE_KEY.")
+
+
 def is_same_origin(handler):
     """Aceita apenas requisições vindas da própria página.
 
@@ -418,7 +456,7 @@ def verify_supabase_user(handler):
     supabase_url = os.environ.get("SUPABASE_URL", "").rstrip("/")
     supabase_key = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")
     if not supabase_url or not supabase_key:
-        return True
+        return not is_remote_mode()
     auth_header = handler.headers.get("Authorization", "")
     token = auth_header[7:].strip() if auth_header.lower().startswith("bearer ") else ""
     if not token:
@@ -1314,15 +1352,33 @@ ESPERA_ENTRE_TENTATIVAS = (2, 6)
 CODIGOS_QUE_VALE_REPETIR = {408, 409, 429, 500, 502, 503, 504}
 
 
-def read_json_response(request, timeout=60, tentativas=TENTATIVAS_DE_REDE, rotulo=""):
+def read_json_response(request, timeout=60, tentativas=TENTATIVAS_DE_REDE, rotulo="", max_total_seconds=None):
     """POST que repete o que e transitorio e devolve o JSON da resposta.
 
-    O corpo do erro NAO e lido aqui: quem trata a excecao la em cima o le para
-    o log, e um corpo ja consumido chegaria vazio.
+    Um limite total opcional impede que cada repeticao receba novamente o tempo
+    inteiro. O timeout da urllib e por operacao de socket, portanto nao e um
+    cronometro absoluto para uma resposta que chega aos poucos.
     """
+    deadline = time.monotonic() + max_total_seconds if max_total_seconds is not None else None
+
+    def remaining():
+        if deadline is None:
+            return None
+        left = deadline - time.monotonic()
+        if left <= 0:
+            raise TimeoutError("Tempo limite da consulta a API esgotado.")
+        return left
+
+    def wait_before_retry(seconds):
+        left = remaining()
+        if left is not None and seconds >= left:
+            raise TimeoutError("Tempo limite da consulta a API esgotado.")
+        time.sleep(seconds)
+
     for tentativa in range(tentativas):
         try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:
+            left = remaining()
+            with urllib.request.urlopen(request, timeout=min(timeout, left) if left is not None else timeout) as response:
                 return json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as error:
             ultima = tentativa == tentativas - 1
@@ -1340,13 +1396,13 @@ def read_json_response(request, timeout=60, tentativas=TENTATIVAS_DE_REDE, rotul
                 pass
             logger.warning("%s %s: repetindo em %ss (tentativa %d de %d)",
                            rotulo or "chamada", error.code, espera, tentativa + 2, tentativas)
-            time.sleep(espera)
+            wait_before_retry(espera)
         except (urllib.error.URLError, TimeoutError) as error:
             if tentativa == tentativas - 1:
                 raise
             espera = ESPERA_ENTRE_TENTATIVAS[min(tentativa, len(ESPERA_ENTRE_TENTATIVAS) - 1)]
-            logger.warning("%s sem resposta (%s): repetindo em %ss", rotulo or "chamada", error, espera)
-            time.sleep(espera)
+            logger.warning("%s sem resposta (%s): repetindo em %ss", rotulo or "chamada", type(error).__name__, espera)
+            wait_before_retry(espera)
     raise RuntimeError("tentativas de rede esgotadas")
 
 
@@ -1382,8 +1438,9 @@ def search_web_sources(query, api_key):
     consulta = " ".join(str(query or "").split())[:600]
     if not consulta:
         return []
+    search_model = os.environ.get("OPENAI_WEB_SEARCH_MODEL", DEFAULT_WEB_SEARCH_MODEL)
     body = {
-        "model": os.environ.get("OPENAI_MODEL", DEFAULT_MODEL),
+        "model": search_model,
         "input": [
             {"role": "developer", "content": WEB_SEARCH_CONTRACT},
             {"role": "user", "content": (
@@ -1400,15 +1457,20 @@ def search_web_sources(query, api_key):
         API_URL, data=json.dumps(body, ensure_ascii=False).encode("utf-8"), method="POST",
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"})
     try:
-        data = read_json_response(request, timeout=120, rotulo="busca na web")
+        data = read_json_response(request, timeout=120, max_total_seconds=150, rotulo="busca na web")
     except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as error:
         # Busca falhou nao derruba a etapa: a Nuvem responde do que sabe, e a
         # tela fica sem procedencia -- que e a verdade daquela resposta.
-        logger.warning("busca na web indisponivel: %s", error)
+        logger.warning("busca na web indisponivel: %s", type(error).__name__)
         return []
     return [{
         "text": extract_response_text(data),
         "citations": extract_web_sources(data),
+        # Metadados internos para comparar latencia/custo da busca com a
+        # geracao. Nao contem consulta, pagina nem dado clinico e nao sao
+        # devolvidos ao navegador.
+        "model": search_model,
+        "usage": data.get("usage") or {},
     }]
 
 
@@ -2709,8 +2771,8 @@ def safe_plain_text(kind, result):
     try:
         return plain_text_from_result(kind, result)
     except (KeyError, TypeError, AttributeError) as error:
-        logger.warning("texto corrido de %s nao montado (%s: %s); o cliente o remonta do resultado",
-                       kind, type(error).__name__, error)
+        logger.warning("texto corrido de %s nao montado (%s); o cliente o remonta do resultado",
+                       kind, type(error).__name__)
         return ""
 
 
@@ -2769,7 +2831,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
         except ValueError:
             # Fora da raiz do projeto: devolve um caminho inexistente -> 404.
             return str(root / "__fora_da_raiz__")
-        if is_blocked_path(relative.parts):
+        if is_blocked_path(relative.parts) or not is_public_asset(relative.parts):
             return str(root / "__bloqueado__")
         return str(requested)
 
@@ -2789,6 +2851,10 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Content-Security-Policy",
+                         "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; "
+                         "form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                         "img-src 'self' data:; font-src 'self'; connect-src 'self' https:")
         if self._cacheable:
             # Fonte e imagem tem nome estavel e conteudo estavel; revalidar
             # a cada carga torna o boot lento sem ganho nenhum.
@@ -2800,7 +2866,12 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
         super().end_headers()
 
     def log_message(self, fmt, *args):
-        logger.info("%s - %s", self.address_string(), fmt % args)
+        # BaseHTTPRequestHandler inclui a URL inteira (e a query) em requestline.
+        # Nome de medicamento ou dados digitados nunca devem ir para o log HTTP.
+        command = getattr(self, "command", "")
+        method = command if command in {"GET", "POST", "HEAD"} else "OTHER"
+        status = args[1] if len(args) > 1 and str(args[1]).isdigit() else "-"
+        logger.info("http %s %s", method, status)
 
     def send_json(self, status, payload):
         # Conexões keep-alive reaproveitam a instância: resposta de API nunca herda cache.
@@ -2815,7 +2886,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed_path = urllib.parse.urlparse(self.path)
         if parsed_path.path == "/api/supabase-config":
-            self.send_json(200, {"url": os.environ.get("SUPABASE_URL", "").rstrip("/"), "key": os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")})
+            self.send_json(200, {"url": os.environ.get("SUPABASE_URL", "").rstrip("/"), "key": os.environ.get("SUPABASE_PUBLISHABLE_KEY", ""), "storage_version": int(os.environ.get("SUPABASE_STORAGE_VERSION", "1"))})
             return
         if parsed_path.path == "/api/health":
             self.send_json(200, {
@@ -2825,6 +2896,9 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             })
             return
         if parsed_path.path == "/api/book-chapter":
+            if not verify_supabase_user(self):
+                self.send_json(401, {"error": "Sessao invalida ou expirada."})
+                return
             nome = urllib.parse.parse_qs(parsed_path.query).get("medicamento", [""])[0]
             try:
                 capitulo = find_book_chapter(nome)
@@ -2840,7 +2914,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         if not is_same_origin(self):
-            logger.warning("POST bloqueado por origem externa: %s", self.headers.get("Origin"))
+            logger.warning("POST bloqueado por origem externa")
             self.send_json(403, {"error": "Origem nao autorizada."})
             return
 
@@ -2886,10 +2960,10 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                     return
                 self.send_json(200, {"ok": True, **result})
             except urllib.error.HTTPError as error:
-                logger.error("OpenAI transcription %s: %s", error.code, error.read().decode("utf-8", errors="replace"))
-                self.send_json(error.code, {"error": "Erro retornado pela OpenAI durante a transcricao. Detalhes no log do servidor."})
-            except Exception:
-                logger.exception("Falha em /api/transcribe-consultation")
+                logger.error("OpenAI transcription %s: corpo de erro omitido para proteger dados clinicos", error.code)
+                self.send_json(error.code, {"error": "Erro retornado pela OpenAI durante a transcricao. Tente novamente."})
+            except Exception as error:
+                logger.error("Falha em /api/transcribe-consultation (%s)", type(error).__name__)
                 self.send_json(500, {"error": "Erro interno ao transcrever a gravacao."})
             return
 
@@ -2951,6 +3025,9 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             if mode == "guidelines" and kind not in GUIDELINES_KINDS:
                 self.send_json(400, {"error": "O modo Guidelines nao se aplica a esta etapa."})
                 return
+            # Tempo apenas das fontes: nao registra consulta, trecho ou caso.
+            # Separa a espera por web/acervo da espera pela resposta estruturada.
+            fontes_inicio = time.monotonic()
             web_findings = []
             if mode == "current" and web_query:
                 web_findings = usable_web_findings(search_web_sources(web_query, api_key))
@@ -2987,8 +3064,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 if kind == "diagnosis_review":
                     criterios = dsm_criteria_sources(payload.get("diagnosisSelection"))
                     if criterios:
-                        logger.info("diagnosis_review: criterios do DSM-5-TR anexados: %s",
-                                    "; ".join(f["attributes"]["secao"] for f in criterios))
+                        logger.info("diagnosis_review: %d criterio(s) do DSM-5-TR anexado(s)", len(criterios))
                     sources = criterios + sources
                 # O acervo e de psiquiatria. Quando o medico pergunta por um
                 # farmaco que nao e dele -- losartana, metformina, omeprazol, o
@@ -2998,8 +3074,8 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 if exigido and kind in KINDS_REQUIRING_MENTION:
                     citando = sources_mentioning(sources, exigido)
                     if len(citando) != len(sources):
-                        logger.warning("%s: %d de %d trecho(s) nao citam %r",
-                                       kind, len(sources) - len(citando), len(sources), exigido)
+                        logger.warning("%s: %d de %d trecho(s) nao citam o termo exigido",
+                                       kind, len(sources) - len(citando), len(sources))
                     sources = citando
                 if not sources:
                     # Nao ter o farmaco no acervo NAO e falha: e a resposta certa
@@ -3103,6 +3179,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             # lista que vira procedencia na tela: fonte que nao entrou no
             # contexto tambem nao aparece como lida.
             sources, fontes_cortadas, contexto_chars = fit_sources(sources)
+            fontes_ms = int((time.monotonic() - fontes_inicio) * 1000)
             if fontes_cortadas:
                 logger.warning("%s: %d fonte(s) fora do teto de contexto (%d caracteres)",
                                kind, fontes_cortadas, MAX_SOURCES_CHARS)
@@ -3171,9 +3248,12 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                         "Content-Type": "application/json",
                     },
                 )
-                return read_json_response(pedido, timeout=60, rotulo=f"OpenAI ({kind})")
+                return read_json_response(pedido, timeout=60, max_total_seconds=90, rotulo=f"OpenAI ({kind})")
 
+            geracao_inicio = time.monotonic()
             response_data = pedir(request_body)
+            geracao_ms = int((time.monotonic() - geracao_inicio) * 1000)
+            retentativa_ms = None
 
             # RESPOSTA CORTADA NAO E RESPOSTA FORA DO FORMATO.
             #
@@ -3194,7 +3274,9 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                              teto=request_body["max_output_tokens"], novo_teto=teto_maior,
                              ms=int((time.monotonic() - comecou) * 1000))
                 request_body["max_output_tokens"] = teto_maior
+                retentativa_inicio = time.monotonic()
                 response_data = pedir(request_body)
+                retentativa_ms = int((time.monotonic() - retentativa_inicio) * 1000)
 
             # Os campos da chamada, iguais nos desfechos abaixo: o que custou e
             # como terminou pertencem a mesma linha, senao comparar sucesso com
@@ -3202,8 +3284,13 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             medicao = {
                 "id": decision_id, "rota": "clinical-ai", "kind": kind, "modo": mode,
                 "modelo": request_body["model"], "schema": SCHEMA_VERSION,
+                "modelo_busca": web_findings[0].get("model") if web_findings else None,
+                "busca_tokens_in": (web_findings[0].get("usage") or {}).get("input_tokens") if web_findings else None,
+                "busca_tokens_out": (web_findings[0].get("usage") or {}).get("output_tokens") if web_findings else None,
                 "prompt_chars": len(prompt), "fontes": len(sources),
                 "contexto_chars": contexto_chars or None, "fontes_cortadas": fontes_cortadas or None,
+                "fontes_ms": fontes_ms, "geracao_ms": geracao_ms,
+                "retentativa_ms": retentativa_ms,
                 **usage_fields(response_data),
                 "ms": int((time.monotonic() - comecou) * 1000),
             }
@@ -3216,7 +3303,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 result = validate_result(kind, parse_model_json(text))
             except (ValueError, json.JSONDecodeError) as error:
                 log_decision(**medicao, resultado="rejeitada", causa=type(error).__name__)
-                logger.error("resposta rejeitada (%s): %s", kind, text[:1200])
+                logger.error("resposta rejeitada (%s): %s", kind, type(error).__name__)
                 # Cortada DE NOVO, ja com o teto dobrado. A mensagem diz o que
                 # aconteceu e o que fazer, em vez de mandar procurar defeito de
                 # formato num texto que so nao chegou ao fim.
@@ -3234,7 +3321,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 return
             code_warnings = verify_diagnostic_codes(result) if kind in {"diagnosis", "diagnosis_review"} else []
             if code_warnings:
-                logger.warning("ancoragem de codigos: %s", "; ".join(item["text"] for item in code_warnings))
+                logger.warning("ancoragem de codigos: %d aviso(s)", len(code_warnings))
             public_sources_by_file = {}
             for source in sources:
                 key = source["file_id"] or source["filename"]
@@ -3263,16 +3350,20 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 "code_warnings": code_warnings,
             })
         except urllib.error.HTTPError as error:
-            # O corpo da OpenAI pode ecoar trechos do prompt (dado clínico) e
-            # metadados da conta. Fica no log local, não na resposta HTTP.
+            # O corpo da OpenAI pode ecoar trechos do prompt e metadados da
+            # conta. Nem a resposta HTTP nem o log devem reproduzi-lo.
             log_decision(id=decision_id, rota="clinical-ai", resultado="erro_api", causa=error.code,
                          ms=int((time.monotonic() - comecou) * 1000))
-            logger.error("OpenAI %s: %s", error.code, error.read().decode("utf-8", errors="replace"))
-            self.send_json(error.code, {"error": "Erro retornado pela OpenAI. Detalhes no log do servidor."})
+            logger.error("OpenAI %s: corpo de erro omitido para proteger dados clinicos", error.code)
+            self.send_json(error.code, {"error": "Erro retornado pela OpenAI. Tente novamente."})
+        except TimeoutError:
+            log_decision(id=decision_id, rota="clinical-ai", resultado="tempo_esgotado",
+                         ms=int((time.monotonic() - comecou) * 1000))
+            self.send_json(504, {"error": "A consulta demorou demais. Tente novamente em instantes."})
         except Exception as error:
             log_decision(id=decision_id, rota="clinical-ai", resultado="erro_interno",
                          causa=type(error).__name__, ms=int((time.monotonic() - comecou) * 1000))
-            logger.exception("Falha em /api/clinical-ai")
+            logger.error("Falha em /api/clinical-ai (%s); decisao=%s", type(error).__name__, decision_id)
             self.send_json(500, {"error": "Erro interno ao processar a solicitacao."})
 
     def handle_risk_screen(self):
@@ -3325,10 +3416,10 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 "flagged": flagged,
             })
         except urllib.error.HTTPError as error:
-            logger.error("TypeSafe %s: %s", error.code, error.read().decode("utf-8", errors="replace"))
-            self.send_json(error.code, {"error": "Erro retornado pela TypeSafe. Detalhes no log do servidor."})
-        except Exception:
-            logger.exception("Falha em /api/risk-screen")
+            logger.error("TypeSafe %s: corpo de erro omitido para proteger dados clinicos", error.code)
+            self.send_json(error.code, {"error": "Erro retornado pela TypeSafe. Tente novamente."})
+        except Exception as error:
+            logger.error("Falha em /api/risk-screen (%s)", type(error).__name__)
             self.send_json(500, {"error": "Erro interno na triagem de risco."})
 
     def handle_jev_judge(self):
@@ -3409,16 +3500,17 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                          ms=int((time.monotonic() - comecou) * 1000))
             self.send_json(200, {"ok": True, "answers": result})
         except urllib.error.HTTPError as error:
-            logger.error("TypeSafe %s: %s", error.code, error.read().decode("utf-8", errors="replace"))
-            self.send_json(error.code, {"error": "Erro retornado pela TypeSafe. Detalhes no log do servidor."})
-        except Exception:
-            logger.exception("Falha em /api/jev-judge")
+            logger.error("TypeSafe %s: corpo de erro omitido para proteger dados clinicos", error.code)
+            self.send_json(error.code, {"error": "Erro retornado pela TypeSafe. Tente novamente."})
+        except Exception as error:
+            logger.error("Falha em /api/jev-judge (%s)", type(error).__name__)
             self.send_json(500, {"error": "Erro interno no julgamento via Jev."})
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     load_env()
+    validate_server_config()
     port = int(os.environ.get("PORT", "8000"))
     # Default fica em 127.0.0.1: quem roda local continua so alcancavel pela
     # propria maquina. HOST=0.0.0.0 e para hospedagem (Render/Fly/Railway),

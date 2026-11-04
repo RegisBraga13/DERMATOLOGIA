@@ -12,6 +12,7 @@ ou so este arquivo:
     python3 -m unittest testes.test_server -v
 """
 import json
+import io
 import logging
 import sys
 import unittest
@@ -19,6 +20,7 @@ import urllib.error
 import urllib.request
 from http.client import HTTPConnection
 from pathlib import Path
+from types import SimpleNamespace
 from threading import Thread
 from unittest.mock import patch, MagicMock
 
@@ -26,6 +28,48 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 import server  # noqa: E402  (precisa do sys.path acima)
+
+
+class NetworkBudgetTests(unittest.TestCase):
+    def test_retry_receives_only_the_remaining_time(self):
+        clock = [0.0]
+        timeouts = []
+
+        def urlopen(_request, timeout):
+            timeouts.append(timeout)
+            if len(timeouts) == 1:
+                clock[0] += 60
+                raise urllib.error.URLError("sem resposta")
+            return io.BytesIO(b'{"ok": true}')
+
+        def sleep(seconds):
+            clock[0] += seconds
+
+        with patch.object(server.time, "monotonic", side_effect=lambda: clock[0]), \
+             patch.object(server.time, "sleep", side_effect=sleep), \
+             patch.object(server.urllib.request, "urlopen", side_effect=urlopen):
+            result = server.read_json_response("pedido", timeout=60, max_total_seconds=90)
+
+        self.assertEqual(result, {"ok": True})
+        self.assertEqual(timeouts, [60, 28])
+
+    def test_expired_budget_does_not_start_another_request(self):
+        clock = [0.0]
+        calls = []
+
+        def urlopen(_request, timeout):
+            calls.append(timeout)
+            clock[0] += 60
+            raise urllib.error.URLError("sem resposta")
+
+        with patch.object(server.time, "monotonic", side_effect=lambda: clock[0]), \
+             patch.object(server.time, "sleep") as sleep, \
+             patch.object(server.urllib.request, "urlopen", side_effect=urlopen):
+            with self.assertRaises(TimeoutError):
+                server.read_json_response("pedido", timeout=60, max_total_seconds=60)
+
+        self.assertEqual(calls, [60])
+        sleep.assert_not_called()
 
 
 class FakeHandler:
@@ -593,7 +637,9 @@ class ServerIntegrationTests(unittest.TestCase):
         logging.disable(logging.NOTSET)
 
     def _get(self, path):
-        return urllib.request.urlopen(f"http://127.0.0.1:{self.port}{path}", timeout=5)
+        with urllib.request.urlopen(f"http://127.0.0.1:{self.port}{path}", timeout=5) as response:
+            body = response.read()
+            return SimpleNamespace(status=response.status, headers=response.headers, read=lambda: body)
 
     def test_env_file_is_blocked(self):
         with self.assertRaises(urllib.error.HTTPError) as ctx:
@@ -693,6 +739,19 @@ class BookChapterLookupTests(unittest.TestCase):
     contido-em, e ela cobre quase tudo -- o que falha e quando a palavra e outra:
     o capitulo se chama "Acido valproico" e a receita brasileira diz "valproato
     de sodio". O app chegou a dizer que o livro nao tinha o farmaco, tendo."""
+
+    def setUp(self):
+        # A obra licenciada não entra no Git. O teste verifica o algoritmo
+        # contra um índice sintético com os mesmos nomes, sem copiar texto.
+        nomes = ["Ácido valproico", "Fluoxetina", "Lítio", "Quetiapina",
+                 "Risperidona", "Tetraidrocanabinol"]
+        fixture = {"livro": "Exemplo sintético", "capitulos": [
+            {"nome": nome, "chave": server.normalize_name(nome),
+             "blocos": [{"t": "item", "v": "Conteúdo de teste."}]}
+            for nome in nomes]}
+        self.chapter_patch = patch.object(server, "load_book_chapters", return_value=fixture)
+        self.chapter_patch.start()
+        self.addCleanup(self.chapter_patch.stop)
 
     def test_sal_da_receita_chega_ao_capitulo_do_acido(self):
         for nome in ("Valproato de sódio", "valproato", "divalproex", "divalproato de sodio"):
@@ -1009,6 +1068,32 @@ class ClinicalAiEndpointTests(unittest.TestCase):
         self.assertIn("ENCONTRADO NA WEB", enviado["input"][1]["content"])
         self.assertIn("Bula ANVISA", enviado["input"][1]["content"])
         self.assertEqual(resposta["mode"], "current")
+
+    def test_web_search_uses_its_own_smaller_model(self):
+        """A busca pode ficar mais rapida sem trocar o modelo que produz a
+        resposta clinica estruturada."""
+        import os
+        with patch.dict(os.environ, {
+            "OPENAI_MODEL": "gpt-4.1",
+            "OPENAI_WEB_SEARCH_MODEL": "gpt-4.1-mini",
+        }):
+            _, _, chamadas = self._answer(
+                {"kind": "evolution", "prompt": "Paciente estavel.", "mode": "current", "webQuery": "sertralina dose"},
+                search_text="Bula ANVISA: dose inicial 50 mg.")
+        busca = [c for c in chamadas if "tools" in c][0]
+        geracao = self._resposta_final(chamadas)
+        self.assertEqual(busca["model"], "gpt-4.1-mini")
+        self.assertEqual(busca["tool_choice"], "required")
+        self.assertEqual(geracao["model"], "gpt-4.1")
+
+    def test_expired_generation_budget_returns_a_retryable_timeout(self):
+        import os
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "chave-de-teste"}), \
+             patch.object(server, "read_json_response", side_effect=TimeoutError("sem resposta")):
+            status, resposta = self._post({"kind": "evolution", "prompt": "Paciente estavel.", "mode": "current"})
+        self.assertEqual(status, 504)
+        self.assertIn("Tente novamente", resposta["error"])
+        self.assertNotIn("Paciente", str(resposta))
 
     def test_result_missing_a_derived_text_key_is_still_answered(self):
         """Pergunta do refinamento sem "topic" passa na validacao. O texto

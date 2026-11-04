@@ -99,6 +99,23 @@ button:hover { border-color: var(--primary-2); }
   min-width: 0;
 }
 
+.conflict-review {
+  margin: 18px 0;
+  padding: 20px;
+  border: 2px solid var(--amber);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.conflict-review h2 { margin: 0 0 8px; }
+.conflict-review p { line-height: 1.5; }
+.conflict-copies { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.conflict-copies details { min-width: 0; border: 1px solid var(--line); padding: 12px; }
+.conflict-copies summary { cursor: pointer; font-weight: 700; }
+.conflict-copies pre { max-height: 360px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 800px) { .conflict-copies { grid-template-columns: 1fr; } }
+
 .dashboard  {
   gap: 14px;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -2366,6 +2383,20 @@ textarea:focus-visible {
   color: #7a2e00;
   background: #ffe8d6;
   border: 1px solid #f0b184;
+}
+
+.top-actions .sync-status {
+  max-width: min(45vw, 440px);
+  font-size: 0.82rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .top-actions .sync-status {
+    max-width: min(52vw, 260px);
+    font-size: 0.75rem;
+  }
 }
 
 /* Falha de gravacao local e mais grave que falha de sincronizacao: ali o
