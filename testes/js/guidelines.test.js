@@ -192,8 +192,14 @@ describe("o modo escolhido chega ao servidor", () => {
     });
   }
 
-  it("modo desconhecido nao passa", async () => {
-    assert.equal((await corpoEnviado("inventado")).mode, "current");
+  it("modo desconhecido falha antes de enviar pedido", async () => {
+    let chamadas = 0;
+    const original = globalThis.fetch;
+    globalThis.fetch = async () => { chamadas++; throw new Error("não deveria enviar"); };
+    try {
+      await assert.rejects(requestClinicalAi("treatment", "p", "inventado"), /Modo de IA inválido/);
+      assert.equal(chamadas, 0);
+    } finally { globalThis.fetch = original; }
   });
 
   // A entidade vai SEPARADA da consulta: a consulta carrega sintomas, idade e

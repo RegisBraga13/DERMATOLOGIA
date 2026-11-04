@@ -59,6 +59,9 @@ automaticamente. A tabela e as politicas estao em
 `migrations` para que um futuro `supabase db push` não aplique a v2 antes
 do ensaio. Após a validação, crie uma migração com versão posterior à v1
 e copie o SQL revisado para ela.
+O job `postgres-rls` da CI ensaia o SQL em PostgreSQL descartável com duas
+contas sintéticas, incluindo bloqueios de RLS e disputa de versões. Ainda é
+necessário verificar as chamadas REST reais e a migração em Supabase isolado.
 
 1. Faca backup e ensaie a restauracao do banco e dos navegadores usados. A
    copia v1 nao sera removida pela migracao.

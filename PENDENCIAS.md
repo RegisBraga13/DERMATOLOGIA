@@ -10,9 +10,10 @@ Esta seção prevalece sobre o estado histórico de 23/09/2026 abaixo.
   prévio relatado fica em texto livre e chega à etapa de tratamento, sem ser
   classificado automaticamente como ensaio adequado.
 - P11 tem SQL de migração em `supabase/drafts` e sincronizador por registro sob
-  `SUPABASE_STORAGE_VERSION=2`, ainda desligado. RLS e resolução de conflitos
-  precisam de ensaio em banco isolado antes de ativação. O SQL permanece fora
-  de `migrations` até a validação.
+  `SUPABASE_STORAGE_VERSION=2`, ainda desligado. A CI aplica v1 e v2 em
+  PostgreSQL descartável com duas contas sintéticas e verifica RLS, colisões e
+  escrita por versão. Falta ensaiar o fluxo completo no Supabase isolado e nos
+  aparelhos antes de ativar. O SQL permanece fora de `migrations`.
 - O1 e O3 foram resolvidas no PR: mudanças commitadas; a CI executa os 152
   testes Python com índice sintético, sem copiar livro licenciado, além de
   543 testes JavaScript. O2 depende de implantação e reinício reais.
@@ -22,6 +23,8 @@ Esta seção prevalece sobre o estado histórico de 23/09/2026 abaixo.
 - Permanecem P10 (calibração clínica), P12 (registro declarativo de fontes),
   P13 (latência), P14 (interações estruturadas) e a ampliação multiusuário P15.
   P1/P2/P9 continuam removidas conforme a decisão registrada abaixo.
+- P12 ganhou uma proteção intermediária: o cliente agora recusa modo de IA
+  desconhecido antes da chamada, em vez de trocar silenciosamente por Nuvem.
 
 O projeto Supabase ativo contém uma linha e um usuário com dados de pacientes
 fictícios, conforme esclarecimento do usuário; a ramificação de teste não está
