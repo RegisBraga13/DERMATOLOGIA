@@ -5,6 +5,7 @@ import { hasIdentificationAiMarks, withoutIdentificationAiMark } from "./clinica
 import { analysisFindingsForReturn, pendingCriteriaFromPrevious, pendingRefinementForReturn, returnHypothesisLabels } from "./clinical/returnCarryover.js";
 import { createAiOperations } from "./clinical/aiOperations.js";
 import { createUnsavedWork } from "./clinical/unsavedWork.js";
+import { createPersistenceStatus } from "./clinical/persistenceStatus.js";
 import { statusFailure } from "./clinical/statusTone.js";
 import { countLabel, diagnosisReviewFailure, diagnosisSuggestionFromAi, diagnosisSuggestionFromLocalCatalogue } from "./clinical/aiDiagnosisResult.js";
 import { diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
@@ -99,6 +100,7 @@ let syncError = "";
 let syncConflict = null;
 let resolvingConflict = false;
 let storageError = "";
+const persistenceStatus = createPersistenceStatus();
 // A gravacao da consulta mora em ui/voiceRecording.js. Ela recebe daqui o que
 // nao pode importar — o rascunho vivo e o formulario na tela — e devolve so
 // duas coisas: como comecar/encerrar, e se ha algo em andamento.
@@ -174,6 +176,7 @@ Promise.all([verifiedSession(), isSupabaseConfigured()]).then(async ([session, c
 });
 
 async function loadAccountState(ownerId) {
+  persistenceStatus.reset(ownerId);
   syncConflict = null;
   state = { patients: [], consultations: [], returns: [] };
   selectedPatientId = "";
@@ -212,6 +215,7 @@ async function syncAfterLogin() {
   const ownerId = authSession?.user?.id;
   if (!ownerId) return;
   syncError = "";
+  const ticket = persistenceStatus.beginSync(ownerId);
   try {
     // Une, nao substitui: o que foi escrito enquanto a sincronizacao estava
     // fora precisa sobreviver ao proximo carregamento. syncState le, junta e
@@ -221,8 +225,16 @@ async function syncAfterLogin() {
       state = withoutBookChapters(daConta);
       storageError = await saveState(state, ownerId);
       selectedPatientId = firstActivePatientId();
+      if (storageError) persistenceStatus.failed(ticket);
+      else persistenceStatus.synced(ticket);
+    } else {
+      persistenceStatus.localSaved(ticket);
     }
-  } catch (error) { syncError = error.message; syncConflict = error.conflict || null; }
+  } catch (error) {
+    syncError = error.message;
+    syncConflict = error.conflict || null;
+    persistenceStatus.failed(ticket);
+  }
 }
 
 function render() {
@@ -287,6 +299,24 @@ function bindAuthEvents() {
   });
 }
 
+function saveStatusMarkup() {
+  const phase = persistenceStatus.phase;
+  if (storageError) return `<span data-save-status class="sync-status storage-failed" role="alert">${escapeHtml(storageError)}</span>`;
+  if (phase === "saving") return `<span data-save-status class="sync-status" role="status">Salvando neste aparelho...</span>`;
+  if (phase === "syncing") return `<span data-save-status class="sync-status" role="status">Salvo neste aparelho. Sincronizando com a conta...</span>`;
+  if (syncError) return `<span data-save-status class="sync-status sync-failed" role="status">Não sincronizado: ${escapeHtml(syncError)} O registro está salvo neste aparelho.</span>`;
+  if (localOnlyMode && phase === "local") return `<span data-save-status class="sync-status" role="status">Salvo neste aparelho. Modo local.</span>`;
+  if (localOnlyMode) return `<span data-save-status class="sync-status" role="status">Modo local: sem Supabase configurado.</span>`;
+  if (phase === "local") return `<span data-save-status class="sync-status" role="status">Salvo neste aparelho. Cópia da conta pendente.</span>`;
+  if (phase === "synced") return `<span data-save-status class="sync-status" role="status">Sincronizado com sua conta.</span>`;
+  return `<span data-save-status class="secure-status"><i></i> Conta autenticada</span>`;
+}
+
+function refreshSaveStatus() {
+  const badge = app.querySelector("[data-save-status]");
+  if (badge) badge.outerHTML = saveStatusMarkup();
+}
+
 function topbar() {
   return `
     <header class="topbar">
@@ -294,13 +324,7 @@ function topbar() {
         <div><h1>Regis Braga</h1></div>
       </div>
       <div class="top-actions">
-        ${storageError
-          ? `<span class="sync-status storage-failed" role="alert">${escapeHtml(storageError)}</span>`
-          : syncError
-            ? `<span class="sync-status sync-failed" role="status">Não sincronizado: ${escapeHtml(syncError)} O registro está salvo neste aparelho.</span>`
-            : localOnlyMode
-              ? `<span class="sync-status" role="status">Modo local: sem Supabase configurado. Salvando só neste aparelho.</span>`
-              : `<span class="secure-status"><i></i> Conta autenticada</span>`}
+        ${saveStatusMarkup()}
         ${view === "dashboard" ? "" : `<button class="secondary compact-action" data-action="dashboard">${homeIcon()}<span>Início</span></button>`}
         <button class="icon-button" data-action="toggle-theme" aria-label="Alternar tema" title="Alternar tema">${themeIcon()}</button>
       </div>
@@ -1553,7 +1577,7 @@ function bindActions() {
       if (action === "generate-document") generateDocument(element);
       if (action === "export-document") exportDocument(element);
       if (action === "reexport-document") reexportDocument(element.dataset.indice);
-      if (action === "save-doctor") saveDoctorData(element);
+      if (action === "save-doctor") await saveDoctorData(element);
       if (action === "generate-appendix-symptom") await generateAppendixSymptomConduct(element);
       if (action === "adopt-appendix-conduct") adoptAppendixConduct(element.dataset.conduta || "");
       if (action === "clear-patient") { draft.patient = {}; render(); }
@@ -1763,14 +1787,16 @@ function reexportDocument(indice) {
 
 // Os dados de assinatura sao do medico, nao do atendimento: vao para
 // state.doctor, que sincroniza com a conta como o resto do estado.
-function saveDoctorData(element) {
+async function saveDoctorData(element) {
   const formulario = element.closest("form");
   if (formulario) updateDraftFromForm(formulario);
   const scope = currentScope();
   state.doctor = { ...(state.doctor || {}), ...doctorFromForm(draft[scope] || {}) };
-  persist();
+  const saved = await persist();
   refreshDocumentText(scope);
-  draft[scope] = { ...draft[scope], documento_status: "Dados do médico salvos." };
+  draft[scope] = { ...draft[scope], documento_status: saved
+    ? "Dados do médico salvos neste aparelho. Confira a sincronização na barra superior."
+    : "Não foi possível salvar os dados do médico neste aparelho. Tente novamente." };
   render();
 }
 
@@ -3030,9 +3056,17 @@ async function persist() {
   // sincronizacao — ali o registro existe no aparelho e so nao subiu; aqui ele
   // nao existe em lugar nenhum.
   const ownerId = authSession?.user?.id || "";
+  const ticket = persistenceStatus.beginSave(ownerId);
+  refreshSaveStatus();
   const erro = await saveLocally(ownerId);
-  if (erro) return false;
-  if (ownerId && authSession?.user?.id === ownerId) syncWithAccount();
+  if (erro) {
+    persistenceStatus.failed(ticket);
+    refreshSaveStatus();
+    return false;
+  }
+  persistenceStatus.localSaved(ticket);
+  refreshSaveStatus();
+  if (ownerId && authSession?.user?.id === ownerId) syncWithAccount(ticket);
   return true;
 }
 
@@ -3040,7 +3074,10 @@ async function persist() {
 // muda quando o resultado muda, para nao redesenhar a tela a cada tecla salva.
 function saveLocally(ownerId = authSession?.user?.id || "") {
   return saveState(state, ownerId).then(erroLocal => {
-    if ((authSession?.user?.id || "") === ownerId && erroLocal !== storageError) { storageError = erroLocal; render(); }
+    if ((authSession?.user?.id || "") === ownerId && erroLocal !== storageError) {
+      storageError = erroLocal;
+      refreshSaveStatus();
+    }
     return erroLocal;
   });
 }
@@ -3048,9 +3085,12 @@ function saveLocally(ownerId = authSession?.user?.id || "") {
 // O aparelho ja gravou; o que falta e avisar quando a copia remota nao
 // acompanhou. Antes o erro ia para authError, que so aparece na tela de
 // login — na pratica, silencio.
-function syncWithAccount() {
+function syncWithAccount(saveTicket = null) {
   const ownerId = authSession?.user?.id;
   if (!ownerId) return syncChain;
+  const ticket = saveTicket || persistenceStatus.beginSync(ownerId);
+  persistenceStatus.syncing(ticket);
+  refreshSaveStatus();
   syncChain = syncChain.then(async () => {
     if (authSession?.user?.id !== ownerId) return;
     try {
@@ -3058,12 +3098,19 @@ function syncWithAccount() {
       const daConta = await syncState(antes, mergeStates, 3, ownerId);
       if (authSession?.user?.id !== ownerId) return;
       if (daConta) absorbAccountState(daConta, antes);
+      if (!persistenceStatus.isCurrent(ticket)) return;
       syncConflict = null;
-      if (syncError) { syncError = ""; render(); }
+      if (daConta) persistenceStatus.synced(ticket);
+      else persistenceStatus.localSaved(ticket);
+      if (daConta && syncError) { syncError = ""; render(); }
+      else refreshSaveStatus();
     } catch (error) {
+      if (!persistenceStatus.isCurrent(ticket)) return;
       syncError = error.message;
       syncConflict = error.conflict || null;
-      render();
+      persistenceStatus.failed(ticket);
+      if (syncConflict) render();
+      else refreshSaveStatus();
     }
   });
   return syncChain;
@@ -3238,6 +3285,7 @@ async function endSession() {
   authError = "";
   syncError = "";
   syncConflict = null;
+  persistenceStatus.reset();
   draftGuard.replaced(); aiOperations.reset(); unsavedWork.limpar();
   draft = {};
   view = "dashboard";
