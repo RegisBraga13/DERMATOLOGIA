@@ -1,22 +1,34 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { before, describe, it } from "node:test";
 import { readFileSync } from "node:fs";
 import { aiModeSelector, treatmentAiMode } from "../../src/views/decisions.js";
 import { buildRagQuery, patientQueryProfile, requestClinicalAi } from "../../src/services/clinicalAiService.js";
+import { loadAiSourceCatalog } from "../../src/services/aiSourceCatalog.js";
+
+before(async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({ sources: [
+    { id: "current", label: "IA Nuvem", kinds: ["diagnosis", "treatment", "return_plan", "medication", "symptomatic", "evolution"] },
+    { id: "rag", label: "RAG com literatura", kinds: ["diagnosis", "treatment", "return_plan", "medication", "symptomatic", "evolution"] },
+    { id: "guidelines", label: "Guidelines", kinds: ["treatment", "return_plan"] }
+  ] }) });
+  try { await loadAiSourceCatalog(); }
+  finally { globalThis.fetch = original; }
+});
 
 // O terceiro modo de resposta: Guidelines. Nao e etapa nova, e valor novo do
 // eixo que ja existia -- o mesmo Tratamento, o mesmo schema, outra prateleira.
 
 describe("o radio so oferece Guidelines onde o servidor o aceita", () => {
   it("por padrao mostra os dois modos de sempre", () => {
-    const html = aiModeSelector("rag", "pharmaAiMode");
+    const html = aiModeSelector("rag", "pharmaAiMode", { kind: "medication" });
     assert.ok(!html.includes('value="guidelines"'),
       "a ficha do Medicamento nao responde por diretriz; oferecer o radio la vira 400");
     assert.ok(html.includes('value="current"') && html.includes('value="rag"'));
   });
 
   it("mostra os tres quando a etapa e de conduta", () => {
-    const html = aiModeSelector("rag", "treatmentAiMode", { guidelines: true });
+    const html = aiModeSelector("rag", "treatmentAiMode", { kind: "treatment" });
     assert.ok(html.includes('value="guidelines"'));
   });
 });
@@ -28,23 +40,21 @@ describe("uma caixa marcada, e so uma", () => {
   const marcados = html => (html.match(/checked/g) || []).length;
 
   it("em guidelines nao marca tambem a IA Nuvem", () => {
-    const html = aiModeSelector("guidelines", "treatmentAiMode", { guidelines: true });
+    const html = aiModeSelector("guidelines", "treatmentAiMode", { kind: "treatment" });
     assert.equal(marcados(html), 1);
     assert.match(html, /value="guidelines" checked/);
   });
 
   for (const modo of ["current", "rag"]) {
     it(`marca exatamente um em ${modo}`, () => {
-      assert.equal(marcados(aiModeSelector(modo, "treatmentAiMode", { guidelines: true })), 1);
+      assert.equal(marcados(aiModeSelector(modo, "treatmentAiMode", { kind: "treatment" })), 1);
     });
   }
 
-  // Registro salvo em Guidelines, reaberto numa tela que nao oferece o modo:
-  // o radio cai para a IA Nuvem em vez de nao marcar nada.
-  it("sem a opcao ligada, guidelines nao deixa o grupo sem marcacao", () => {
-    const html = aiModeSelector("guidelines", "pharmaAiMode");
-    assert.equal(marcados(html), 1);
-    assert.match(html, /value="current" checked/);
+  it("fonte salva fora da etapa exige nova escolha", () => {
+    const html = aiModeSelector("guidelines", "pharmaAiMode", { kind: "medication" });
+    assert.equal(marcados(html), 0);
+    assert.match(html, /Fonte salva indisponível/);
   });
 });
 
@@ -64,8 +74,8 @@ describe("o Tratamento tem campo proprio, sem perder o registro antigo", () => {
     assert.equal(treatmentAiMode({}), "rag");
   });
 
-  it("valor desconhecido nao vira modo", () => {
-    assert.equal(treatmentAiMode({ treatmentAiMode: "qualquer-coisa" }), "current");
+  it("valor desconhecido nao vira IA Nuvem", () => {
+    assert.equal(treatmentAiMode({ treatmentAiMode: "qualquer-coisa" }), "qualquer-coisa");
   });
 });
 
@@ -198,6 +208,16 @@ describe("o modo escolhido chega ao servidor", () => {
     globalThis.fetch = async () => { chamadas++; throw new Error("não deveria enviar"); };
     try {
       await assert.rejects(requestClinicalAi("treatment", "p", "inventado"), /Modo de IA inválido/);
+      assert.equal(chamadas, 0);
+    } finally { globalThis.fetch = original; }
+  });
+
+  it("Guidelines fora da etapa falha antes do POST", async () => {
+    let chamadas = 0;
+    const original = globalThis.fetch;
+    globalThis.fetch = async () => { chamadas++; throw new Error("não deveria enviar"); };
+    try {
+      await assert.rejects(requestClinicalAi("medication", "p", "guidelines"), /Modo de IA inválido/);
       assert.equal(chamadas, 0);
     } finally { globalThis.fetch = original; }
   });

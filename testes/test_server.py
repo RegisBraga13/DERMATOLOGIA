@@ -669,6 +669,15 @@ class ServerIntegrationTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertIn("hasApiKey", payload)
 
+    def test_ai_source_catalog_matches_server_permissions(self):
+        response = self._get("/api/ai-sources")
+        payload = json.loads(response.read().decode("utf-8"))
+        sources = {item["id"]: item for item in payload["sources"]}
+        self.assertEqual(set(sources), server.AI_MODES)
+        self.assertEqual(set(sources["guidelines"]["kinds"]), server.GUIDELINES_KINDS)
+        self.assertNotIn("medication", sources["guidelines"]["kinds"])
+        self.assertNotIn("store_env", sources["guidelines"])
+
     def test_cross_origin_post_is_rejected_with_403(self):
         conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
         try:
@@ -1038,6 +1047,20 @@ class ClinicalAiEndpointTests(unittest.TestCase):
     @staticmethod
     def _resposta_final(chamadas):
         return [c for c in chamadas if "tools" not in c][-1]
+
+    def test_mode_in_catalog_without_handler_is_refused(self):
+        with patch.dict(server.AI_SOURCE_REGISTRY, {"future": {"label": "Futura", "kinds": frozenset({"evolution"})}}), \
+             patch.object(server, "AI_MODES", server.AI_MODES | {"future"}):
+            status, resposta, chamadas = self._answer({"kind": "evolution", "prompt": "Caso ficticio.", "mode": "future"})
+        self.assertEqual(status, 400)
+        self.assertIn("sem implementacao", resposta["error"])
+        self.assertEqual(chamadas, [])
+
+    def test_catalog_rejects_guidelines_for_medication(self):
+        status, resposta, chamadas = self._answer({"kind": "medication", "prompt": "Caso ficticio.", "mode": "guidelines"})
+        self.assertEqual(status, 400)
+        self.assertIn("nao se aplica", resposta["error"])
+        self.assertEqual(chamadas, [])
 
     def test_cloud_without_web_query_does_not_claim_a_search(self):
         """Sem consulta de busca nao ha pesquisa. O contrato antigo dizia ao

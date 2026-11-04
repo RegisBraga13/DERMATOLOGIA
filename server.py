@@ -313,12 +313,28 @@ GUIDELINES_ENV_KEY = "OPENAI_GUIDELINES_VECTOR_STORE_ID"
 # nomeia sindrome (isso e o Diagnostico) nem redige bula (isso e o Medicamento);
 # ela diz o que fazer com o diagnostico ja fechado -- que e exatamente a
 # pergunta destas duas etapas, e de nenhuma outra.
-GUIDELINES_KINDS = {"treatment", "return_plan"}
+# Registro autoritativo das fontes. A lista de etapas alimenta tanto a recusa
+# no servidor quanto o seletor do navegador via /api/ai-sources. O cliente nao
+# decide sozinho se uma fonte nova pode ser usada numa etapa.
+AI_SOURCE_REGISTRY = {
+    "current": {
+        "label": "IA Nuvem", "kinds": frozenset(ALLOWED_KINDS),
+    },
+    "rag": {
+        "label": "RAG com literatura", "kinds": frozenset(ALLOWED_KINDS),
+    },
+    "guidelines": {
+        "label": "Guidelines", "kinds": frozenset({"treatment", "return_plan"}),
+    },
+}
+AI_MODES = set(AI_SOURCE_REGISTRY)
+GUIDELINES_KINDS = set(AI_SOURCE_REGISTRY["guidelines"]["kinds"])
 
-# Lista fechada porque o valor vem do cliente, e modo escolhe em que acervo a
-# busca entra. Mesma disciplina de RAG_PATIENT_SCOPES: valor vindo de fora nao
-# decide store sem conferencia.
-AI_MODES = {"current", "rag", "guidelines"}
+
+def public_ai_sources():
+    """Somente o que a interface precisa; chaves e contratos ficam no servidor."""
+    return [{"id": source_id, "label": source["label"], "kinds": sorted(source["kinds"])}
+            for source_id, source in AI_SOURCE_REGISTRY.items()]
 
 # O contrato do modo Guidelines. Difere do contrato do RAG em uma linha, e ela e
 # a razao do modo existir: o que se recupera aqui NAO e um capitulo de livro que
@@ -2885,6 +2901,9 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         parsed_path = urllib.parse.urlparse(self.path)
+        if parsed_path.path == "/api/ai-sources":
+            self.send_json(200, {"sources": public_ai_sources()})
+            return
         if parsed_path.path == "/api/supabase-config":
             self.send_json(200, {"url": os.environ.get("SUPABASE_URL", "").rstrip("/"), "key": os.environ.get("SUPABASE_PUBLISHABLE_KEY", ""), "storage_version": int(os.environ.get("SUPABASE_STORAGE_VERSION", "1"))})
             return
@@ -3022,8 +3041,13 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             # para outra etapa e recusa, e nao queda silenciosa para "current":
             # cair de modo sem dizer produz uma resposta sem diretriz numa tela
             # que diz "Guidelines".
-            if mode == "guidelines" and kind not in GUIDELINES_KINDS:
-                self.send_json(400, {"error": "O modo Guidelines nao se aplica a esta etapa."})
+            if kind not in AI_SOURCE_REGISTRY[mode]["kinds"]:
+                self.send_json(400, {"error": "Esta fonte de IA nao se aplica a esta etapa."})
+                return
+            # Um modo novo no catálogo não pode cair no contrato Nuvem abaixo
+            # antes de existir um ramo de busca e procedência para ele.
+            if mode not in {"current", "rag", "guidelines"}:
+                self.send_json(400, {"error": "Fonte de IA ainda sem implementacao no servidor."})
                 return
             # Tempo apenas das fontes: nao registra consulta, trecho ou caso.
             # Separa a espera por web/acervo da espera pela resposta estruturada.
