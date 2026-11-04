@@ -2996,6 +2996,9 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             if mode == "guidelines" and kind not in GUIDELINES_KINDS:
                 self.send_json(400, {"error": "O modo Guidelines nao se aplica a esta etapa."})
                 return
+            # Tempo apenas das fontes: nao registra consulta, trecho ou caso.
+            # Separa a espera por web/acervo da espera pela resposta estruturada.
+            fontes_inicio = time.monotonic()
             web_findings = []
             if mode == "current" and web_query:
                 web_findings = usable_web_findings(search_web_sources(web_query, api_key))
@@ -3147,6 +3150,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             # lista que vira procedencia na tela: fonte que nao entrou no
             # contexto tambem nao aparece como lida.
             sources, fontes_cortadas, contexto_chars = fit_sources(sources)
+            fontes_ms = int((time.monotonic() - fontes_inicio) * 1000)
             if fontes_cortadas:
                 logger.warning("%s: %d fonte(s) fora do teto de contexto (%d caracteres)",
                                kind, fontes_cortadas, MAX_SOURCES_CHARS)
@@ -3217,7 +3221,10 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 )
                 return read_json_response(pedido, timeout=60, rotulo=f"OpenAI ({kind})")
 
+            geracao_inicio = time.monotonic()
             response_data = pedir(request_body)
+            geracao_ms = int((time.monotonic() - geracao_inicio) * 1000)
+            retentativa_ms = None
 
             # RESPOSTA CORTADA NAO E RESPOSTA FORA DO FORMATO.
             #
@@ -3238,7 +3245,9 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                              teto=request_body["max_output_tokens"], novo_teto=teto_maior,
                              ms=int((time.monotonic() - comecou) * 1000))
                 request_body["max_output_tokens"] = teto_maior
+                retentativa_inicio = time.monotonic()
                 response_data = pedir(request_body)
+                retentativa_ms = int((time.monotonic() - retentativa_inicio) * 1000)
 
             # Os campos da chamada, iguais nos desfechos abaixo: o que custou e
             # como terminou pertencem a mesma linha, senao comparar sucesso com
@@ -3248,6 +3257,8 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 "modelo": request_body["model"], "schema": SCHEMA_VERSION,
                 "prompt_chars": len(prompt), "fontes": len(sources),
                 "contexto_chars": contexto_chars or None, "fontes_cortadas": fontes_cortadas or None,
+                "fontes_ms": fontes_ms, "geracao_ms": geracao_ms,
+                "retentativa_ms": retentativa_ms,
                 **usage_fields(response_data),
                 "ms": int((time.monotonic() - comecou) * 1000),
             }

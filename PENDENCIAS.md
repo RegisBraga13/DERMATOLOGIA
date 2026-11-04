@@ -18,12 +18,15 @@ Esta seção prevalece sobre o estado histórico de 23/09/2026 abaixo.
   permanece fora de `migrations`.
 - O1 e O3 foram resolvidas no PR: mudanças commitadas; a CI executa os 152
   testes Python com índice sintético, sem copiar livro licenciado, além de
-  543 testes JavaScript. O2 depende de implantação e reinício reais.
+  546 testes JavaScript. O2 depende de implantação e reinício reais.
 - O modo v1 tem uma migração adicional que exige uma linha por conta e o
   cliente relê após colisão de insert. A migração foi aplicada ao projeto
   `PrototipoMac` e o índice único foi verificado válido em 04/11/2026.
 - Permanecem P10 (calibração clínica), P12 (registro declarativo de fontes),
   P13 (latência), P14 (interações estruturadas) e a ampliação multiusuário P15.
+- P13 agora separa no log os tempos de busca de fontes, geração e eventual
+  segunda tentativa, sem registrar consulta ou trechos clínicos. A otimização
+  depende das medições de uso; o fluxo web→resposta ainda é sequencial.
   P1/P2/P9 continuam removidas conforme a decisão registrada abaixo.
 - P12 ganhou uma proteção intermediária: o cliente agora recusa modo de IA
   desconhecido antes da chamada, em vez de trocar silenciosamente por Nuvem.
