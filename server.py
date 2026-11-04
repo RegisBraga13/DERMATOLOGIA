@@ -47,6 +47,11 @@ RETURN_MEDICATION_ACTIONS = [
 ]
 
 DEFAULT_MODEL = "gpt-4.1"
+# A busca e uma etapa estreita: recebe uma consulta curta, aciona a ferramenta
+# web e resume as fontes. A resposta clinica estruturada continua no modelo
+# principal. Separar os dois permite reduzir a latencia da primeira etapa sem
+# trocar o modelo que interpreta o prontuario e preenche o schema clinico.
+DEFAULT_WEB_SEARCH_MODEL = "gpt-4.1-mini"
 
 # A ferramenta de busca na web da Responses API. Configuravel porque o nome do
 # tipo ja mudou uma vez do lado da OpenAI ("web_search_preview"), e o dia em que
@@ -1433,8 +1438,9 @@ def search_web_sources(query, api_key):
     consulta = " ".join(str(query or "").split())[:600]
     if not consulta:
         return []
+    search_model = os.environ.get("OPENAI_WEB_SEARCH_MODEL", DEFAULT_WEB_SEARCH_MODEL)
     body = {
-        "model": os.environ.get("OPENAI_MODEL", DEFAULT_MODEL),
+        "model": search_model,
         "input": [
             {"role": "developer", "content": WEB_SEARCH_CONTRACT},
             {"role": "user", "content": (
@@ -1460,6 +1466,11 @@ def search_web_sources(query, api_key):
     return [{
         "text": extract_response_text(data),
         "citations": extract_web_sources(data),
+        # Metadados internos para comparar latencia/custo da busca com a
+        # geracao. Nao contem consulta, pagina nem dado clinico e nao sao
+        # devolvidos ao navegador.
+        "model": search_model,
+        "usage": data.get("usage") or {},
     }]
 
 
@@ -3273,6 +3284,9 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             medicao = {
                 "id": decision_id, "rota": "clinical-ai", "kind": kind, "modo": mode,
                 "modelo": request_body["model"], "schema": SCHEMA_VERSION,
+                "modelo_busca": web_findings[0].get("model") if web_findings else None,
+                "busca_tokens_in": (web_findings[0].get("usage") or {}).get("input_tokens") if web_findings else None,
+                "busca_tokens_out": (web_findings[0].get("usage") or {}).get("output_tokens") if web_findings else None,
                 "prompt_chars": len(prompt), "fontes": len(sources),
                 "contexto_chars": contexto_chars or None, "fontes_cortadas": fontes_cortadas or None,
                 "fontes_ms": fontes_ms, "geracao_ms": geracao_ms,

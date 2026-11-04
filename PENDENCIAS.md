@@ -16,7 +16,7 @@ Esta seção prevalece sobre o estado histórico de 23/09/2026 abaixo.
   e verifica Auth/REST, isolamento, versões e histórico de conflitos. Falta
   ensaiar o fluxo completo da interface nos aparelhos antes de ativar. O SQL
   permanece fora de `migrations`.
-- O1 e O3 foram resolvidas no PR: mudanças commitadas; a CI executa os 152
+- O1 e O3 foram resolvidas no PR: mudanças commitadas; a CI executa os 156
   testes Python com índice sintético, sem copiar livro licenciado, além de
   546 testes JavaScript. O2 depende de implantação e reinício reais.
 - O modo v1 tem uma migração adicional que exige uma linha por conta e o
@@ -26,7 +26,15 @@ Esta seção prevalece sobre o estado histórico de 23/09/2026 abaixo.
   P13 (latência), P14 (interações estruturadas) e a ampliação multiusuário P15.
 - P13 agora separa no log os tempos de busca de fontes, geração e eventual
   segunda tentativa, sem registrar consulta ou trechos clínicos. A otimização
-  depende das medições de uso; o fluxo web→resposta ainda é sequencial. O
+  depende das medições de uso; o fluxo web→resposta ainda é sequencial. A busca
+  web usa `OPENAI_WEB_SEARCH_MODEL=gpt-4.1-mini` por padrão, enquanto a geração
+  clínica permanece no `OPENAI_MODEL=gpt-4.1`; o log registra os dois modelos e
+  os tokens da busca para comparar o ganho sem confundir as etapas. Em uma
+  medição sintética em 04/11/2026, com a mesma consulta pública sobre bula da
+  sertralina, a busca caiu de 9,67 s (`gpt-4.1`, 1.532 tokens de saída e 7
+  referências) para 4,58 s (`gpt-4.1-mini`, 553 tokens e 3 referências): cerca
+  de 53% menos espera, mas com menos procedência recuperada. O ganho precisa ser
+  repetido num conjunto clínico revisado antes de publicar esta configuração. O
   orçamento das tentativas de rede limita novas tentativas quando o prazo da
   busca web (150 s) ou da geração (90 s) se esgota; não é um corte absoluto de
   uma resposta HTTP que continua chegando aos poucos.

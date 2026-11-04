@@ -1069,6 +1069,23 @@ class ClinicalAiEndpointTests(unittest.TestCase):
         self.assertIn("Bula ANVISA", enviado["input"][1]["content"])
         self.assertEqual(resposta["mode"], "current")
 
+    def test_web_search_uses_its_own_smaller_model(self):
+        """A busca pode ficar mais rapida sem trocar o modelo que produz a
+        resposta clinica estruturada."""
+        import os
+        with patch.dict(os.environ, {
+            "OPENAI_MODEL": "gpt-4.1",
+            "OPENAI_WEB_SEARCH_MODEL": "gpt-4.1-mini",
+        }):
+            _, _, chamadas = self._answer(
+                {"kind": "evolution", "prompt": "Paciente estavel.", "mode": "current", "webQuery": "sertralina dose"},
+                search_text="Bula ANVISA: dose inicial 50 mg.")
+        busca = [c for c in chamadas if "tools" in c][0]
+        geracao = self._resposta_final(chamadas)
+        self.assertEqual(busca["model"], "gpt-4.1-mini")
+        self.assertEqual(busca["tool_choice"], "required")
+        self.assertEqual(geracao["model"], "gpt-4.1")
+
     def test_expired_generation_budget_returns_a_retryable_timeout(self):
         import os
         with patch.dict(os.environ, {"OPENAI_API_KEY": "chave-de-teste"}), \
