@@ -36,6 +36,10 @@ de rede nessa verificação mostra erro de abertura, não ativa o modo local.
 2. Rode `supabase/migrations/20260810000000_prontuarios.sql` no SQL Editor.
    Ele cria `prontuarios` com RLS e as quatro politicas por `owner_id`: cada
    usuario autenticado so alcanca as proprias linhas.
+   Aplique também `supabase/migrations/20261104000000_prontuarios_owner_unico.sql`
+   antes de publicar o novo cliente. Ela exige uma linha por conta. Se já
+   houver duplicatas, a migração para e pede reconciliação manual, sem escolher
+   uma cópia automaticamente.
 3. Crie o usuario do medico no painel de Authentication do Supabase. Nao ha
    cadastro pela tela: o app so tem login.
 

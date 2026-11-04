@@ -1,5 +1,6 @@
 """Regressões de isolamento entre o modo local e o servidor remoto."""
 import os
+import re
 import unittest
 import urllib.error
 import urllib.request
@@ -21,6 +22,22 @@ class StaticAssetsTests(unittest.TestCase):
                       ("src",), ("src", "data"), ("supabase", "migrations", "prontuarios.sql"),
                       ("book_chapters.local.json",)):
             self.assertFalse(server.is_public_asset(parts), parts)
+
+    def test_all_app_module_imports_are_served(self):
+        """A allowlist precisa servir também os módulos importados em cascata."""
+        pending = [server.ROOT / "src" / "App.js"]
+        visited = set()
+        while pending:
+            source = pending.pop().resolve()
+            if source in visited:
+                continue
+            visited.add(source)
+            self.assertTrue(source.is_file(), source)
+            self.assertTrue(server.is_public_asset(source.relative_to(server.ROOT).parts), source)
+            text = source.read_text(encoding="utf-8")
+            for path in re.findall(r'(?:\bfrom\s*|\bimport\s*)[\"\'](\.[^\"\']+)[\"\']', text):
+                pending.append((source.parent / path).resolve())
+        self.assertGreater(len(visited), 40)
 
 
 class RemoteModeTests(unittest.TestCase):

@@ -178,6 +178,9 @@ export async function syncState(local, merge, tentativas = 3, expectedOwnerId = 
         headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
         body: corpo
       }, true, ownerId);
+      // O índice único de owner_id faz o segundo aparelho perder a corrida
+      // de INSERT; releia e una a linha que venceu, em vez de criar outra.
+      if (criada?.status === 409) continue;
       if (!criada?.ok) throw new Error("Não foi possível salvar no Supabase.");
       return juntos;
     }
