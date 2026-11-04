@@ -329,7 +329,13 @@ function dashboard() {
     <div class="dashboard-metrics">
       <div><span>Pacientes cadastrados</span><strong>${String(ativos.size).padStart(2, "0")}</strong></div>
       <div><span>Registros clínicos</span><strong>${String(entries).padStart(2, "0")}</strong></div>
-      <div class="privacy-note">${lockIcon()}<span><strong>Privacidade em primeiro lugar</strong><small>${syncError ? "Salvo neste aparelho. A cópia da sua conta está pendente." : "Salvo neste aparelho e na sua conta, sob o seu login."}</small></span></div>
+      <div class="privacy-note">${lockIcon()}<span><strong>Privacidade em primeiro lugar</strong><small>${storageError
+        ? "Falha ao salvar neste aparelho. Não considere este registro salvo."
+        : localOnlyMode
+          ? "Dados gravados apenas neste aparelho."
+          : syncError
+            ? "Salvo neste aparelho. A cópia da sua conta está pendente."
+            : "Os dados são gravados neste aparelho antes da sincronização com a conta. Confira o estado da rede antes de usar outro aparelho."}</small></span></div>
     </div>
     <div class="quick-heading"><span>Acesso rápido</span><small>Selecione uma ação para começar</small></div>
     <div class="dashboard-actions">${cards.map(([icon, title, target, number]) => `

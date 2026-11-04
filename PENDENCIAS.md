@@ -27,6 +27,10 @@ Esta seção prevalece sobre o estado histórico de 23/09/2026 abaixo.
   P1/P2/P9 continuam removidas conforme a decisão registrada abaixo.
 - P12 ganhou uma proteção intermediária: o cliente agora recusa modo de IA
   desconhecido antes da chamada, em vez de trocar silenciosamente por Nuvem.
+- P1 de gravação: salvar e avançar aguarda a gravação local, mas a interface
+  ainda não distingue explicitamente "salvando", "salvo no aparelho" e
+  "sincronizado" em todos os momentos. A mensagem do painel deixou de afirmar
+  que a conta já recebeu o registro antes de confirmação remota.
 
 O projeto Supabase ativo contém uma linha e um usuário com dados de pacientes
 fictícios, conforme esclarecimento do usuário; a ramificação de teste não está
