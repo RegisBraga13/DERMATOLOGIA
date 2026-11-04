@@ -19,4 +19,4 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m unittest testes.test_robustez testes.test_security_boundaries -q
+      - run: python -m unittest discover -s testes -q

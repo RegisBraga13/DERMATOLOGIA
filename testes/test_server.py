@@ -19,6 +19,7 @@ import urllib.error
 import urllib.request
 from http.client import HTTPConnection
 from pathlib import Path
+from types import SimpleNamespace
 from threading import Thread
 from unittest.mock import patch, MagicMock
 
@@ -593,7 +594,9 @@ class ServerIntegrationTests(unittest.TestCase):
         logging.disable(logging.NOTSET)
 
     def _get(self, path):
-        return urllib.request.urlopen(f"http://127.0.0.1:{self.port}{path}", timeout=5)
+        with urllib.request.urlopen(f"http://127.0.0.1:{self.port}{path}", timeout=5) as response:
+            body = response.read()
+            return SimpleNamespace(status=response.status, headers=response.headers, read=lambda: body)
 
     def test_env_file_is_blocked(self):
         with self.assertRaises(urllib.error.HTTPError) as ctx:
@@ -693,6 +696,19 @@ class BookChapterLookupTests(unittest.TestCase):
     contido-em, e ela cobre quase tudo -- o que falha e quando a palavra e outra:
     o capitulo se chama "Acido valproico" e a receita brasileira diz "valproato
     de sodio". O app chegou a dizer que o livro nao tinha o farmaco, tendo."""
+
+    def setUp(self):
+        # A obra licenciada não entra no Git. O teste verifica o algoritmo
+        # contra um índice sintético com os mesmos nomes, sem copiar texto.
+        nomes = ["Ácido valproico", "Fluoxetina", "Lítio", "Quetiapina",
+                 "Risperidona", "Tetraidrocanabinol"]
+        fixture = {"livro": "Exemplo sintético", "capitulos": [
+            {"nome": nome, "chave": server.normalize_name(nome),
+             "blocos": [{"t": "item", "v": "Conteúdo de teste."}]}
+            for nome in nomes]}
+        self.chapter_patch = patch.object(server, "load_book_chapters", return_value=fixture)
+        self.chapter_patch.start()
+        self.addCleanup(self.chapter_patch.stop)
 
     def test_sal_da_receita_chega_ao_capitulo_do_acido(self):
         for nome in ("Valproato de sódio", "valproato", "divalproex", "divalproato de sodio"):

@@ -62,10 +62,9 @@ node --test 'testes/js/*.test.js'         # camada clinica do front
 Os modulos clinicos sao funcoes puras — sem DOM, sem rede, sem chave de API — e
 o Node os roda como estao, sem `package.json` e sem dependencia nenhuma.
 
-Os nove testes de busca de capítulos exigem `book_chapters.local.json` gerado
-localmente; esse arquivo licenciado não está no Git. A CI executa os testes
-JS e os testes Python independentes desse arquivo até a suíte completa poder
-ser reproduzida de forma isolada.
+Os testes de busca de capítulos usam um índice sintético com nomes de fármacos
+e nenhum trecho de livro. Assim a CI executa a suíte Python completa sem
+`book_chapters.local.json`, que permanece fora do Git por ser obra licenciada.
 
 ## Onde esta o resto
 
