@@ -12,6 +12,7 @@ ou so este arquivo:
     python3 -m unittest testes.test_server -v
 """
 import json
+import io
 import logging
 import sys
 import unittest
@@ -27,6 +28,48 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 import server  # noqa: E402  (precisa do sys.path acima)
+
+
+class NetworkBudgetTests(unittest.TestCase):
+    def test_retry_receives_only_the_remaining_time(self):
+        clock = [0.0]
+        timeouts = []
+
+        def urlopen(_request, timeout):
+            timeouts.append(timeout)
+            if len(timeouts) == 1:
+                clock[0] += 60
+                raise urllib.error.URLError("sem resposta")
+            return io.BytesIO(b'{"ok": true}')
+
+        def sleep(seconds):
+            clock[0] += seconds
+
+        with patch.object(server.time, "monotonic", side_effect=lambda: clock[0]), \
+             patch.object(server.time, "sleep", side_effect=sleep), \
+             patch.object(server.urllib.request, "urlopen", side_effect=urlopen):
+            result = server.read_json_response("pedido", timeout=60, max_total_seconds=90)
+
+        self.assertEqual(result, {"ok": True})
+        self.assertEqual(timeouts, [60, 28])
+
+    def test_expired_budget_does_not_start_another_request(self):
+        clock = [0.0]
+        calls = []
+
+        def urlopen(_request, timeout):
+            calls.append(timeout)
+            clock[0] += 60
+            raise urllib.error.URLError("sem resposta")
+
+        with patch.object(server.time, "monotonic", side_effect=lambda: clock[0]), \
+             patch.object(server.time, "sleep") as sleep, \
+             patch.object(server.urllib.request, "urlopen", side_effect=urlopen):
+            with self.assertRaises(TimeoutError):
+                server.read_json_response("pedido", timeout=60, max_total_seconds=60)
+
+        self.assertEqual(calls, [60])
+        sleep.assert_not_called()
 
 
 class FakeHandler:

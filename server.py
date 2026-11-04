@@ -1347,15 +1347,33 @@ ESPERA_ENTRE_TENTATIVAS = (2, 6)
 CODIGOS_QUE_VALE_REPETIR = {408, 409, 429, 500, 502, 503, 504}
 
 
-def read_json_response(request, timeout=60, tentativas=TENTATIVAS_DE_REDE, rotulo=""):
+def read_json_response(request, timeout=60, tentativas=TENTATIVAS_DE_REDE, rotulo="", max_total_seconds=None):
     """POST que repete o que e transitorio e devolve o JSON da resposta.
 
-    O corpo do erro NAO e lido aqui: quem trata a excecao la em cima o le para
-    o log, e um corpo ja consumido chegaria vazio.
+    Um limite total opcional impede que cada repeticao receba novamente o tempo
+    inteiro. O timeout da urllib e por operacao de socket, portanto nao e um
+    cronometro absoluto para uma resposta que chega aos poucos.
     """
+    deadline = time.monotonic() + max_total_seconds if max_total_seconds is not None else None
+
+    def remaining():
+        if deadline is None:
+            return None
+        left = deadline - time.monotonic()
+        if left <= 0:
+            raise TimeoutError("Tempo limite da consulta a API esgotado.")
+        return left
+
+    def wait_before_retry(seconds):
+        left = remaining()
+        if left is not None and seconds >= left:
+            raise TimeoutError("Tempo limite da consulta a API esgotado.")
+        time.sleep(seconds)
+
     for tentativa in range(tentativas):
         try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:
+            left = remaining()
+            with urllib.request.urlopen(request, timeout=min(timeout, left) if left is not None else timeout) as response:
                 return json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as error:
             ultima = tentativa == tentativas - 1
@@ -1373,13 +1391,13 @@ def read_json_response(request, timeout=60, tentativas=TENTATIVAS_DE_REDE, rotul
                 pass
             logger.warning("%s %s: repetindo em %ss (tentativa %d de %d)",
                            rotulo or "chamada", error.code, espera, tentativa + 2, tentativas)
-            time.sleep(espera)
+            wait_before_retry(espera)
         except (urllib.error.URLError, TimeoutError) as error:
             if tentativa == tentativas - 1:
                 raise
             espera = ESPERA_ENTRE_TENTATIVAS[min(tentativa, len(ESPERA_ENTRE_TENTATIVAS) - 1)]
             logger.warning("%s sem resposta (%s): repetindo em %ss", rotulo or "chamada", type(error).__name__, espera)
-            time.sleep(espera)
+            wait_before_retry(espera)
     raise RuntimeError("tentativas de rede esgotadas")
 
 
@@ -1433,7 +1451,7 @@ def search_web_sources(query, api_key):
         API_URL, data=json.dumps(body, ensure_ascii=False).encode("utf-8"), method="POST",
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"})
     try:
-        data = read_json_response(request, timeout=120, rotulo="busca na web")
+        data = read_json_response(request, timeout=120, max_total_seconds=150, rotulo="busca na web")
     except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as error:
         # Busca falhou nao derruba a etapa: a Nuvem responde do que sabe, e a
         # tela fica sem procedencia -- que e a verdade daquela resposta.
@@ -3219,7 +3237,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                         "Content-Type": "application/json",
                     },
                 )
-                return read_json_response(pedido, timeout=60, rotulo=f"OpenAI ({kind})")
+                return read_json_response(pedido, timeout=60, max_total_seconds=90, rotulo=f"OpenAI ({kind})")
 
             geracao_inicio = time.monotonic()
             response_data = pedir(request_body)

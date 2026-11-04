@@ -26,7 +26,10 @@ Esta seção prevalece sobre o estado histórico de 23/09/2026 abaixo.
   P13 (latência), P14 (interações estruturadas) e a ampliação multiusuário P15.
 - P13 agora separa no log os tempos de busca de fontes, geração e eventual
   segunda tentativa, sem registrar consulta ou trechos clínicos. A otimização
-  depende das medições de uso; o fluxo web→resposta ainda é sequencial.
+  depende das medições de uso; o fluxo web→resposta ainda é sequencial. O
+  orçamento das tentativas de rede limita novas tentativas quando o prazo da
+  busca web (150 s) ou da geração (90 s) se esgota; não é um corte absoluto de
+  uma resposta HTTP que continua chegando aos poucos.
   P1/P2/P9 continuam removidas conforme a decisão registrada abaixo.
 - P12 ganhou uma proteção intermediária: o cliente agora recusa modo de IA
   desconhecido antes da chamada, em vez de trocar silenciosamente por Nuvem.
@@ -234,9 +237,9 @@ que a falha.
 ### P13. Latência somada, sem streaming
 
 - **O que é:** no modo Nuvem são duas chamadas em série (busca web, depois
-  geração), com 60 s de tolerância cada.
-- **Por que importa:** até dois minutos de espera com o botão desligado e nada
-  na tela além do aviso.
+  geração), com 120 s e 60 s por tentativa respectivamente, além das repetições.
+- **Por que importa:** a soma das tentativas pode manter o botão desligado por
+  vários minutos, com nada na tela além do aviso.
 - **Onde mexe:** `server.py`. O paralelismo já existe nas duas buscas do RAG; a
   sequência web→geração não tem.
 - **Tamanho:** M
