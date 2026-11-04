@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 
 def local_status():
     output = subprocess.check_output(
-        ["supabase", "status", "--env", "--output-format", "text"], text=True
+        ["supabase", "status", "-o", "env", "--output-format", "text"], text=True
     )
     variables = {}
     for line in output.splitlines():
