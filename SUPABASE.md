@@ -36,10 +36,11 @@ de rede nessa verificação mostra erro de abertura, não ativa o modo local.
 2. Rode `supabase/migrations/20260810000000_prontuarios.sql` no SQL Editor.
    Ele cria `prontuarios` com RLS e as quatro politicas por `owner_id`: cada
    usuario autenticado so alcanca as proprias linhas.
-   Aplique também `supabase/migrations/20261104000000_prontuarios_owner_unico.sql`
+   Aplique também `supabase/migrations/20261104015410_prontuarios_owner_unico.sql`
    antes de publicar o novo cliente. Ela exige uma linha por conta. Se já
    houver duplicatas, a migração para e pede reconciliação manual, sem escolher
-   uma cópia automaticamente.
+   uma cópia automaticamente. No projeto `PrototipoMac` ela já foi aplicada
+   e verificada em 04/11/2026; não é necessário executá-la outra vez.
 3. Crie o usuario do medico no painel de Authentication do Supabase. Nao ha
    cadastro pela tela: o app so tem login.
 
@@ -54,7 +55,10 @@ substitui as politicas RLS. Nunca coloque a chave `service_role` nessa variavel.
 O valor padrao de `SUPABASE_STORAGE_VERSION` e `1`. O codigo da v2 existe para
 permitir ensaiar e revisar a migracao, sem mudar a persistencia de producao
 automaticamente. A tabela e as politicas estao em
-`supabase/migrations/20261103000000_prontuario_registros_v2.sql`.
+`supabase/drafts/prontuario_registros_v2.sql`. O arquivo permanece fora de
+`migrations` para que um futuro `supabase db push` não aplique a v2 antes
+do ensaio. Após a validação, crie uma migração com versão posterior à v1
+e copie o SQL revisado para ela.
 
 1. Faca backup e ensaie a restauracao do banco e dos navegadores usados. A
    copia v1 nao sera removida pela migracao.

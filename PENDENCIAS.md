@@ -9,29 +9,30 @@ Esta seção prevalece sobre o estado histórico de 23/09/2026 abaixo.
 - P8 já tinha sido atendida parcialmente por decisão posterior: o tratamento
   prévio relatado fica em texto livre e chega à etapa de tratamento, sem ser
   classificado automaticamente como ensaio adequado.
-- P11 tem migração e sincronizador por registro sob
+- P11 tem SQL de migração em `supabase/drafts` e sincronizador por registro sob
   `SUPABASE_STORAGE_VERSION=2`, ainda desligado. RLS e resolução de conflitos
-  precisam de ensaio em banco isolado antes de ativação.
+  precisam de ensaio em banco isolado antes de ativação. O SQL permanece fora
+  de `migrations` até a validação.
 - O1 e O3 foram resolvidas no PR: mudanças commitadas; a CI executa os 152
   testes Python com índice sintético, sem copiar livro licenciado, além de
   543 testes JavaScript. O2 depende de implantação e reinício reais.
 - O modo v1 tem uma migração adicional que exige uma linha por conta e o
-  cliente relê após colisão de insert. A migração ainda não foi aplicada ao
-  banco ativo.
+  cliente relê após colisão de insert. A migração foi aplicada ao projeto
+  `PrototipoMac` e o índice único foi verificado válido em 04/11/2026.
 - Permanecem P10 (calibração clínica), P12 (registro declarativo de fontes),
   P13 (latência), P14 (interações estruturadas) e a ampliação multiusuário P15.
   P1/P2/P9 continuam removidas conforme a decisão registrada abaixo.
 
-O projeto Supabase ativo contém uma linha e um usuário; a ramificação de teste
-não está disponível no plano Free. A tentativa inicial de aplicar a migração
-única diretamente ao banco ativo foi recusada pela revisão automática por
-conter dado clínico real e não haver autorização específica para alteração de
-produção. A autorização específica foi dada em seguida, mas ainda não há
-backup confirmado: o plano Free não oferece backup diário automático e não há
-credencial de exportação disponível nesta sessão. A nova conferência encontrou
-zero contas duplicadas, zero `owner_id` nulos e nenhum índice ou migração já
-aplicado. Nenhuma migração deste PR foi aplicada ao banco ativo. O PR permanece
-em rascunho. O teste visual em Safari/iPhone/iPad
+O projeto Supabase ativo contém uma linha e um usuário com dados de pacientes
+fictícios, conforme esclarecimento do usuário; a ramificação de teste não está
+disponível no plano Free. A autorização específica para o índice único foi
+dada; o usuário esclareceu que os dados fictícios são descartáveis. A
+conferência prévia encontrou zero contas duplicadas e zero `owner_id` nulos.
+O índice foi aplicado sem apagar a linha, e a verificação confirmou
+`indisunique=true`, `indisvalid=true` e a migração registrada como
+`20261104015410_prontuarios_owner_unico`. O plano Free não oferece backup diário
+automático; o ensaio da v2 permanece bloqueado até haver ambiente isolado e
+backup adequado. O PR permanece em rascunho. O teste visual em Safari/iPhone/iPad
 depende de acesso ao navegador/dispositivos em que o app é usado.
 O assessor de segurança do Supabase ainda aponta proteção contra senhas
 vazadas desativada; a configuração de Auth precisa ser revisada no painel.
