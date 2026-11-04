@@ -12,8 +12,16 @@ sozinha.
 
 ## Abrir
 
-Duplo clique em **Abrir Aplicativo.command**. Ele sobe o `server.py` se ainda
-nao estiver no ar e abre `http://127.0.0.1:8000/`.
+No Mac, na pasta da versão que deseja testar, dê duplo clique em
+**Abrir Aplicativo.command**. Ele aguarda o `server.py` responder, confirma
+que a porta serve os arquivos desta pasta e abre o Safari em
+`http://127.0.0.1:8000/` (ou na porta definida em `.env`). Se não iniciar,
+a janela mostra as últimas linhas do log. O arquivo precisa manter a permissão
+de execução ao copiar a pasta; se necessário, rode
+`chmod +x "Abrir Aplicativo.command"` no Terminal.
+
+Esse endereço é local ao próprio Mac. Para testar em iPhone ou iPad, é
+necessário publicar uma versão de teste ou configurar acesso privado pela rede.
 
 Na mao:
 
