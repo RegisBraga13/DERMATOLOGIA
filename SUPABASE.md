@@ -61,7 +61,11 @@ do ensaio. Após a validação, crie uma migração com versão posterior à v1
 e copie o SQL revisado para ela.
 O job `postgres-rls` da CI ensaia o SQL em PostgreSQL descartável com duas
 contas sintéticas, incluindo bloqueios de RLS e disputa de versões. Ainda é
-necessário verificar as chamadas REST reais e a migração em Supabase isolado.
+necessário verificar o fluxo completo do aplicativo nos aparelhos. O job
+`supabase-rest` sobe Auth e API REST locais, aplica a v2 e testa duas contas
+fictícias, as leituras e escritas autorizadas, disputa de versão e histórico
+de conflitos; ele não usa o projeto remoto. A migração v2 revoga privilégios
+padrão antes de conceder apenas os necessários às duas tabelas.
 
 1. Faca backup e ensaie a restauracao do banco e dos navegadores usados. A
    copia v1 nao sera removida pela migracao.

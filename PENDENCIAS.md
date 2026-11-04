@@ -12,8 +12,10 @@ Esta seção prevalece sobre o estado histórico de 23/09/2026 abaixo.
 - P11 tem SQL de migração em `supabase/drafts` e sincronizador por registro sob
   `SUPABASE_STORAGE_VERSION=2`, ainda desligado. A CI aplica v1 e v2 em
   PostgreSQL descartável com duas contas sintéticas e verifica RLS, colisões e
-  escrita por versão. Falta ensaiar o fluxo completo no Supabase isolado e nos
-  aparelhos antes de ativar. O SQL permanece fora de `migrations`.
+  escrita por versão. Outro job sobe Supabase local, cria duas contas fictícias
+  e verifica Auth/REST, isolamento, versões e histórico de conflitos. Falta
+  ensaiar o fluxo completo da interface nos aparelhos antes de ativar. O SQL
+  permanece fora de `migrations`.
 - O1 e O3 foram resolvidas no PR: mudanças commitadas; a CI executa os 152
   testes Python com índice sintético, sem copiar livro licenciado, além de
   543 testes JavaScript. O2 depende de implantação e reinício reais.
@@ -35,7 +37,9 @@ O índice foi aplicado sem apagar a linha, e a verificação confirmou
 `indisunique=true`, `indisvalid=true` e a migração registrada como
 `20261104015410_prontuarios_owner_unico`. O plano Free não oferece backup diário
 automático; o ensaio da v2 permanece bloqueado até haver ambiente isolado e
-backup adequado. O PR permanece em rascunho. O teste visual em Safari/iPhone/iPad
+backup adequado para qualquer teste no projeto remoto. A CI local não precisa
+desses recursos e não altera os projetos hospedados. O PR permanece em rascunho.
+O teste visual em Safari/iPhone/iPad
 depende de acesso ao navegador/dispositivos em que o app é usado.
 O assessor de segurança do Supabase ainda aponta proteção contra senhas
 vazadas desativada; a configuração de Auth precisa ser revisada no painel.
