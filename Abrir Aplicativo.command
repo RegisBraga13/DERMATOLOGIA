@@ -31,15 +31,25 @@ app_ready() {
     [[ "$(shasum -a 256 "$app_temp" | awk '{print $1}')" == "$app_hash" ]]
 }
 
-if lsof -nP -iTCP:"$app_port" -sTCP:LISTEN >/dev/null 2>&1; then
-  if ! app_ready; then
-    echo "A porta $app_port já está ocupada por outra versão ou serviço."
-    echo "Feche o servidor antigo antes de abrir este teste. Nenhum processo foi encerrado."
+if lsof -nP -iTCP:"$app_port" -sTCP:LISTEN >/dev/null 2>&1 && ! app_ready; then
+  app_old_port=$app_port
+  for app_candidate in {8001..8010}; do
+    if ! lsof -nP -iTCP:"$app_candidate" -sTCP:LISTEN >/dev/null 2>&1; then
+      app_port=$app_candidate
+      app_url="http://127.0.0.1:${app_port}/"
+      break
+    fi
+  done
+  if [[ "$app_port" == "$app_old_port" ]]; then
+    echo "A porta $app_port serve outra versão e as portas de teste estão ocupadas."
     read -r '?Pressione Enter para fechar...'
     exit 1
   fi
-else
-  nohup python3 server.py >"$app_log" 2>&1 &
+  echo "Outra versão usa a porta $app_old_port. Esta versão abrirá na porta $app_port."
+fi
+
+if ! app_ready; then
+  PORT="$app_port" nohup python3 server.py >"$app_log" 2>&1 &
   for attempt in {1..30}; do
     if app_ready; then break; fi
     sleep 0.5
