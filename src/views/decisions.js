@@ -12,6 +12,7 @@ import { optionParts } from "../clinical/optionParts.js";
 import { chips, statusLine, textarea } from "../ui/controls.js";
 import { referenceFor } from "../data/references.js";
 import { escapeAttr, escapeHtml, safeExternalUrl } from "../ui/html.js";
+import { aiSourcesFor, aiSourcesUnavailable } from "../services/aiSourceCatalog.js";
 
 export function diagnosisModule(form) {
   const syndromicOptions = diagnosticSyndromicOptionLines(form);
@@ -29,7 +30,7 @@ export function diagnosisModule(form) {
   const analysisLines = psychopathologicalAnalysisLines(form);
   return `
     <div class="diagnosis-ai-panel">
-      ${aiModeSelector(form.aiMode)}
+      ${aiModeSelector(form.aiMode, "aiMode", { kind: "diagnosis" })}
       <div class="actions">
         <button class="primary" type="button" data-action="generate-diagnosis">Gerar</button>
         ${refineButton("refine-diagnosis", selectedValues.length > 0)}
@@ -248,24 +249,19 @@ export function refineButton(action, liberado) {
 // O valor antigo segue valendo como padrao: registro salvo antes da separacao
 // reabre no modo em que foi gerado, em vez de aparecer em outro sem explicacao.
 export function treatmentAiMode(form = {}) {
-  const valor = form.treatmentAiMode || form.pharmaAiMode || "rag";
-  return valor === "guidelines" || valor === "rag" ? valor : "current";
+  return form.treatmentAiMode || form.pharmaAiMode || "rag";
 }
 
-// O terceiro modo e OPCIONAL e desligado por padrao: as diretrizes so respondem
-// onde a pergunta e de conduta -- Tratamento e Ajuste de conduta. Oferecer o
-// radio onde o servidor recusa o modo seria uma escolha que vira erro.
-export function aiModeSelector(value = "current", name = "aiMode", { guidelines = false } = {}) {
-  // Com DOIS modos, "nao e rag" bastava para marcar a Nuvem. Com tres, essa
-  // conta marca duas caixas ao mesmo tempo quando o modo e guidelines, e o
-  // radio passa a mostrar um modo que nao e o que vai ser usado. O modo atual
-  // se resolve uma vez, aqui, e cada caixa compara com ele.
-  const atual = value === "guidelines" && guidelines ? "guidelines" : value === "rag" ? "rag" : "current";
-  return `<fieldset class="ai-mode-selector">
+// O catálogo é entregue pelo servidor. Se a fonte salva saiu da lista desta
+// etapa, nenhuma opção é marcada: o médico escolhe outra explicitamente.
+export function aiModeSelector(value = "current", name = "aiMode", { kind = "" } = {}) {
+  const options = aiSourcesFor(kind);
+  const atual = options.some(item => item.id === value) ? value : "";
+  return `<fieldset class="ai-mode-selector" ${options.length ? "" : "disabled"}>
     <legend>Fonte da resposta</legend>
-    <label><input type="radio" name="${name}" value="current" ${atual === "current" ? "checked" : ""} /><span>IA Nuvem</span></label>
-    <label><input type="radio" name="${name}" value="rag" ${atual === "rag" ? "checked" : ""} /><span>RAG com literatura</span></label>
-    ${guidelines ? `<label><input type="radio" name="${name}" value="guidelines" ${atual === "guidelines" ? "checked" : ""} /><span>Guidelines</span></label>` : ""}
+    ${options.map(item => `<label><input type="radio" name="${escapeAttr(name)}" value="${escapeAttr(item.id)}" ${atual === item.id ? "checked" : ""} /><span>${escapeHtml(item.label)}</span></label>`).join("")}
+    ${!options.length ? `<span>${aiSourcesUnavailable() ? "Fontes de IA indisponíveis. Recarregue a página." : "Carregando fontes de IA…"}</span>` : ""}
+    ${options.length && !atual ? "<span>Fonte salva indisponível nesta etapa. Escolha outra antes de gerar.</span>" : ""}
   </fieldset>`;
 }
 
@@ -397,7 +393,7 @@ export function treatmentModule(form, { podeEngravidar = false, historico = [] }
   const selectedApproaches = arrayValue(form.abordagensSelecionadas);
   return `
     <div class="diagnosis-ai-panel">
-      ${aiModeSelector(treatmentAiMode(form), "treatmentAiMode", { guidelines: true })}
+      ${aiModeSelector(treatmentAiMode(form), "treatmentAiMode", { kind: "treatment" })}
       <div class="actions">
         <button class="primary" type="button" data-action="generate-treatment">Gerar</button>
         ${treatmentAiMode(form) === "guidelines" ? "" : refineButton("refine-treatment", medicationOptions.length || approachOptions.length)}
@@ -518,7 +514,7 @@ export function returnPlanModule(form, { historico = [] } = {}) {
   const gerado = hipoteses.length || medicacao.length || conduta.length;
   return `
     <div class="diagnosis-ai-panel">
-      ${aiModeSelector(form.returnPlanAiMode || "rag", "returnPlanAiMode", { guidelines: true })}
+      ${aiModeSelector(form.returnPlanAiMode || "rag", "returnPlanAiMode", { kind: "return_plan" })}
       <div class="actions">
         <button class="primary" type="button" data-action="generate-return-plan">Gerar</button>
       </div>
@@ -589,7 +585,7 @@ export function evolutionBody(form, patient, previous = null, isReturn = false) 
   const generatedEvolution = buildEvolutionNarrative(form, patient, previous, isReturn);
   return `
     <div class="diagnosis-ai-panel">
-      ${aiModeSelector(form.evolutionAiMode || "rag", "evolutionAiMode")}
+      ${aiModeSelector(form.evolutionAiMode || "rag", "evolutionAiMode", { kind: "evolution" })}
       <div class="actions">
         <button class="primary" type="button" data-action="generate-evolution">${isReturn ? "Atualizar evolução" : "Atualizar história clínica"}</button>
       </div>

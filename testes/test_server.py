@@ -669,6 +669,15 @@ class ServerIntegrationTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertIn("hasApiKey", payload)
 
+    def test_ai_source_catalog_matches_server_permissions(self):
+        response = self._get("/api/ai-sources")
+        payload = json.loads(response.read().decode("utf-8"))
+        sources = {item["id"]: item for item in payload["sources"]}
+        self.assertEqual(set(sources), server.AI_MODES)
+        self.assertEqual(set(sources["guidelines"]["kinds"]), server.GUIDELINES_KINDS)
+        self.assertNotIn("medication", sources["guidelines"]["kinds"])
+        self.assertNotIn("store_env", sources["guidelines"])
+
     def test_cross_origin_post_is_rejected_with_403(self):
         conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
         try:

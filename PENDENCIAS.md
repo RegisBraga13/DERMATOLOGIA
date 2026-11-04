@@ -1,5 +1,19 @@
 # Pendências
 
+## Atualização de 04/11/2026 — após a PR #3
+
+A PR #3 foi mesclada em `main` no commit `91503f8`. A sincronização v2 segue
+desligada (`SUPABASE_STORAGE_VERSION=1`); o merge não substitui o ensaio em
+ambiente isolado, o teste em Safari/iPad nem a validação clínica.
+
+Na branch `codex/catalogo-fontes-ia`, P12 avançou: o servidor declara os modos
+e as etapas aceitas em `AI_SOURCE_REGISTRY`, expõe ao navegador somente ID,
+rótulo e etapas por `/api/ai-sources`, e o cliente usa essa lista no seletor e
+antes de enviar pedidos de IA. Uma fonte salva que deixou de valer para a etapa
+exige nova escolha; ela não vira IA Nuvem silenciosamente. Ainda faltam mover os
+escopos RAG, contratos e políticas de recusa para o registro central e validar
+o fluxo visual em Safari/iPad. Esta branch não altera as regras clínicas.
+
 ## Atualização de implementação — PR #3 (novembro de 2026)
 
 Esta seção prevalece sobre o estado histórico de 23/09/2026 abaixo.

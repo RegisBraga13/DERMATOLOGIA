@@ -12,6 +12,7 @@ import { analysisFindingsForReturn, pendingCriteriaFromPrevious, pendingRefineme
 import { protocolCatalogText, protocolItemById, protocolLoaded } from "../clinical/protocol.js";
 import { parseMedicationResponse } from "./medicationService.js";
 import { authHeaders } from "./supabaseService.js";
+import { loadAiSourceCatalog } from "./aiSourceCatalog.js";
 
 export function canonicalAiSelections(values, allowed = []) {
   const byNormalized = new Map(allowed.map(option => [normalizeText(option), option]));
@@ -33,15 +34,12 @@ export function localRefinementPlan(form = {}) {
   };
 }
 
-// Os modos que o servidor aceita. Lista, e nao ternario: enquanto eram dois,
-// `mode === "rag" ? "rag" : "current"` dizia a mesma coisa que uma lista e
-// custava menos. Com o terceiro passou a MENTIR -- "guidelines" caia em
-// "current" antes de sair do navegador, e escolher Guidelines dava IA Nuvem,
-// sem erro nenhum na tela. Modo novo agora entra aqui ou nao existe.
-const AI_MODES = new Set(["current", "rag", "guidelines"]);
-
 export async function requestClinicalAi(kind, prompt, mode = "current", ragQuery = "", webQuery = "", ragMustMention = "", ragPatientScopes = [], diagnosisSelection = [], guidelineEntity = "") {
-  if (!AI_MODES.has(mode)) throw new Error("Modo de IA inválido. Escolha novamente a fonte da resposta.");
+  const sources = await loadAiSourceCatalog();
+  const source = sources.find(item => item.id === mode);
+  if (!source || !source.kinds.includes(kind)) {
+    throw new Error("Modo de IA inválido para esta etapa. Escolha novamente a fonte da resposta.");
+  }
   const response = await fetch("/api/clinical-ai", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(await authHeaders()) },

@@ -18,6 +18,7 @@ import { optionGroups } from "./data/examOptions.js";
 import { targetSymptomOptions } from "./data/targetSymptoms.js";
 import { fetchCep } from "./services/cepService.js";
 import { buildClinicalAiPrompt, buildRagQuery, buildWebQuery, canonicalAiSelections, localRefinementPlan, requestClinicalAi, requestJevJudge, requestRiskScreen } from "./services/clinicalAiService.js";
+import { loadAiSourceCatalog } from "./services/aiSourceCatalog.js";
 import { localMedicationSuggestions } from "./services/medicationService.js";
 import { exportTextAsPdf } from "./services/pdfService.js";
 import { archiveEntry, archivePatient, isActive, isArchived, loadState, mergeStates, purgePatient, rebasePendingChanges, restorePatient, saveState, stateSignature, uid, unassignedLocalState, waitForLocalSave } from "./services/storageService.js";
@@ -150,7 +151,7 @@ function haTrabalhoNaoSalvo() {
   return unsavedWork.ha() || voiceRecording.isBusy();
 }
 
-Promise.all([verifiedSession(), isSupabaseConfigured()]).then(async ([session, configured]) => {
+Promise.all([verifiedSession(), isSupabaseConfigured(), loadAiSourceCatalog().catch(() => null)]).then(async ([session, configured]) => {
   localOnlyMode = !configured;
   if (session && configured && session.user?.id) {
     authSession = session;
@@ -770,7 +771,7 @@ function medicationBody(form) {
           <button class="medication-clear" type="button" data-action="clear-medication-lookup" aria-label="Limpar pesquisa">×</button>
         </div>
         <div id="medication-suggestions" class="medication-suggestions" role="listbox"></div>
-        ${aiModeSelector(form.pharmaAiMode || "rag", "pharmaAiMode")}
+        ${aiModeSelector(form.pharmaAiMode || "rag", "pharmaAiMode", { kind: "medication" })}
         <!-- So "Gerar". "Refinar" e "Capitulo do livro" sairam daqui em
              02/09/2026: tres botoes numa consulta que e uma pergunta so. O
              capitulo nao dependia do botao — carrega sozinho ao escolher o
@@ -798,7 +799,7 @@ function medicationBody(form) {
           <button class="medication-clear" type="button" data-action="clear-appendix-symptom" aria-label="Limpar pesquisa">×</button>
         </div>
         <p class="field-hint">Escreva o sintoma com as palavras que quiser — não há lista fechada. Com atendimento aberto, a conduta sai ancorada neste paciente.</p>
-        ${aiModeSelector(form.symptomaticAiMode || "rag", "symptomaticAiMode")}
+        ${aiModeSelector(form.symptomaticAiMode || "rag", "symptomaticAiMode", { kind: "symptomatic" })}
         <div class="actions">
           <button class="primary" type="button" data-action="generate-appendix-symptom">Gerar</button>
         </div>
@@ -2059,7 +2060,7 @@ async function generateTreatmentFromClinicalData(element, kind = "treatment") {
     // Guidelines a recusa por falta de cobertura e resposta legitima -- as
     // diretrizes nao cobrem este caso --, e chama-la de "RAG indisponivel"
     // mandaria procurar defeito onde nao ha.
-    const rotulo = { rag: "RAG", guidelines: "Diretrizes", current: "IA" }[treatmentAiMode(target || {})];
+    const rotulo = { rag: "RAG", guidelines: "Diretrizes", current: "IA" }[treatmentAiMode(target || {})] || "Fonte de IA";
     const recado = statusFailure(`${rotulo} sem resposta`, error.message);
     suggestion = { ragSourcesTratamento: [], treatmentStatus: recado, aiStatus: recado };
   }
