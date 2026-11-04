@@ -11,7 +11,7 @@ export function consultationAccessPanel(consultations, form) {
     <div class="actions">
       <button class="secondary" type="button" data-action="new-consultation">Nova consulta</button>
       ${consultations.map(entry => `
-        <button class="secondary ${entry.id === form.id ? "active" : ""}" type="button" data-action="edit-entry" data-id="${entry.id}" data-type="consultation">
+        <button class="secondary ${entry.id === form.id ? "active" : ""}" type="button" data-action="edit-entry" data-id="${escapeAttr(entry.id)}" data-type="consultation">
           ${escapeHtml(entry.label)}
         </button>
       `).join("")}

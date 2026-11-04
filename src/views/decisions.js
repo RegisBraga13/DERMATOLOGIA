@@ -11,7 +11,7 @@ import { medicationTrials, reportedMedicationTreatmentLines } from "../clinical/
 import { optionParts } from "../clinical/optionParts.js";
 import { chips, statusLine, textarea } from "../ui/controls.js";
 import { referenceFor } from "../data/references.js";
-import { escapeAttr, escapeHtml } from "../ui/html.js";
+import { escapeAttr, escapeHtml, safeExternalUrl } from "../ui/html.js";
 
 export function diagnosisModule(form) {
   const syndromicOptions = diagnosticSyndromicOptionLines(form);
@@ -132,7 +132,7 @@ function criterionList(linhas) {
   return `<details class="diagnosis-criteria">
     <summary>Critérios — ${escapeHtml(resumo)}</summary>
     <ul>${linhas.map(item => `
-      <li class="criterion-${item.status.replace(/\s+/g, "-")}">
+      <li class="criterion-${escapeAttr(item.status.replace(/\s+/g, "-"))}">
         <strong>${escapeHtml(item.criterion)}</strong>
         <span class="criterion-status">${escapeHtml(item.status)}</span>
         <span class="criterion-evidence">${escapeHtml(item.evidence)}</span>
@@ -307,8 +307,12 @@ function webSourcesView(sources) {
     <details class="rag-sources"><summary>${total} ${paginas.length
       ? (total === 1 ? "página citada" : "páginas citadas")
       : (total === 1 ? "consulta feita" : "consultas feitas")}</summary><ol>${[
-      ...paginas.map(item => `
-      <li><a href="${escapeAttr(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title || item.url)}</a><span>${escapeHtml(item.site || "")}</span></li>`),
+      ...paginas.map(item => {
+        const url = safeExternalUrl(item.url);
+        return `<li>${url
+          ? `<a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title || item.url)}</a>`
+          : escapeHtml(item.title || item.url)}<span>${escapeHtml(item.site || "")}</span></li>`;
+      }),
       // Sem URL, a procedencia possivel e a CONSULTA: o que ele foi procurar.
       // Vale mostrar — e o que permite ver que a busca foi ao lugar certo, e que
       // nao levou nada do paciente junto.

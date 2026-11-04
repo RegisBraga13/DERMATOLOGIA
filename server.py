@@ -1378,7 +1378,7 @@ def read_json_response(request, timeout=60, tentativas=TENTATIVAS_DE_REDE, rotul
             if tentativa == tentativas - 1:
                 raise
             espera = ESPERA_ENTRE_TENTATIVAS[min(tentativa, len(ESPERA_ENTRE_TENTATIVAS) - 1)]
-            logger.warning("%s sem resposta (%s): repetindo em %ss", rotulo or "chamada", error, espera)
+            logger.warning("%s sem resposta (%s): repetindo em %ss", rotulo or "chamada", type(error).__name__, espera)
             time.sleep(espera)
     raise RuntimeError("tentativas de rede esgotadas")
 
@@ -1437,7 +1437,7 @@ def search_web_sources(query, api_key):
     except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as error:
         # Busca falhou nao derruba a etapa: a Nuvem responde do que sabe, e a
         # tela fica sem procedencia -- que e a verdade daquela resposta.
-        logger.warning("busca na web indisponivel: %s", error)
+        logger.warning("busca na web indisponivel: %s", type(error).__name__)
         return []
     return [{
         "text": extract_response_text(data),
@@ -2822,6 +2822,10 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Content-Security-Policy",
+                         "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; "
+                         "form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                         "img-src 'self' data:; font-src 'self'; connect-src 'self' https:")
         if self._cacheable:
             # Fonte e imagem tem nome estavel e conteudo estavel; revalidar
             # a cada carga torna o boot lento sem ganho nenhum.
@@ -2833,7 +2837,12 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
         super().end_headers()
 
     def log_message(self, fmt, *args):
-        logger.info("%s - %s", self.address_string(), fmt % args)
+        # BaseHTTPRequestHandler inclui a URL inteira (e a query) em requestline.
+        # Nome de medicamento ou dados digitados nunca devem ir para o log HTTP.
+        command = getattr(self, "command", "")
+        method = command if command in {"GET", "POST", "HEAD"} else "OTHER"
+        status = args[1] if len(args) > 1 and str(args[1]).isdigit() else "-"
+        logger.info("http %s %s", method, status)
 
     def send_json(self, status, payload):
         # Conexões keep-alive reaproveitam a instância: resposta de API nunca herda cache.
@@ -2876,7 +2885,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         if not is_same_origin(self):
-            logger.warning("POST bloqueado por origem externa: %s", self.headers.get("Origin"))
+            logger.warning("POST bloqueado por origem externa")
             self.send_json(403, {"error": "Origem nao autorizada."})
             return
 
@@ -2923,9 +2932,9 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 self.send_json(200, {"ok": True, **result})
             except urllib.error.HTTPError as error:
                 logger.error("OpenAI transcription %s: corpo de erro omitido para proteger dados clinicos", error.code)
-                self.send_json(error.code, {"error": "Erro retornado pela OpenAI durante a transcricao. Detalhes no log do servidor."})
-            except Exception:
-                logger.exception("Falha em /api/transcribe-consultation")
+                self.send_json(error.code, {"error": "Erro retornado pela OpenAI durante a transcricao. Tente novamente."})
+            except Exception as error:
+                logger.error("Falha em /api/transcribe-consultation (%s)", type(error).__name__)
                 self.send_json(500, {"error": "Erro interno ao transcrever a gravacao."})
             return
 
@@ -3023,8 +3032,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 if kind == "diagnosis_review":
                     criterios = dsm_criteria_sources(payload.get("diagnosisSelection"))
                     if criterios:
-                        logger.info("diagnosis_review: criterios do DSM-5-TR anexados: %s",
-                                    "; ".join(f["attributes"]["secao"] for f in criterios))
+                        logger.info("diagnosis_review: %d criterio(s) do DSM-5-TR anexado(s)", len(criterios))
                     sources = criterios + sources
                 # O acervo e de psiquiatria. Quando o medico pergunta por um
                 # farmaco que nao e dele -- losartana, metformina, omeprazol, o
@@ -3034,8 +3042,8 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 if exigido and kind in KINDS_REQUIRING_MENTION:
                     citando = sources_mentioning(sources, exigido)
                     if len(citando) != len(sources):
-                        logger.warning("%s: %d de %d trecho(s) nao citam %r",
-                                       kind, len(sources) - len(citando), len(sources), exigido)
+                        logger.warning("%s: %d de %d trecho(s) nao citam o termo exigido",
+                                       kind, len(sources) - len(citando), len(sources))
                     sources = citando
                 if not sources:
                     # Nao ter o farmaco no acervo NAO e falha: e a resposta certa
@@ -3299,16 +3307,16 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 "code_warnings": code_warnings,
             })
         except urllib.error.HTTPError as error:
-            # O corpo da OpenAI pode ecoar trechos do prompt (dado clínico) e
-            # metadados da conta. Fica no log local, não na resposta HTTP.
+            # O corpo da OpenAI pode ecoar trechos do prompt e metadados da
+            # conta. Nem a resposta HTTP nem o log devem reproduzi-lo.
             log_decision(id=decision_id, rota="clinical-ai", resultado="erro_api", causa=error.code,
                          ms=int((time.monotonic() - comecou) * 1000))
             logger.error("OpenAI %s: corpo de erro omitido para proteger dados clinicos", error.code)
-            self.send_json(error.code, {"error": "Erro retornado pela OpenAI. Detalhes no log do servidor."})
+            self.send_json(error.code, {"error": "Erro retornado pela OpenAI. Tente novamente."})
         except Exception as error:
             log_decision(id=decision_id, rota="clinical-ai", resultado="erro_interno",
                          causa=type(error).__name__, ms=int((time.monotonic() - comecou) * 1000))
-            logger.exception("Falha em /api/clinical-ai")
+            logger.error("Falha em /api/clinical-ai (%s); decisao=%s", type(error).__name__, decision_id)
             self.send_json(500, {"error": "Erro interno ao processar a solicitacao."})
 
     def handle_risk_screen(self):
@@ -3362,9 +3370,9 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             })
         except urllib.error.HTTPError as error:
             logger.error("TypeSafe %s: corpo de erro omitido para proteger dados clinicos", error.code)
-            self.send_json(error.code, {"error": "Erro retornado pela TypeSafe. Detalhes no log do servidor."})
-        except Exception:
-            logger.exception("Falha em /api/risk-screen")
+            self.send_json(error.code, {"error": "Erro retornado pela TypeSafe. Tente novamente."})
+        except Exception as error:
+            logger.error("Falha em /api/risk-screen (%s)", type(error).__name__)
             self.send_json(500, {"error": "Erro interno na triagem de risco."})
 
     def handle_jev_judge(self):
@@ -3446,9 +3454,9 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             self.send_json(200, {"ok": True, "answers": result})
         except urllib.error.HTTPError as error:
             logger.error("TypeSafe %s: corpo de erro omitido para proteger dados clinicos", error.code)
-            self.send_json(error.code, {"error": "Erro retornado pela TypeSafe. Detalhes no log do servidor."})
-        except Exception:
-            logger.exception("Falha em /api/jev-judge")
+            self.send_json(error.code, {"error": "Erro retornado pela TypeSafe. Tente novamente."})
+        except Exception as error:
+            logger.error("Falha em /api/jev-judge (%s)", type(error).__name__)
             self.send_json(500, {"error": "Erro interno no julgamento via Jev."})
 
 

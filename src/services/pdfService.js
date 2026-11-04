@@ -43,8 +43,9 @@ function openPrintableDocument(title, content, rodape) {
   windowForPrint.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escape(title)}</title>
     <style>body{font:12pt Arial,sans-serif;margin:2cm;color:#111}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}
     button{padding:10px 16px;margin-bottom:20px}@media print{button{display:none}body{margin:0}}</style></head>
-    <body><button type="button" onclick="window.print()">Imprimir ou salvar como PDF</button><h1>${escape(title)}</h1><pre>${escape(content)}</pre><footer>${escape(rodape === undefined ? "Documento gerado pelo Regis Braga Psiquiatria. Revisão médica obrigatória." : rodape)}</footer></body></html>`);
+    <body><button type="button">Imprimir ou salvar como PDF</button><h1>${escape(title)}</h1><pre>${escape(content)}</pre><footer>${escape(rodape === undefined ? "Documento gerado pelo Regis Braga Psiquiatria. Revisão médica obrigatória." : rodape)}</footer></body></html>`);
   windowForPrint.document.close();
+  windowForPrint.document.querySelector("button")?.addEventListener("click", () => windowForPrint.print());
 }
 
 function buildPdf(title, text, rodape) {

@@ -75,6 +75,22 @@ class HttpBoundaryTests(unittest.TestCase):
                                       "SUPABASE_PUBLISHABLE_KEY": "public-test-key"}):
             self.assertEqual(self.request_status("/api/book-chapter?medicamento=teste"), 401)
 
+    def test_http_log_omits_query_containing_clinical_text(self):
+        with patch.object(server.logger, "info") as logged:
+            self.assertEqual(self.request_status("/api/health?nome=SEGREDO_CLINICO"), 200)
+        self.assertTrue(logged.called)
+        self.assertNotIn("SEGREDO_CLINICO", str(logged.call_args_list))
+
+    def test_browser_blocks_inline_scripts(self):
+        url = f"http://127.0.0.1:{self.httpd.server_port}/index.html"
+        with urllib.request.urlopen(url, timeout=3) as response:
+            policy = response.headers["Content-Security-Policy"]
+            html = response.read().decode("utf-8")
+        self.assertIn("script-src 'self'", policy)
+        self.assertIn("object-src 'none'", policy)
+        self.assertNotIn("'unsafe-inline'", policy.split("script-src", 1)[1].split(";", 1)[0])
+        self.assertNotIn("<script>", html)
+
 
 if __name__ == "__main__":
     unittest.main()

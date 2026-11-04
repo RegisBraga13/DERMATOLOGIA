@@ -443,7 +443,7 @@ function patientSelector(action = "select-patient") {
     <label>Paciente
       <select data-action="${action}">
         <option value="">Selecionar paciente</option>
-        ${state.patients.filter(isActive).map(patient => `<option value="${patient.id}" ${selectedPatientId === patient.id ? "selected" : ""}>${escapeHtml(patient.nome || "Sem nome")}</option>`).join("")}
+        ${state.patients.filter(isActive).map(patient => `<option value="${escapeAttr(patient.id)}" ${selectedPatientId === patient.id ? "selected" : ""}>${escapeHtml(patient.nome || "Sem nome")}</option>`).join("")}
       </select>
     </label>
   `;
@@ -457,7 +457,7 @@ function consultationForm() {
   const consultations = consultationsForPatient(patient.id);
   return `
     <div class="panel-title">
-      <div><h2>${form.label}</h2><p>${escapeHtml(patient.nome)}</p></div>
+      <div><h2>${escapeHtml(form.label)}</h2><p>${escapeHtml(patient.nome)}</p></div>
       ${patientSelector()}
     </div>
     <form id="consult-form">
@@ -487,7 +487,7 @@ function returnForm() {
   const previous = previousEntryForReturn(form, patient.id);
   return `
     <div class="panel-title">
-      <div><h2>${form.label}</h2><p>${escapeHtml(patient.nome)} | comparação com o atendimento anterior${previous?.createdAt ? `, de ${new Date(previous.createdAt).toLocaleDateString("pt-BR")}` : ""}.</p></div>
+      <div><h2>${escapeHtml(form.label)}</h2><p>${escapeHtml(patient.nome)} | comparação com o atendimento anterior${previous?.createdAt ? `, de ${new Date(previous.createdAt).toLocaleDateString("pt-BR")}` : ""}.</p></div>
       ${patientSelector()}
     </div>
     <form id="return-form">
@@ -536,7 +536,7 @@ function returnRecordAccessPanel(form, patientId) {
     <div class="actions">
       <button class="secondary" type="button" data-action="new-return">Novo retorno</button>
       ${returns.length ? returns.map(entry => `
-        <button class="secondary ${entry.id === form.id ? "active" : ""}" type="button" data-action="edit-entry" data-id="${entry.id}" data-type="return">
+        <button class="secondary ${entry.id === form.id ? "active" : ""}" type="button" data-action="edit-entry" data-id="${escapeAttr(entry.id)}" data-type="return">
           ${escapeHtml(entry.label)} · ${new Date(entry.createdAt || Date.now()).toLocaleString("pt-BR")}
         </button>
       `).join("") : `<span class="record-empty-state">Nenhum retorno salvo.</span>`}
@@ -849,7 +849,7 @@ function recordEntryCard(entry) {
       <p>${escapeHtml(recordReportText(entry))}</p>
       ${versionsView(entry)}
       <div class="actions">
-        <button class="secondary" data-action="pdf-entry" data-id="${entry.id}" data-type="${entry.type}">Exportar PDF</button>
+        <button class="secondary" data-action="pdf-entry" data-id="${escapeAttr(entry.id)}" data-type="${escapeAttr(entry.type)}">Exportar PDF</button>
       </div>
     </article>`;
 }

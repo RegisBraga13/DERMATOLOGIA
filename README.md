@@ -45,6 +45,13 @@ O acesso via Tailscale alcança o app a partir de outros aparelhos, mesmo com
 o processo escutando em `127.0.0.1`. O serviço do Mac mini usa
 `APP_MODE=remote` e exige Supabase configurado antes de publicar.
 
+O servidor permite scripts apenas do próprio aplicativo. Links de fontes da
+web só são clicáveis com URL HTTP(S), e o log HTTP registra método e status,
+sem a URL ou textos digitados na consulta. O armazenamento local do navegador
+**não é cifrado pelo app**; proteja o acesso ao dispositivo e mantenha cópias
+de segurança. Essas medidas não equivalem a uma auditoria externa de segurança
+nem validam decisões da IA.
+
 ## Testar
 
 ```bash

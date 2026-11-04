@@ -2,11 +2,12 @@
 // resposta clinica ou de IA servida do cache pareceria atual sem ser, e isso
 // e pior que o app avisar "sem sinal". A casca em cache so garante que a
 // TELA abre offline; prontuario e sintese continuam exigindo rede.
-const CACHE_NAME = "prontuario-shell-v7";
+const CACHE_NAME = "prontuario-shell-v8";
 const CORE_SHELL = [
   "/",
   "/index.html",
   "/src/App.js",
+  "/src/bootstrap.js",
   "/src/styles/theme.css",
   "/src/styles/responsive.css"
 ];
@@ -23,9 +24,8 @@ self.addEventListener("activate", event => {
   self.clients.claim();
 });
 
-// Stale-while-revalidate: responde do cache na hora (abre offline sem
-// esperar timeout de rede) e atualiza o cache em segundo plano quando ha
-// sinal, para o codigo nao ficar preso na primeira versao para sempre.
+// Com rede, entrega o código atual e os cabeçalhos de segurança atuais.
+// Sem rede, usa a última casca salva; nenhuma resposta /api entra aqui.
 self.addEventListener("fetch", event => {
   const { request } = event;
   if (request.method !== "GET") return;
@@ -35,14 +35,16 @@ self.addEventListener("fetch", event => {
 
   event.respondWith(
     caches.open(CACHE_NAME).then(async cache => {
-      const cached = await cache.match(request);
-      const network = fetch(request)
-        .then(response => {
-          if (response.ok) cache.put(request, response.clone());
-          return response;
-        })
-        .catch(() => null);
-      return cached || (await network) || Response.error();
+      try {
+        const response = await fetch(request);
+        if (response.ok) {
+          try { await cache.put(request, response.clone()); }
+          catch { /* Cache cheio: entrega a resposta atual mesmo assim. */ }
+        }
+        return response;
+      } catch {
+        return await cache.match(request) || Response.error();
+      }
     })
   );
 });
