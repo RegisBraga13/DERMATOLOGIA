@@ -1,5 +1,36 @@
 # Pendências
 
+## Atualização de implementação — PR #3 (novembro de 2026)
+
+Esta seção prevalece sobre o estado histórico de 23/09/2026 abaixo.
+
+- P6 e P7 foram implementadas: IDs das decisões acompanham o atendimento e
+  o histórico farmacológico aparece no ajuste de conduta.
+- P8 já tinha sido atendida parcialmente por decisão posterior: o tratamento
+  prévio relatado fica em texto livre e chega à etapa de tratamento, sem ser
+  classificado automaticamente como ensaio adequado.
+- P11 tem migração e sincronizador por registro sob
+  `SUPABASE_STORAGE_VERSION=2`, ainda desligado. RLS e resolução de conflitos
+  precisam de ensaio em banco isolado antes de ativação.
+- O1 e O3 foram resolvidas no PR: mudanças commitadas; a CI executa os 152
+  testes Python com índice sintético, sem copiar livro licenciado, além de
+  543 testes JavaScript. O2 depende de implantação e reinício reais.
+- O modo v1 tem uma migração adicional que exige uma linha por conta e o
+  cliente relê após colisão de insert. A migração ainda não foi aplicada ao
+  banco ativo.
+- Permanecem P10 (calibração clínica), P12 (registro declarativo de fontes),
+  P13 (latência), P14 (interações estruturadas) e a ampliação multiusuário P15.
+  P1/P2/P9 continuam removidas conforme a decisão registrada abaixo.
+
+O projeto Supabase ativo contém uma linha e um usuário; a ramificação de teste
+não está disponível no plano atual. A tentativa de aplicar a migração única
+diretamente ao banco ativo foi recusada pela revisão automática por conter
+dado clínico real e não haver autorização específica para alteração de
+produção. O PR permanece em rascunho. O teste visual em Safari/iPhone/iPad
+depende de acesso ao navegador/dispositivos em que o app é usado.
+O assessor de segurança do Supabase ainda aponta proteção contra senhas
+vazadas desativada; a configuração de Auth precisa ser revisada no painel.
+
 Estado em 23/09/2026. Tudo o que ficou em aberto nesta revisão de arquitetura,
 mais o que nasceu das mudanças feitas hoje.
 
