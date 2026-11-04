@@ -27,6 +27,10 @@ set request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
 do $$
 declare changed integer;
 begin
+  if has_table_privilege(current_user, 'public.prontuario_conflitos', 'UPDATE') or
+     has_table_privilege(current_user, 'public.prontuario_conflitos', 'DELETE') then
+    raise exception 'o papel autenticado tem permissão de alterar o histórico';
+  end if;
   if (select count(*) from public.prontuarios) <> 1 or
      (select count(*) from public.prontuario_registros) <> 1 or
      (select count(*) from public.prontuario_conflitos) <> 1 then

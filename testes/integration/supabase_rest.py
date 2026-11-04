@@ -34,7 +34,7 @@ def request(api, path, key, token=None, method="GET", body=None, query=None):
     headers = {"apikey": key, "Authorization": "Bearer " + (token or key)}
     if payload is not None:
         headers["Content-Type"] = "application/json"
-    if method in {"POST", "PATCH"}:
+    if method in {"POST", "PATCH", "DELETE"}:
         headers["Prefer"] = "return=representation"
     req = urllib.request.Request(url, data=payload, headers=headers, method=method)
     try:
@@ -123,6 +123,13 @@ def main():
                         method="PATCH", query={"owner_id": "eq." + first[0]},
                         body={"selected": "local"})
     require(status in {401, 403, 405}, "Histórico de conflito aceitou alteração.")
+    status, _ = request(api, "/rest/v1/prontuario_conflitos", anon, first[1],
+                        method="DELETE", query={"owner_id": "eq." + first[0]})
+    require(status in {401, 403, 405}, "Histórico de conflito aceitou exclusão.")
+    status, rows = request(api, "/rest/v1/prontuario_conflitos", anon, first[1],
+                           query={"select": "selected"})
+    require(status == 200 and len(rows) == 1 and rows[0]["selected"] == "remote",
+            "Histórico de conflito foi modificado.")
     print("Supabase local: Auth, REST, RLS, versões e conflitos aprovados com duas contas fictícias.")
 
 

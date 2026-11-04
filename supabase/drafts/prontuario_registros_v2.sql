@@ -28,6 +28,9 @@ create policy "prontuario_registros_update_own" on public.prontuario_registros
 create policy "prontuario_registros_delete_own" on public.prontuario_registros
   for delete to authenticated using ((select auth.uid()) = owner_id);
 
+-- Projetos Supabase podem dar privilegios padrao a anon/authenticated em
+-- tabelas novas. Restringir tambem os GRANTs, alem da RLS.
+revoke all on public.prontuario_registros from public, anon, authenticated;
 grant select, insert, update, delete on public.prontuario_registros to authenticated;
 
 -- Guarda as duas cópias antes de resolver uma divergência. Sem UPDATE/DELETE
@@ -51,4 +54,5 @@ create policy "prontuario_conflitos_select_own" on public.prontuario_conflitos
   for select to authenticated using ((select auth.uid()) = owner_id);
 create policy "prontuario_conflitos_insert_own" on public.prontuario_conflitos
   for insert to authenticated with check ((select auth.uid()) = owner_id);
+revoke all on public.prontuario_conflitos from public, anon, authenticated;
 grant select, insert on public.prontuario_conflitos to authenticated;
