@@ -51,3 +51,22 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261104015410_prontuarios_owner_unico.sql
           psql -v ON_ERROR_STOP=1 -f supabase/drafts/prontuario_registros_v2.sql
           psql -v ON_ERROR_STOP=1 -f testes/sql/rls.sql
+  supabase-rest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 3.0.0
+      - name: Subir Supabase local descartável
+        run: |
+          supabase init
+          supabase start
+      - name: Testar Auth e REST com duas contas fictícias
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          python testes/integration/supabase_rest.py
