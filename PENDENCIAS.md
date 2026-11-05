@@ -72,6 +72,10 @@ fontes agora é montado por uma fábrica única, com escopos, etapas aceitas,
 contratos e respostas de recusa no mesmo módulo. O endpoint público continua
 expondo apenas ID, rótulo e etapas.
 
+O filtro de achados de pesquisa web foi extraído para `ai_response_policy.py`;
+respostas vazias continuam sendo tratadas como ausência de fonte, sem mudar o
+contrato clínico.
+
 As cópias legadas dos mapas de escopo e regras de menção foram removidas do
 `server.py`; o servidor agora usa apenas o módulo de política, sem duas fontes
 de verdade para a mesma configuração.
