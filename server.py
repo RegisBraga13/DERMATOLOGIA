@@ -19,6 +19,7 @@ from ai_transport import (
     extract_response_text, read_json_response,
 )
 from ai_typesafe import TYPESAFE_MODEL, call_typesafe_noul_batch, call_typesafe_risk_screen
+from ai_openai import extract_web_sources, search_web_sources
 from server_security import (
     BLOCKED_NAMES, BLOCKED_SUFFIXES, BLOCKED_PREFIXES, BLOCKED_STEMS,
     CACHEABLE_SUFFIXES, is_blocked_path, is_public_asset, is_remote_mode,
@@ -1193,93 +1194,6 @@ def load_env():
 # estado do outro lado, e falha de rede. 400 e 401 nao mudam por insistencia.
 #
 # A transcricao fica de fora por escolha: repetir um envio de 30 MB custa mais
-def search_web_sources(query, api_key):
-    """A busca na web como ETAPA PROPRIA, e nao como ferramenta dentro da chamada.
-
-    A primeira versao ligava a ferramenta na propria chamada estruturada. Duas
-    coisas quebraram, e a segunda era grave:
-
-    1. O modelo colava o PROMPT INTEIRO no campo de consulta -- instrucoes e
-       registro, seis mil caracteres -- e a busca voltava inutil.
-    2. Junto ia o dado clinico do paciente, inclusive a fala dele entre aspas,
-       para um buscador de terceiros. Dizer no prompt para nao fazer isso nao
-       resolveu: a instrucao nao governa o argumento da ferramenta.
-
-    Separando as duas etapas, quem escreve a consulta e este programa, e o que
-    vai para o buscador e exatamente o que ele mandou -- vocabulario clinico, sem
-    narrativa, sem identificacao, sem citacao do paciente. E a mesma disciplina
-    do RAG, que tambem busca primeiro e responde depois.
-    """
-    consulta = " ".join(str(query or "").split())[:600]
-    if not consulta:
-        return []
-    search_model = os.environ.get("OPENAI_WEB_SEARCH_MODEL", DEFAULT_WEB_SEARCH_MODEL)
-    body = {
-        "model": search_model,
-        "input": [
-            {"role": "developer", "content": WEB_SEARCH_CONTRACT},
-            {"role": "user", "content": (
-                f"Pesquise na web e resuma o que a literatura atual diz sobre: {consulta}\n\n"
-                "Traga criterio, dose, limite, contraindicacao, interacao e alerta regulatorio quando "
-                "houver, com a data. Cite a origem de cada afirmacao."
-            )},
-        ],
-        "tools": [{"type": WEB_SEARCH_TOOL}],
-        "tool_choice": "required",
-        "max_output_tokens": WEB_SEARCH_MAX_OUTPUT_TOKENS,
-    }
-    request = urllib.request.Request(
-        API_URL, data=json.dumps(body, ensure_ascii=False).encode("utf-8"), method="POST",
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"})
-    try:
-        data = read_json_response(request, timeout=120, max_total_seconds=150, rotulo="busca na web")
-    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as error:
-        # Busca falhou nao derruba a etapa: a Nuvem responde do que sabe, e a
-        # tela fica sem procedencia -- que e a verdade daquela resposta.
-        logger.warning("busca na web indisponivel: %s", type(error).__name__)
-        return []
-    return [{
-        "text": extract_response_text(data),
-        "citations": extract_web_sources(data),
-        # Metadados internos para comparar latencia/custo da busca com a
-        # geracao. Nao contem consulta, pagina nem dado clinico e nao sao
-        # devolvidos ao navegador.
-        "model": search_model,
-        "usage": data.get("usage") or {},
-    }]
-
-
-def extract_web_sources(data):
-    """As paginas que a busca da web citou, deduplicadas por URL.
-
-    Sao o equivalente das FONTES do RAG para o modo Nuvem: sem elas, a coluna da
-    esquerda afirmaria coisas sem dizer de onde vieram -- justamente a critica
-    que a coluna da direita nao sofre, porque cita a obra e a pagina.
-    """
-    vistos = {}
-    # Com saida estruturada o modelo devolve JSON, e a citacao com URL nao vem
-    # anexada ao texto: annotations chega vazia. Entao a procedencia do modo
-    # Nuvem sao, antes de tudo, AS CONSULTAS QUE ELE FEZ -- que e o que se
-    # confere para saber se ele foi olhar a coisa certa. A URL entra quando vier.
-    for item in data.get("output", []):
-        if item.get("type") == "web_search_call":
-            for consulta in (item.get("action") or {}).get("queries") or []:
-                texto = " ".join(str(consulta).split())[:160]
-                if texto and texto not in vistos:
-                    vistos[texto] = {"query": texto}
-        for content in item.get("content", []):
-            for anotacao in content.get("annotations") or []:
-                url = anotacao.get("url")
-                if not url or url in vistos:
-                    continue
-                vistos[url] = {
-                    "url": url,
-                    "title": (anotacao.get("title") or "").strip() or urllib.parse.urlparse(url).netloc,
-                    "site": urllib.parse.urlparse(url).netloc,
-                }
-    return list(vistos.values())
-
-
 # QUEM LE O QUE. Este e o unico lugar onde isso se decide.
 #
 # A etiqueta no arquivo diz o GENERO do livro -- "psicopatologia", "tratado",

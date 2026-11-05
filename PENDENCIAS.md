@@ -58,6 +58,10 @@ O adaptador TypeSafe/Jev agora está em `ai_typesafe.py`. A triagem de risco e o
 julgamento de perguntas continuam usando a mesma interface, mas o handler HTTP
 deixou de montar diretamente a requisição desse provedor.
 
+O adaptador OpenAI de pesquisa web foi separado em `ai_openai.py`, incluindo
+extração e deduplicação das citações. A consulta continua sanitizada antes de
+sair do servidor e o modo Nuvem mantém o mesmo fallback quando a busca falha.
+
 ## Atualização de 04/11/2026 — após a PR #3
 
 A PR #3 foi mesclada em `main` no commit `91503f8`. A sincronização v2 segue
