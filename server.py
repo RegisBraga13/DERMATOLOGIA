@@ -21,6 +21,11 @@ from ai_transport import (
 from ai_typesafe import TYPESAFE_MODEL, call_typesafe_noul_batch, call_typesafe_risk_screen
 from ai_openai import extract_web_sources, search_web_sources
 from ai_vector_store import fit_sources, rag_context, vector_store_search
+from ai_source_policy import (
+    GUIDELINES_ENV_KEY, KINDS_ACCEPTING_PATIENT_SCOPE, KINDS_REQUIRING_MENTION,
+    RAG_ALWAYS_MAX_RESULTS, RAG_ALWAYS_SCOPE_BY_KIND, RAG_PATIENT_SCOPES,
+    RAG_SCOPE_BY_KIND, build_source_registry, public_ai_sources,
+)
 from server_security import (
     BLOCKED_NAMES, BLOCKED_SUFFIXES, BLOCKED_PREFIXES, BLOCKED_STEMS,
     CACHEABLE_SUFFIXES, is_blocked_path, is_public_asset, is_remote_mode,
@@ -256,8 +261,6 @@ RAG_SCORE_THRESHOLD = 0.55
 # independentes: o `kind`, que diz QUE etapa e, e o `mode`, que diz DE ONDE vem
 # a resposta. "Guidelines" e um valor novo do segundo eixo -- mesma etapa, mesmo
 # schema, mesmas caixas de assinalar, outra prateleira.
-GUIDELINES_ENV_KEY = "OPENAI_GUIDELINES_VECTOR_STORE_ID"
-
 # NAO HA PISO DE ESCORE, e a medicao de 23/09/2026 e a razao.
 #
 # A tentativa esta registrada porque a proxima pessoa vai ter a mesma ideia.
@@ -287,11 +290,6 @@ GUIDELINES_ENV_KEY = "OPENAI_GUIDELINES_VECTOR_STORE_ID"
 # nomeia sindrome (isso e o Diagnostico) nem redige bula (isso e o Medicamento);
 # ela diz o que fazer com o diagnostico ja fechado -- que e exatamente a
 # pergunta destas duas etapas, e de nenhuma outra.
-def public_ai_sources():
-    """Somente o que a interface precisa; chaves e contratos ficam no servidor."""
-    return [{"id": source_id, "label": source["label"], "kinds": sorted(source["kinds"])}
-            for source_id, source in AI_SOURCE_REGISTRY.items()]
-
 # O contrato do modo Guidelines. Difere do contrato do RAG em uma linha, e ela e
 # a razao do modo existir: o que se recupera aqui NAO e um capitulo de livro que
 # descreve o campo, e uma recomendacao com forca de diretriz. Dizer "considere"
@@ -1210,7 +1208,7 @@ def load_env():
 # destrutivo, porque gravava decisao em vez de fato.
 #
 # Etapa fora deste mapa busca sem filtro, que e o comportamento antigo.
-RAG_SCOPE_BY_KIND = {
+_LEGACY_RAG_SCOPE_BY_KIND = {
     # Cobertura semiologica e tecnica de entrevista. Aqui a pergunta e de
     # cobertura, e nao de decisao rastreavel a uma fonte -- por isso mais de um
     # livro nao atrapalha.
@@ -1292,14 +1290,14 @@ RAG_SCOPE_BY_KIND = {
 #
 # Entao o criterio nao concorre: ele tem busca propria e vaga garantida. A busca
 # geral continua trazendo o fenomeno e a entidade; esta traz a regra.
-RAG_ALWAYS_SCOPE_BY_KIND = {
+_LEGACY_RAG_ALWAYS_SCOPE_BY_KIND = {
     "diagnosis": ("criterios",),
 }
 
 # Quantos trechos a busca garantida traz. Poucos de proposito: ela COMPLEMENTA a
 # busca geral, e nao a substitui -- criterio sem fenomeno diagnostica por
 # checklist, que e o oposto do que este programa faz.
-RAG_ALWAYS_MAX_RESULTS = 4
+_LEGACY_RAG_ALWAYS_MAX_RESULTS = 4
 
 # ESCOPOS QUE O PACIENTE ABRE, e nao a etapa.
 #
@@ -1315,12 +1313,12 @@ RAG_ALWAYS_MAX_RESULTS = 4
 #
 # Lista fechada porque o valor vem do cliente: `escopo` e filtro de busca, e
 # valor arbitrario vindo de fora nao entra em filtro.
-RAG_PATIENT_SCOPES = {"infantojuvenil", "saude-mulher"}
+_LEGACY_RAG_PATIENT_SCOPES = {"infantojuvenil", "saude-mulher"}
 
 # As etapas que ganham o reforco. Fora daqui o escopo do paciente e ignorado: na
 # ficha de um farmaco, o que se quer e a bula do farmaco, e nao o capitulo de
 # infancia; nos BIPP TIPS, a secao nomeada do livro.
-KINDS_ACCEPTING_PATIENT_SCOPE = {
+_LEGACY_KINDS_ACCEPTING_PATIENT_SCOPE = {
     "anamnesis", "refinement",
     "diagnosis", "diagnosis_review",
     "treatment", "treatment_review", "symptomatic", "return_plan", "return_assessment",
@@ -2061,62 +2059,11 @@ def sources_mentioning(sources, term):
 
 # Etapas cuja resposta e sobre um farmaco nomeado, e onde por isso o trecho
 # recuperado tem de citar esse farmaco.
-KINDS_REQUIRING_MENTION = {"medication", "medication_review", "medication_tips"}
+_LEGACY_KINDS_REQUIRING_MENTION = {"medication", "medication_review", "medication_tips"}
 
 
-# P12: permissao, acervo, escopos, contrato e conduta sem cobertura ficam
-# associados a cada fonte. O endpoint publica apenas id, rotulo e etapas;
-# detalhes do acervo e das regras clinicas permanecem no servidor.
-AI_SOURCE_REGISTRY = {
-    "current": {
-        "label": "IA Nuvem",
-        "kinds": frozenset(ALLOWED_KINDS),
-        "contract": WEB_SEARCH_CONTRACT,
-        "contract_without_findings": NO_WEB_FINDINGS_CONTRACT,
-        "no_evidence": None,
-    },
-    "rag": {
-        "label": "RAG com literatura",
-        "kinds": frozenset(ALLOWED_KINDS),
-        "store_env": "OPENAI_RAG_VECTOR_STORE_ID",
-        "scopes_by_kind": RAG_SCOPE_BY_KIND,
-        "always_scopes_by_kind": RAG_ALWAYS_SCOPE_BY_KIND,
-        "patient_scopes": frozenset(RAG_PATIENT_SCOPES),
-        "patient_scope_kinds": frozenset(KINDS_ACCEPTING_PATIENT_SCOPE),
-        "must_mention_kinds": frozenset(KINDS_REQUIRING_MENTION),
-        "contract": (
-            "No modo RAG, use exclusivamente os excertos identificados como FONTES. "
-            "Nao complete lacunas com conhecimento proprio e nao atribua uma afirmacao a fonte que nao a sustente."
-        ),
-        "fallback_with_web_findings": "current",
-        "no_evidence": {
-            "error": "A base RAG nao encontrou evidencia suficientemente relevante para responder com seguranca.",
-            "code": "rag_insufficient_evidence",
-        },
-    },
-    "guidelines": {
-        "label": "Guidelines",
-        "kinds": frozenset({"treatment", "return_plan"}),
-        "store_env": GUIDELINES_ENV_KEY,
-        "contract": GUIDELINES_CONTRACT,
-        "not_configured": {
-            "error": "As diretrizes ainda nao foram indexadas. "
-                     "Rode scripts/ingest_guidelines.py e preencha "
-                     f"{GUIDELINES_ENV_KEY} no .env.",
-            "code": "guidelines_not_configured",
-        },
-        "outside_scope": {
-            "error": "As diretrizes nao cobrem esta hipotese. "
-                     "O acervo e de psiquiatria, e responde a partir do "
-                     "diagnostico assinalado -- confira se ha hipotese marcada.",
-            "code": "guidelines_sem_cobertura",
-        },
-        "no_evidence": {
-            "error": "As diretrizes nao cobrem este caso com relevancia suficiente para responder com seguranca.",
-            "code": "guidelines_insufficient_evidence",
-        },
-    },
-}
+AI_SOURCE_REGISTRY = build_source_registry(
+    ALLOWED_KINDS, WEB_SEARCH_CONTRACT, NO_WEB_FINDINGS_CONTRACT, GUIDELINES_CONTRACT)
 AI_MODES = set(AI_SOURCE_REGISTRY)
 GUIDELINES_KINDS = set(AI_SOURCE_REGISTRY["guidelines"]["kinds"])
 
@@ -2560,7 +2507,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
         self.begin_request()
         parsed_path = urllib.parse.urlparse(self.path)
         if parsed_path.path == "/api/ai-sources":
-            self.send_json(200, {"sources": public_ai_sources()})
+            self.send_json(200, {"sources": public_ai_sources(AI_SOURCE_REGISTRY)})
             return
         if parsed_path.path == "/api/supabase-config":
             self.send_json(200, {"url": os.environ.get("SUPABASE_URL", "").rstrip("/"), "key": os.environ.get("SUPABASE_PUBLISHABLE_KEY", ""), "storage_version": int(os.environ.get("SUPABASE_STORAGE_VERSION", "1"))})
@@ -2791,6 +2738,8 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 # clonar: sem esta linha a ValueError da busca cai no except
                 # generico e a tela diz "Erro interno ao processar", que manda
                 # procurar defeito onde ha so um passo de instalacao faltando.
+                # A política preserva o código público `guidelines_not_configured`
+                # e orienta o operador a executar scripts/ingest_guidelines.py.
                 if not os.environ.get(source_policy["store_env"], "").strip():
                     self.send_json(503, source_policy["not_configured"])
                     return

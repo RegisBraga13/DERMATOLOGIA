@@ -67,6 +67,11 @@ busca, limiar, montagem do contexto e corte de fontes agora são reutilizáveis
 por RAG e Guidelines. As regras clínicas de escopo permanecem no servidor para
 evitar duplicação até a próxima extração.
 
+A política declarativa foi extraída para `ai_source_policy.py`. O registro de
+fontes agora é montado por uma fábrica única, com escopos, etapas aceitas,
+contratos e respostas de recusa no mesmo módulo. O endpoint público continua
+expondo apenas ID, rótulo e etapas.
+
 ## Atualização de 04/11/2026 — após a PR #3
 
 A PR #3 foi mesclada em `main` no commit `91503f8`. A sincronização v2 segue
