@@ -26,7 +26,7 @@ const uid = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.ran
 const activePatients = () => (state.patients || []).filter(p => !p.arquivadoEm && !p.excluidoEm);
 const selectedPatient = () => activePatients().find(p => p.id === selectedPatientId);
 
-Promise.all([verifiedSession(), isConfigured()]).then(async ([verified, configured]) => {
+Promise.all([verifiedSession().catch(() => null), isConfigured().catch(() => false)]).then(async ([verified, configured]) => {
   session = verified || null;
   localOnly = !configured;
   const loaded = await loadState(session?.user?.id || "");
