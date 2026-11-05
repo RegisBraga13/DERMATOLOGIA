@@ -54,6 +54,10 @@ orçamento de tempo e extração de texto agora são compartilhados por OpenAI,
 RAG e TypeSafe; os adaptadores clínicos continuam no servidor até a próxima
 etapa de separação.
 
+O adaptador TypeSafe/Jev agora está em `ai_typesafe.py`. A triagem de risco e o
+julgamento de perguntas continuam usando a mesma interface, mas o handler HTTP
+deixou de montar diretamente a requisição desse provedor.
+
 ## Atualização de 04/11/2026 — após a PR #3
 
 A PR #3 foi mesclada em `main` no commit `91503f8`. A sincronização v2 segue

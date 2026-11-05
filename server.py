@@ -18,6 +18,7 @@ from ai_transport import (
     CODIGOS_QUE_VALE_REPETIR, ESPERA_ENTRE_TENTATIVAS, TENTATIVAS_DE_REDE,
     extract_response_text, read_json_response,
 )
+from ai_typesafe import TYPESAFE_MODEL, call_typesafe_noul_batch, call_typesafe_risk_screen
 from server_security import (
     BLOCKED_NAMES, BLOCKED_SUFFIXES, BLOCKED_PREFIXES, BLOCKED_STEMS,
     CACHEABLE_SUFFIXES, is_blocked_path, is_public_asset, is_remote_mode,
@@ -180,8 +181,6 @@ ALLOWED_KINDS = {"anamnesis", "mental_exam", "refinement", "diagnosis", "diagnos
 # resposta da revisao exatamente como recebeu a da geracao.
 REVIEW_OF_KIND = {"diagnosis_review": "diagnosis", "treatment_review": "treatment", "medication_review": "medication"}
 
-TYPESAFE_API_URL = "https://api.typesafe.ai/v1/systemone"
-TYPESAFE_MODEL = "jev-latest"
 RISK_SCREEN_THRESHOLD = 0.6
 RISK_SCREEN_MAX_CHARS = 4000
 # Camada independente da extracao por RAG/GPT que ja preenche
@@ -245,46 +244,6 @@ RISK_INDICATORS = {
 
 JEV_JUDGE_MAX_QUESTIONS = 40
 JEV_JUDGE_MAX_STATE_CHARS = 6000
-
-
-def call_typesafe_noul_batch(api_key, state, questions):
-    """Um Noul por entrada de `questions` ({id: {instructions, criteria?}}).
-
-    Compartilhado por /api/risk-screen e /api/jev-judge: a chamada HTTP a
-    TypeSafe e sempre a mesma forma, so a lista de perguntas muda.
-    """
-    payload_questions = {
-        key: {
-            "type": "noul",
-            "instructions": question["instructions"],
-            **({"criteria": question["criteria"]} if question.get("criteria") else {}),
-        }
-        for key, question in questions.items()
-    }
-    request_body = {
-        "state": state,
-        "model": TYPESAFE_MODEL,
-        "questions": payload_questions,
-    }
-    data = json.dumps(request_body, ensure_ascii=False).encode("utf-8")
-    request = urllib.request.Request(
-        TYPESAFE_API_URL,
-        data=data,
-        method="POST",
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-    )
-    return read_json_response(request, timeout=30, rotulo="TypeSafe")
-
-
-def call_typesafe_risk_screen(api_key, text):
-    questions = {
-        key: {"instructions": indicator["instructions"], "criteria": indicator["criteria"]}
-        for key, indicator in RISK_INDICATORS.items()
-    }
-    return call_typesafe_noul_batch(api_key, text, questions)
 
 
 RAG_MAX_RESULTS = 8
@@ -3268,7 +3227,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
         decision_id = secrets.token_hex(8)
         comecou = time.monotonic()
         try:
-            response_data = call_typesafe_risk_screen(api_key, text)
+            response_data = call_typesafe_risk_screen(api_key, text, RISK_INDICATORS)
             answers = response_data.get("answers", {})
             indicators = []
             for key in RISK_INDICATORS:
