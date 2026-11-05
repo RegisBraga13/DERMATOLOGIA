@@ -367,10 +367,10 @@ que a falha.
 
 | # | Item | Situação |
 | --- | --- | --- |
-| O1 | Nada foi commitado | Vários arquivos alterados, vários novos |
+| O1 | Sincronização Git | `main` é a linha única de produto; cada refatoração é commitada e enviada |
 | O2 | `server.py` mudou | Só vale depois de reiniciar o servidor |
 | O3 | 9 testes do servidor falham | `book_chapters.local.json` não existe nesta máquina. Pré-existente, não é defeito do código. Rode `scripts/build_book_chapters.py` ou ignore. |
-| O4 | Testes JS | 515 passam, 0 falham |
+| O4 | Testes JS | 547 passam, 0 falham |
 
 ---
 
@@ -385,6 +385,7 @@ Para contexto, não para ação.
 | Histórico farmacológico | Cada exposição vira ensaio tipado, com dose, tempo e desfecho, e chega às quatro etapas que prescrevem |
 | `parseMedicationDecision` | Passou a ler o motivo da decisão, que era descartado |
 | `pisoEmMg` | Lia "50 a 200 mg/dia" com piso 200 e reprovava dose correta. Corrigido |
+| Utilidades de resposta | `clinical_response_utils.py` concentra `parse_model_json`, `usage_fields` e `SCHEMA_VERSION`; `server.py` mantém os nomes públicos por compatibilidade |
 
 ---
 
@@ -400,3 +401,10 @@ P1, P2 e P9 saíram (dose check removido). Restam 6 itens técnicos.
 4. **P11** — começar antes que o arquivo fique grande demais para migrar sem dor.
 
 O resto espera.
+
+### Estado da refatoração estrutural (05/11/2026)
+
+O monólito já teve as camadas de runtime, segurança HTTP, transporte de IA,
+adaptadores TypeSafe/OpenAI/Vector Store, política declarativa de fontes e
+utilidades puras de resposta extraídas para módulos independentes. A suíte
+continua verde: 163 testes Python e 547 testes JavaScript.

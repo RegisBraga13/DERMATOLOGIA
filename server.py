@@ -26,6 +26,7 @@ from ai_source_policy import (
     RAG_ALWAYS_MAX_RESULTS, RAG_ALWAYS_SCOPE_BY_KIND, RAG_PATIENT_SCOPES,
     RAG_SCOPE_BY_KIND, build_source_registry, public_ai_sources,
 )
+from clinical_response_utils import SCHEMA_VERSION, parse_model_json, usage_fields
 from server_security import (
     BLOCKED_NAMES, BLOCKED_SUFFIXES, BLOCKED_PREFIXES, BLOCKED_STEMS,
     CACHEABLE_SUFFIXES, is_blocked_path, is_public_asset, is_remote_mode,
@@ -1566,17 +1567,6 @@ def search_guideline_sources(query, api_key, entidade="", infantojuvenil=False):
     return garantidas[:GUIDELINES_ALWAYS_MAX_RESULTS] + restante
 
 
-def parse_model_json(text):
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        start = text.find("{")
-        end = text.rfind("}")
-        if start >= 0 and end > start:
-            return json.loads(text[start:end + 1])
-        raise
-
-
 def diagnostic_group(result, group, limit=None):
     """Um grupo de opcoes do diagnostico, com as tres falhas separadas.
 
@@ -2289,25 +2279,9 @@ def safe_plain_text(kind, result):
 # prontuario nao vira linha de log por conveniencia de depuracao. O decision_id
 # e o que costura esta linha ao que o medico viu na tela, e ele nao identifica
 # paciente nenhum -- e sorteado por chamada.
-SCHEMA_VERSION = "2026-09-26"
-
-
 def log_decision(**campos):
     partes = " ".join(f"{chave}={valor}" for chave, valor in campos.items() if valor not in (None, ""))
     logger.info("decisao %s", partes)
-
-
-def usage_fields(response_data):
-    """Tokens cobrados pela chamada, do jeito que a API os devolve."""
-    usage = (response_data or {}).get("usage") or {}
-    detalhe = usage.get("input_tokens_details") or {}
-    return {
-        "tokens_in": usage.get("input_tokens"),
-        "tokens_out": usage.get("output_tokens"),
-        "tokens_cache": detalhe.get("cached_tokens"),
-        "status": response_data.get("status"),
-        "corte": (response_data.get("incomplete_details") or {}).get("reason"),
-    }
 
 
 class PrototypeHandler(SimpleHTTPRequestHandler):
