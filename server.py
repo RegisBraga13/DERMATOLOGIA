@@ -20,6 +20,7 @@ from ai_transport import (
 )
 from ai_typesafe import TYPESAFE_MODEL, call_typesafe_noul_batch, call_typesafe_risk_screen
 from ai_openai import extract_web_sources, search_web_sources
+from ai_response_policy import usable_web_findings
 from ai_vector_store import fit_sources, rag_context, vector_store_search
 from ai_source_policy import (
     GUIDELINES_ENV_KEY, KINDS_ACCEPTING_PATIENT_SCOPE, KINDS_REQUIRING_MENTION,
@@ -131,11 +132,6 @@ NO_WEB_FINDINGS_CONTRACT = (
     "Nao afirme ter pesquisado e nao cite bula, diretriz, alerta de agencia nem estudo como se os tivesse lido. "
     "Responda somente com o que os dados fornecidos sustentam; prefira campo vazio a preencher com o que voce lembra."
 )
-
-
-def usable_web_findings(findings):
-    """So o achado com texto conta: busca que voltou vazia e busca que nao houve."""
-    return [f for f in (findings or []) if isinstance(f, dict) and str(f.get("text") or "").strip()]
 
 
 def cloud_answer_contract(web_findings):
