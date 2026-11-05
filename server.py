@@ -27,7 +27,7 @@ from ai_source_policy import (
     RAG_SCOPE_BY_KIND, build_source_registry, public_ai_sources,
 )
 from clinical_response_utils import SCHEMA_VERSION, diagnostic_group, parse_model_json, usage_fields
-from clinical_text_utils import normalize_name, sources_mentioning
+from clinical_text_utils import contradicts, diagnostic_traits, normalize_name, sources_mentioning
 from server_security import (
     BLOCKED_NAMES, BLOCKED_SUFFIXES, BLOCKED_PREFIXES, BLOCKED_STEMS,
     CACHEABLE_SUFFIXES, is_blocked_path, is_public_asset, is_remote_mode,
@@ -1933,38 +1933,6 @@ def search_icd10cm_by_title(cid11_code):
 # So estes tres, de proposito. Sao os que a CID-11 usa para subdividir os
 # transtornos do humor, sao os que a IA erra, e sao os que mudam a conduta. Eixo
 # demais transformaria divergencia de redacao em falso alarme.
-def diagnostic_traits(texto):
-    t = normalize_name(texto or "")
-    tracos = {}
-    if "sem sintomas psicoticos" in t or "without psychotic" in t:
-        tracos["psicotico"] = False
-    elif "com sintomas psicoticos" in t or "with psychotic" in t:
-        tracos["psicotico"] = True
-    # Portugues e ingles: a tabela da OMS guarda titulo em portugues e nameEN em
-    # ingles, e o nome que a IA devolve vem em qualquer um dos dois.
-    for chave, marcas in (("leve", ("leve", "mild")),
-                          ("moderado", ("moderad", "moderat")),
-                          ("grave", ("grave", "severe"))):
-        if any(m in t for m in marcas):
-            tracos["gravidade"] = chave
-            break
-    if "recorrente" in t or "recurrent" in t:
-        tracos["curso"] = "recorrente"
-    elif "episodio unico" in t or "single episode" in t:
-        tracos["curso"] = "unico"
-    return tracos
-
-
-def contradicts(nome, titulo_oficial):
-    """Tracos que os dois textos afirmam, e afirmam DIFERENTE.
-
-    Traco ausente de um dos lados nao e contradicao: o nome da IA quase nunca
-    diz tudo o que o titulo da OMS diz.
-    """
-    a, b = diagnostic_traits(nome), diagnostic_traits(titulo_oficial)
-    return {k for k in a.keys() & b.keys() if a[k] != b[k]}
-
-
 def verify_diagnostic_codes(result):
     """Confere os dois codigos de cada hipotese, cada um contra a sua tabela.
 
