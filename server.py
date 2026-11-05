@@ -26,7 +26,7 @@ from ai_source_policy import (
     RAG_ALWAYS_MAX_RESULTS, RAG_ALWAYS_SCOPE_BY_KIND, RAG_PATIENT_SCOPES,
     RAG_SCOPE_BY_KIND, build_source_registry, public_ai_sources,
 )
-from clinical_response_utils import SCHEMA_VERSION, parse_model_json, usage_fields
+from clinical_response_utils import SCHEMA_VERSION, diagnostic_group, parse_model_json, usage_fields
 from server_security import (
     BLOCKED_NAMES, BLOCKED_SUFFIXES, BLOCKED_PREFIXES, BLOCKED_STEMS,
     CACHEABLE_SUFFIXES, is_blocked_path, is_public_asset, is_remote_mode,
@@ -1565,28 +1565,6 @@ def search_guideline_sources(query, api_key, entidade="", infantojuvenil=False):
                 if f["file_id"] not in garantidos_ids
                 and (f["file_id"], f["excerpt"]) not in vistos]
     return garantidas[:GUIDELINES_ALWAYS_MAX_RESULTS] + restante
-
-
-def diagnostic_group(result, group, limit=None):
-    """Um grupo de opcoes do diagnostico, com as tres falhas separadas.
-
-    As tres davam a mesma mensagem — "aceita no maximo N opcoes" —, e so uma
-    delas fala de quantidade. Campo ausente lendo "aceita no maximo 3 opcoes"
-    manda procurar opcao demais onde nao veio opcao nenhuma.
-
-    limit=None e teto removido, e nao teto esquecido: por decisao do Dr. Regis
-    (24/09/2026), diagnostico diferencial (sindromica, nosologica, etiologica)
-    nao tem mais numero maximo de hipoteses. Comorbidade continua limitada —
-    ela nao concorre no diferencial, soma sobre a hipotese principal.
-    """
-    options = result.get(group)
-    if options is None:
-        raise ValueError(f"O grupo {group} nao veio na resposta.")
-    if not isinstance(options, list):
-        raise ValueError(f"O grupo {group} deveria ser uma lista.")
-    if limit is not None and len(options) > limit:
-        raise ValueError(f"O grupo {group} aceita no maximo {limit} opcoes.")
-    return options
 
 
 def validate_result(kind, result):

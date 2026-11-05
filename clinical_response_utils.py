@@ -34,3 +34,15 @@ def usage_fields(response_data):
         "status": response_data.get("status"),
         "corte": (response_data.get("incomplete_details") or {}).get("reason"),
     }
+
+
+def diagnostic_group(result, group, limit=None):
+    """Valida e devolve um grupo de hipóteses do diagnóstico."""
+    options = result.get(group)
+    if options is None:
+        raise ValueError(f"O grupo {group} nao veio na resposta.")
+    if not isinstance(options, list):
+        raise ValueError(f"O grupo {group} deveria ser uma lista.")
+    if limit is not None and len(options) > limit:
+        raise ValueError(f"O grupo {group} aceita no maximo {limit} opcoes.")
+    return options
