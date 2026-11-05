@@ -80,6 +80,10 @@ A serialização dos eventos de decisão foi extraída para `observability.py`;
 `server.py` continua responsável apenas por emitir o log, sem alterar os
 campos técnicos nem registrar conteúdo clínico.
 
+Os módulos puros extraídos ganharam cobertura direta em
+`testes/test_pure_modules.py`, reduzindo o risco de regressão durante as
+próximas extrações.
+
 As cópias legadas dos mapas de escopo e regras de menção foram removidas do
 `server.py`; o servidor agora usa apenas o módulo de política, sem duas fontes
 de verdade para a mesma configuração.
@@ -378,7 +382,7 @@ que a falha.
 | O1 | Sincronização Git | `main` é a linha única de produto; cada refatoração é commitada e enviada |
 | O2 | `server.py` mudou | Só vale depois de reiniciar o servidor |
 | O3 | 9 testes do servidor falham | `book_chapters.local.json` não existe nesta máquina. Pré-existente, não é defeito do código. Rode `scripts/build_book_chapters.py` ou ignore. |
-| O4 | Testes JS | 547 passam, 0 falham |
+| O4 | Testes JS | 547 passam, 0 falham; Python: 170 passam, 0 falham |
 
 ---
 
