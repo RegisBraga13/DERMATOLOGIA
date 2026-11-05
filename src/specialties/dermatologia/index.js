@@ -1,0 +1,134 @@
+// Núcleo clínico específico de Dermatologia.
+// O armazenamento, autenticação e sincronização continuam compartilhados;
+// este módulo concentra somente o vocabulário e o contrato do atendimento.
+
+export const DERMATOLOGIA_SPECIALTY = Object.freeze({
+  id: "dermatologia",
+  label: "Dermatologia",
+  productName: "Prontuário Dermatológico",
+  description: "Anamnese dermatológica, exame físico de lesões e acompanhamento clínico.",
+  consultationPages: Object.freeze([
+    ["queixa", "Queixa e história"],
+    ["antecedentes", "Antecedentes dermatológicos"],
+    ["exame-fisico", "Exame físico"],
+    ["avaliacao", "Avaliação"],
+    ["conduta", "Conduta e seguimento"]
+  ]),
+  returnPages: Object.freeze([
+    ["evolucao", "Evolução"],
+    ["exame-fisico", "Exame físico"],
+    ["avaliacao", "Avaliação"],
+    ["conduta", "Conduta e seguimento"]
+  ])
+});
+
+export const LESION_MORPHOLOGY = Object.freeze([
+  "Mácula", "Pápula", "Placa", "Nódulo", "Tumor", "Vesícula", "Bolha",
+  "Pústula", "Ulceração", "Erosão", "Crosta", "Descamação", "Fissura",
+  "Comedão", "Cisto", "Cicatriz", "Petéquia", "Púrpura"
+]);
+
+export const LESION_DISTRIBUTIONS = Object.freeze([
+  "Face", "Couro cabeludo", "Pescoço", "Tronco", "Membros superiores",
+  "Membros inferiores", "Palmas", "Plantas", "Dobras", "Genitais",
+  "Mucosas", "Generalizada"
+]);
+
+export const DERMATOLOGY_ANAMNESIS_FIELDS = Object.freeze([
+  ["queixaPrincipal", "Queixa principal"],
+  ["historiaDoencaAtual", "História da doença atual"],
+  ["inicioEvolucao", "Início e evolução"],
+  ["sintomasAssociados", "Sintomas associados"],
+  ["gatilhosExposicoes", "Gatilhos e exposições"],
+  ["tratamentosPrevios", "Tratamentos prévios e resposta"]
+]);
+
+export const DERMATOLOGY_HISTORY_FIELDS = Object.freeze([
+  ["alergias", "Alergias e reações medicamentosas"],
+  ["dermatosesPrevias", "Dermatoses prévias"],
+  ["neoplasiasCutaneas", "Neoplasias cutâneas pessoais"],
+  ["historiaFamiliar", "História familiar relevante"],
+  ["medicamentos", "Medicamentos em uso"],
+  ["imunossupressao", "Imunossupressão e comorbidades"],
+  ["exposicaoSolar", "Exposição solar e fotoproteção"],
+  ["ocupacaoExposicoes", "Ocupação e exposições ocupacionais"]
+]);
+
+export const DERMATOLOGY_PHYSICAL_EXAM_FIELDS = Object.freeze([
+  ["localizacao", "Localização e distribuição"],
+  ["morfologia", "Morfologia primária"],
+  ["cor", "Cor"],
+  ["superficie", "Superfície"],
+  ["bordas", "Bordas"],
+  ["dimensoes", "Dimensões"],
+  ["consistencia", "Consistência"],
+  ["sintomasAoExame", "Dor, prurido e outros sintomas"],
+  ["unhasCabelosMucosas", "Unhas, cabelos e mucosas"],
+  ["linfonodos", "Linfonodos e sinais sistêmicos"],
+  ["registroFotografico", "Registro fotográfico e comparação"]
+]);
+
+export const DERMATOLOGY_ASSESSMENT_FIELDS = Object.freeze([
+  ["hipoteses", "Hipóteses diagnósticas"],
+  ["diagnosticoPrincipal", "Diagnóstico principal"],
+  ["diagnosticosDiferenciais", "Diagnósticos diferenciais"],
+  ["gravidadeRisco", "Gravidade e sinais de alarme"],
+  ["necessidadeBiopsia", "Necessidade de biópsia ou exame complementar"]
+]);
+
+export const DERMATOLOGY_PLAN_FIELDS = Object.freeze([
+  ["tratamento", "Tratamento e orientações"],
+  ["fotoprotecao", "Fotoproteção e cuidados gerais"],
+  ["retorno", "Plano de retorno"],
+  ["orientacoesAlarme", "Orientações de alarme"],
+  ["consentimentos", "Consentimentos e documentação"]
+]);
+
+export const DERMATOLOGY_SOURCE_CATALOG = Object.freeze([
+  { id: "derm-guideline-local", type: "guideline", label: "Diretrizes dermatológicas locais", status: "draft", scope: ["diagnostico", "conduta"] },
+  { id: "derm-rag-local", type: "rag", label: "Biblioteca RAG de Dermatologia", status: "draft", scope: ["anamnese", "exame-fisico", "diagnostico", "conduta"] }
+]);
+
+export function defaultDermatologyConsultation({ patientId = "", sequence = 1 } = {}) {
+  return {
+    patientId,
+    type: "consultation",
+    specialty: DERMATOLOGIA_SPECIALTY.id,
+    label: `Consulta dermatológica ${sequence}`,
+    consultationMode: "IN_PERSON",
+    anamnesisInputMode: "manual",
+    dermatology: {
+      anamnese: {},
+      antecedentes: {},
+      exameFisico: {},
+      avaliacao: {},
+      conduta: {}
+    }
+  };
+}
+
+export function defaultDermatologyReturn({ patientId = "", previousEntryId = "" } = {}) {
+  return {
+    patientId,
+    previousEntryId,
+    type: "return",
+    specialty: DERMATOLOGIA_SPECIALTY.id,
+    label: "Retorno dermatológico",
+    dermatology: { exameFisico: {}, avaliacao: {}, conduta: {} }
+  };
+}
+
+export function sanitizeDermatologyRecord(record = {}) {
+  const dermatology = record.dermatology || {};
+  return {
+    ...record,
+    specialty: DERMATOLOGIA_SPECIALTY.id,
+    dermatology: {
+      anamnese: { ...(dermatology.anamnese || {}) },
+      antecedentes: { ...(dermatology.antecedentes || {}) },
+      exameFisico: { ...(dermatology.exameFisico || {}) },
+      avaliacao: { ...(dermatology.avaliacao || {}) },
+      conduta: { ...(dermatology.conduta || {}) }
+    }
+  };
+}

@@ -1,5 +1,6 @@
 import { syncRecordRows } from "./recordSyncService.js";
-const SESSION_KEY = "psires_supabase_session";
+const SESSION_KEY = "dermres_supabase_session";
+const REST_TABLE = "dermatologia_prontuarios";
 let configPromise;
 
 async function config() {
@@ -166,14 +167,14 @@ export async function syncState(local, merge, tentativas = 3, expectedOwnerId = 
     return syncRecordRows(snapshot, merge, authorized, ownerId, tentativas);
   }
   for (let vez = 0; vez < tentativas; vez += 1) {
-    const leitura = await authorized(`/rest/v1/prontuarios?select=id,payload,updated_at&owner_id=eq.${encodeURIComponent(ownerId)}&limit=1`, {}, true, ownerId);
+    const leitura = await authorized(`/rest/v1/${REST_TABLE}?select=id,payload,updated_at&owner_id=eq.${encodeURIComponent(ownerId)}&limit=1`, {}, true, ownerId);
     if (!leitura) return null;
     if (!leitura.ok) throw new Error("Não foi possível ler os prontuários do Supabase.");
     const [linha] = await leitura.json();
     const juntos = linha?.payload ? merge(snapshot, linha.payload) : snapshot;
     const corpo = JSON.stringify({ owner_id: ownerId, payload: juntos, updated_at: new Date().toISOString() });
     if (!linha) {
-      const criada = await authorized("/rest/v1/prontuarios", {
+      const criada = await authorized(`/rest/v1/${REST_TABLE}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
         body: corpo
@@ -185,7 +186,7 @@ export async function syncState(local, merge, tentativas = 3, expectedOwnerId = 
       return juntos;
     }
     const lida = linha.updated_at ? `eq.${encodeURIComponent(linha.updated_at)}` : "is.null";
-    const escrita = await authorized(`/rest/v1/prontuarios?id=eq.${encodeURIComponent(linha.id)}&updated_at=${lida}&select=id`, {
+    const escrita = await authorized(`/rest/v1/${REST_TABLE}?id=eq.${encodeURIComponent(linha.id)}&updated_at=${lida}&select=id`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Prefer: "return=representation" },
       body: corpo

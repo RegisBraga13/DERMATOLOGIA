@@ -1,5 +1,5 @@
-const KEY = "regis_psiquiatr_ia_v1";
-const DB_NAME = "prontuario_psiquiatrico";
+const KEY = "regis_dermatologia_v1";
+const DB_NAME = "prontuario_dermatologico";
 const DB_STORE = "estado";
 // Dados criados antes da separação por conta continuam nas chaves antigas.
 // Jamais são associados a um usuário por inferência: a importação exige ação

@@ -8,7 +8,7 @@ import { describe, it } from "node:test";
 
 import { loadStateFrom, saveStateTo } from "../../src/services/storageService.js";
 
-const KEY = "regis_psiquiatr_ia_v1";
+const KEY = "regis_dermatologia_v1";
 
 function memoria(inicial = {}, { falhaAoLer = false, falhaAoGravar = null, devolveOutraCoisa = false } = {}) {
   const dados = new Map(Object.entries(inicial));
