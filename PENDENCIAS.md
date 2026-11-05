@@ -76,6 +76,10 @@ O filtro de achados de pesquisa web foi extraído para `ai_response_policy.py`;
 respostas vazias continuam sendo tratadas como ausência de fonte, sem mudar o
 contrato clínico.
 
+A serialização dos eventos de decisão foi extraída para `observability.py`;
+`server.py` continua responsável apenas por emitir o log, sem alterar os
+campos técnicos nem registrar conteúdo clínico.
+
 As cópias legadas dos mapas de escopo e regras de menção foram removidas do
 `server.py`; o servidor agora usa apenas o módulo de política, sem duas fontes
 de verdade para a mesma configuração.
