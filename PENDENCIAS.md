@@ -72,6 +72,10 @@ fontes agora é montado por uma fábrica única, com escopos, etapas aceitas,
 contratos e respostas de recusa no mesmo módulo. O endpoint público continua
 expondo apenas ID, rótulo e etapas.
 
+As cópias legadas dos mapas de escopo e regras de menção foram removidas do
+`server.py`; o servidor agora usa apenas o módulo de política, sem duas fontes
+de verdade para a mesma configuração.
+
 ## Atualização de 04/11/2026 — após a PR #3
 
 A PR #3 foi mesclada em `main` no commit `91503f8`. A sincronização v2 segue

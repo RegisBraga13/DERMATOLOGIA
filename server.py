@@ -1207,124 +1207,6 @@ def load_env():
 # estavam duplicados na store; e o script de etiquetar envelheceu ate ficar
 # destrutivo, porque gravava decisao em vez de fato.
 #
-# Etapa fora deste mapa busca sem filtro, que e o comportamento antigo.
-_LEGACY_RAG_SCOPE_BY_KIND = {
-    # Cobertura semiologica e tecnica de entrevista. Aqui a pergunta e de
-    # cobertura, e nao de decisao rastreavel a uma fonte -- por isso mais de um
-    # livro nao atrapalha.
-    "anamnesis": ("psicopatologia", "entrevista"),
-    "refinement": ("psicopatologia", "entrevista"),
-    # Mesma logica da anamnese: e extracao de cobertura a partir da
-    # transcricao, e nao decisao que precise de uma fonte so.
-    "return_assessment": ("psicopatologia", "entrevista"),
-    # Nomear a sindrome exige os DOIS lados: o fenomeno e a entidade.
-    # Dalgalarrondo e Cheniaux descrevem o quadro pelo fenomeno -- Cotard,
-    # catatonia, delirio niilista, tracos melancolicos --, a FMUSP vol. 2
-    # organiza por entidade nosologica. Ate 28/08/2026 esta etapa lia SO a
-    # FMUSP: os dois livros de psicopatologia do acervo entravam na Anamnese e
-    # saiam antes da hora de nomear. Num caso de depressao psicotica com
-    # sindrome de Cotard, o app nao chegou nela; um modelo sem livro nenhum
-    # chegou. Livros do MESMO genero se reforcam -- o que diluia, quando cinco
-    # competiam no mesmo embedding, era psicofarmacologia disputando com
-    # psicopatologia, que sao perguntas diferentes.
-    # "criterios" entrou em 28/08/2026 com o DSM-5-TR e o capitulo 6 da CID-11.
-    # Era a lacuna: psicopatologia descreve o fenomeno, sindromes descreve a
-    # entidade, e NENHUM dos dois traz o criterio operacional -- "cinco dos nove
-    # sintomas por duas semanas" -- nem a lista de especificadores. Foi
-    # exatamente o que o medico teve de corrigir a mao num caso: gravidade, e
-    # caracteristicas melancolicas e psicoticas congruentes com o humor.
-    #
-    # Estes dois livros citam codigo em prosa, e a licao ja medida do projeto e
-    # que a recuperacao acerta o tema e erra o digito. O codigo continua vindo
-    # de tabela; o que se recupera aqui e criterio, e nao numero.
-    "diagnosis": ("psicopatologia", "sindromes", "criterios"),
-    "treatment": ("terapeutica",),
-    # O Ajuste de conduta le a mesma prateleira do Tratamento, e pela mesma
-    # razao: a pergunta e de conduta -- quanto tempo esperar por resposta,
-    # quando subir a dose, quando trocar, quando chamar de refratario. O que
-    # muda e que aqui ja existe um tratamento em curso e um resultado dele.
-    "return_plan": ("terapeutica",),
-    # As duas revisoes leem o mesmo tratado porque o revisor e o mesmo. O que
-    # separa revisar diagnostico de revisar tratamento e a pergunta e o contexto
-    # do prompt, nao o corpus.
-    "diagnosis_review": ("tratado",),
-    "treatment_review": ("tratado",),
-    # A ficha do medicamento sai do guia de prescricao, e o especializado revisa
-    # depois. Aqui a revisao pesa mais do que nas outras duas etapas: o que se
-    # confere e dose, titulacao, contraindicacao e interacao, onde errar chega
-    # na receita. Num teste com ficha errada de proposito -- 400 mg/dia de
-    # sertralina --, a revisao devolveu o teto de 200 mg/dia.
-    "medication": ("prescricao",),
-    "medication_review": ("psicofarmacologia",),
-    # Os BIPP TIPS sao uma secao propria da Psicofarmacologia 2025, no fim do
-    # capitulo de cada farmaco. Mesmo livro da revisao; o que muda e a pergunta,
-    # que procura uma secao nomeada em vez de revisar.
-    "medication_tips": ("psicofarmacologia",),
-    # A Evolucao le as DUAS prateleiras porque faz duas perguntas de uma vez.
-    # "terapeutica" responde a conduta -- em quanto tempo se espera resposta,
-    # quando aumentar, quando trocar, quando chamar de refratario. "tratado"
-    # responde ao curso -- como a doenca costuma evoluir, o que e remissao e o
-    # que e recaida. Julgar se o tratamento esta funcionando exige as duas: sem
-    # a primeira nao ha regua de conduta, sem a segunda nao ha regua de tempo.
-    #
-    # Ate 31/08/2026 esta etapa nao tinha linha nenhuma aqui. Era a unica etapa
-    # clinica que escrevia sem livro: a chamada no front ia com dois argumentos,
-    # o modo caia no default "current" e, sem webQuery montada, nem a busca na
-    # web rodava. Modelo de cabeca, e sem uma fonte na tela.
-    "evolution": ("terapeutica", "tratado"),
-    # Decisao dele: no Sintoma-Alvo a busca pergunta por manejo do sintoma, e
-    # quem responde e a Psicofarmacologia 2025. Era uma copia separada do
-    # arquivo so para carregar outro rotulo; com a etiqueta por genero, o mesmo
-    # arquivo serve as tres etapas.
-    "symptomatic": ("psicofarmacologia",),
-}
-
-
-# Generos que a etapa recupera SEMPRE, em busca propria e separada.
-#
-# Pressuposto que disputa vaga nao e pressuposto. O DSM-5-TR e a CID-11 entraram
-# no acervo a pedido dele -- "sao o padrao ouro" --, e na primeira medicao NAO
-# apareceram entre as quatro fontes recuperadas: perdiam para Dalgalarrondo,
-# Cheniaux e FMUSP, que pontuam mais alto porque a consulta e montada com o
-# vocabulario do exame psiquico e eles descrevem fenomeno com essas palavras.
-#
-# Entao o criterio nao concorre: ele tem busca propria e vaga garantida. A busca
-# geral continua trazendo o fenomeno e a entidade; esta traz a regra.
-_LEGACY_RAG_ALWAYS_SCOPE_BY_KIND = {
-    "diagnosis": ("criterios",),
-}
-
-# Quantos trechos a busca garantida traz. Poucos de proposito: ela COMPLEMENTA a
-# busca geral, e nao a substitui -- criterio sem fenomeno diagnostica por
-# checklist, que e o oposto do que este programa faz.
-_LEGACY_RAG_ALWAYS_MAX_RESULTS = 4
-
-# ESCOPOS QUE O PACIENTE ABRE, e nao a etapa.
-#
-# Os outros escopos sao propriedade do LIVRO cruzada com a ETAPA -- o guia de
-# prescricao responde no Tratamento, a psicopatologia na Anamnese. Estes dois
-# dependem de quem esta na cadeira: um tratado de psiquiatria da infancia nao
-# tem o que dizer sobre um paciente de 50 anos, e teria tudo a dizer sobre um de
-# 9. Por isso quem os pede e o cliente, que sabe a data de nascimento e o sexo.
-#
-# Entram como a busca garantida do criterio: POR CIMA da busca geral, com vaga
-# propria e poucos trechos. O geral continua respondendo -- um adolescente com
-# depressao ainda precisa do que os livros de sempre dizem sobre depressao.
-#
-# Lista fechada porque o valor vem do cliente: `escopo` e filtro de busca, e
-# valor arbitrario vindo de fora nao entra em filtro.
-_LEGACY_RAG_PATIENT_SCOPES = {"infantojuvenil", "saude-mulher"}
-
-# As etapas que ganham o reforco. Fora daqui o escopo do paciente e ignorado: na
-# ficha de um farmaco, o que se quer e a bula do farmaco, e nao o capitulo de
-# infancia; nos BIPP TIPS, a secao nomeada do livro.
-_LEGACY_KINDS_ACCEPTING_PATIENT_SCOPE = {
-    "anamnesis", "refinement",
-    "diagnosis", "diagnosis_review",
-    "treatment", "treatment_review", "symptomatic", "return_plan", "return_assessment",
-}
-
-
 def search_rag_sources(query, api_key, kind="", escopos=None):
     source = AI_SOURCE_REGISTRY["rag"]
     vector_store_id = os.environ.get(source["store_env"], "").strip()
@@ -2055,11 +1937,6 @@ def sources_mentioning(sources, term):
     radicais = [alvo] + [parte for parte in alvo.split() if len(parte) >= 4]
     return [item for item in sources
             if any(radical in normalize_name(item.get("excerpt", "")) for radical in radicais)]
-
-
-# Etapas cuja resposta e sobre um farmaco nomeado, e onde por isso o trecho
-# recuperado tem de citar esse farmaco.
-_LEGACY_KINDS_REQUIRING_MENTION = {"medication", "medication_review", "medication_tips"}
 
 
 AI_SOURCE_REGISTRY = build_source_registry(
