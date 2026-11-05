@@ -27,6 +27,7 @@ from ai_source_policy import (
     RAG_SCOPE_BY_KIND, build_source_registry, public_ai_sources,
 )
 from clinical_response_utils import SCHEMA_VERSION, diagnostic_group, parse_model_json, usage_fields
+from clinical_text_utils import normalize_name, sources_mentioning
 from server_security import (
     BLOCKED_NAMES, BLOCKED_SUFFIXES, BLOCKED_PREFIXES, BLOCKED_STEMS,
     CACHEABLE_SUFFIXES, is_blocked_path, is_public_asset, is_remote_mode,
@@ -1865,46 +1866,6 @@ def load_code_tables():
                         tables["cid11_by_name"] = {normalize_name(name): code for code, name in tables[key].items()}
             CODE_TABLES = tables
         return CODE_TABLES
-
-
-def normalize_name(value):
-    """Compara nome sem acento, caixa nem pontuacao."""
-    # NFKD, e nao NFD: tambem desfaz ligadura de PDF ("ﬂuoxetina" -> "fluoxetina").
-    # Com NFD o "ﬂ" nao se decompunha e caia no filtro de pontuacao, e o nome
-    # saia "uoxetina". Nenhuma chave dos indices locais muda com a troca.
-    texto = unicodedata.normalize("NFKD", str(value or "").lower())
-    texto = "".join(c for c in texto if unicodedata.category(c) != "Mn")
-    return re.sub(r"[^a-z0-9]+", " ", texto).strip()
-
-
-def sources_mentioning(sources, term):
-    """Trechos que realmente citam o termo pedido.
-
-    A BUSCA VETORIAL SEMPRE RESPONDE. Ela devolve os k vizinhos mais proximos da
-    consulta, e nao os trechos que contem a palavra -- entao perguntar por
-    losartana ao acervo de psiquiatria trazia OITO trechos com relevancia 0,90,
-    nenhum deles citando losartana. O primeiro falava de estimulantes: tremor,
-    taquicardia, psicose. A consulta "dose, efeito colateral, interacao" casa com
-    qualquer capitulo de bula, e o nome do farmaco pesa pouco no embedding.
-
-    Na tela isso saia como "Consultado: Stahl -- Guia, 8 trechos recuperados"
-    debaixo de uma ficha de losartana: procedencia falsa, que e o pior defeito
-    possivel justamente na caixa cuja funcao e dizer de onde veio a resposta.
-
-    Vale so para a ficha do medicamento, onde a resposta E SOBRE um nome
-    proprio. No diagnostico e no tratamento a pergunta e sobre um quadro, e o
-    livro pode sustenta-la sem repetir nenhuma palavra da consulta.
-    """
-    alvo = normalize_name(term)
-    if not alvo:
-        return list(sources)
-    # A primeira palavra basta e cobre mais: "Losartana potassica" aparece no
-    # livro como "losartana", e "Acido valproico" como "valproico" tambem. So a
-    # partir de quatro letras, para "t3" ou "cbd" nao casarem dentro de outra
-    # palavra qualquer.
-    radicais = [alvo] + [parte for parte in alvo.split() if len(parte) >= 4]
-    return [item for item in sources
-            if any(radical in normalize_name(item.get("excerpt", "")) for radical in radicais)]
 
 
 AI_SOURCE_REGISTRY = build_source_registry(
