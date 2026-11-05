@@ -62,6 +62,11 @@ O adaptador OpenAI de pesquisa web foi separado em `ai_openai.py`, incluindo
 extração e deduplicação das citações. A consulta continua sanitizada antes de
 sair do servidor e o modo Nuvem mantém o mesmo fallback quando a busca falha.
 
+A comunicação genérica com o Vector Store foi separada em `ai_vector_store.py`:
+busca, limiar, montagem do contexto e corte de fontes agora são reutilizáveis
+por RAG e Guidelines. As regras clínicas de escopo permanecem no servidor para
+evitar duplicação até a próxima extração.
+
 ## Atualização de 04/11/2026 — após a PR #3
 
 A PR #3 foi mesclada em `main` no commit `91503f8`. A sincronização v2 segue

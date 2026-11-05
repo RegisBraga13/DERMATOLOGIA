@@ -20,6 +20,7 @@ from ai_transport import (
 )
 from ai_typesafe import TYPESAFE_MODEL, call_typesafe_noul_batch, call_typesafe_risk_screen
 from ai_openai import extract_web_sources, search_web_sources
+from ai_vector_store import fit_sources, rag_context, vector_store_search
 from server_security import (
     BLOCKED_NAMES, BLOCKED_SUFFIXES, BLOCKED_PREFIXES, BLOCKED_STEMS,
     CACHEABLE_SUFFIXES, is_blocked_path, is_public_asset, is_remote_mode,
@@ -1683,88 +1684,6 @@ def search_guideline_sources(query, api_key, entidade="", infantojuvenil=False):
                 if f["file_id"] not in garantidos_ids
                 and (f["file_id"], f["excerpt"]) not in vistos]
     return garantidas[:GUIDELINES_ALWAYS_MAX_RESULTS] + restante
-
-
-def vector_store_search(vector_store_id, query, api_key, filtros=None):
-    request_body = {
-        "query": query,
-        "max_num_results": int(os.environ.get("OPENAI_RAG_MAX_RESULTS", str(RAG_MAX_RESULTS))),
-        # DESLIGADO em 28/08/2026, medido. O rewrite manda a consulta a um modelo
-        # que a reescreve antes de buscar, e a reescrita e nao-deterministica:
-        # a MESMA consulta trazia 8 trechos numa rodada e 0 na seguinte. Zero
-        # trecho e 422 aqui embaixo, e 422 derruba a etapa no catalogo local de
-        # 27 regras -- entao o medico recebia literatura ou casamento de termo
-        # conforme a sorte, sem nada na tela explicando a diferenca.
-        #
-        # Medido no Diagnostico, 10 casos, 3 rodadas cada (maximo 240):
-        #     rewrite_query=True .... 161, instavel
-        #     rewrite_query=False ... 240, identico em toda rodada
-        #
-        # O caso de TOC recuperava ZERO nas tres rodadas com rewrite, e 8 de 8
-        # nas tres sem. A consulta que o app monta ja esta em vocabulario
-        # clinico; reescreve-la so a afasta do texto dos livros.
-        "rewrite_query": False,
-    }
-    if filtros:
-        request_body["filters"] = filtros
-    request = urllib.request.Request(
-        VECTOR_STORE_API_URL.format(vector_store_id=urllib.parse.quote(vector_store_id, safe="")),
-        data=json.dumps(request_body, ensure_ascii=False).encode("utf-8"),
-        method="POST",
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-    )
-    payload = read_json_response(request, timeout=60, rotulo="busca vetorial")
-
-    threshold = float(os.environ.get("OPENAI_RAG_SCORE_THRESHOLD", str(RAG_SCORE_THRESHOLD)))
-    sources = []
-    for item in payload.get("data", []):
-        score = float(item.get("score") or 0)
-        if score < threshold:
-            continue
-        excerpts = [part.get("text", "").strip() for part in item.get("content", []) if part.get("text")]
-        if not excerpts:
-            continue
-        sources.append({
-            "file_id": item.get("file_id", ""),
-            "filename": item.get("filename", "Fonte sem titulo"),
-            "score": round(score, 4),
-            "excerpt": "\n".join(excerpts),
-            "attributes": item.get("attributes") or {},
-        })
-    return sources
-
-
-def rag_context(sources):
-    blocks = []
-    for index, source in enumerate(sources, 1):
-        attributes = source.get("attributes") or {}
-        details = ", ".join(f"{key}: {value}" for key, value in attributes.items() if value)
-        label = source["filename"] + (f" ({details})" if details else "")
-        blocks.append(f"[FONTE {index}: {label}; relevancia={source['score']}]\n{source['excerpt']}")
-    return "\n\n---\n\n".join(blocks)
-
-
-def fit_sources(sources, limite=MAX_SOURCES_CHARS):
-    """As fontes que cabem no teto de contexto, na ordem em que chegaram.
-
-    A ORDEM E A PRIORIDADE, e por isso o corte e no fim: quem monta a lista ja
-    poe na frente o que nao pode faltar -- os criterios do DSM no Refinar, os
-    trechos de maior relevancia no resto. Cortar pelo escore aqui desfaria essa
-    decisao, que foi tomada com mais contexto do que esta funcao tem.
-
-    A primeira fonte entra sempre, mesmo estourando sozinha: uma resposta com
-    uma fonte grande demais ainda e uma resposta com fonte, e a alternativa e
-    devolver contexto vazio a uma etapa que pediu literatura.
-    """
-    cabem = []
-    total = 0
-    for source in sources:
-        tamanho = len(source.get("excerpt") or "") + len(source.get("filename") or "") + 64
-        if cabem and total + tamanho > limite:
-            break
-        cabem.append(source)
-        total += tamanho
-    return cabem, len(sources) - len(cabem), total
 
 
 def parse_model_json(text):
