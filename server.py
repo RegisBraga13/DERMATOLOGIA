@@ -14,6 +14,11 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from server_runtime import PostRateLimiter, request_id
+from server_security import (
+    BLOCKED_NAMES, BLOCKED_SUFFIXES, BLOCKED_PREFIXES, BLOCKED_STEMS,
+    CACHEABLE_SUFFIXES, is_blocked_path, is_public_asset, is_remote_mode,
+    validate_server_config, is_same_origin, verify_supabase_user,
+)
 
 
 ROOT = Path(__file__).resolve().parent
@@ -353,129 +358,6 @@ CODE_TABLES_LOCK = threading.Lock()
 # insonia nao era nem reconhecido como codigo — caia no ramo de "sem formato".
 CID11_PATTERN = re.compile(r"\b[67][A-E][0-9A-Z]{2}(?:\.[0-9A-Z]+)?\b")
 ICD10CM_PATTERN = re.compile(r"\bF[0-9]{2}(?:\.[0-9A-Z]+)?\b")
-
-# --- Superfície estática servida ---------------------------------------------
-# O handler serve o diretório do projeto inteiro. Sem uma barreira explícita,
-# GET /.env devolve a OPENAI_API_KEY em texto puro para qualquer processo local.
-BLOCKED_NAMES = {".env", ".git", ".gitignore", ".venv", "__pycache__", ".DS_Store", "node_modules"}
-BLOCKED_SUFFIXES = {".py", ".pyc", ".sql", ".log", ".command", ".m4a", ".pem", ".key"}
-BLOCKED_PREFIXES = (".env",)          # .env.local, .env.production, ...
-BLOCKED_STEMS = ("rag_sources", "book_chapters", "dsm_criteria")   # *.local.json
-# O capitulo do livro sai por /api/book-chapter, um de cada vez. Servido como
-# arquivo estatico, GET /book_chapters.local.json entregaria o livro inteiro a
-# quem pedisse — 2,6 MB de obra licenciada, num programa que o resto do tempo
-# toma o cuidado de nao versionar nem o PDF.
-
-# Cache longo so para asset que nunca muda em uso: fonte e imagem. Codigo
-# (.js, .css) e dado (.json) ficam de fora de proposito — ver send_head().
-# HTML e respostas de API nunca — carregam dado clínico.
-CACHEABLE_SUFFIXES = {".woff2", ".woff", ".ttf", ".eot", ".svg", ".png", ".jpg", ".webp", ".ico"}
-
-
-def is_blocked_path(relative_parts):
-    """True se qualquer segmento do caminho for sensível."""
-    for part in relative_parts:
-        lowered = part.lower()
-        if lowered in BLOCKED_NAMES:
-            return True
-        if lowered.startswith(BLOCKED_PREFIXES):
-            return True
-        if lowered.startswith(BLOCKED_STEMS):
-            return True
-    if relative_parts:
-        suffix = Path(relative_parts[-1]).suffix.lower()
-        if suffix in BLOCKED_SUFFIXES:
-            return True
-    return False
-
-
-def is_public_asset(relative_parts):
-    """A raiz do projeto contém código, scripts e dados que não são públicos."""
-    if not relative_parts:
-        return True  # / resolve para index.html; listagem de diretório é bloqueada abaixo.
-    if len(relative_parts) == 1:
-        return relative_parts[0] in {"index.html", "sw.js"}
-    if relative_parts[0] == "src":
-        return relative_parts[-1].lower().endswith((".js", ".css", ".json")) and len(relative_parts) >= 2
-    if relative_parts[0] == "fonts":
-        return len(relative_parts) == 2 and relative_parts[-1].lower().endswith((".woff2", ".woff"))
-    return False
-
-
-def is_remote_mode():
-    mode = os.environ.get("APP_MODE", "").strip().lower()
-    if mode not in {"", "local", "remote"}:
-        raise ValueError("APP_MODE deve ser local ou remote.")
-    host = os.environ.get("HOST", "127.0.0.1")
-    if mode == "local" and host not in {"127.0.0.1", "::1", "localhost"}:
-        raise ValueError("APP_MODE=local só permite escutar no próprio computador.")
-    return mode == "remote" or host not in {"127.0.0.1", "::1", "localhost"}
-
-
-def validate_server_config():
-    if os.environ.get("SUPABASE_STORAGE_VERSION", "1") not in {"1", "2"}:
-        raise ValueError("SUPABASE_STORAGE_VERSION deve ser 1 ou 2.")
-    if is_remote_mode() and not (
-        os.environ.get("SUPABASE_URL", "").startswith("https://")
-        and os.environ.get("SUPABASE_PUBLISHABLE_KEY", "").strip()
-    ):
-        raise RuntimeError("Servidor remoto exige SUPABASE_URL HTTPS e SUPABASE_PUBLISHABLE_KEY.")
-
-
-def is_same_origin(handler):
-    """Aceita apenas requisições vindas da própria página.
-
-    Sem isto, qualquer site aberto no navegador do médico consegue disparar
-    POST /api/clinical-ai (CSRF) e consumir a chave da OpenAI.
-    """
-    origin = handler.headers.get("Origin")
-    host = handler.headers.get("Host", "")
-    if origin is None:
-        # curl, fetch same-origin de alguns navegadores antigos, healthchecks locais.
-        # Sem Origin não há navegador de terceiro envolvido.
-        return True
-    try:
-        parsed = urllib.parse.urlparse(origin)
-    except ValueError:
-        return False
-    return parsed.netloc == host
-
-
-def verify_supabase_user(handler):
-    """Confere sessão Supabase válida nas rotas de IA, quando o servidor tem
-    Supabase configurado.
-
-    is_same_origin bloqueia OUTRO site chamando a API pelo navegador do
-    médico, mas não confere QUEM está do lado de cá — enquanto o servidor só
-    respondia em 127.0.0.1 isso não importava, porque só a própria máquina
-    alcançava a porta. Hospedado (0.0.0.0 + endereço público), qualquer um
-    que descobrisse a URL chamaria a IA sem nunca passar pela tela de login.
-    A tela de login barra a interface; isto barra a API.
-
-    Sem SUPABASE_URL/KEY no servidor (modo local, sem sync), não há projeto
-    contra o qual validar token nenhum -- mantém o comportamento de sempre.
-    """
-    supabase_url = os.environ.get("SUPABASE_URL", "").rstrip("/")
-    supabase_key = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")
-    if not supabase_url or not supabase_key:
-        return not is_remote_mode()
-    auth_header = handler.headers.get("Authorization", "")
-    token = auth_header[7:].strip() if auth_header.lower().startswith("bearer ") else ""
-    if not token:
-        return False
-    request = urllib.request.Request(
-        f"{supabase_url}/auth/v1/user",
-        headers={"apikey": supabase_key, "Authorization": f"Bearer {token}"},
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=10) as response:
-            return response.status == 200
-    except urllib.error.HTTPError:
-        return False
-    except urllib.error.URLError:
-        logger.warning("Nao foi possivel validar a sessao no Supabase (rede).")
-        return False
-
 
 def openai_multipart(fields, file_field, filename, content_type, file_bytes):
     """Monta um multipart/form-data sem dependências externas."""

@@ -44,6 +44,11 @@ serviço passar a ter várias réplicas. As primitivas foram isoladas em
 `server_runtime.py` e ganharam testes próprios; `X-Forwarded-For` só é aceito
 quando `TRUST_PROXY_HEADERS` está explicitamente habilitado.
 
+A camada de superfície HTTP também foi separada em `server_security.py`, que
+concentra modo remoto, validação de configuração, sessão Supabase, origem das
+requisições e arquivos públicos. O `server.py` mantém os mesmos nomes
+exportados para compatibilidade, mas deixou de conter essas regras.
+
 ## Atualização de 04/11/2026 — após a PR #3
 
 A PR #3 foi mesclada em `main` no commit `91503f8`. A sincronização v2 segue
