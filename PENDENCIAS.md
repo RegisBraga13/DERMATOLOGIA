@@ -36,6 +36,12 @@ escopos RAG, contratos e respostas de recusa. Busca e validação consultam esse
 registro; fonte desconhecida ou sem execução é recusada sem queda silenciosa
 para IA Nuvem. O histórico abaixo permanece apenas como referência.
 
+Na etapa seguinte de endurecimento operacional, o servidor passou a devolver
+`X-Request-ID` em respostas JSON e a incluir esse identificador nos logs. Em
+modo remoto, há também um limite local de 60 chamadas POST por origem a cada
+60 segundos. Esse limite reduz abuso acidental; não substitui um gateway se o
+serviço passar a ter várias réplicas.
+
 ## Atualização de 04/11/2026 — após a PR #3
 
 A PR #3 foi mesclada em `main` no commit `91503f8`. A sincronização v2 segue

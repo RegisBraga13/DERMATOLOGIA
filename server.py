@@ -13,10 +13,45 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections import defaultdict, deque
 
 
 ROOT = Path(__file__).resolve().parent
 logger = logging.getLogger("prontuario")
+
+# Proteção operacional mínima para o servidor remoto. É deliberadamente local
+# ao processo: reduz abuso acidental e loops de interface, mas não substitui um
+# gateway de produção quando houver várias réplicas.
+RATE_LIMIT_WINDOW_SECONDS = 60
+RATE_LIMIT_MAX_POSTS = 60
+_rate_limit_lock = threading.Lock()
+_rate_limit_hits = defaultdict(deque)
+
+
+def request_client_key(handler):
+    """Identificador do limite sem registrar identidade clínica."""
+    forwarded = handler.headers.get("X-Forwarded-For", "").split(",", 1)[0].strip()
+    return forwarded or handler.client_address[0]
+
+
+def remote_rate_limited(handler):
+    """Retorna True quando a origem excede chamadas POST no modo remoto."""
+    if not is_remote_mode():
+        return False
+    agora = time.monotonic()
+    chave = request_client_key(handler)
+    with _rate_limit_lock:
+        hits = _rate_limit_hits[chave]
+        while hits and agora - hits[0] >= RATE_LIMIT_WINDOW_SECONDS:
+            hits.popleft()
+        if len(hits) >= RATE_LIMIT_MAX_POSTS:
+            return True
+        hits.append(agora)
+        if len(_rate_limit_hits) > 2048:
+            for item, fila in list(_rate_limit_hits.items()):
+                if not fila or agora - fila[-1] >= RATE_LIMIT_WINDOW_SECONDS:
+                    _rate_limit_hits.pop(item, None)
+    return False
 
 API_URL = "https://api.openai.com/v1/responses"
 AUDIO_TRANSCRIPTIONS_API_URL = "https://api.openai.com/v1/audio/transcriptions"
@@ -2881,6 +2916,11 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
     # Definido em send_head/do_GET para escolher a política de cache da resposta.
     _cacheable = False
 
+    def begin_request(self):
+        recebido = self.headers.get("X-Request-ID", "").strip()
+        self.request_id = recebido[:64] if re.fullmatch(r"[A-Za-z0-9._:-]{1,64}", recebido) else secrets.token_hex(8)
+        return self.request_id
+
     def translate_path(self, path):
         requested = Path(super().translate_path(path)).resolve()
         root = ROOT.resolve()
@@ -2929,7 +2969,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
         command = getattr(self, "command", "")
         method = command if command in {"GET", "POST", "HEAD"} else "OTHER"
         status = args[1] if len(args) > 1 and str(args[1]).isdigit() else "-"
-        logger.info("http %s %s", method, status)
+        logger.info("http request_id=%s %s %s", getattr(self, "request_id", "-"), method, status)
 
     def send_json(self, status, payload):
         # Conexões keep-alive reaproveitam a instância: resposta de API nunca herda cache.
@@ -2937,11 +2977,13 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("X-Request-ID", getattr(self, "request_id", "-"))
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
 
     def do_GET(self):
+        self.begin_request()
         parsed_path = urllib.parse.urlparse(self.path)
         if parsed_path.path == "/api/ai-sources":
             self.send_json(200, {"sources": public_ai_sources()})
@@ -2974,6 +3016,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
         return super().do_GET()
 
     def do_POST(self):
+        self.begin_request()
         if not is_same_origin(self):
             logger.warning("POST bloqueado por origem externa")
             self.send_json(403, {"error": "Origem nao autorizada."})
@@ -2981,6 +3024,10 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
 
         if self.path not in {"/api/clinical-ai", "/api/transcribe-consultation", "/api/risk-screen", "/api/jev-judge"}:
             self.send_json(404, {"error": "Endpoint nao encontrado."})
+            return
+
+        if remote_rate_limited(self):
+            self.send_json(429, {"error": "Muitas chamadas em pouco tempo. Aguarde e tente novamente."})
             return
 
         if not verify_supabase_user(self):
