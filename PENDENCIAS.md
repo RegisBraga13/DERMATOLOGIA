@@ -49,6 +49,11 @@ concentra modo remoto, validação de configuração, sessão Supabase, origem d
 requisições e arquivos públicos. O `server.py` mantém os mesmos nomes
 exportados para compatibilidade, mas deixou de conter essas regras.
 
+O transporte HTTP comum da IA foi separado em `ai_transport.py`. Retries,
+orçamento de tempo e extração de texto agora são compartilhados por OpenAI,
+RAG e TypeSafe; os adaptadores clínicos continuam no servidor até a próxima
+etapa de separação.
+
 ## Atualização de 04/11/2026 — após a PR #3
 
 A PR #3 foi mesclada em `main` no commit `91503f8`. A sincronização v2 segue
