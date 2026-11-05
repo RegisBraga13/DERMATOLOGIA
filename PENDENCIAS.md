@@ -1,4 +1,40 @@
-# Pendências
+# Pendências atuais
+
+Estado em 05/11/2026. Esta abertura corrige o quadro que aparecia na tela: a
+PR #3 e a PR #4 já estão na `main`; P6, P7, P12 e a gravação local já foram
+implementados. O restante deste documento conserva o histórico detalhado.
+
+## O que ainda exige ação
+
+- **P8:** estruturar o tratamento anterior relatado (fármaco, dose, duração e
+  desfecho) antes de classificá-lo como ensaio.
+- **P10:** calibrar os limiares `0.55` (RAG) e `0.6` (triagem de risco) com
+  casos revisados por especialista; os logs já registram métricas sem conteúdo
+  clínico.
+- **P13:** medir latência e qualidade em conjunto revisado antes de mudar o
+  modelo; busca web e geração continuam sequenciais.
+- **P14:** transformar interações e contraindicações em dados estruturados,
+  com revisão clínica antes de qualquer alerta automático.
+- **P15:** projetar autorização por usuário se o servidor passar a atender mais
+  de um médico.
+- **Validação visual:** conferir Safari em iPhone/iPad e o reinício do servidor
+  após a publicação.
+
+### Supabase no plano gratuito
+
+P11 permanece deliberadamente fora da implantação: `SUPABASE_STORAGE_VERSION=1`
+continua ativa, o SQL v2 fica em `supabase/drafts`, e nenhuma migração v2 ou
+recurso pago deve ser criado. As migrações v1 e o índice por proprietário já
+estão aplicados no projeto `PrototipoMac`. A proteção contra senhas vazadas foi
+apontada pelo assessor do Supabase e deve ser conferida no painel, sem assumir
+contratação de plano.
+
+### Concluído nesta correção
+
+P12 agora mantém no `AI_SOURCE_REGISTRY` as etapas permitidas, o acervo, os
+escopos RAG, contratos e respostas de recusa. Busca e validação consultam esse
+registro; fonte desconhecida ou sem execução é recusada sem queda silenciosa
+para IA Nuvem. O histórico abaixo permanece apenas como referência.
 
 ## Atualização de 04/11/2026 — após a PR #3
 
