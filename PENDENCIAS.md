@@ -386,6 +386,7 @@ Para contexto, não para ação.
 | `parseMedicationDecision` | Passou a ler o motivo da decisão, que era descartado |
 | `pisoEmMg` | Lia "50 a 200 mg/dia" com piso 200 e reprovava dose correta. Corrigido |
 | Utilidades de resposta | `clinical_response_utils.py` concentra `parse_model_json`, `usage_fields` e `SCHEMA_VERSION`; `server.py` mantém os nomes públicos por compatibilidade |
+| Normalização clínica | `clinical_text_utils.py` concentra normalização sem acentos e filtragem de trechos que realmente mencionam o medicamento |
 
 ---
 
