@@ -21,6 +21,7 @@ from ai_transport import (
 from ai_typesafe import TYPESAFE_MODEL, call_typesafe_noul_batch, call_typesafe_risk_screen
 from ai_openai import extract_web_sources, search_web_sources
 from ai_response_policy import usable_web_findings
+from observability import decision_message
 from ai_vector_store import fit_sources, rag_context, vector_store_search
 from ai_source_policy import (
     GUIDELINES_ENV_KEY, KINDS_ACCEPTING_PATIENT_SCOPE, KINDS_REQUIRING_MENTION,
@@ -2183,8 +2184,7 @@ def safe_plain_text(kind, result):
 # e o que costura esta linha ao que o medico viu na tela, e ele nao identifica
 # paciente nenhum -- e sorteado por chamada.
 def log_decision(**campos):
-    partes = " ".join(f"{chave}={valor}" for chave, valor in campos.items() if valor not in (None, ""))
-    logger.info("decisao %s", partes)
+    logger.info("decisao %s", decision_message(campos))
 
 
 class PrototypeHandler(SimpleHTTPRequestHandler):
