@@ -13,45 +13,13 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from collections import defaultdict, deque
+from server_runtime import PostRateLimiter, request_id
 
 
 ROOT = Path(__file__).resolve().parent
 logger = logging.getLogger("prontuario")
 
-# Proteção operacional mínima para o servidor remoto. É deliberadamente local
-# ao processo: reduz abuso acidental e loops de interface, mas não substitui um
-# gateway de produção quando houver várias réplicas.
-RATE_LIMIT_WINDOW_SECONDS = 60
-RATE_LIMIT_MAX_POSTS = 60
-_rate_limit_lock = threading.Lock()
-_rate_limit_hits = defaultdict(deque)
-
-
-def request_client_key(handler):
-    """Identificador do limite sem registrar identidade clínica."""
-    forwarded = handler.headers.get("X-Forwarded-For", "").split(",", 1)[0].strip()
-    return forwarded or handler.client_address[0]
-
-
-def remote_rate_limited(handler):
-    """Retorna True quando a origem excede chamadas POST no modo remoto."""
-    if not is_remote_mode():
-        return False
-    agora = time.monotonic()
-    chave = request_client_key(handler)
-    with _rate_limit_lock:
-        hits = _rate_limit_hits[chave]
-        while hits and agora - hits[0] >= RATE_LIMIT_WINDOW_SECONDS:
-            hits.popleft()
-        if len(hits) >= RATE_LIMIT_MAX_POSTS:
-            return True
-        hits.append(agora)
-        if len(_rate_limit_hits) > 2048:
-            for item, fila in list(_rate_limit_hits.items()):
-                if not fila or agora - fila[-1] >= RATE_LIMIT_WINDOW_SECONDS:
-                    _rate_limit_hits.pop(item, None)
-    return False
+_post_rate_limiter = PostRateLimiter()
 
 API_URL = "https://api.openai.com/v1/responses"
 AUDIO_TRANSCRIPTIONS_API_URL = "https://api.openai.com/v1/audio/transcriptions"
@@ -2918,7 +2886,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
 
     def begin_request(self):
         recebido = self.headers.get("X-Request-ID", "").strip()
-        self.request_id = recebido[:64] if re.fullmatch(r"[A-Za-z0-9._:-]{1,64}", recebido) else secrets.token_hex(8)
+        self.request_id = request_id(recebido)
         return self.request_id
 
     def translate_path(self, path):
@@ -3026,7 +2994,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             self.send_json(404, {"error": "Endpoint nao encontrado."})
             return
 
-        if remote_rate_limited(self):
+        if is_remote_mode() and _post_rate_limiter.limited(self):
             self.send_json(429, {"error": "Muitas chamadas em pouco tempo. Aguarde e tente novamente."})
             return
 

@@ -40,7 +40,9 @@ Na etapa seguinte de endurecimento operacional, o servidor passou a devolver
 `X-Request-ID` em respostas JSON e a incluir esse identificador nos logs. Em
 modo remoto, há também um limite local de 60 chamadas POST por origem a cada
 60 segundos. Esse limite reduz abuso acidental; não substitui um gateway se o
-serviço passar a ter várias réplicas.
+serviço passar a ter várias réplicas. As primitivas foram isoladas em
+`server_runtime.py` e ganharam testes próprios; `X-Forwarded-For` só é aceito
+quando `TRUST_PROXY_HEADERS` está explicitamente habilitado.
 
 ## Atualização de 04/11/2026 — após a PR #3
 
