@@ -89,6 +89,33 @@ export const DERMATOLOGY_SOURCE_CATALOG = Object.freeze([
   { id: "derm-rag-local", type: "rag", label: "Biblioteca RAG de Dermatologia", status: "draft", scope: ["anamnese", "exame-fisico", "diagnostico", "conduta"] }
 ]);
 
+export function newDermatologyLesion({ id = "", label = "" } = {}) {
+  return {
+    id: id || `lesion-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    label,
+    localizacao: "",
+    morfologia: [],
+    distribuicao: [],
+    cor: "",
+    superficie: "",
+    bordas: "",
+    dimensoes: "",
+    sintomas: "",
+    evolucao: "",
+    fotoReferencia: ""
+  };
+}
+
+export function normalizeDermatologyLesion(lesion = {}) {
+  const base = newDermatologyLesion({ id: lesion.id, label: lesion.label });
+  return {
+    ...base,
+    ...lesion,
+    morfologia: Array.isArray(lesion.morfologia) ? [...lesion.morfologia] : [],
+    distribuicao: Array.isArray(lesion.distribuicao) ? [...lesion.distribuicao] : []
+  };
+}
+
 export function defaultDermatologyConsultation({ patientId = "", sequence = 1 } = {}) {
   return {
     patientId,
@@ -101,6 +128,7 @@ export function defaultDermatologyConsultation({ patientId = "", sequence = 1 } 
       anamnese: {},
       antecedentes: {},
       exameFisico: {},
+      lesions: [],
       avaliacao: {},
       conduta: {}
     }
@@ -127,6 +155,7 @@ export function sanitizeDermatologyRecord(record = {}) {
       anamnese: { ...(dermatology.anamnese || {}) },
       antecedentes: { ...(dermatology.antecedentes || {}) },
       exameFisico: { ...(dermatology.exameFisico || {}) },
+      lesions: Array.isArray(dermatology.lesions) ? dermatology.lesions.map(normalizeDermatologyLesion) : [],
       avaliacao: { ...(dermatology.avaliacao || {}) },
       conduta: { ...(dermatology.conduta || {}) }
     }

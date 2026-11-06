@@ -10,6 +10,7 @@ import {
   LESION_DISTRIBUTIONS,
   LESION_MORPHOLOGY,
   defaultDermatologyConsultation,
+  newDermatologyLesion,
   sanitizeDermatologyRecord
 } from "./specialties/dermatologia/index.js";
 import { dermatologySourceStatus } from "./specialties/dermatologia/sources.js";
@@ -73,7 +74,8 @@ function consultationForm() {
   const record = draft.dermatology || (draft.dermatology = {});
   const section = (title, key, fields) => `<fieldset><legend>${title}</legend>${fields.map(([field, label]) => `<label>${label}<textarea data-section="${key}" data-field="${field}" rows="3">${escapeHtml(record[key]?.[field] || "")}</textarea></label>`).join("")}</fieldset>`;
   const checkboxes = (title, field, values) => `<div class="field-group"><span class="field-label">${title}</span><div class="chip-grid">${values.map(value => `<label class="chip"><input type="checkbox" data-section="exameFisico" data-field="${field}" value="${escapeHtml(value)}" ${(record.exameFisico?.[field] || []).includes(value) ? "checked" : ""} />${escapeHtml(value)}</label>`).join("")}</div></div>`;
-  return `<form id="consultation-form">${section("Queixa e história", "anamnese", DERMATOLOGY_ANAMNESIS_FIELDS)}${section("Antecedentes dermatológicos", "antecedentes", DERMATOLOGY_HISTORY_FIELDS)}${section("Exame físico", "exameFisico", DERMATOLOGY_PHYSICAL_EXAM_FIELDS)}${checkboxes("Morfologia observada", "morfologiaSelecionada", LESION_MORPHOLOGY)}${checkboxes("Distribuição", "distribuicaoSelecionada", LESION_DISTRIBUTIONS)}${section("Avaliação", "avaliacao", DERMATOLOGY_ASSESSMENT_FIELDS)}${section("Conduta e seguimento", "conduta", DERMATOLOGY_PLAN_FIELDS)}<div class="actions"><button type="button" data-action="cancel-draft">Cancelar</button><button class="primary" data-action="save-consultation">Salvar consulta</button></div></form>`;
+  const lesions = (draft.dermatology.lesions || []).map((lesion, index) => `<article class="panel lesion-card"><div class="panel-heading"><h3>${escapeHtml(lesion.label || `Lesão ${index + 1}`)}</h3><button type="button" data-action="remove-lesion" data-lesion-index="${index}">Remover</button></div><label>Localização<textarea rows="2" data-lesion-index="${index}" data-lesion-field="localizacao">${escapeHtml(lesion.localizacao || "")}</textarea></label><label>Dimensões<textarea rows="2" data-lesion-index="${index}" data-lesion-field="dimensoes">${escapeHtml(lesion.dimensoes || "")}</textarea></label><label>Sintomas e evolução<textarea rows="2" data-lesion-index="${index}" data-lesion-field="sintomas">${escapeHtml(lesion.sintomas || "")}</textarea></label></article>`).join("");
+  return `<form id="consultation-form">${section("Queixa e história", "anamnese", DERMATOLOGY_ANAMNESIS_FIELDS)}${section("Antecedentes dermatológicos", "antecedentes", DERMATOLOGY_HISTORY_FIELDS)}${section("Exame físico", "exameFisico", DERMATOLOGY_PHYSICAL_EXAM_FIELDS)}${checkboxes("Morfologia observada", "morfologiaSelecionada", LESION_MORPHOLOGY)}${checkboxes("Distribuição", "distribuicaoSelecionada", LESION_DISTRIBUTIONS)}<div class="lesions-section"><div class="panel-heading"><h3>Lesões individualizadas</h3><button type="button" data-action="add-lesion">Adicionar lesão</button></div>${lesions || `<p class="muted">Adicione uma lesão para registrar localização, dimensões e evolução separadamente.</p>`}</div>${section("Avaliação", "avaliacao", DERMATOLOGY_ASSESSMENT_FIELDS)}${section("Conduta e seguimento", "conduta", DERMATOLOGY_PLAN_FIELDS)}<div class="actions"><button type="button" data-action="cancel-draft">Cancelar</button><button class="primary" data-action="save-consultation">Salvar consulta</button></div></form>`;
 }
 
 function bindEvents() {
@@ -84,9 +86,12 @@ function bindEvents() {
   document.querySelector("[data-action='new-patient']")?.addEventListener("click", newPatient);
   document.querySelector("[data-action='new-consultation']")?.addEventListener("click", newConsultation);
   document.querySelector("[data-action='cancel-draft']")?.addEventListener("click", () => { draft = null; render(); });
+  document.querySelector("[data-action='add-lesion']")?.addEventListener("click", () => { draft.dermatology ||= {}; draft.dermatology.lesions ||= []; draft.dermatology.lesions.push(newDermatologyLesion({ label: `Lesão ${draft.dermatology.lesions.length + 1}` })); render(); });
+  document.querySelectorAll("[data-action='remove-lesion']").forEach(button => button.addEventListener("click", () => { draft.dermatology.lesions.splice(Number(button.dataset.lesionIndex), 1); render(); }));
   document.querySelector("[data-action='save-consultation']")?.addEventListener("click", saveConsultation);
   document.querySelectorAll("textarea[data-section]").forEach(field => field.addEventListener("input", () => { const section = field.dataset.section; draft.dermatology ||= {}; draft.dermatology[section] ||= {}; draft.dermatology[section][field.dataset.field] = field.value; }));
   document.querySelectorAll("input[type='checkbox'][data-section]").forEach(field => field.addEventListener("change", () => { const section = field.dataset.section; const key = field.dataset.field; draft.dermatology ||= {}; draft.dermatology[section] ||= {}; draft.dermatology[section][key] = [...document.querySelectorAll(`input[data-section='${section}'][data-field='${key}']:checked`)].map(item => item.value); }));
+  document.querySelectorAll("[data-lesion-index][data-lesion-field]").forEach(field => field.addEventListener("input", () => { const lesion = draft.dermatology.lesions[Number(field.dataset.lesionIndex)]; if (lesion) lesion[field.dataset.lesionField] = field.value; }));
 }
 
 function newPatient() {
