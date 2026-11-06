@@ -7,9 +7,12 @@ import {
   DERMATOLOGY_PHYSICAL_EXAM_FIELDS,
   DERMATOLOGY_PLAN_FIELDS,
   DERMATOLOGY_SPECIALTY,
+  LESION_DISTRIBUTIONS,
+  LESION_MORPHOLOGY,
   defaultDermatologyConsultation,
   sanitizeDermatologyRecord
 } from "./specialties/dermatologia/index.js";
+import { dermatologySourceStatus } from "./specialties/dermatologia/sources.js";
 import { escapeHtml } from "./ui/html.js";
 
 const app = document.querySelector("#app");
@@ -25,12 +28,20 @@ const now = () => new Date().toISOString();
 const uid = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const activePatients = () => (state.patients || []).filter(p => !p.arquivadoEm && !p.excluidoEm);
 const selectedPatient = () => activePatients().find(p => p.id === selectedPatientId);
+function dermatologyState(value = {}) {
+  return {
+    ...value,
+    patients: (value.patients || []).filter(item => !item.specialty || item.specialty === DERMATOLOGIA_SPECIALTY.id),
+    consultations: (value.consultations || []).filter(item => !item.specialty || item.specialty === DERMATOLOGIA_SPECIALTY.id),
+    returns: (value.returns || []).filter(item => !item.specialty || item.specialty === DERMATOLOGIA_SPECIALTY.id)
+  };
+}
 
 Promise.all([verifiedSession().catch(() => null), isConfigured().catch(() => false)]).then(async ([verified, configured]) => {
   session = verified || null;
   localOnly = !configured;
   const loaded = await loadState(session?.user?.id || "");
-  state = loaded.state || state;
+  state = dermatologyState(loaded.state || state);
   selectedPatientId = activePatients()[0]?.id || "";
   render();
 }).catch(error => { authError = error.message; render(); });
@@ -46,7 +57,7 @@ function loginView() {
 
 function shellView() {
   const patient = selectedPatient();
-  return `<div class="app-shell"><header class="topbar"><div class="brand"><span class="eyebrow">${DERMATOLOGIA_SPECIALTY.label}</span><h1>${DERMATOLOGIA_SPECIALTY.productName}</h1></div><div class="top-actions">${localOnly ? `<span class="status">Modo local</span>` : `<button data-action="logout">Sair</button>`}</div></header><main class="container"><section class="dashboard-grid"><aside class="panel"><div class="panel-heading"><h2>Pacientes</h2><button class="primary" data-action="new-patient">Novo</button></div>${activePatients().length ? activePatients().map(patientRow).join("") : `<p class="muted">Nenhum paciente cadastrado.</p>`}</aside><section class="panel workspace">${patient ? patientWorkspace(patient) : `<div class="empty-state"><h2>Comece por um paciente</h2><p>Cadastre o paciente para abrir a anamnese dermatológica.</p></div>`}</section></section>${status ? `<p class="status-line">${escapeHtml(status)}</p>` : ""}</main></div>`;
+  return `<div class="app-shell"><header class="topbar"><div class="brand"><span class="eyebrow">${DERMATOLOGIA_SPECIALTY.label}</span><h1>${DERMATOLOGIA_SPECIALTY.productName}</h1></div><div class="top-actions">${localOnly ? `<span class="status">Modo local</span>` : `<button data-action="logout">Sair</button>`}</div></header><main class="container"><section class="dashboard-grid"><aside class="panel"><div class="panel-heading"><h2>Pacientes</h2><button class="primary" data-action="new-patient">Novo</button></div>${activePatients().length ? activePatients().map(patientRow).join("") : `<p class="muted">Nenhum paciente cadastrado.</p>`}</aside><section class="panel workspace">${patient ? patientWorkspace(patient) : `<div class="empty-state"><h2>Comece por um paciente</h2><p>Cadastre o paciente para abrir a anamnese dermatológica.</p></div>`}</section></section><p class="field-hint">${escapeHtml(dermatologySourceStatus())}. O conteúdo clínico só será sugerido após validação e ativação explícita das fontes.</p>${status ? `<p class="status-line">${escapeHtml(status)}</p>` : ""}</main></div>`;
 }
 
 function patientRow(patient) {
@@ -61,11 +72,12 @@ function patientWorkspace(patient) {
 function consultationForm() {
   const record = draft.dermatology || (draft.dermatology = {});
   const section = (title, key, fields) => `<fieldset><legend>${title}</legend>${fields.map(([field, label]) => `<label>${label}<textarea data-section="${key}" data-field="${field}" rows="3">${escapeHtml(record[key]?.[field] || "")}</textarea></label>`).join("")}</fieldset>`;
-  return `<form id="consultation-form">${section("Queixa e história", "anamnese", DERMATOLOGY_ANAMNESIS_FIELDS)}${section("Antecedentes dermatológicos", "antecedentes", DERMATOLOGY_HISTORY_FIELDS)}${section("Exame físico", "exameFisico", DERMATOLOGY_PHYSICAL_EXAM_FIELDS)}${section("Avaliação", "avaliacao", DERMATOLOGY_ASSESSMENT_FIELDS)}${section("Conduta e seguimento", "conduta", DERMATOLOGY_PLAN_FIELDS)}<div class="actions"><button type="button" data-action="cancel-draft">Cancelar</button><button class="primary" data-action="save-consultation">Salvar consulta</button></div></form>`;
+  const checkboxes = (title, field, values) => `<div class="field-group"><span class="field-label">${title}</span><div class="chip-grid">${values.map(value => `<label class="chip"><input type="checkbox" data-section="exameFisico" data-field="${field}" value="${escapeHtml(value)}" ${(record.exameFisico?.[field] || []).includes(value) ? "checked" : ""} />${escapeHtml(value)}</label>`).join("")}</div></div>`;
+  return `<form id="consultation-form">${section("Queixa e história", "anamnese", DERMATOLOGY_ANAMNESIS_FIELDS)}${section("Antecedentes dermatológicos", "antecedentes", DERMATOLOGY_HISTORY_FIELDS)}${section("Exame físico", "exameFisico", DERMATOLOGY_PHYSICAL_EXAM_FIELDS)}${checkboxes("Morfologia observada", "morfologiaSelecionada", LESION_MORPHOLOGY)}${checkboxes("Distribuição", "distribuicaoSelecionada", LESION_DISTRIBUTIONS)}${section("Avaliação", "avaliacao", DERMATOLOGY_ASSESSMENT_FIELDS)}${section("Conduta e seguimento", "conduta", DERMATOLOGY_PLAN_FIELDS)}<div class="actions"><button type="button" data-action="cancel-draft">Cancelar</button><button class="primary" data-action="save-consultation">Salvar consulta</button></div></form>`;
 }
 
 function bindEvents() {
-  document.querySelector("#auth-form")?.addEventListener("submit", async event => { event.preventDefault(); const form = new FormData(event.currentTarget); try { session = await signIn(form.get("email"), form.get("password")); authError = ""; const loaded = await loadState(session.user.id); state = loaded.state; selectedPatientId = activePatients()[0]?.id || ""; render(); } catch (error) { authError = error.message; render(); } });
+  document.querySelector("#auth-form")?.addEventListener("submit", async event => { event.preventDefault(); const form = new FormData(event.currentTarget); try { session = await signIn(form.get("email"), form.get("password")); authError = ""; const loaded = await loadState(session.user.id); state = dermatologyState(loaded.state); selectedPatientId = activePatients()[0]?.id || ""; render(); } catch (error) { authError = error.message; render(); } });
   document.querySelectorAll("[data-patient]").forEach(button => button.addEventListener("click", () => { selectedPatientId = button.dataset.patient; draft = null; render(); }));
   document.querySelectorAll("[data-consultation]").forEach(button => button.addEventListener("click", () => { draft = structuredClone(state.consultations.find(c => c.id === button.dataset.consultation)); render(); }));
   document.querySelector("[data-action='logout']")?.addEventListener("click", async () => { await signOut(); session = null; render(); });
@@ -74,6 +86,7 @@ function bindEvents() {
   document.querySelector("[data-action='cancel-draft']")?.addEventListener("click", () => { draft = null; render(); });
   document.querySelector("[data-action='save-consultation']")?.addEventListener("click", saveConsultation);
   document.querySelectorAll("textarea[data-section]").forEach(field => field.addEventListener("input", () => { const section = field.dataset.section; draft.dermatology ||= {}; draft.dermatology[section] ||= {}; draft.dermatology[section][field.dataset.field] = field.value; }));
+  document.querySelectorAll("input[type='checkbox'][data-section]").forEach(field => field.addEventListener("change", () => { const section = field.dataset.section; const key = field.dataset.field; draft.dermatology ||= {}; draft.dermatology[section] ||= {}; draft.dermatology[section][key] = [...document.querySelectorAll(`input[data-section='${section}'][data-field='${key}']:checked`)].map(item => item.value); }));
 }
 
 function newPatient() {
