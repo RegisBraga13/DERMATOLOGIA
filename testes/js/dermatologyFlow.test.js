@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { consultationPages, returnPages } from "../../src/clinical/vocabulary.js";
-import { dermatologyConsultationPage, dermatologyReturnPage, dermatologyReportText } from "../../src/views/dermatologyFlow.js";
+import { dermatologyConsultationPage, dermatologyReturnPage, dermatologyReportText, dermatologyFormValues } from "../../src/views/dermatologyFlow.js";
 
 describe("fluxo clínico dermatológico", () => {
   it("renderiza conteúdo para todas as etapas da consulta", () => {
@@ -23,5 +23,12 @@ describe("fluxo clínico dermatológico", () => {
     const text = dermatologyReportText({ dermA_queixaPrincipal: "Prurido", dermD_diagnosticoPrincipal: "Hipótese em avaliação" });
     assert.match(text, /Prurido/);
     assert.match(text, /Hipótese em avaliação/);
+  });
+
+  it("abre os registros da primeira versão sem ocultar a anamnese", () => {
+    const old = { dermatology: { anamnese: { queixaPrincipal: "Lesão no braço" }, exameFisico: { morfologiaSelecionada: ["Pápula"] } } };
+    assert.equal(dermatologyFormValues(old).dermA_queixaPrincipal, "Lesão no braço");
+    assert.match(dermatologyConsultationPage("anamnese", old), /Lesão no braço/);
+    assert.match(dermatologyReportText(old), /Lesão no braço/);
   });
 });

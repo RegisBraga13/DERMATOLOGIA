@@ -14,7 +14,42 @@ const section = (title, fields, form, prefix) => `<div class="clinical-card"><h4
   textarea(`${prefix}${key}`, label, form[`${prefix}${key}`] || "", "", 2)).join("")}</div>`;
 const choices = (title, name, options, form) => chips(name, title, options, form[name] || []);
 
+export function dermatologyFormValues(record = {}) {
+  const legacy = record.dermatology || {};
+  const values = { ...record };
+  const sections = [
+    ["anamnese", "dermA_", DERMATOLOGY_ANAMNESIS_FIELDS],
+    ["antecedentes", "dermH_", DERMATOLOGY_HISTORY_FIELDS],
+    ["exameFisico", "dermE_", DERMATOLOGY_PHYSICAL_EXAM_FIELDS],
+    ["avaliacao", "dermD_", DERMATOLOGY_ASSESSMENT_FIELDS],
+    ["conduta", "dermP_", DERMATOLOGY_PLAN_FIELDS]
+  ];
+  for (const [section, prefix, fields] of sections) {
+    for (const [key] of fields) {
+      const target = `${prefix}${key}`;
+      if (values[target] === undefined) values[target] = legacy[section]?.[key] || "";
+    }
+  }
+  const oldSelections = [
+    ["dermSintomas", legacy.anamnese?.sintomasSelecionados],
+    ["dermInicio", legacy.anamnese?.inicioSelecionado],
+    ["dermExposicoes", legacy.anamnese?.exposicoesSelecionadas],
+    ["dermMorfologia", legacy.exameFisico?.morfologiaSelecionada],
+    ["dermDistribuicao", legacy.exameFisico?.distribuicaoSelecionada],
+    ["dermArranjo", legacy.exameFisico?.arranjoSelecionado],
+    ["dermCor", legacy.exameFisico?.corSelecionada],
+    ["dermSuperficie", legacy.exameFisico?.superficieSelecionada],
+    ["dermPalpacao", legacy.exameFisico?.palpacaoSelecionada],
+    ["dermAlarmes", legacy.avaliacao?.sinaisAlarmeSelecionados]
+  ];
+  for (const [key, selected] of oldSelections) {
+    if (values[key] === undefined) values[key] = Array.isArray(selected) ? selected : [];
+  }
+  return values;
+}
+
 export function dermatologyConsultationPage(page, form = {}, patient = {}) {
+  form = dermatologyFormValues(form);
   if (page === "anamnese") return section("Queixa e história", DERMATOLOGY_ANAMNESIS_FIELDS, form, "dermA_")
     + choices("Sintomas", "dermSintomas", DERMATOLOGY_SYMPTOM_OPTIONS, form)
     + choices("Padrão temporal", "dermInicio", DERMATOLOGY_ONSET_OPTIONS, form)
@@ -47,6 +82,7 @@ export function dermatologyConsultationPage(page, form = {}, patient = {}) {
 }
 
 export function dermatologyReturnPage(page, form = {}, previous = {}) {
+  form = dermatologyFormValues(form);
   if (page === "evolucao-retorno") return section("Evolução desde o atendimento anterior", [
     ["resposta", "Resposta à conduta anterior"], ["sintomas", "Sintomas atuais"],
     ["lesoes", "Mudança nas lesões"], ["exame", "Exame cutâneo atual"],
@@ -58,12 +94,14 @@ export function dermatologyReturnPage(page, form = {}, previous = {}) {
 }
 
 export function dermatologySummary(form = {}, patient = {}) {
+  form = dermatologyFormValues(form);
   const rows = Object.entries(form).filter(([key, value]) => key.startsWith("derm") && value && (!Array.isArray(value) || value.length));
   return `<div class="clinical-card"><h4>${escapeHtml(patient.nome || "Paciente")}</h4>${rows.length ? rows.map(([key, value]) =>
     `<p><strong>${escapeHtml(key.replace(/^derm/, ""))}:</strong> ${escapeHtml(Array.isArray(value) ? value.join(", ") : value)}</p>`).join("") : "<p>Nenhum achado dermatológico registrado.</p>"}</div>`;
 }
 
 export function dermatologyReportText(form = {}) {
+  form = dermatologyFormValues(form);
   const fields = [
     ["Queixa", "dermA_queixaPrincipal"], ["História", "dermA_historiaDoencaAtual"],
     ["Inspeção cutânea", "dermE_localizacao"], ["Morfologia", "dermMorfologia"],
