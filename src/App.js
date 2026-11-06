@@ -1559,6 +1559,16 @@ function bindActions() {
       const action = element.dataset.action;
       if (["dashboard", "toggle-theme", "select-patient", "edit-patient"].includes(action)) return;
       if (action === "form-page") switchFormPage(element);
+      if (action === "add-derm-lesion" || action === "remove-derm-lesion") {
+        const form = element.closest("form");
+        if (form) updateDraftFromForm(form);
+        const target = currentClinicalDraft();
+        target.dermLesions ||= target.dermatology?.lesions?.map(item => ({ ...item })) || [];
+        if (action === "add-derm-lesion") target.dermLesions.push({ id: uid("lesion"), label: `Lesão ${target.dermLesions.length + 1}` });
+        else target.dermLesions.splice(Number(element.dataset.index), 1);
+        unsavedWork.tocou(draftScopeOfForm(form));
+        render();
+      }
       if (action === "start-refinement") await startRefinement(element);
       if (action === "save-next-page") await saveCurrentPageAndAdvance(element);
       if (action === "skip-to-diagnosis") await skipToDiagnosis(element);
@@ -2873,6 +2883,17 @@ function updateDraftFromForm(form) {
   const chave = { "consult-form": "consultation", "return-form": "return" }[form.id];
   if (chave) {
     const data = formToObject(form);
+    const lesionFields = Object.keys(data).filter(key => /^dermLesion__\d+__(localizacao|dimensoes|evolucao)$/.test(key));
+    if (lesionFields.length) {
+      const previous = draft[chave]?.dermLesions || draft[chave]?.dermatology?.lesions || [];
+      data.dermLesions = previous.map(item => ({ ...item }));
+      for (const key of lesionFields) {
+        const [, index, field] = key.match(/^dermLesion__(\d+)__(.+)$/);
+        data.dermLesions[Number(index)] ||= { id: uid("lesion") };
+        data.dermLesions[Number(index)][field] = data[key];
+        delete data[key];
+      }
+    }
     data.examesLaboratoriais = requestedExamsText(data);
     // A marca de texto do medico nao nasce aqui: ver o `input` da evolucao em
     // bindAutoDraft.

@@ -17,6 +17,7 @@ const choices = (title, name, options, form) => chips(name, title, options, form
 export function dermatologyFormValues(record = {}) {
   const legacy = record.dermatology || {};
   const values = { ...record };
+  if (!Array.isArray(values.dermLesions)) values.dermLesions = Array.isArray(legacy.lesions) ? legacy.lesions : [];
   const sections = [
     ["anamnese", "dermA_", DERMATOLOGY_ANAMNESIS_FIELDS],
     ["antecedentes", "dermH_", DERMATOLOGY_HISTORY_FIELDS],
@@ -48,6 +49,17 @@ export function dermatologyFormValues(record = {}) {
   return values;
 }
 
+function lesionEditor(form) {
+  const lesions = form.dermLesions || [];
+  return `<div class="clinical-card"><h4>Lesões individualizadas</h4>${lesions.map((lesion, index) =>
+    `<div class="clinical-card"><h5>${escapeHtml(lesion.label || `Lesão ${index + 1}`)}</h5>
+    ${textarea(`dermLesion__${index}__localizacao`, "Localização", lesion.localizacao || "", "", 2)}
+    ${textarea(`dermLesion__${index}__dimensoes`, "Dimensões", lesion.dimensoes || "", "", 2)}
+    ${textarea(`dermLesion__${index}__evolucao`, "Evolução", lesion.evolucao || "", "", 2)}
+    <button type="button" class="secondary" data-action="remove-derm-lesion" data-index="${index}">Remover lesão</button></div>`).join("")}
+    <button type="button" class="secondary" data-action="add-derm-lesion">Adicionar lesão</button></div>`;
+}
+
 export function dermatologyConsultationPage(page, form = {}, patient = {}) {
   form = dermatologyFormValues(form);
   if (page === "anamnese") return section("Queixa e história", DERMATOLOGY_ANAMNESIS_FIELDS, form, "dermA_")
@@ -57,7 +69,8 @@ export function dermatologyConsultationPage(page, form = {}, patient = {}) {
     + section("Antecedentes", DERMATOLOGY_HISTORY_FIELDS, form, "dermH_");
   if (page === "psiquico") return section("Inspeção cutânea", DERMATOLOGY_PHYSICAL_EXAM_FIELDS, form, "dermE_")
     + choices("Morfologia", "dermMorfologia", LESION_MORPHOLOGY, form)
-    + choices("Distribuição", "dermDistribuicao", LESION_DISTRIBUTIONS, form);
+    + choices("Distribuição", "dermDistribuicao", LESION_DISTRIBUTIONS, form)
+    + lesionEditor(form);
   if (page === "neurologico") return choices("Arranjo", "dermArranjo", LESION_ARRANGEMENTS, form)
     + choices("Cor", "dermCor", LESION_COLORS, form)
     + choices("Superfície", "dermSuperficie", LESION_SURFACE, form)
@@ -108,7 +121,10 @@ export function dermatologyReportText(form = {}) {
     ["Diagnóstico", "dermD_diagnosticoPrincipal"], ["Conduta", "dermP_tratamento"],
     ["Evolução", "dermNarrativa"]
   ];
-  return fields.filter(([, key]) => form[key] && (!Array.isArray(form[key]) || form[key].length))
+  const report = fields.filter(([, key]) => form[key] && (!Array.isArray(form[key]) || form[key].length))
     .map(([label, key]) => `${label}: ${Array.isArray(form[key]) ? form[key].join(", ") : form[key]}`)
-    .join("\n\n") || "Nenhum dado dermatológico registrado.";
+    .join("\n\n");
+  const lesions = (form.dermLesions || []).map((lesion, index) =>
+    `Lesão ${index + 1}: ${[lesion.localizacao, lesion.dimensoes, lesion.evolucao].filter(Boolean).join("; ")}`).join("\n");
+  return [report, lesions].filter(Boolean).join("\n\n") || "Nenhum dado dermatológico registrado.";
 }

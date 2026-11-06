@@ -31,4 +31,10 @@ describe("fluxo clínico dermatológico", () => {
     assert.match(dermatologyConsultationPage("anamnese", old), /Lesão no braço/);
     assert.match(dermatologyReportText(old), /Lesão no braço/);
   });
+
+  it("mostra lesões individualizadas já salvas e as inclui no prontuário", () => {
+    const record = { dermatology: { lesions: [{ id: "l1", label: "Lesão 1", localizacao: "Antebraço", dimensoes: "4 mm" }] } };
+    assert.match(dermatologyConsultationPage("psiquico", record), /Antebraço/);
+    assert.match(dermatologyReportText(record), /4 mm/);
+  });
 });
