@@ -48,6 +48,7 @@ import { scaleById } from "./data/scales.js";
 import { caseViewForReturn, groupCases } from "./clinical/caseTimeline.js";
 import { caseSummaryView } from "./views/caseSummary.js";
 import { dermatologyConsultationPage, dermatologyReturnPage, dermatologyReportText } from "./views/dermatologyFlow.js";
+import { carryForwardDermatologyLesions, updateDermatologyLesionsFromFields } from "./specialties/dermatologia/index.js";
 
 const app = document.querySelector("#app");
 // Vazio ate a leitura do aparelho terminar: desde 14/09/2026 o estado mora no
@@ -1569,6 +1570,18 @@ function bindActions() {
         unsavedWork.tocou(draftScopeOfForm(form));
         render();
       }
+      if (action === "copy-derm-lesions") {
+        const form = element.closest("form");
+        if (form) updateDraftFromForm(form);
+        const target = draft.return || defaultReturn();
+        const previous = previousEntryForReturn(target, selectedPatientId);
+        if (previous && !(target.dermLesions || target.dermatology?.lesions || []).length) {
+          target.dermLesions = carryForwardDermatologyLesions(previous.dermLesions || previous.dermatology?.lesions || []);
+          draft.return = target;
+          unsavedWork.tocou("return");
+          render();
+        }
+      }
       if (action === "start-refinement") await startRefinement(element);
       if (action === "save-next-page") await saveCurrentPageAndAdvance(element);
       if (action === "skip-to-diagnosis") await skipToDiagnosis(element);
@@ -2883,17 +2896,9 @@ function updateDraftFromForm(form) {
   const chave = { "consult-form": "consultation", "return-form": "return" }[form.id];
   if (chave) {
     const data = formToObject(form);
-    const lesionFields = Object.keys(data).filter(key => /^dermLesion__\d+__(localizacao|dimensoes|evolucao)$/.test(key));
-    if (lesionFields.length) {
-      const previous = draft[chave]?.dermLesions || draft[chave]?.dermatology?.lesions || [];
-      data.dermLesions = previous.map(item => ({ ...item }));
-      for (const key of lesionFields) {
-        const [, index, field] = key.match(/^dermLesion__(\d+)__(.+)$/);
-        data.dermLesions[Number(index)] ||= { id: uid("lesion") };
-        data.dermLesions[Number(index)][field] = data[key];
-        delete data[key];
-      }
-    }
+    const previous = draft[chave]?.dermLesions || draft[chave]?.dermatology?.lesions || [];
+    const lesions = updateDermatologyLesionsFromFields(previous, data);
+    if (lesions) data.dermLesions = lesions;
     data.examesLaboratoriais = requestedExamsText(data);
     // A marca de texto do medico nao nasce aqui: ver o `input` da evolucao em
     // bindAutoDraft.
