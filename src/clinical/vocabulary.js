@@ -73,7 +73,7 @@ export const RETURN_BOILERPLATE_PHRASES = Object.freeze([
 
 export const consultationPages = [
   ["anamnese", "Anamnese"],
-  ["psiquico", "Exame psíquico"],
+  ["psiquico", "Inspeção cutânea"],
   ["neurologico", "Exame físico"],
   ["refinamento", "Refinamento"],
   ["diagnostico", "Diagnóstico"],
@@ -91,10 +91,10 @@ export const consultationPages = [
   // existiam. No fim ele fecha o atendimento: anamnese, exame, diagnostico,
   // tratamento e historia clinica, mais os retornos ja salvos deste paciente.
   ["resumo", "Resumo"],
-  ["medicamentos", "Medicamentos"],
+  ["medicamentos", "Terapias"],
   // Escalas entrou em 10/09/2026, apendice como Medicamentos: aplica-se quando
   // o caso pede, em qualquer ponto do atendimento, e nao numa etapa fixa.
-  ["escalas", "Escalas"],
+  ["escalas", "Medidas"],
   // Documentos, tambem apendice (10/09/2026): atestado, declaracao, relatorio
   // e encaminhamento saem do que ja esta registrado no atendimento.
   ["documentos", "Documentos"]
@@ -110,10 +110,10 @@ export const consultationPages = [
 export const returnPages = [
   ["evolucao-retorno", "Evolução"],
   ["texto-retorno", "Ajuste de conduta"],
-  ["medicamentos", "Medicamentos"],
+  ["medicamentos", "Terapias"],
   // No retorno as escalas sao onde se ve a mudanca: o resultado sai ao lado do
   // da aplicacao anterior.
-  ["escalas", "Escalas"],
+  ["escalas", "Medidas"],
   ["documentos", "Documentos"]
 ];
 

@@ -4,7 +4,8 @@ Aplicativo independente para documentação clínica em Dermatologia. Ele reutil
 
 ## O que já está separado
 
-- nova entrada `src/AppDermatologia.js`;
+- entrada ativa `src/App.js`, com o dashboard, navegação, sequência de páginas, salvamento e prontuário longitudinal herdados da arquitetura original;
+- conteúdo das páginas clínicas em `src/views/dermatologyFlow.js`;
 - namespace clínico `src/specialties/dermatologia/`;
 - anamnese dermatológica, antecedentes, exame físico de lesões, avaliação e conduta;
 - armazenamento local isolado (`regis_dermatologia_v1` / `prontuario_dermatologico`);
@@ -26,4 +27,4 @@ O aplicativo funciona em modo local sem Supabase configurado. A migração é ap
 node --test 'testes/js/*.test.js'
 ```
 
-O servidor legado do PSIQUIATRIA permanece no clone apenas como referência histórica. A superfície ativa da Dermatologia não chama as rotas clínicas psiquiátricas.
+O servidor mantém módulos psiquiátricos herdados para compatibilidade de testes, mas a superfície ativa não oferece geração clínica por essas rotas. RAG e guidelines dermatológicos dependem de acervo próprio validado.

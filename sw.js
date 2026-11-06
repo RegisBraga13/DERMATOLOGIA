@@ -2,7 +2,7 @@
 // resposta clinica ou de IA servida do cache pareceria atual sem ser, e isso
 // e pior que o app avisar "sem sinal". A casca em cache so garante que a
 // TELA abre offline; prontuario e sintese continuam exigindo rede.
-const CACHE_NAME = "prontuario-shell-v8";
+const CACHE_NAME = "dermatologia-shell-v1";
 const CORE_SHELL = [
   "/",
   "/index.html",

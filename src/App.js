@@ -47,6 +47,7 @@ import { finalizationNote, finalizedNotice, recordStatusLine, versionsView } fro
 import { scaleById } from "./data/scales.js";
 import { caseViewForReturn, groupCases } from "./clinical/caseTimeline.js";
 import { caseSummaryView } from "./views/caseSummary.js";
+import { dermatologyConsultationPage, dermatologyReturnPage, dermatologyReportText } from "./views/dermatologyFlow.js";
 
 const app = document.querySelector("#app");
 // Vazio ate a leitura do aparelho terminar: desde 14/09/2026 o estado mora no
@@ -273,7 +274,7 @@ function conflictReview() {
  * os dois depois de redesenhar.
  */
 function loginView() {
-  return `<main class="auth-shell"><section class="auth-card"><h1>Prontuário Psiquiátrico</h1><p>Entre para acessar seus prontuários com segurança.</p><form id="auth-form"><label>E-mail<input name="email" type="email" autocomplete="username" required /></label><label>Senha<input name="password" type="password" autocomplete="current-password" required /></label>${authError ? `<p class="warning">${escapeHtml(authError)}</p>` : ""}<button class="primary" type="submit">Entrar</button></form></section></main>`;
+  return `<main class="auth-shell"><section class="auth-card"><h1>Prontuário Dermatológico</h1><p>Entre para acessar seus prontuários com segurança.</p><form id="auth-form"><label>E-mail<input name="email" type="email" autocomplete="username" required /></label><label>Senha<input name="password" type="password" autocomplete="current-password" required /></label>${authError ? `<p class="warning">${escapeHtml(authError)}</p>` : ""}<button class="primary" type="submit">Entrar</button></form></section></main>`;
 }
 
 function bindAuthEvents() {
@@ -346,7 +347,7 @@ function dashboard() {
   return `<section class="dashboard">
       <div class="dashboard-intro">
       <div class="intro-copy">
-        <span class="eyebrow">Prontuário psiquiátrico</span>
+        <span class="eyebrow">Prontuário dermatológico</span>
         <p>Um espaço calmo para registrar, acompanhar e cuidar.</p>
       </div>
       <div class="today"><span>HOJE</span><strong>${new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long" }).format(new Date())}</strong></div>
@@ -383,7 +384,7 @@ function workspace() {
         ${navButton("return", "Retorno", "return")}
         ${navButton("record", "Prontuários", "record")}
         ${navButton("exit", "Sair", "exit")}
-        <div class="side-foot"><div><strong>Dr. Regis Braga</strong><small>Psiquiatria</small></div></div>
+        <div class="side-foot"><div><strong>Dr. Regis Braga</strong><small>Dermatologia</small></div></div>
       </aside>
       <section class="panel">${renderView()}</section>
     </div>
@@ -598,6 +599,7 @@ function consultationPageBody(form, patient) {
   // o que existe de fato em qphda (uma transcricao anterior, ou nada).
   const qphda = form.qphda || [form.queixa && `QP: ${form.queixa}`, form.hdaManual && `HDA: ${form.hdaManual}`].filter(Boolean).join("\n\n");
   const anamnesisInputMode = form.anamnesisInputMode === "microphone" ? "microphone" : "manual";
+  return clinicalPage(pagesForScope("consultation").find(([key]) => key === consultationPage)?.[1] || "Consulta", dermatologyConsultationPage(consultationPage, form, patient), "consultation", !APPENDIX_PAGES.has(consultationPage));
   if (consultationPage === "anamnese") return clinicalPage("Anamnese", `
     <div class="clinical-card qphda-card">
       <h4>Forma de registro</h4>
@@ -663,6 +665,7 @@ function consultationPageBody(form, patient) {
 }
 
 function returnPageBody(form, patient, previous) {
+  return clinicalPage(pagesForScope("return").find(([key]) => key === returnPage)?.[1] || "Retorno", dermatologyReturnPage(returnPage, form, previous), "return", !APPENDIX_PAGES.has(returnPage));
   if (returnPage === "evolucao-retorno") return clinicalPage("Avaliacao de evolucao", returnAssessmentBody(form, previous), "return");
   // Diagnostico e Tratamento tinham ramo aqui sem aba que levasse a eles: o
   // retorno tem duas etapas, e a conduta dele e o Ajuste. Sairam em 10/09/2026.
@@ -846,8 +849,7 @@ function medicalRecord() {
       <div>
         ${field("recordSearch", "Busca por palavra-chave, diagnostico, medicamento ou data", draft.recordQuery || "")}
       </div>
-      ${caseSummaryView(patientEntries)}
-      ${scaleTrendsView(patientEntries)}
+      <div class="clinical-card"><h4>Acompanhamento dermatológico</h4><p>${patientEntries.length} atendimento(s) registrado(s).</p></div>
       <div class="timeline" aria-live="polite">${recordTimeline(all)}</div>
     </div>
   `;
@@ -1831,24 +1833,13 @@ async function saveCurrentPageAndAdvance(element) {
   if (form) updateDraftFromForm(form);
   const scope = element.dataset.scope;
   const completedPage = currentPageForScope(scope);
-  // A Evolucao do retorno so libera a saida completa. Barra aqui, e nao no
-  // `required` do HTML, porque o botao nao submete o formulario e porque a
-  // mensagem precisa dizer QUAL linha falta -- num caso com quatro hipoteses e
-  // tres farmacos, "preencha os campos" nao ajuda ninguem.
-  if (scope === "return" && completedPage === "evolucao-retorno") {
-    const faltando = missingReturnAssessment(draft.return || {}, previousEntryForReturn(draft.return || {}, selectedPatientId));
-    if (faltando.length) {
-      alert(`Falta responder antes de avancar:\n\n- ${faltando.join("\n- ")}`);
-      return;
-    }
-  }
   if (!await saveClinicalRecord(scope)) return;
   const nextPage = nextPageForScope(scope);
   // A pagina seguinte e liberada de qualquer jeito, inclusive no desvio: o
   // fluxo avancou: o que muda e onde ele para. Sem isto, quem fosse desviado
   // para a ficha voltaria e acharia o Sintoma-Alvo ainda trancado.
   if (nextPage) unlockPage(scope, nextPage);
-  const destino = medicationDetour(scope, completedPage) || nextPage;
+  const destino = nextPage;
   if (scope === "consultation" && destino) consultationPage = destino;
   if (scope === "return" && nextPage) returnPage = nextPage;
   render();
@@ -1904,12 +1895,7 @@ async function saveClinicalRecord(scope) {
   const now = new Date().toISOString();
   if (scope === "consultation") {
     const data = sanitizeConsultationRecord({ ...(draft.consultation || defaultConsultation()), patientId: selectedPatientId, type: "consultation" });
-    data.evolution = normalizeEvolutionNarrative(data.evolution);
-    if (evolutionNeedsRebuild(data, getPatient() || {})) {
-      data.evolution = buildEvolutionNarrative(data, getPatient() || {});
-      data.evolutionAutoGenerated = true;
-      data.evolucaoOrigem = "local";
-    }
+    data.specialty = "dermatologia";
     if (!data.id) data.id = uid("consultation");
     data.updatedAt = now;
     data.createdAt = data.createdAt || now;
@@ -1923,10 +1909,10 @@ async function saveClinicalRecord(scope) {
   if (scope === "return") {
     const previous = previousEntryForReturn(draft.return || {}, selectedPatientId);
     const data = sanitizeConsultationRecord({ ...(draft.return || defaultReturn()), patientId: selectedPatientId, type: "return", previousEntryId: draft.return?.previousEntryId || previous?.id || "" });
-    data.evolution = normalizeEvolutionNarrative(data.evolution);
+    data.specialty = "dermatologia";
     // Decidido antes de herdar o id do retorno ja gravado: e o rascunho que diz
     // se o texto e do modelo ou do medico.
-    const refazer = evolutionNeedsRebuild(data, getPatient() || {});
+    const refazer = false;
     const linkedReturn = state.returns.find(entry =>
       entry.patientId === selectedPatientId
       && entry.previousEntryId === data.previousEntryId
@@ -2914,7 +2900,7 @@ function formToObject(form) {
 
 function defaultConsultation() {
   const count = state.consultations.filter(item => item.patientId === selectedPatientId).length + 1;
-  return { patientId: selectedPatientId, label: `Consulta ${count}`, type: "consultation", consultationMode: "IN_PERSON", anamnesisInputMode: "manual" };
+  return { patientId: selectedPatientId, label: `Consulta dermatológica ${count}`, type: "consultation", specialty: "dermatologia", consultationMode: "IN_PERSON", anamnesisInputMode: "manual" };
 }
 
 // O atendimento a que o retorno novo responde. Ate 14/09/2026 era a consulta
@@ -2937,7 +2923,7 @@ function defaultReturn() {
     if (latestSavedReturn) return structuredClone(latestSavedReturn);
   }
   const previousEntryId = pendingEntry?.id || consultations[0]?.id || "";
-  return { patientId: selectedPatientId, label: "Retorno", type: "return", previousEntryId };
+  return { patientId: selectedPatientId, label: "Retorno dermatológico", type: "return", specialty: "dermatologia", previousEntryId };
 }
 
 function startNewReturn() {
@@ -3161,6 +3147,7 @@ function pdfClinicalSummary() {
 }
 
 function recordReportText(entry = {}) {
+  return dermatologyReportText(entry);
   const patient = getPatient() || {};
   const previous = entry.type === "return"
     ? previousEntryForReturn(entry, entry.patientId)

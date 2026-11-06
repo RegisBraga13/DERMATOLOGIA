@@ -36,12 +36,7 @@
         </section>
       </main>
     </div>
-    <script type="module">
-      import("./src/AppDermatologia.js").catch(error => {
-        const target = document.querySelector("#app");
-        if (target) target.innerHTML = `<main class="auth-shell"><section class="auth-card"><h1>Falha ao carregar o módulo</h1><p>Recarregue a página ou reinicie o servidor local.</p><p class="warning">${String(error?.message || error)}</p></section></main>`;
-      });
-    </script>
+    <script type="module" src="src/App.js"></script>
     <script src="src/bootstrap.js" defer></script>
   </body>
 </html>
