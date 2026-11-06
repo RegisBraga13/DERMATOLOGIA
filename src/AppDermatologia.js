@@ -10,7 +10,7 @@ import {
   DERMATOLOGY_PHYSICAL_EXAM_FIELDS,
   DERMATOLOGY_PLAN_FIELDS,
   DERMATOLOGY_SYMPTOM_OPTIONS,
-  DERMATOLOGY_SPECIALTY,
+  DERMATOLOGIA_SPECIALTY,
   LESION_ARRANGEMENTS,
   LESION_COLORS,
   LESION_DISTRIBUTIONS,
@@ -32,6 +32,14 @@ let selectedPatientId = "";
 let draft = null;
 let authError = "";
 let status = "";
+
+function renderFatal(message) {
+  if (!app) return;
+  app.innerHTML = `<main class="auth-shell"><section class="auth-card"><h1>Não foi possível abrir o prontuário</h1><p>Recarregue a página. Se o problema continuar, verifique o servidor local.</p><p class="warning">${escapeHtml(message || "erro de inicialização")}</p></section></main>`;
+}
+
+window.addEventListener("error", event => renderFatal(event.error?.message || event.message));
+window.addEventListener("unhandledrejection", event => renderFatal(event.reason?.message || event.reason));
 
 const now = () => new Date().toISOString();
 const uid = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;

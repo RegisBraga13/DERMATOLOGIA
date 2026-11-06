@@ -27,8 +27,21 @@
   </head>
   <body>
     <a class="skip-link" href="#app">Ir para o conteúdo</a>
-    <div id="app" role="main"></div>
-    <script type="module" src="src/AppDermatologia.js"></script>
+    <div id="app" role="main">
+      <main class="auth-shell" aria-live="polite">
+        <section class="auth-card">
+          <p class="eyebrow">Dermatologia</p>
+          <h1>Prontuário Dermatológico</h1>
+          <p>Carregando anamnese, exame físico e acompanhamento de lesões...</p>
+        </section>
+      </main>
+    </div>
+    <script type="module">
+      import("./src/AppDermatologia.js").catch(error => {
+        const target = document.querySelector("#app");
+        if (target) target.innerHTML = `<main class="auth-shell"><section class="auth-card"><h1>Falha ao carregar o módulo</h1><p>Recarregue a página ou reinicie o servidor local.</p><p class="warning">${String(error?.message || error)}</p></section></main>`;
+      });
+    </script>
     <script src="src/bootstrap.js" defer></script>
   </body>
 </html>
