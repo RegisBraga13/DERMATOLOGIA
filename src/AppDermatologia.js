@@ -3,12 +3,20 @@ import { isConfigured, signIn, signOut, verifiedSession } from "./services/supab
 import {
   DERMATOLOGY_ANAMNESIS_FIELDS,
   DERMATOLOGY_ASSESSMENT_FIELDS,
+  DERMATOLOGY_ALARM_OPTIONS,
+  DERMATOLOGY_EXPOSURE_OPTIONS,
   DERMATOLOGY_HISTORY_FIELDS,
+  DERMATOLOGY_ONSET_OPTIONS,
   DERMATOLOGY_PHYSICAL_EXAM_FIELDS,
   DERMATOLOGY_PLAN_FIELDS,
+  DERMATOLOGY_SYMPTOM_OPTIONS,
   DERMATOLOGY_SPECIALTY,
+  LESION_ARRANGEMENTS,
+  LESION_COLORS,
   LESION_DISTRIBUTIONS,
   LESION_MORPHOLOGY,
+  LESION_PALPATION,
+  LESION_SURFACE,
   defaultDermatologyConsultation,
   newDermatologyLesion,
   sanitizeDermatologyRecord
@@ -73,9 +81,9 @@ function patientWorkspace(patient) {
 function consultationForm() {
   const record = draft.dermatology || (draft.dermatology = {});
   const section = (title, key, fields) => `<fieldset><legend>${title}</legend>${fields.map(([field, label]) => `<label>${label}<textarea data-section="${key}" data-field="${field}" rows="3">${escapeHtml(record[key]?.[field] || "")}</textarea></label>`).join("")}</fieldset>`;
-  const checkboxes = (title, field, values) => `<div class="field-group"><span class="field-label">${title}</span><div class="chip-grid">${values.map(value => `<label class="chip"><input type="checkbox" data-section="exameFisico" data-field="${field}" value="${escapeHtml(value)}" ${(record.exameFisico?.[field] || []).includes(value) ? "checked" : ""} />${escapeHtml(value)}</label>`).join("")}</div></div>`;
+  const checkboxes = (title, sectionKey, field, values) => `<div class="field-group"><span class="field-label">${title}</span><div class="chip-grid">${values.map(value => `<label class="chip"><input type="checkbox" data-section="${sectionKey}" data-field="${field}" value="${escapeHtml(value)}" ${(record[sectionKey]?.[field] || []).includes(value) ? "checked" : ""} />${escapeHtml(value)}</label>`).join("")}</div></div>`;
   const lesions = (draft.dermatology.lesions || []).map((lesion, index) => `<article class="panel lesion-card"><div class="panel-heading"><h3>${escapeHtml(lesion.label || `Lesão ${index + 1}`)}</h3><button type="button" data-action="remove-lesion" data-lesion-index="${index}">Remover</button></div><label>Localização<textarea rows="2" data-lesion-index="${index}" data-lesion-field="localizacao">${escapeHtml(lesion.localizacao || "")}</textarea></label><label>Dimensões<textarea rows="2" data-lesion-index="${index}" data-lesion-field="dimensoes">${escapeHtml(lesion.dimensoes || "")}</textarea></label><label>Sintomas e evolução<textarea rows="2" data-lesion-index="${index}" data-lesion-field="sintomas">${escapeHtml(lesion.sintomas || "")}</textarea></label></article>`).join("");
-  return `<form id="consultation-form">${section("Queixa e história", "anamnese", DERMATOLOGY_ANAMNESIS_FIELDS)}${section("Antecedentes dermatológicos", "antecedentes", DERMATOLOGY_HISTORY_FIELDS)}${section("Exame físico", "exameFisico", DERMATOLOGY_PHYSICAL_EXAM_FIELDS)}${checkboxes("Morfologia observada", "morfologiaSelecionada", LESION_MORPHOLOGY)}${checkboxes("Distribuição", "distribuicaoSelecionada", LESION_DISTRIBUTIONS)}<div class="lesions-section"><div class="panel-heading"><h3>Lesões individualizadas</h3><button type="button" data-action="add-lesion">Adicionar lesão</button></div>${lesions || `<p class="muted">Adicione uma lesão para registrar localização, dimensões e evolução separadamente.</p>`}</div>${section("Avaliação", "avaliacao", DERMATOLOGY_ASSESSMENT_FIELDS)}${section("Conduta e seguimento", "conduta", DERMATOLOGY_PLAN_FIELDS)}<div class="actions"><button type="button" data-action="cancel-draft">Cancelar</button><button class="primary" data-action="save-consultation">Salvar consulta</button></div></form>`;
+  return `<form id="consultation-form">${section("Queixa e história", "anamnese", DERMATOLOGY_ANAMNESIS_FIELDS)}${checkboxes("Sintomas associados", "anamnese", "sintomasSelecionados", DERMATOLOGY_SYMPTOM_OPTIONS)}${checkboxes("Início e padrão temporal", "anamnese", "inicioSelecionado", DERMATOLOGY_ONSET_OPTIONS)}${checkboxes("Exposições e gatilhos", "anamnese", "exposicoesSelecionadas", DERMATOLOGY_EXPOSURE_OPTIONS)}${section("Antecedentes dermatológicos", "antecedentes", DERMATOLOGY_HISTORY_FIELDS)}${section("Exame físico", "exameFisico", DERMATOLOGY_PHYSICAL_EXAM_FIELDS)}${checkboxes("Morfologia primária", "exameFisico", "morfologiaSelecionada", LESION_MORPHOLOGY)}${checkboxes("Distribuição e configuração", "exameFisico", "distribuicaoSelecionada", LESION_DISTRIBUTIONS)}${checkboxes("Arranjo", "exameFisico", "arranjoSelecionado", LESION_ARRANGEMENTS)}${checkboxes("Cor", "exameFisico", "corSelecionada", LESION_COLORS)}${checkboxes("Superfície", "exameFisico", "superficieSelecionada", LESION_SURFACE)}${checkboxes("Palpação", "exameFisico", "palpacaoSelecionada", LESION_PALPATION)}${checkboxes("Sinais de alarme", "avaliacao", "sinaisAlarmeSelecionados", DERMATOLOGY_ALARM_OPTIONS)}<div class="lesions-section"><div class="panel-heading"><h3>Lesões individualizadas</h3><button type="button" data-action="add-lesion">Adicionar lesão</button></div>${lesions || `<p class="muted">Adicione uma lesão para registrar localização, dimensões e evolução separadamente.</p>`}</div>${section("Avaliação", "avaliacao", DERMATOLOGY_ASSESSMENT_FIELDS)}${section("Conduta e seguimento", "conduta", DERMATOLOGY_PLAN_FIELDS)}<div class="actions"><button type="button" data-action="cancel-draft">Cancelar</button><button class="primary" data-action="save-consultation">Salvar consulta</button></div></form>`;
 }
 
 function bindEvents() {

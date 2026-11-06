@@ -34,6 +34,48 @@ export const LESION_DISTRIBUTIONS = Object.freeze([
   "Mucosas", "Generalizada"
 ]);
 
+export const DERMATOLOGY_SYMPTOM_OPTIONS = Object.freeze([
+  "Prurido", "Dor", "Ardor", "Queimação", "Disestesia", "Sangramento",
+  "Secreção", "Febre", "Mal-estar", "Sem sintomas"
+]);
+
+export const DERMATOLOGY_ONSET_OPTIONS = Object.freeze([
+  "Súbito", "Agudo (até 6 semanas)", "Subagudo", "Crônico (mais de 6 semanas)",
+  "Recorrente", "Progressivo", "Estável", "Flutuante"
+]);
+
+export const DERMATOLOGY_EXPOSURE_OPTIONS = Object.freeze([
+  "Sol", "Calor ou suor", "Frio", "Água ou umidade", "Produto cosmético",
+  "Produto ocupacional", "Planta ou animal", "Medicamento novo", "Contato desconhecido",
+  "Sem exposição relevante"
+]);
+
+export const LESION_ARRANGEMENTS = Object.freeze([
+  "Solitária", "Agrupada", "Disseminada", "Confluente", "Linear", "Anular",
+  "Numular", "Serpiginosa", "Herpetiforme", "Zosteriforme", "Simétrica", "Assimétrica"
+]);
+
+export const LESION_COLORS = Object.freeze([
+  "Da cor da pele", "Eritematoso", "Violáceo", "Acastanhado", "Enegrecido",
+  "Hipocrômico", "Acrômico", "Amarelado", "Azulado", "Misto"
+]);
+
+export const LESION_SURFACE = Object.freeze([
+  "Lisa", "Descamativa", "Hiperqueratótica", "Verrucosa", "Crostosa",
+  "Exulcerada", "Ulcerada", "Erosada", "Macerada", "Fissurada", "Normal"
+]);
+
+export const LESION_PALPATION = Object.freeze([
+  "Macia", "Firme", "Endurecida", "Flutuante", "Infiltrada", "Móvel",
+  "Aderida", "Quente", "Dolorosa à palpação", "Sem alteração à palpação"
+]);
+
+export const DERMATOLOGY_ALARM_OPTIONS = Object.freeze([
+  "Crescimento rápido", "Mudança de cor ou forma", "Sangramento espontâneo",
+  "Ulceração sem trauma", "Dor intensa ou desproporcional", "Necrose",
+  "Sinais sistêmicos", "Imunossupressão relevante", "Sem sinal de alarme observado"
+]);
+
 export const DERMATOLOGY_ANAMNESIS_FIELDS = Object.freeze([
   ["queixaPrincipal", "Queixa principal"],
   ["historiaDoencaAtual", "História da doença atual"],

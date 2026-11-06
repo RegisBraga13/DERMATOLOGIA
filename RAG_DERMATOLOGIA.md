@@ -25,3 +25,7 @@ Cada documento deverá registrar: título, entidade publicadora, versão, data d
 ## Estado atual
 
 O catálogo está em `draft`. A próxima etapa é selecionar fontes dermatológicas licenciadas e criar o pipeline de ingestão, avaliação por especialistas e testes de ancoragem antes de habilitar RAG ou guidelines na interface.
+
+## Referências de semiologia para o catálogo de campos
+
+O vocabulário inicial de lesões, configuração, cor, superfície, distribuição e palpação foi conferido contra a terminologia clínica do [DermNet](https://dermnetnz.org/topics/terminology), a descrição de lesões do [MSD Manual Professional](https://www.msdmanuals.com/professional/dermatologic-disorders/approach-to-the-dermatologic-patient/description-of-skin-lesions) e o roteiro de exame cutâneo da [American Academy of Dermatology](https://www.aad.org/member/education/residents/bdc/skin-exam). Essas referências orientam a interface; não são usadas como recomendação automática nem substituem revisão local.
