@@ -423,6 +423,7 @@ function patientForm() {
         ${field("nomeSocial", "Nome social / como prefere ser chamado(a)", patient.nomeSocial, "text", Boolean(marcas.nomeSocial))}
         ${selectField("sexo", "Sexo", optionGroups.sexo, patient.sexo)}
         ${selectField("genero", "Identidade de gênero", optionGroups.genero, patient.genero)}
+        ${selectField("fototipoFitzpatrick", "Fototipo (escala de Fitzpatrick)", ["I", "II", "III", "IV", "V", "VI"], patient.fototipoFitzpatrick)}
         ${field("nascimento", "Data de nascimento", patient.nascimento, "date", Boolean(marcas.nascimento))}
         ${selectField("estadoCivil", "Estado civil", optionGroups.estadoCivil, patient.estadoCivil, Boolean(marcas.estadoCivil))}
         ${field("ocupacao", "Ocupacao", patient.ocupacao, "text", Boolean(marcas.ocupacao))}
@@ -1109,6 +1110,29 @@ function bindViewEvents() {
   bindReturnForm();
   bindRecord();
   bindActions();
+  bindDermPhotoPreview();
+}
+
+function bindDermPhotoPreview() {
+  const input = app.querySelector("[data-derm-photo]");
+  const preview = app.querySelector("[data-derm-photo-preview]");
+  if (!input || !preview) return;
+  input.addEventListener("change", () => {
+    const file = input.files?.[0];
+    if (!file) { preview.replaceChildren(); return; }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024) {
+      input.value = "";
+      preview.textContent = "Selecione uma imagem JPEG, PNG ou WebP de até 10 MB.";
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const image = document.createElement("img");
+    image.alt = "Prévia local da lesão selecionada";
+    image.style.cssText = "max-width:100%;max-height:320px;object-fit:contain";
+    image.src = url;
+    image.addEventListener("load", () => URL.revokeObjectURL(url), { once: true });
+    preview.replaceChildren(image);
+  });
 }
 
 function bindAutoExpandingTextareas() {
@@ -1559,6 +1583,15 @@ function bindActions() {
       const action = element.dataset.action;
       if (["dashboard", "toggle-theme", "select-patient", "edit-patient"].includes(action)) return;
       if (action === "form-page") switchFormPage(element);
+      if (action === "approve-derm-description" || action === "remove-derm-description") {
+        const form = element.closest("form");
+        if (form) updateDraftFromForm(form);
+        const target = currentClinicalDraft();
+        target.dermApprovedDescription = action === "remove-derm-description"
+          ? "" : (form?.querySelector("[data-derm-description]")?.value || "").trim();
+        unsavedWork.tocou(draftScopeOfForm(form));
+        render();
+      }
       if (action === "add-derm-lesion" || action === "remove-derm-lesion") {
         const form = element.closest("form");
         if (form) updateDraftFromForm(form);
@@ -1902,6 +1935,11 @@ function medicationDetour(scope, completedPage) {
 
 async function saveClinicalRecord(scope) {
   if (!selectedPatientId) return null;
+  const pendingDescription = app.querySelector("[data-derm-description]");
+  if (pendingDescription && pendingDescription.value.trim() !== String(draftTarget(scope).dermApprovedDescription || "").trim()) {
+    alert("Revise e salve a descrição da lesão antes de salvar ou avançar. Para descartá-la, use Excluir descrição.");
+    return null;
+  }
   const now = new Date().toISOString();
   if (scope === "consultation") {
     const data = sanitizeConsultationRecord({ ...(draft.consultation || defaultConsultation()), patientId: selectedPatientId, type: "consultation" });

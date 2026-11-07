@@ -79,10 +79,18 @@ export const DERMATOLOGY_ALARM_OPTIONS = Object.freeze([
 export const DERMATOLOGY_ANAMNESIS_FIELDS = Object.freeze([
   ["queixaPrincipal", "Queixa principal"],
   ["historiaDoencaAtual", "História da doença atual"],
+  ["localizacaoInicial", "Localização inicial e disseminação"],
   ["inicioEvolucao", "Início e evolução"],
+  ["caracteristicasEvolucao", "Mudanças de aparência, textura e quantidade"],
   ["sintomasAssociados", "Sintomas associados"],
+  ["intensidade", "Intensidade da dor ou prurido (0 a 10)"],
   ["gatilhosExposicoes", "Gatilhos e exposições"],
-  ["tratamentosPrevios", "Tratamentos prévios e resposta"]
+  ["fatoresMelhora", "Fatores de melhora"],
+  ["tratamentosPrevios", "Tratamentos prévios, procedimentos e resposta"],
+  ["contatos", "Contato com pessoas ou animais com quadro semelhante"],
+  ["ideias", "O que o paciente pensa sobre o problema"],
+  ["preocupacoes", "Principais preocupações"],
+  ["expectativas", "Expectativas para a consulta"]
 ]);
 
 export const DERMATOLOGY_HISTORY_FIELDS = Object.freeze([
@@ -93,7 +101,12 @@ export const DERMATOLOGY_HISTORY_FIELDS = Object.freeze([
   ["medicamentos", "Medicamentos em uso"],
   ["imunossupressao", "Imunossupressão e comorbidades"],
   ["exposicaoSolar", "Exposição solar e fotoproteção"],
-  ["ocupacaoExposicoes", "Ocupação e exposições ocupacionais"]
+  ["queimadurasBronzeamento", "Queimaduras solares e bronzeamento artificial"],
+  ["produtosTopicos", "Produtos tópicos, cosméticos e tipo de pele percebido"],
+  ["ocupacaoExposicoes", "Ocupação, lazer e exposições"],
+  ["ambienteHabitos", "Ambiente doméstico e hábitos"],
+  ["revisaoSistemas", "Revisão de sistemas e sintomas gerais"],
+  ["cosmiatria", "Cosmiatria (se pertinente): queixa, procedimentos prévios e riscos"]
 ]);
 
 export const DERMATOLOGY_PHYSICAL_EXAM_FIELDS = Object.freeze([
@@ -107,7 +120,12 @@ export const DERMATOLOGY_PHYSICAL_EXAM_FIELDS = Object.freeze([
   ["sintomasAoExame", "Dor, prurido e outros sintomas"],
   ["unhasCabelosMucosas", "Unhas, cabelos e mucosas"],
   ["linfonodos", "Linfonodos e sinais sistêmicos"],
-  ["registroFotografico", "Registro fotográfico e comparação"]
+  ["peleGeral", "Coloração geral, hidratação e turgor"],
+  ["simetriaFormato", "Simetria, formato e delimitação"],
+  ["sensibilidadeTemperatura", "Temperatura e sensibilidade cutânea"],
+  ["abcde", "ABCDE de lesões pigmentadas, quando aplicável"],
+  ["dermatoscopia", "Achados dermatoscópicos, se examinados"],
+  ["registroFotografico", "Comparação com registros anteriores"]
 ]);
 
 export const DERMATOLOGY_ASSESSMENT_FIELDS = Object.freeze([

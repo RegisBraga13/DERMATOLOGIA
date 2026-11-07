@@ -60,6 +60,18 @@ function lesionEditor(form) {
     <button type="button" class="secondary" data-action="add-derm-lesion">Adicionar lesão</button></div>`;
 }
 
+function photographicExam(form) {
+  return `<div class="clinical-card"><h4>Descrição de lesão com apoio de imagem</h4>
+    <p class="field-hint">Selecione uma foto para conferência visual. Neste momento ela permanece apenas nesta tela e não é enviada nem gravada. A análise automática está indisponível até a configuração da IA.</p>
+    <label>Foto da lesão (JPEG, PNG ou WebP; até 10 MB)<input type="file" accept="image/jpeg,image/png,image/webp" data-derm-photo></label>
+    <div data-derm-photo-preview aria-live="polite"></div>
+    <label>Descrição dermatológica revisada pelo médico<textarea data-derm-description class="auto-expand" data-auto-expand="true" rows="1" placeholder="Localização, número, distribuição, lesão elementar, forma, limites, cor, superfície, dimensões e achados visíveis. Registre palpação e dermatoscopia somente se examinadas.">${escapeHtml(form.dermApprovedDescription || "")}</textarea></label>
+    <div class="actions"><button type="button" class="primary" data-action="approve-derm-description">Salvar descrição revisada</button>
+    <button type="button" class="secondary" data-action="remove-derm-description">Excluir descrição</button></div>
+    <p class="field-hint">Somente a descrição revisada e salva entra na história clínica e na avaliação diagnóstica. A foto não integra o prontuário.</p>
+  </div>`;
+}
+
 export function dermatologyConsultationPage(page, form = {}, patient = {}) {
   form = dermatologyFormValues(form);
   if (page === "anamnese") return section("Queixa e história", DERMATOLOGY_ANAMNESIS_FIELDS, form, "dermA_")
@@ -75,15 +87,20 @@ export function dermatologyConsultationPage(page, form = {}, patient = {}) {
     + choices("Cor", "dermCor", LESION_COLORS, form)
     + choices("Superfície", "dermSuperficie", LESION_SURFACE, form)
     + choices("Palpação", "dermPalpacao", LESION_PALPATION, form)
-    + textarea("dermExameComplementar", "Unhas, cabelos, mucosas e dermatoscopia", form.dermExameComplementar || "", "", 4);
+    + textarea("dermExameComplementar", "Unhas, cabelos, mucosas e dermatoscopia", form.dermExameComplementar || "", "", 4)
+    + photographicExam(form);
   if (page === "refinamento") return section("Revisão clínica", [
     ["evolucao", "Evolução e mudança das lesões"], ["exposicao", "Relação temporal com exposições"],
     ["alarme", "Sinais de alarme investigados"], ["exames", "Exames e biópsia considerados"]
   ], form, "dermR_");
-  if (page === "diagnostico") return choices("Sinais de alarme", "dermAlarmes", DERMATOLOGY_ALARM_OPTIONS, form)
+  if (page === "diagnostico") return (form.dermApprovedDescription
+    ? `<div class="clinical-card"><h4>Descrição revisada da lesão</h4><p>${escapeHtml(form.dermApprovedDescription)}</p></div>` : "")
+    + choices("Sinais de alarme", "dermAlarmes", DERMATOLOGY_ALARM_OPTIONS, form)
     + section("Avaliação diagnóstica", DERMATOLOGY_ASSESSMENT_FIELDS, form, "dermD_");
   if (page === "tratamento") return section("Tratamento e orientações", DERMATOLOGY_PLAN_FIELDS, form, "dermP_");
-  if (page === "evolucao") return textarea("dermNarrativa", "História clínica dermatológica", form.dermNarrativa || "", "", 12);
+  if (page === "evolucao") return (form.dermApprovedDescription
+    ? `<div class="clinical-card"><h4>Descrição revisada do exame físico</h4><p>${escapeHtml(form.dermApprovedDescription)}</p></div>` : "")
+    + textarea("dermNarrativa", "História clínica dermatológica", form.dermNarrativa || "", "", 12);
   if (page === "resumo") return dermatologySummary(form, patient);
   if (page === "medicamentos") return section("Terapias em uso", [
     ["topicos", "Tratamentos tópicos"], ["sistemicos", "Tratamentos sistêmicos"],
@@ -108,9 +125,9 @@ export function dermatologyReturnPage(page, form = {}, previous = {}) {
 
 export function dermatologySummary(form = {}, patient = {}) {
   form = dermatologyFormValues(form);
-  const rows = Object.entries(form).filter(([key, value]) => key.startsWith("derm") && value && (!Array.isArray(value) || value.length));
+  const rows = Object.entries(form).filter(([key, value]) => key.startsWith("derm") && key !== "dermLesions" && value && (!Array.isArray(value) || value.length));
   return `<div class="clinical-card"><h4>${escapeHtml(patient.nome || "Paciente")}</h4>${rows.length ? rows.map(([key, value]) =>
-    `<p><strong>${escapeHtml(key.replace(/^derm/, ""))}:</strong> ${escapeHtml(Array.isArray(value) ? value.join(", ") : value)}</p>`).join("") : "<p>Nenhum achado dermatológico registrado.</p>"}</div>`;
+    `<p><strong>${escapeHtml(key === "dermApprovedDescription" ? "Descrição revisada do exame físico" : key.replace(/^derm/, ""))}:</strong> ${escapeHtml(Array.isArray(value) ? value.join(", ") : value)}</p>`).join("") : "<p>Nenhum achado dermatológico registrado.</p>"}</div>`;
 }
 
 export function dermatologyReportText(form = {}) {
@@ -118,6 +135,7 @@ export function dermatologyReportText(form = {}) {
   const fields = [
     ["Queixa", "dermA_queixaPrincipal"], ["História", "dermA_historiaDoencaAtual"],
     ["Inspeção cutânea", "dermE_localizacao"], ["Morfologia", "dermMorfologia"],
+    ["Descrição revisada da lesão", "dermApprovedDescription"],
     ["Diagnóstico", "dermD_diagnosticoPrincipal"], ["Conduta", "dermP_tratamento"],
     ["Evolução", "dermNarrativa"]
   ];

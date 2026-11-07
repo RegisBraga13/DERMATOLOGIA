@@ -37,4 +37,17 @@ describe("fluxo clínico dermatológico", () => {
     assert.match(dermatologyConsultationPage("psiquico", record), /Antebraço/);
     assert.match(dermatologyReportText(record), /4 mm/);
   });
+
+  it("só leva a descrição revisada para diagnóstico, história e prontuário", () => {
+    const pending = dermatologyConsultationPage("neurologico", {});
+    assert.match(pending, /data-derm-photo/);
+    assert.match(pending, /data-derm-description/);
+    assert.doesNotMatch(dermatologyConsultationPage("diagnostico", {}), /Descrição revisada da lesão/);
+    assert.doesNotMatch(dermatologyReportText({}), /Descrição revisada da lesão/);
+
+    const record = { dermApprovedDescription: "Placa eritematosa de 2 cm no antebraço" };
+    assert.match(dermatologyConsultationPage("diagnostico", record), /Placa eritematosa de 2 cm/);
+    assert.match(dermatologyConsultationPage("evolucao", record), /Placa eritematosa de 2 cm/);
+    assert.match(dermatologyReportText(record), /Placa eritematosa de 2 cm/);
+  });
 });
