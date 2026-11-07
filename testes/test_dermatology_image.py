@@ -7,11 +7,12 @@ import urllib.request
 from http.server import ThreadingHTTPServer
 from unittest.mock import patch
 
-from ai_dermatology_image import IMAGE_FIELDS, ImageResponseError, analyze_dermatology_image, validate_image_data_url
+from ai_dermatology_image import IMAGE_FIELDS, ImageResponseError, analyze_dermatology_document, analyze_dermatology_image, validate_document_data_url, validate_image_data_url
 
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"synthetic-test"
 DATA_URL = "data:image/png;base64," + base64.b64encode(PNG).decode("ascii")
+PDF_DATA_URL = "data:application/pdf;base64," + base64.b64encode(b"%PDF-1.4\nsynthetic-test").decode("ascii")
 
 
 class DermatologyImageTests(unittest.TestCase):
@@ -20,6 +21,8 @@ class DermatologyImageTests(unittest.TestCase):
             validate_image_data_url(DATA_URL.replace("image/png", "image/jpeg"))
         with self.assertRaises(ValueError):
             validate_image_data_url("data:image/svg+xml;base64," + base64.b64encode(PNG).decode("ascii"))
+        with self.assertRaises(ValueError):
+            validate_document_data_url("data:application/pdf;base64," + base64.b64encode(PNG).decode("ascii"))
 
     def test_sends_image_without_storing_response_and_requires_structured_fields(self):
         expected = {key: "" for key in IMAGE_FIELDS}
@@ -40,6 +43,21 @@ class DermatologyImageTests(unittest.TestCase):
         with patch("ai_dermatology_image.read_json_response", return_value={"output_text": '{"morfologia":"pápula"}'}):
             with self.assertRaises(ImageResponseError):
                 analyze_dermatology_image(DATA_URL, "test-key")
+
+    def test_document_uses_pdf_input_and_keeps_extraction_for_review(self):
+        expected = {"tipo": "Laudo", "data_no_documento": "", "achados": "Resultado legível", "incertezas": "Data não informada"}
+
+        def fake_response(request, **kwargs):
+            body = json.loads(request.data)
+            self.assertFalse(body["store"])
+            attachment = body["input"][1]["content"][1]
+            self.assertEqual(attachment["type"], "input_file")
+            self.assertEqual(attachment["file_data"], PDF_DATA_URL)
+            return {"output_text": json.dumps(expected)}
+
+        with patch("ai_dermatology_image.read_json_response", side_effect=fake_response):
+            result = analyze_dermatology_document(PDF_DATA_URL, "test-key")
+        self.assertEqual(result["achados"], "Resultado legível")
 
     def test_local_http_endpoint_returns_proposal(self):
         from server import PrototypeHandler

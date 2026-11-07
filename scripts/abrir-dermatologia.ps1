@@ -1,6 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $localCode = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $projectRoot 'src\App.js')).Hash
+$localServer = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $projectRoot 'server.py')).Hash
 
 function Test-DermatologyServer([int]$port) {
     try {
@@ -14,6 +15,8 @@ function Test-DermatologyServer([int]$port) {
         try { $remoteHash = [BitConverter]::ToString($sha.ComputeHash($remoteBytes)).Replace('-', '') }
         finally { $sha.Dispose() }
         if ($remoteHash -ne $localCode) { return $false }
+        $health = Invoke-RestMethod -Uri "$base/api/health" -TimeoutSec 2
+        if (-not $health.ok -or $health.serverSha256 -ne $localServer) { return $false }
         $config = Invoke-WebRequest -Uri "$base/api/supabase-config" -TimeoutSec 2 -UseBasicParsing
         return $config.StatusCode -eq 200
     } catch { return $false }

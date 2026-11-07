@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+import hashlib
 import json
 import math
 import logging
@@ -18,7 +19,8 @@ from ai_transport import (
     CODIGOS_QUE_VALE_REPETIR, ESPERA_ENTRE_TENTATIVAS, TENTATIVAS_DE_REDE,
     extract_response_text, read_json_response,
 )
-from ai_dermatology_image import ImageResponseError, MAX_REQUEST_BYTES as MAX_DERM_IMAGE_REQUEST_BYTES, analyze_dermatology_image
+from ai_dermatology_image import ImageResponseError, MAX_REQUEST_BYTES as MAX_DERM_IMAGE_REQUEST_BYTES, analyze_dermatology_document, analyze_dermatology_image
+from ai_dermatology_workflow import WorkflowResponseError, propose_dermatology_stage
 from ai_typesafe import TYPESAFE_MODEL, call_typesafe_noul_batch, call_typesafe_risk_screen
 from ai_openai import extract_web_sources, search_web_sources
 from ai_response_policy import usable_web_findings
@@ -39,6 +41,7 @@ from server_security import (
 
 
 ROOT = Path(__file__).resolve().parent
+SERVER_SOURCE_HASH = hashlib.sha256(Path(__file__).read_bytes()).hexdigest().upper()
 logger = logging.getLogger("prontuario")
 
 _post_rate_limiter = PostRateLimiter()
@@ -2272,6 +2275,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 "ok": True,
                 "model": os.environ.get("OPENAI_MODEL", DEFAULT_MODEL),
                 "hasApiKey": bool(os.environ.get("OPENAI_API_KEY")),
+                "serverSha256": SERVER_SOURCE_HASH,
             })
             return
         if parsed_path.path == "/api/book-chapter":
@@ -2298,7 +2302,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             self.send_json(403, {"error": "Origem nao autorizada."})
             return
 
-        if self.path not in {"/api/clinical-ai", "/api/transcribe-consultation", "/api/risk-screen", "/api/jev-judge", "/api/dermatology-image"}:
+        if self.path not in {"/api/clinical-ai", "/api/transcribe-consultation", "/api/risk-screen", "/api/jev-judge", "/api/dermatology-image", "/api/dermatology-document", "/api/dermatology-workflow"}:
             self.send_json(404, {"error": "Endpoint nao encontrado."})
             return
 
@@ -2323,7 +2327,34 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             self.send_json(503, {"error": "OPENAI_API_KEY nao configurada. Crie um arquivo .env ou defina a variavel de ambiente."})
             return
 
-        if self.path == "/api/dermatology-image":
+        if self.path == "/api/dermatology-workflow":
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if length <= 0 or length > 64 * 1024:
+                    self.send_json(413, {"error": "Material de entrada ausente ou acima do limite."})
+                    return
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                if not isinstance(payload, dict):
+                    self.send_json(400, {"error": "Requisição inválida."})
+                    return
+                result = propose_dermatology_stage(
+                    payload.get("kind"), payload.get("source"), api_key,
+                    os.environ.get("OPENAI_DERMATOLOGY_TEXT_MODEL", DEFAULT_MODEL),
+                )
+                self.send_json(200, {"proposal": result})
+            except (ValueError, UnicodeDecodeError, TypeError) as error:
+                self.send_json(400, {"error": str(error) if isinstance(error, ValueError) else "Requisição inválida."})
+            except WorkflowResponseError:
+                self.send_json(502, {"error": "A IA não retornou uma proposta válida. Tente novamente."})
+            except urllib.error.HTTPError as error:
+                logger.error("OpenAI dermatology-workflow %s: corpo omitido", error.code)
+                self.send_json(502, {"error": "A OpenAI não concluiu esta etapa. Confira créditos e tente novamente."})
+            except Exception as error:
+                logger.error("Falha em /api/dermatology-workflow (%s)", type(error).__name__)
+                self.send_json(502, {"error": "Não foi possível gerar a proposta agora."})
+            return
+
+        if self.path in {"/api/dermatology-image", "/api/dermatology-document"}:
             try:
                 length = int(self.headers.get("Content-Length", "0"))
                 if length <= 0 or length > MAX_DERM_IMAGE_REQUEST_BYTES:
@@ -2333,11 +2364,18 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 if not isinstance(payload, dict):
                     self.send_json(400, {"error": "Requisição inválida."})
                     return
-                result = analyze_dermatology_image(
-                    payload.get("image"), api_key,
-                    os.environ.get("OPENAI_DERMATOLOGY_IMAGE_MODEL", DEFAULT_MODEL),
-                )
-                self.send_json(200, {"description": result})
+                if self.path == "/api/dermatology-image":
+                    result = analyze_dermatology_image(
+                        payload.get("image"), api_key,
+                        os.environ.get("OPENAI_DERMATOLOGY_IMAGE_MODEL", DEFAULT_MODEL),
+                    )
+                    self.send_json(200, {"description": result})
+                else:
+                    result = analyze_dermatology_document(
+                        payload.get("file"), api_key,
+                        os.environ.get("OPENAI_DERMATOLOGY_IMAGE_MODEL", DEFAULT_MODEL),
+                    )
+                    self.send_json(200, {"document": result})
             except (ValueError, UnicodeDecodeError, KeyError, TypeError) as error:
                 self.send_json(400, {"error": str(error) if isinstance(error, ValueError) else "Requisição inválida."})
             except ImageResponseError:

@@ -72,24 +72,11 @@ export const RETURN_BOILERPLATE_PHRASES = Object.freeze([
 ]);
 
 export const consultationPages = [
-  ["anamnese", "Anamnese"],
-  ["psiquico", "Inspeção cutânea"],
-  ["neurologico", "Exame físico"],
-  ["refinamento", "Refinamento"],
-  ["diagnostico", "Diagnóstico"],
-  // O Sintoma-Alvo teve pagina propria de 21/08 a 31/08/2026. Saiu do fluxo por
-  // decisao dele: a escolha era feita numa lista fixa de trinta sintomas, igual
-  // para todo paciente, e o sintoma que nao estivesse nela nao existia. A busca
-  // passou para o apendice de Medicamentos, onde se digita o sintoma; o que ele
-  // adota de la volta para o Tratamento, que e onde conduta mora e o que o
-  // prontuario registra. Uma etapa a menos, e o campo continua no registro.
-  ["tratamento", "Tratamento"],
+  ["anamnese", "Anamnese e pele"],
+  ["psiquico", "Exames e aparelhos"],
   ["evolucao", "História clínica"],
-  // Movido para o fim do ciclo em 24/09/2026 -- por decisao do Dr. Regis. Ate
-  // ali ficava antes do Diagnostico, como conferencia previa; nessa posicao
-  // nunca podia mostrar diagnostico nem tratamento, porque eles ainda nao
-  // existiam. No fim ele fecha o atendimento: anamnese, exame, diagnostico,
-  // tratamento e historia clinica, mais os retornos ja salvos deste paciente.
+  ["diagnostico", "HD"],
+  ["tratamento", "Conduta"],
   ["resumo", "Resumo"],
   ["medicamentos", "Terapias"],
   // Escalas entrou em 10/09/2026, apendice como Medicamentos: aplica-se quando
@@ -100,16 +87,14 @@ export const consultationPages = [
   ["documentos", "Documentos"]
 ];
 
-// A segunda pagina do retorno era "Texto final", e o titulo dela dizia
-// "Evolucao do Retorno", e o botao dizia "Atualizar evolucao": tres nomes para
-// a mesma etapa, e a palavra "Evolucao" repetida na aba anterior, que e outra
-// coisa. Virou "Ajuste de conduta" em 02/09/2026, que e o que ela faz.
-// Medicamentos entrou no retorno em 10/09/2026, como na consulta: apendice, e
-// nao etapa. O Ajuste de conduta decide sobre farmaco em uso, e a ficha e o
-// capitulo do livro faziam falta justamente ali.
+// Consulta e retorno percorrem a mesma cadeia clinica aprovada pelo medico.
 export const returnPages = [
-  ["evolucao-retorno", "Evolução"],
-  ["texto-retorno", "Ajuste de conduta"],
+  ["evolucao-retorno", "Evolução e pele"],
+  ["psiquico", "Exames e aparelhos"],
+  ["evolucao", "História clínica"],
+  ["diagnostico", "HD"],
+  ["tratamento", "Conduta"],
+  ["resumo", "Resumo"],
   ["medicamentos", "Terapias"],
   // No retorno as escalas sao onde se ve a mudanca: o resultado sai ao lado do
   // da aplicacao anterior.

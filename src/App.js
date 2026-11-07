@@ -47,8 +47,10 @@ import { finalizationNote, finalizedNotice, recordStatusLine, versionsView } fro
 import { scaleById } from "./data/scales.js";
 import { caseViewForReturn, groupCases } from "./clinical/caseTimeline.js";
 import { caseSummaryView } from "./views/caseSummary.js";
-import { dermatologyConsultationPage, dermatologyReturnPage, dermatologyReportText } from "./views/dermatologyFlow.js";
-import { prepareDermatologyImage, requestDermatologyImageDescription } from "./services/dermatologyImageService.js";
+import { dermatologyConsultationPage, dermatologyReturnPage, dermatologyReportText, dermatologyFormValues } from "./views/dermatologyFlow.js";
+import { prepareDermatologyDocument, prepareDermatologyImage, requestDermatologyDocument, requestDermatologyImageDescription } from "./services/dermatologyImageService.js";
+import { requestDermatologyStage } from "./services/dermatologyWorkflowService.js";
+import { chronological, dermatologySourceText, hdIsCurrent, historyIsCurrent, planIsCurrent } from "./clinical/dermatologyPipeline.js";
 
 const app = document.querySelector("#app");
 // Vazio ate a leitura do aparelho terminar: desde 14/09/2026 o estado mora no
@@ -601,7 +603,7 @@ function consultationPageBody(form, patient) {
   // o que existe de fato em qphda (uma transcricao anterior, ou nada).
   const qphda = form.qphda || [form.queixa && `QP: ${form.queixa}`, form.hdaManual && `HDA: ${form.hdaManual}`].filter(Boolean).join("\n\n");
   const anamnesisInputMode = form.anamnesisInputMode === "microphone" ? "microphone" : "manual";
-  return clinicalPage(pagesForScope("consultation").find(([key]) => key === consultationPage)?.[1] || "Consulta", dermatologyConsultationPage(consultationPage, form, patient), "consultation", !APPENDIX_PAGES.has(consultationPage));
+  return clinicalPage(pagesForScope("consultation").find(([key]) => key === consultationPage)?.[1] || "Consulta", dermatologyConsultationPage(consultationPage, form, patient, entriesForPatient(patient.id)), "consultation", !APPENDIX_PAGES.has(consultationPage));
   if (consultationPage === "anamnese") return clinicalPage("Anamnese", `
     <div class="clinical-card qphda-card">
       <h4>Forma de registro</h4>
@@ -667,7 +669,7 @@ function consultationPageBody(form, patient) {
 }
 
 function returnPageBody(form, patient, previous) {
-  return clinicalPage(pagesForScope("return").find(([key]) => key === returnPage)?.[1] || "Retorno", dermatologyReturnPage(returnPage, form, previous), "return", !APPENDIX_PAGES.has(returnPage));
+  return clinicalPage(pagesForScope("return").find(([key]) => key === returnPage)?.[1] || "Retorno", dermatologyReturnPage(returnPage, form, previous, patient, entriesForPatient(patient.id)), "return", !APPENDIX_PAGES.has(returnPage));
   if (returnPage === "evolucao-retorno") return clinicalPage("Avaliacao de evolucao", returnAssessmentBody(form, previous), "return");
   // Diagnostico e Tratamento tinham ramo aqui sem aba que levasse a eles: o
   // retorno tem duas etapas, e a conduta dele e o Ajuste. Sairam em 10/09/2026.
@@ -1585,14 +1587,56 @@ function bindActions() {
       if (["dashboard", "toggle-theme", "select-patient", "edit-patient"].includes(action)) return;
       if (action === "form-page") switchFormPage(element);
       if (action === "analyze-derm-photo") await analyzeDermPhoto(element);
+      if (action === "analyze-derm-exam") await analyzeDermExam(element);
+      if (action === "generate-derm-questions" || action === "generate-derm-stage") await generateDermatologyProposal(element);
+      if (action === "approve-derm-review") await approveDermatologyReview(element);
       if (action === "approve-derm-description" || action === "remove-derm-description") {
+        const form = element.closest("form");
+        if (action === "remove-derm-description") {
+          const pending = form?.querySelector("[data-derm-description]");
+          if (pending) pending.value = "";
+        } else {
+          const description = (form?.querySelector("[data-derm-description]")?.value || "").trim();
+          if (!description) { alert("Revise ou escreva a descrição antes de adicionar a imagem."); return; }
+          if (form) updateDraftFromForm(form);
+          const target = currentClinicalDraft();
+          const pending = dermPendingReviewMessage(form, target, "photo");
+          if (pending) { alert(pending); return; }
+          target.dermImages = chronological(dermatologyFormValues(target).dermImages);
+          target.dermImages.push({ id: uid("derm-image"), date: form?.querySelector("[data-derm-photo-date]")?.value || "", description });
+          target.dermApprovedDescription = description;
+          unsavedWork.tocou(draftScopeOfForm(form));
+          form.querySelector("[data-derm-description]").value = "";
+          if (await saveClinicalRecord(draftScopeOfForm(form))) render();
+        }
+      }
+      if (action === "remove-derm-image" || action === "remove-derm-exam") {
         const form = element.closest("form");
         if (form) updateDraftFromForm(form);
         const target = currentClinicalDraft();
-        target.dermApprovedDescription = action === "remove-derm-description"
-          ? "" : (form?.querySelector("[data-derm-description]")?.value || "").trim();
+        const pending = dermPendingReviewMessage(form, target);
+        if (pending) { alert(pending); return; }
+        const key = action === "remove-derm-image" ? "dermImages" : "dermExams";
+        target[key] = chronological(dermatologyFormValues(target)[key]);
+        target[key].splice(Number(element.dataset.index), 1);
+        if (key === "dermImages") target.dermApprovedDescription = target.dermImages.at(-1)?.description || "";
         unsavedWork.tocou(draftScopeOfForm(form));
-        render();
+        if (await saveClinicalRecord(draftScopeOfForm(form))) render();
+      }
+      if (action === "approve-derm-exam") {
+        const form = element.closest("form");
+        const description = (form?.querySelector("[data-derm-exam-description]")?.value || "").trim();
+        if (!description) { alert("Revise ou escreva os achados antes de adicionar o exame."); return; }
+        if (form) updateDraftFromForm(form);
+        const target = currentClinicalDraft();
+        const pending = dermPendingReviewMessage(form, target, "exam");
+        if (pending) { alert(pending); return; }
+        target.dermExams = chronological(target.dermExams || []);
+        target.dermExams.push({ id: uid("derm-exam"), date: form?.querySelector("[data-derm-exam-date]")?.value || "",
+          type: (form?.querySelector("[data-derm-exam-type]")?.value || "").trim(), description });
+        unsavedWork.tocou(draftScopeOfForm(form));
+        form.querySelector("[data-derm-exam-description]").value = "";
+        if (await saveClinicalRecord(draftScopeOfForm(form))) render();
       }
       if (action === "add-derm-lesion" || action === "remove-derm-lesion") {
         const form = element.closest("form");
@@ -1679,6 +1723,115 @@ async function analyzeDermPhoto(button) {
   } finally {
     if (form.isConnected) button.disabled = false;
   }
+}
+
+async function analyzeDermExam(button) {
+  const form = button.closest("form");
+  const input = form?.querySelector("[data-derm-exam-file]");
+  const file = input?.files?.[0];
+  const description = form?.querySelector("[data-derm-exam-description]");
+  const status = form?.querySelector("[data-derm-exam-status]");
+  if (!description || !status) return;
+  if (!file) { status.textContent = "Selecione um exame antes de analisar."; return; }
+  const previousText = description.value;
+  const stillCurrent = draftGuard.capture();
+  button.disabled = true;
+  status.textContent = "Lendo o arquivo para propor os achados…";
+  try {
+    const dataUrl = await prepareDermatologyDocument(file);
+    const proposal = await requestDermatologyDocument(dataUrl);
+    if (!stillCurrent() || !form.isConnected) return;
+    if (input.files?.[0] !== file || description.value !== previousText) {
+      status.textContent = "O arquivo ou a descrição mudou durante a análise. Execute novamente se desejar.";
+      return;
+    }
+    description.value = proposal;
+    description.dispatchEvent(new Event("input", { bubbles: true }));
+    status.textContent = "Extração pronta. Confira o arquivo original, edite os achados e clique em Adicionar exame revisado.";
+  } catch (error) {
+    if (stillCurrent() && form.isConnected) status.textContent = error.message || "Falha ao analisar o exame.";
+  } finally {
+    if (form.isConnected) button.disabled = false;
+  }
+}
+
+async function generateDermatologyProposal(button) {
+  const form = button.closest("form");
+  if (!form) return;
+  updateDraftFromForm(form);
+  const target = currentClinicalDraft();
+  const patient = getPatient() || {};
+  const priorEntries = entriesForPatient(selectedPatientId);
+  const phase = button.dataset.phase;
+  const kind = phase === "lesion" ? "lesion_questions"
+    : phase === "refinement" ? "refinement_questions" : button.dataset.kind;
+  const field = kind === "lesion_questions" ? "dermLesionQuestionsApproved"
+    : kind === "refinement_questions" ? "dermRefinementApproved"
+    : kind === "history" ? "dermHistoryApproved"
+    : kind === "hypotheses" ? "dermHdApproved" : "dermPlanApproved";
+  const textarea = form.querySelector(`[data-derm-review="${field}"]`);
+  const status = button.closest(".clinical-card")?.querySelector("[data-derm-ai-status]");
+  if (!textarea || !status) return;
+  let source = "";
+  if (kind === "hypotheses") {
+    if (!historyIsCurrent(target, patient, priorEntries)) { status.textContent = "Salve uma história clínica atualizada antes de gerar a HD."; return; }
+    source = target.dermHistoryApproved;
+  } else if (kind === "plan") {
+    if (!hdIsCurrent(target, patient, priorEntries)) { status.textContent = "Salve uma HD atualizada antes de gerar a conduta."; return; }
+    source = target.dermHdApproved;
+  } else source = dermatologySourceText(target, patient, priorEntries);
+  if (!source.trim()) { status.textContent = "Registre os dados clínicos desta etapa antes de pedir uma proposta."; return; }
+  const previousText = textarea.value;
+  const stillCurrent = draftGuard.capture();
+  button.disabled = true;
+  status.textContent = "Gerando proposta para revisão…";
+  try {
+    const proposal = await requestDermatologyStage(kind, source);
+    if (!stillCurrent() || !form.isConnected) return;
+    if (textarea.value !== previousText) {
+      status.textContent = "O texto foi alterado durante a geração. A proposta não substituiu sua edição.";
+      return;
+    }
+    textarea.value = proposal;
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    status.textContent = "Proposta pronta. Revise, modifique e salve antes de avançar.";
+  } catch (error) {
+    if (stillCurrent() && form.isConnected) status.textContent = error.message || "Falha ao gerar proposta.";
+  } finally {
+    if (form.isConnected) button.disabled = false;
+  }
+}
+
+async function approveDermatologyReview(button) {
+  const form = button.closest("form");
+  const field = button.dataset.field;
+  const allowed = new Set(["dermLesionQuestionsApproved", "dermRefinementApproved", "dermHistoryApproved", "dermHdApproved", "dermPlanApproved"]);
+  if (!form || !allowed.has(field)) return;
+  updateDraftFromForm(form);
+  const target = currentClinicalDraft();
+  const patient = getPatient() || {};
+  const priorEntries = entriesForPatient(selectedPatientId);
+  const pending = dermPendingReviewMessage(form, target, field);
+  if (pending) { alert(pending); return; }
+  const text = (form.querySelector(`[data-derm-review="${field}"]`)?.value || "").trim();
+  if (!text && ["dermHistoryApproved", "dermHdApproved", "dermPlanApproved"].includes(field)) {
+    alert("Revise ou escreva o texto desta etapa antes de salvá-lo.");
+    return;
+  }
+  if (field === "dermHdApproved" && !historyIsCurrent(target, patient, priorEntries)) {
+    alert("A história clínica precisa estar salva e atualizada antes da HD.");
+    return;
+  }
+  if (field === "dermPlanApproved" && !hdIsCurrent(target, patient, priorEntries)) {
+    alert("A HD precisa estar salva e atualizada antes da conduta.");
+    return;
+  }
+  target[field] = text;
+  if (field === "dermHistoryApproved") target.dermHistorySource = dermatologySourceText(target, patient, priorEntries);
+  if (field === "dermHdApproved") target.dermHdSource = target.dermHistoryApproved;
+  if (field === "dermPlanApproved") target.dermPlanSource = target.dermHdApproved;
+  unsavedWork.tocou(draftScopeOfForm(form));
+  if (await saveClinicalRecord(draftScopeOfForm(form))) render();
 }
 
 function switchFormPage(element) {
@@ -1770,6 +1923,10 @@ function markMentalExamNormal(element) {
 async function finalizeCurrentRecord(element) {
   const scope = element.dataset.scope === "return" ? "return" : "consultation";
   const tipo = scope === "return" ? "o retorno" : "a consulta";
+  if (!planIsCurrent(draftTarget(scope), getPatient() || {}, entriesForPatient(selectedPatientId))) {
+    alert("Revise e salve a história clínica, a HD e a conduta atualizadas antes de finalizar.");
+    return;
+  }
   if (!confirm(`Finalizar ${tipo}? Depois de finalizado, o que for alterado na história clínica, no diagnóstico ou no tratamento fica registrado, e a versão anterior é guardada.`)) return;
   const formulario = element.closest("form");
   if (formulario) updateDraftFromForm(formulario);
@@ -1912,6 +2069,21 @@ async function saveCurrentPageAndAdvance(element) {
   if (form) updateDraftFromForm(form);
   const scope = element.dataset.scope;
   const completedPage = currentPageForScope(scope);
+  const target = draftTarget(scope);
+  const patient = getPatient() || {};
+  const priorEntries = entriesForPatient(selectedPatientId);
+  if (completedPage === "evolucao" && !historyIsCurrent(target, patient, priorEntries)) {
+    alert("Salve a história clínica estruturada e atualizada antes de avançar para a HD.");
+    return;
+  }
+  if (completedPage === "diagnostico" && !hdIsCurrent(target, patient, priorEntries)) {
+    alert("Salve a HD baseada na história clínica atualizada antes de avançar para a conduta.");
+    return;
+  }
+  if (completedPage === "tratamento" && !planIsCurrent(target, patient, priorEntries)) {
+    alert("Salve a conduta baseada na HD atualizada antes de avançar.");
+    return;
+  }
   if (!await saveClinicalRecord(scope)) return;
   const nextPage = nextPageForScope(scope);
   // A pagina seguinte e liberada de qualquer jeito, inclusive no desvio: o
@@ -1969,13 +2141,24 @@ function medicationDetour(scope, completedPage) {
   return marcados.length ? "medicamentos" : "";
 }
 
+function dermPendingReviewMessage(form, target = {}, ignored = "") {
+  if (!form) return "";
+  if (ignored !== "photo" && form.querySelector("[data-derm-description]")?.value.trim())
+    return "Há uma descrição de imagem ainda não adicionada. Revise e adicione ou descarte a proposta.";
+  if (ignored !== "exam" && form.querySelector("[data-derm-exam-description]")?.value.trim())
+    return "Há uma descrição de exame ainda não adicionada. Revise e adicione ou descarte o texto.";
+  for (const input of form.querySelectorAll("[data-derm-review]")) {
+    const field = input.dataset.dermReview;
+    if (field !== ignored && input.value.trim() !== String(target[field] || "").trim())
+      return "Há proposta clínica ainda não salva. Revise e clique em Salvar antes de continuar.";
+  }
+  return "";
+}
+
 async function saveClinicalRecord(scope) {
   if (!selectedPatientId) return null;
-  const pendingDescription = app.querySelector("[data-derm-description]");
-  if (pendingDescription && pendingDescription.value.trim() !== String(draftTarget(scope).dermApprovedDescription || "").trim()) {
-    alert("Revise e salve a descrição da lesão antes de salvar ou avançar. Para descartá-la, use Excluir descrição.");
-    return null;
-  }
+  const pending = dermPendingReviewMessage(app.querySelector(scope === "return" ? "#return-form" : "#consult-form"), draftTarget(scope));
+  if (pending) { alert(pending); return null; }
   const now = new Date().toISOString();
   if (scope === "consultation") {
     const data = sanitizeConsultationRecord({ ...(draft.consultation || defaultConsultation()), patientId: selectedPatientId, type: "consultation" });
@@ -2968,6 +3151,23 @@ function updateDraftFromForm(form) {
         delete data[key];
       }
     }
+    for (const [prefix, targetKey, allowedFields] of [
+      ["dermImage", "dermImages", "date|description"],
+      ["dermExam", "dermExams", "date|type|description"]
+    ]) {
+      const pattern = new RegExp(`^${prefix}__(\\d+)__(${allowedFields})$`);
+      const fields = Object.keys(data).filter(key => pattern.test(key));
+      if (!fields.length) continue;
+      const previous = chronological(dermatologyFormValues(draft[chave] || {})[targetKey]);
+      data[targetKey] = previous.map(item => ({ ...item }));
+      for (const key of fields) {
+        const [, index, field] = key.match(pattern);
+        data[targetKey][Number(index)] ||= { id: uid(targetKey) };
+        data[targetKey][Number(index)][field] = data[key];
+        delete data[key];
+      }
+      if (targetKey === "dermImages") data.dermApprovedDescription = chronological(data.dermImages).at(-1)?.description || "";
+    }
     data.examesLaboratoriais = requestedExamsText(data);
     // A marca de texto do medico nao nasce aqui: ver o `input` da evolucao em
     // bindAutoDraft.
@@ -3242,7 +3442,7 @@ function pdfClinicalSummary() {
 }
 
 function recordReportText(entry = {}) {
-  return dermatologyReportText(entry);
+  return dermatologyReportText(entry, getPatient() || {}, entriesForPatient(selectedPatientId));
   const patient = getPatient() || {};
   const previous = entry.type === "return"
     ? previousEntryForReturn(entry, entry.patientId)

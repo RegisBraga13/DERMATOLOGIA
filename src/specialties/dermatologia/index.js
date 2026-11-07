@@ -128,6 +128,16 @@ export const DERMATOLOGY_PHYSICAL_EXAM_FIELDS = Object.freeze([
   ["registroFotografico", "Comparação com registros anteriores"]
 ]);
 
+export const DERMATOLOGY_SYSTEMS_FIELDS = Object.freeze([
+  ["geral", "Estado geral, sinais vitais e febre"],
+  ["linfonodos", "Linfonodos"],
+  ["cardiorrespiratorio", "Cardiovascular e respiratório"],
+  ["gastrointestinal", "Gastrointestinal"],
+  ["musculoesqueletico", "Musculoesquelético e articulações"],
+  ["neurologico", "Neurológico e sensibilidade"],
+  ["mucosas", "Mucosas e genitais, quando examinados"]
+]);
+
 export const DERMATOLOGY_ASSESSMENT_FIELDS = Object.freeze([
   ["hipoteses", "Hipóteses diagnósticas"],
   ["diagnosticoPrincipal", "Diagnóstico principal"],

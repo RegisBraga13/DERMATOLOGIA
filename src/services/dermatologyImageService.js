@@ -58,3 +58,33 @@ export async function requestDermatologyImageDescription(dataUrl) {
   if (!text) throw new Error("A análise não trouxe achados visíveis suficientes.");
   return text;
 }
+
+export async function prepareDermatologyDocument(file) {
+  if (!file) throw new Error("Selecione um exame ou laudo.");
+  if (file.type !== "application/pdf") return prepareDermatologyImage(file);
+  if (file.size > 8 * 1024 * 1024) throw new Error("O PDF deve ter até 8 MB.");
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Não foi possível ler o PDF."));
+    reader.readAsDataURL(file);
+  });
+}
+
+export async function requestDermatologyDocument(dataUrl) {
+  const response = await fetch("/api/dermatology-document", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify({ file: dataUrl })
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || "Falha ao analisar o exame.");
+  const document = result.document || {};
+  return [
+    ["Tipo indicado no documento", document.tipo],
+    ["Data indicada no documento", document.data_no_documento],
+    ["Achados extraídos", document.achados],
+    ["Incertezas e trechos ilegíveis", document.incertezas]
+  ].filter(([, value]) => typeof value === "string" && value.trim())
+    .map(([label, value]) => `${label}: ${value.trim()}`).join("\n");
+}
