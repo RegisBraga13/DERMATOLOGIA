@@ -158,6 +158,33 @@ export function normalizeDermatologyLesion(lesion = {}) {
   };
 }
 
+// Leva apenas a identificação da lesão ao retorno. Os achados precisam ser
+// descritos novamente após o exame atual.
+export function carryForwardDermatologyLesions(previous = []) {
+  return previous.map(lesion => newDermatologyLesion({ id: lesion.id, label: lesion.label }));
+}
+
+// Lê apenas campos de lesão que estavam na página atual. Outras páginas não
+// substituem a lista; checkboxes desmarcadas chegam como [] pelo formulário.
+export function updateDermatologyLesionsFromFields(previous = [], fields = {}) {
+  const pattern = /^dermLesion__(\d+)__(label|localizacao|morfologia|distribuicao|cor|superficie|bordas|dimensoes|sintomas|evolucao|fotoReferencia)$/;
+  const entries = Object.entries(fields).map(([key, value]) => [key.match(pattern), key, value])
+    .filter(([match]) => match);
+  if (!entries.length) return null;
+  const next = previous.map(normalizeDermatologyLesion);
+  for (const [match, key, value] of entries) {
+    const index = Number(match[1]);
+    if (index < next.length) {
+      const field = match[2];
+      next[index][field] = ["morfologia", "distribuicao"].includes(field)
+        ? (Array.isArray(value) ? [...value] : value ? [value] : [])
+        : String(value || "");
+    }
+    delete fields[key];
+  }
+  return next;
+}
+
 export function defaultDermatologyConsultation({ patientId = "", sequence = 1 } = {}) {
   return {
     patientId,

@@ -33,8 +33,27 @@ describe("fluxo clínico dermatológico", () => {
   });
 
   it("mostra lesões individualizadas já salvas e as inclui no prontuário", () => {
-    const record = { dermatology: { lesions: [{ id: "l1", label: "Lesão 1", localizacao: "Antebraço", dimensoes: "4 mm" }] } };
-    assert.match(dermatologyConsultationPage("psiquico", record), /Antebraço/);
-    assert.match(dermatologyReportText(record), /4 mm/);
+    const record = { dermatology: { lesions: [{ id: "l1", label: "Lesão 1", localizacao: "Antebraço", dimensoes: "4 mm", morfologia: ["Pápula"], cor: "Eritematoso" }] } };
+    const editor = dermatologyConsultationPage("psiquico", record);
+    assert.match(editor, /Antebraço/);
+    assert.match(editor, /name="dermLesion__0__morfologia" value="Pápula" checked/);
+    assert.match(editor, /name="dermLesion__0__cor"/);
+    assert.match(dermatologyReportText(record), /Pápula; Eritematoso; 4 mm/);
+    const summary = dermatologyConsultationPage("resumo", record);
+    assert.doesNotMatch(summary, /\[object Object\]|Nenhum achado dermatológico registrado/);
+    assert.match(summary, /Pápula; Eritematoso; 4 mm/);
+  });
+
+  it("o retorno mostra o histórico sem fingir exame atual e registra a reavaliação", () => {
+    const prior = { label: "Consulta inicial", dermLesions: [{ id: "l1", label: "Placa do braço", localizacao: "Braço" }] };
+    const html = dermatologyReturnPage("evolucao-retorno", {}, prior);
+    assert.match(html, /Histórico para comparação; não representa exame realizado hoje/);
+    assert.match(html, /Placa do braço/);
+    assert.match(html, /data-action="copy-derm-lesions"/);
+    const current = { dermLesions: [{ id: "l1", label: "Placa do braço", dimensoes: "6 mm" }], dermRet_resposta: "Melhora parcial" };
+    const withCurrent = dermatologyReturnPage("evolucao-retorno", current, prior);
+    assert.match(withCurrent, /6 mm/);
+    assert.doesNotMatch(withCurrent, /data-action="copy-derm-lesions"/);
+    assert.match(dermatologyReportText(current), /Resposta à conduta anterior: Melhora parcial/);
   });
 });
