@@ -5,14 +5,16 @@ $localCode = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $projectRoo
 function Test-DermatologyServer([int]$port) {
     try {
         $base = "http://127.0.0.1:$port"
-        $response = Invoke-WebRequest -Uri "$base/src/App.js" -TimeoutSec 2
+        $response = Invoke-WebRequest -Uri "$base/src/App.js" -TimeoutSec 2 -UseBasicParsing
         if ($response.StatusCode -ne 200) { return $false }
-        $remoteBytes = [System.Text.Encoding]::UTF8.GetBytes($response.Content)
+        $stream = New-Object System.IO.MemoryStream
+        try { $response.RawContentStream.CopyTo($stream); $remoteBytes = $stream.ToArray() }
+        finally { $stream.Dispose() }
         $sha = [System.Security.Cryptography.SHA256]::Create()
         try { $remoteHash = [BitConverter]::ToString($sha.ComputeHash($remoteBytes)).Replace('-', '') }
         finally { $sha.Dispose() }
         if ($remoteHash -ne $localCode) { return $false }
-        $config = Invoke-WebRequest -Uri "$base/api/supabase-config" -TimeoutSec 2
+        $config = Invoke-WebRequest -Uri "$base/api/supabase-config" -TimeoutSec 2 -UseBasicParsing
         return $config.StatusCode -eq 200
     } catch { return $false }
 }
