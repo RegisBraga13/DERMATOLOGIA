@@ -18,6 +18,7 @@ from ai_transport import (
     CODIGOS_QUE_VALE_REPETIR, ESPERA_ENTRE_TENTATIVAS, TENTATIVAS_DE_REDE,
     extract_response_text, read_json_response,
 )
+from ai_dermatology_image import ImageResponseError, MAX_REQUEST_BYTES as MAX_DERM_IMAGE_REQUEST_BYTES, analyze_dermatology_image
 from ai_typesafe import TYPESAFE_MODEL, call_typesafe_noul_batch, call_typesafe_risk_screen
 from ai_openai import extract_web_sources, search_web_sources
 from ai_response_policy import usable_web_findings
@@ -2227,7 +2228,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Security-Policy",
                          "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; "
                          "form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
-                         "img-src 'self' data:; font-src 'self'; connect-src 'self' https:")
+                         "img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https:")
         if self._cacheable:
             # Fonte e imagem tem nome estavel e conteudo estavel; revalidar
             # a cada carga torna o boot lento sem ganho nenhum.
@@ -2297,7 +2298,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             self.send_json(403, {"error": "Origem nao autorizada."})
             return
 
-        if self.path not in {"/api/clinical-ai", "/api/transcribe-consultation", "/api/risk-screen", "/api/jev-judge"}:
+        if self.path not in {"/api/clinical-ai", "/api/transcribe-consultation", "/api/risk-screen", "/api/jev-judge", "/api/dermatology-image"}:
             self.send_json(404, {"error": "Endpoint nao encontrado."})
             return
 
@@ -2320,6 +2321,33 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
         api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key:
             self.send_json(503, {"error": "OPENAI_API_KEY nao configurada. Crie um arquivo .env ou defina a variavel de ambiente."})
+            return
+
+        if self.path == "/api/dermatology-image":
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if length <= 0 or length > MAX_DERM_IMAGE_REQUEST_BYTES:
+                    self.send_json(413, {"error": "Imagem ausente ou acima do limite permitido."})
+                    return
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                if not isinstance(payload, dict):
+                    self.send_json(400, {"error": "Requisição inválida."})
+                    return
+                result = analyze_dermatology_image(
+                    payload.get("image"), api_key,
+                    os.environ.get("OPENAI_DERMATOLOGY_IMAGE_MODEL", DEFAULT_MODEL),
+                )
+                self.send_json(200, {"description": result})
+            except (ValueError, UnicodeDecodeError, KeyError, TypeError) as error:
+                self.send_json(400, {"error": str(error) if isinstance(error, ValueError) else "Requisição inválida."})
+            except ImageResponseError:
+                self.send_json(502, {"error": "A IA não retornou uma descrição válida. Tente outra foto."})
+            except urllib.error.HTTPError as error:
+                logger.error("OpenAI dermatology-image %s: corpo omitido", error.code)
+                self.send_json(502, {"error": "A análise da imagem não foi concluída pela OpenAI. Confira a chave e os créditos da API."})
+            except Exception as error:
+                logger.error("Falha em /api/dermatology-image (%s)", type(error).__name__)
+                self.send_json(502, {"error": "Não foi possível analisar a imagem agora."})
             return
 
         if self.path == "/api/transcribe-consultation":

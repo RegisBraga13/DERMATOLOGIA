@@ -62,9 +62,11 @@ function lesionEditor(form) {
 
 function photographicExam(form) {
   return `<div class="clinical-card"><h4>Descrição de lesão com apoio de imagem</h4>
-    <p class="field-hint">Selecione uma foto para conferência visual. Neste momento ela permanece apenas nesta tela e não é enviada nem gravada. A análise automática está indisponível até a configuração da IA.</p>
+    <p class="field-hint">A foto é enviada à OpenAI somente ao clicar em Analisar imagem. Ela não é gravada no prontuário. A proposta pode conter erros e precisa de revisão médica.</p>
     <label>Foto da lesão (JPEG, PNG ou WebP; até 10 MB)<input type="file" accept="image/jpeg,image/png,image/webp" data-derm-photo></label>
     <div data-derm-photo-preview aria-live="polite"></div>
+    <div class="actions"><button type="button" class="secondary" data-action="analyze-derm-photo">Analisar imagem</button></div>
+    <p data-derm-photo-status class="field-hint" role="status" aria-live="polite"></p>
     <label>Descrição dermatológica revisada pelo médico<textarea data-derm-description class="auto-expand" data-auto-expand="true" rows="1" placeholder="Localização, número, distribuição, lesão elementar, forma, limites, cor, superfície, dimensões e achados visíveis. Registre palpação e dermatoscopia somente se examinadas.">${escapeHtml(form.dermApprovedDescription || "")}</textarea></label>
     <div class="actions"><button type="button" class="primary" data-action="approve-derm-description">Salvar descrição revisada</button>
     <button type="button" class="secondary" data-action="remove-derm-description">Excluir descrição</button></div>

@@ -48,6 +48,7 @@ import { scaleById } from "./data/scales.js";
 import { caseViewForReturn, groupCases } from "./clinical/caseTimeline.js";
 import { caseSummaryView } from "./views/caseSummary.js";
 import { dermatologyConsultationPage, dermatologyReturnPage, dermatologyReportText } from "./views/dermatologyFlow.js";
+import { prepareDermatologyImage, requestDermatologyImageDescription } from "./services/dermatologyImageService.js";
 
 const app = document.querySelector("#app");
 // Vazio ate a leitura do aparelho terminar: desde 14/09/2026 o estado mora no
@@ -1583,6 +1584,7 @@ function bindActions() {
       const action = element.dataset.action;
       if (["dashboard", "toggle-theme", "select-patient", "edit-patient"].includes(action)) return;
       if (action === "form-page") switchFormPage(element);
+      if (action === "analyze-derm-photo") await analyzeDermPhoto(element);
       if (action === "approve-derm-description" || action === "remove-derm-description") {
         const form = element.closest("form");
         if (form) updateDraftFromForm(form);
@@ -1643,6 +1645,40 @@ function bindActions() {
       if (action === "import-unassigned") await importUnassignedRecords();
     }
   });
+}
+
+async function analyzeDermPhoto(button) {
+  const form = button.closest("form");
+  const photoInput = form?.querySelector("[data-derm-photo]");
+  const file = photoInput?.files?.[0];
+  const description = form?.querySelector("[data-derm-description]");
+  const status = form?.querySelector("[data-derm-photo-status]");
+  if (!description || !status) return;
+  if (!file) { status.textContent = "Selecione uma foto antes de analisar."; return; }
+  const currentText = description.value;
+  const stillCurrent = draftGuard.capture();
+  button.disabled = true;
+  status.textContent = "Preparando e analisando a foto…";
+  try {
+    const image = await prepareDermatologyImage(file);
+    const proposal = await requestDermatologyImageDescription(image);
+    if (!stillCurrent() || !form.isConnected) return;
+    if (photoInput.files?.[0] !== file) {
+      status.textContent = "A foto foi trocada durante a análise. Selecione Analisar imagem novamente.";
+      return;
+    }
+    if (description.value !== currentText) {
+      status.textContent = "A descrição foi alterada durante a análise. A proposta não substituiu seu texto; execute novamente se desejar.";
+      return;
+    }
+    description.value = proposal;
+    description.dispatchEvent(new Event("input", { bubbles: true }));
+    status.textContent = "Proposta pronta. Revise, altere ou exclua o texto e clique em Salvar descrição revisada.";
+  } catch (error) {
+    if (stillCurrent() && form.isConnected) status.textContent = error.message || "Falha ao analisar a imagem.";
+  } finally {
+    if (form.isConnected) button.disabled = false;
+  }
 }
 
 function switchFormPage(element) {
