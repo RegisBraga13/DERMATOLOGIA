@@ -1,4 +1,4 @@
-import { chips, selectField, textarea } from "../ui/controls.js";
+import { chips, selectField, textarea, voiceTextarea } from "../ui/controls.js";
 import { escapeHtml } from "../ui/html.js";
 import {
   DERMATOLOGY_ANAMNESIS_FIELDS, DERMATOLOGY_HISTORY_FIELDS,
@@ -70,7 +70,11 @@ function lesionEditor(form) {
 
 export function dermatologyConsultationPage(page, form = {}, patient = {}) {
   form = dermatologyFormValues(form);
-  if (page === "anamnese") return section("Queixa e história", DERMATOLOGY_ANAMNESIS_FIELDS, form, "dermA_")
+  if (page === "anamnese") return (form.anamnesisInputMode === "microphone"
+    ? `<div class="clinical-card"><h4>Transcrição da consulta</h4>
+      <p class="field-hint">Grave a conversa e revise o texto antes de salvar. Os campos clínicos abaixo permanecem editáveis.</p>
+      ${voiceTextarea("dermTranscricao", "Transcrição integral da conversa", form.dermTranscricao || "")}</div>`
+    : "") + section("Queixa e história", DERMATOLOGY_ANAMNESIS_FIELDS, form, "dermA_")
     + choices("Sintomas", "dermSintomas", DERMATOLOGY_SYMPTOM_OPTIONS, form)
     + choices("Padrão temporal", "dermInicio", DERMATOLOGY_ONSET_OPTIONS, form)
     + choices("Exposições", "dermExposicoes", DERMATOLOGY_EXPOSURE_OPTIONS, form)
@@ -106,7 +110,11 @@ export function dermatologyReturnPage(page, form = {}, previous = {}) {
   form = dermatologyFormValues(form);
   if (page === "evolucao-retorno") {
     const priorLesions = dermatologyFormValues(previous).dermLesions;
-    return section("Evolução desde o atendimento anterior", [
+    return (form.anamnesisInputMode === "microphone"
+      ? `<div class="clinical-card"><h4>Transcrição do retorno</h4>
+        <p class="field-hint">Grave a conversa e revise o texto antes de salvar. Os campos de evolução abaixo permanecem editáveis.</p>
+        ${voiceTextarea("dermRetTranscricao", "Transcrição integral da conversa", form.dermRetTranscricao || "")}</div>`
+      : "") + section("Evolução desde o atendimento anterior", [
     ["resposta", "Resposta à conduta anterior"], ["sintomas", "Sintomas atuais"],
     ["lesoes", "Mudança nas lesões"], ["exame", "Exame cutâneo atual"],
     ["eventos", "Eventos adversos e novas exposições"]
@@ -142,6 +150,8 @@ export function dermatologyReportText(form = {}) {
   form = dermatologyFormValues(form);
   const fields = [
     ["Queixa", "dermA_queixaPrincipal"], ["História", "dermA_historiaDoencaAtual"],
+    ["Transcrição da consulta", "dermTranscricao"],
+    ["Transcrição do retorno", "dermRetTranscricao"],
     ["Resposta à conduta anterior", "dermRet_resposta"], ["Sintomas atuais", "dermRet_sintomas"],
     ["Mudança nas lesões", "dermRet_lesoes"], ["Exame cutâneo atual", "dermRet_exame"],
     ["Eventos adversos e exposições", "dermRet_eventos"],

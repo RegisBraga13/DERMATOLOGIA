@@ -6,6 +6,7 @@ import { analysisFindingsForReturn, pendingCriteriaFromPrevious, pendingRefineme
 import { createAiOperations } from "./clinical/aiOperations.js";
 import { createUnsavedWork } from "./clinical/unsavedWork.js";
 import { createPersistenceStatus } from "./clinical/persistenceStatus.js";
+import { carryEncounterSetup, encounterSetupValues } from "./clinical/encounterSetup.js";
 import { statusFailure } from "./clinical/statusTone.js";
 import { countLabel, diagnosisReviewFailure, diagnosisSuggestionFromAi, diagnosisSuggestionFromLocalCatalogue } from "./clinical/aiDiagnosisResult.js";
 import { diagnosticEtiologicalOptionLines, diagnosticNosologicalOptionLines, diagnosticSyndromicOptionLines, selectedDiagnosisText, selectedDiagnosisValues, treatmentOptionLines } from "./clinical/diagnosis.js";
@@ -68,6 +69,8 @@ let returnPage = "evolucao-retorno";
 let consultationUnlocked = 1;
 let returnUnlocked = 1;
 let pendingViewAfterPatient = "";
+let setupDestination = "consultation";
+let pendingEncounterSetup = null;
 let anamnesisProcessingSequence = 0;
 let clinicalDraftRevision = 0;
 // Conta as trocas de rascunho (paciente, atendimento, sessao). As chamadas de
@@ -397,12 +400,98 @@ function navButton(target, label, icon) {
 }
 
 function renderView() {
+  if (view === "setup") return encounterSetupForm();
   if (view === "patient") return patientForm();
   if (view === "consultation") return consultationForm();
   if (view === "return") return returnForm();
   if (view === "record") return medicalRecord();
   if (view === "exit") return exitPanel();
   return dashboard();
+}
+
+function encounterSetupForm() {
+  const setup = draft.setup || {};
+  const online = setup.consultationMode === "TELECONSULTATION";
+  return `
+    <div class="panel-title"><div><h2>Iniciar atendimento</h2><p>Escolha a modalidade e a forma de registro${selectedPatientId && setupDestination !== "patient" ? " antes de iniciar." : " antes da identificação do paciente."}</p></div></div>
+    <form id="setup-form">
+      <div class="clinical-card consultation-mode-card">
+        <h3>Modalidade da consulta</h3>
+        <div class="chips" role="group" aria-label="Modalidade da consulta">
+          <label class="chip"><input type="radio" name="consultationMode" value="IN_PERSON" ${setup.consultationMode === "IN_PERSON" ? "checked" : ""} required>Presencial</label>
+          <label class="chip"><input type="radio" name="consultationMode" value="TELECONSULTATION" ${online ? "checked" : ""} required>Online</label>
+        </div>
+        <label class="chip"><input type="checkbox" name="acceptsTranscription" value="yes" ${setup.acceptsTranscription ? "checked" : ""}>Aceita transcrição da consulta</label>
+        <p class="field-hint">Se assinalada, a transcrição será a forma inicial de registro. Caso contrário, o médico preencherá os campos manualmente.</p>
+        ${online ? `${chips("teleconsultaConsentimento", "Consentimento para teleconsulta", [TELECONSULTA_CONSENTIMENTO], setup.teleconsultaConsentimento)}
+          ${field("teleconsultaLocalPaciente", "Onde o paciente está durante o atendimento (cidade/UF)", setup.teleconsultaLocalPaciente || "")}` : ""}
+      </div>
+      <div class="actions"><button class="primary" type="submit">${selectedPatientId && setupDestination !== "patient" ? "Iniciar atendimento" : "Continuar para identificação"}</button></div>
+    </form>
+  `;
+}
+
+function beginEncounterSetup(destination) {
+  if (voiceRecording.isBusy()) {
+    alert("Encerre a gravação e aguarde a transcrição antes de iniciar outro atendimento.");
+    return;
+  }
+  if (destination === "return" && selectedPatientId && !returnCandidates().pendingEntry) {
+    alert("O último atendimento deste paciente já tem retorno. Abra o retorno salvo para continuar.");
+    render();
+    return;
+  }
+  draftGuard.replaced(); aiOperations.reset(); unsavedWork.limpar();
+  setupDestination = destination;
+  pendingEncounterSetup = null;
+  pendingViewAfterPatient = "";
+  draft.setup = { consultationMode: "", acceptsTranscription: false };
+  if (destination === "patient") {
+    selectedPatientId = "";
+    draft.patient = {};
+  }
+  view = "setup";
+  render();
+}
+
+function bindEncounterSetupForm() {
+  const form = app.querySelector("#setup-form");
+  if (!form) return;
+  form.addEventListener("change", event => {
+    const values = formToObject(form);
+    draft.setup = { ...draft.setup, ...values, acceptsTranscription: values.acceptsTranscription === "yes" };
+    if (event.target.name === "consultationMode") render();
+  });
+  form.addEventListener("input", event => {
+    if (event.target.name === "teleconsultaLocalPaciente") draft.setup.teleconsultaLocalPaciente = event.target.value;
+  });
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+    let setup;
+    try { setup = encounterSetupValues(formToObject(form)); }
+    catch (error) { alert(error.message); return; }
+    if (setup.consultationMode === "TELECONSULTATION"
+      && (!setup.teleconsultaConsentimento.length || !setup.teleconsultaLocalPaciente)) {
+      alert("Registre o consentimento e a localização do paciente para a consulta online.");
+      return;
+    }
+    draft.setup = {};
+    if (setupDestination === "patient" || !selectedPatientId) {
+      pendingEncounterSetup = setup;
+      pendingViewAfterPatient = setupDestination === "patient" ? "consultation" : setupDestination;
+      draft.patient = setupDestination === "patient" ? {} : (draft.patient || {});
+      view = "patient";
+    } else if (setupDestination === "return") {
+      startNewReturn(setup);
+      view = "return";
+    } else {
+      draft.consultation = { ...defaultConsultation(), ...setup };
+      consultationPage = "anamnese";
+      consultationUnlocked = 1;
+      view = "consultation";
+    }
+    render();
+  });
 }
 
 function patientForm() {
@@ -497,7 +586,6 @@ function consultationForm() {
       ${isSavedEntry ? recordReturnAction("Consulta anterior aberta para revisao") : ""}
       ${finalizedNotice(form)}
       ${consultationAccessPanel(consultations, form)}
-      ${consultationModeCard(form)}
       ${formPageTabs("consultation")}
       ${consultationPageBody(form, patient)}
     </form>
@@ -526,24 +614,10 @@ function returnForm() {
     <form id="return-form">
       ${returnRecordAccessPanel(form, patient.id)}
       ${finalizedNotice(form)}
-      ${consultationModeCard(form)}
       ${formPageTabs("return")}
       ${returnPageBody(form, patient, previous)}
     </form>
   `;
-}
-
-// Modalidade, na consulta e no retorno desde 11/09/2026 -- o retorno e onde a
-// teleconsulta mais acontece. A distancia, a Res. CFM 2.314/2022 pede o
-// consentimento do paciente registrado; o local onde ele esta e o dado que se
-// precisa para encaminhar a uma emergencia no meio do atendimento.
-function consultationModeCard(form = {}) {
-  const remoto = ["TELECONSULTATION", "HYBRID"].includes(form.consultationMode);
-  return `<div class="clinical-card consultation-mode-card">
-    ${selectField("consultationMode", "Modalidade da consulta", ["IN_PERSON", "TELECONSULTATION", "HYBRID"], form.consultationMode || "IN_PERSON")}
-    ${remoto ? `${chips("teleconsultaConsentimento", "Consentimento", [TELECONSULTA_CONSENTIMENTO], form.teleconsultaConsentimento)}
-    ${field("teleconsultaLocalPaciente", "Onde o paciente está durante o atendimento (cidade/UF)", form.teleconsultaLocalPaciente || "")}` : ""}
-  </div>`;
 }
 
 // Fecha a P8 do PENDENCIAS.md, na parte simples: nao tenta extrair dose e
@@ -603,11 +677,6 @@ function consultationPageBody(form, patient) {
   return clinicalPage(pagesForScope("consultation").find(([key]) => key === consultationPage)?.[1] || "Consulta", dermatologyConsultationPage(consultationPage, form, patient), "consultation", !APPENDIX_PAGES.has(consultationPage));
   if (consultationPage === "anamnese") return clinicalPage("Anamnese", `
     <div class="clinical-card qphda-card">
-      <h4>Forma de registro</h4>
-      <div class="anamnesis-mode-selector" role="group" aria-label="Forma de registro da anamnese">
-        <button class="${anamnesisInputMode === "manual" ? "active" : ""}" type="button" data-action="set-anamnesis-mode" data-mode="manual">Preenchimento pelo médico</button>
-        <button class="${anamnesisInputMode === "microphone" ? "active" : ""}" type="button" data-action="set-anamnesis-mode" data-mode="microphone">Microfone e transcrição</button>
-      </div>
       ${anamnesisInputMode === "microphone" ? `
         <div class="online-status">O microfone grava toda a conversa. Ao encerrar, a transcrição separa os falantes e o RAG atualiza os campos sem avançar a página.</div>
         ${voiceTextarea("qphda", "Transcrição integral da conversa", qphda)}
@@ -1008,7 +1077,22 @@ function bindGlobalEvents() {
   });
   app.querySelectorAll("[data-view]").forEach(button => {
     button.addEventListener("click", () => {
-      if ((button.dataset.view === "consultation" || button.dataset.view === "return" || button.dataset.view === "record") && !selectedPatientId) {
+      const destination = button.dataset.view;
+      if (button.classList.contains("dash-button") && ["patient", "consultation", "return"].includes(destination)) {
+        beginEncounterSetup(destination);
+        return;
+      }
+      if (["patient", "consultation", "return"].includes(destination) && !selectedPatientId) {
+        beginEncounterSetup(destination);
+        return;
+      }
+      if (["consultation", "return"].includes(destination)
+        && !draft[destination === "return" ? "return" : "consultation"]?.id
+        && !Object.hasOwn(draft[destination === "return" ? "return" : "consultation"] || {}, "acceptsTranscription")) {
+        beginEncounterSetup(destination);
+        return;
+      }
+      if (destination === "record" && !selectedPatientId) {
         pendingViewAfterPatient = button.dataset.view;
         view = "patient";
         draft.patient = draft.patient || {};
@@ -1028,10 +1112,17 @@ function bindGlobalEvents() {
     render();
   });
   app.querySelectorAll("[data-action='select-patient']").forEach(select => select.addEventListener("change", event => {
+    const previous = view === "return" ? draft.return : draft.consultation;
+    const setup = previous && !previous.id && Object.hasOwn(previous, "acceptsTranscription") && ["consultation", "return"].includes(view)
+      ? carryEncounterSetup(previous) : null;
     selectedPatientId = event.target.value;
     draftGuard.replaced(); aiOperations.reset(); unsavedWork.limpar();
-    draft.consultation = selectedPatientId ? defaultConsultation() : {};
-    draft.return = selectedPatientId ? defaultReturn() : {};
+    if (selectedPatientId && ["consultation", "return"].includes(view) && !setup) {
+      beginEncounterSetup(view);
+      return;
+    }
+    draft.consultation = selectedPatientId ? { ...defaultConsultation(), ...(view === "consultation" ? setup : {}) } : {};
+    draft.return = selectedPatientId ? { ...defaultReturn(), ...(view === "return" ? setup : {}) } : {};
     consultationPage = "anamnese";
     returnPage = "evolucao-retorno";
     consultationUnlocked = 1;
@@ -1097,6 +1188,7 @@ async function resolveVisibleConflict(choice) {
 }
 
 function bindViewEvents() {
+  bindEncounterSetupForm();
   bindAutoDraft();
   paintAnamnesisAiMarks();
   paintIdentificationAiMarks();
@@ -1279,7 +1371,7 @@ function draftScopeOfForm(form) {
 }
 
 function bindAutoDraft() {
-  const forms = app.querySelectorAll("form");
+  const forms = app.querySelectorAll("form:not(#setup-form)");
   forms.forEach(form => {
     form.addEventListener("input", event => {
       clinicalDraftRevision += 1;
@@ -1435,10 +1527,18 @@ function bindPatientForm() {
     draft.patient = structuredClone(data);
     if (!await persist()) return;
     unsavedWork.salvo("patient");
+    if (!pendingEncounterSetup && (pendingViewAfterPatient || "consultation") === "consultation"
+      && (!draft.consultation?.id || draft.consultation.patientId !== selectedPatientId)) {
+      beginEncounterSetup("consultation");
+      return;
+    }
     view = pendingViewAfterPatient || "consultation";
     draftGuard.replaced(); aiOperations.reset(); unsavedWork.limpar();
-    if (view === "consultation") draft.consultation = defaultConsultation();
-    if (view === "return") draft.return = defaultReturn();
+    if (view === "consultation") draft.consultation = pendingEncounterSetup
+      ? { ...defaultConsultation(), ...pendingEncounterSetup } : (draft.consultation || defaultConsultation());
+    if (view === "return") draft.return = pendingEncounterSetup
+      ? { ...defaultReturn(), ...pendingEncounterSetup } : (draft.return || defaultReturn());
+    pendingEncounterSetup = null;
     pendingViewAfterPatient = "";
     render();
   });
@@ -1593,7 +1693,6 @@ function bindActions() {
       if (action === "generate-evolution") await generateEvolutionFromClinicalData(element);
       if (action === "generate-medication-ai") await generateMedicationFromClinicalData(element);
       if (action === "clear-medication-lookup") clearMedicationLookup();
-      if (action === "set-anamnesis-mode") setAnamnesisInputMode(element.dataset.mode);
       if (action === "set-appendix-search") setAppendixSearchMode(element.dataset.mode);
       if (action === "clear-appendix-symptom") clearAppendixSymptom();
       if (action === "clear-scale") clearScaleAnswers(element.dataset.escala);
@@ -1613,8 +1712,8 @@ function bindActions() {
       if (action === "voice") voiceRecording.startVoice(element.dataset.target, element);
       if (action === "edit-current-patient") { view = "patient"; draft.patient = structuredClone(getPatient()); render(); }
       if (action === "edit-entry") editEntry(element.dataset.id, element.dataset.type);
-      if (action === "new-consultation") { draftGuard.replaced(); aiOperations.reset(); unsavedWork.limpar(); draft.consultation = defaultConsultation(); consultationPage = "anamnese"; consultationUnlocked = 1; render(); }
-      if (action === "new-return") startNewReturn();
+      if (action === "new-consultation") beginEncounterSetup("consultation");
+      if (action === "new-return") beginEncounterSetup("return");
       if (action === "back-to-record") { view = "record"; render(); }
       if (action === "pdf-entry") pdfEntry(element.dataset.id, element.dataset.type);
       if (action === "pdf-summary") pdfClinicalSummary();
@@ -1823,17 +1922,6 @@ async function saveDoctorData(element) {
   draft[scope] = { ...draft[scope], documento_status: saved
     ? "Dados do médico salvos neste aparelho. Confira a sincronização na barra superior."
     : "Não foi possível salvar os dados do médico neste aparelho. Tente novamente." };
-  render();
-}
-
-function setAnamnesisInputMode(mode) {
-  if (voiceRecording.isBusy()) {
-    alert("Encerre a gravação e aguarde a transcrição antes de trocar a forma de registro.");
-    return;
-  }
-  const target = draft.consultation || defaultConsultation();
-  target.anamnesisInputMode = mode === "microphone" ? "microphone" : "manual";
-  draft.consultation = target;
   render();
 }
 
@@ -2952,7 +3040,7 @@ function defaultReturn() {
   return { patientId: selectedPatientId, label: "Retorno dermatológico", type: "return", specialty: "dermatologia", previousEntryId };
 }
 
-function startNewReturn() {
+function startNewReturn(setup = {}) {
   const { pendingEntry } = returnCandidates();
   if (!pendingEntry) {
     alert("O último atendimento deste paciente já tem retorno. Abra o retorno salvo para continuar.");
@@ -2962,7 +3050,8 @@ function startNewReturn() {
     patientId: selectedPatientId,
     label: "Retorno",
     type: "return",
-    previousEntryId: pendingEntry.id
+    previousEntryId: pendingEntry.id,
+    ...setup
   };
   // O rascunho de retorno que estava na tela deixou de existir: nao ha o que
   // avisar na saida sobre um rascunho que nao esta mais em lugar nenhum. So o
@@ -2970,7 +3059,6 @@ function startNewReturn() {
   unsavedWork.salvo("return");
   returnPage = "evolucao-retorno";
   returnUnlocked = 1;
-  render();
 }
 
 // Arquivado e excluido nao aparecem em tela nenhuma: as listas passam todas por
@@ -3308,6 +3396,8 @@ async function endSession() {
   consultationUnlocked = 1;
   returnUnlocked = 1;
   pendingViewAfterPatient = "";
+  pendingEncounterSetup = null;
+  setupDestination = "consultation";
   render();
 }
 
