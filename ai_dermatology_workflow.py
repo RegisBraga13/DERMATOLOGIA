@@ -41,6 +41,8 @@ INSTRUCTIONS = {
     "history": (
         "Redija história clínica dermatológica estruturada somente a partir dos dados fornecidos. "
         "Separe queixa e evolução, antecedentes/exposições, exame cutâneo, exames complementares e exame por aparelhos. "
+        "Preserve explicitamente todos os estados da conferência determinística e todos os sinais de alarme investigados, presentes, negados ou não aplicáveis. "
+        "Não omita item positivo; mantenha a avaliação/disposição médica registrada para cada sinal presente. "
         "Distingua achado observado de relato do paciente e de hipótese; não formule diagnóstico nem conduta. "
         "Mantenha lacunas relevantes em incertezas."
     ),

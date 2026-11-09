@@ -50,7 +50,8 @@ import { caseSummaryView } from "./views/caseSummary.js";
 import { dermatologyConsultationPage, dermatologyReturnPage, dermatologyReportText, dermatologyFormValues } from "./views/dermatologyFlow.js";
 import { prepareDermatologyDocument, prepareDermatologyImage, requestDermatologyDocument, requestDermatologyImageDescription } from "./services/dermatologyImageService.js";
 import { requestDermatologyStage } from "./services/dermatologyWorkflowService.js";
-import { chronological, dermatologySourceText, hdIsCurrent, historyIsCurrent, planIsCurrent } from "./clinical/dermatologyPipeline.js";
+import { chronological, dermatologyHistoryWithChecklist, dermatologySourceText, hdIsCurrent, historyIsCurrent, planIsCurrent } from "./clinical/dermatologyPipeline.js";
+import { dermatologyHistoryReadiness } from "./specialties/dermatologia/historyReadiness.js";
 
 const app = document.querySelector("#app");
 // Vazio ate a leitura do aparelho terminar: desde 14/09/2026 o estado mora no
@@ -1109,6 +1110,7 @@ function bindViewEvents() {
   paintReturnAssessmentAiMarks();
   paintAiBusyState();
   bindAutoExpandingTextareas();
+  bindDermCompletenessControls();
   bindMedicationLookup();
   bindRiskScreen();
   bindPatientForm();
@@ -1155,6 +1157,34 @@ function bindDermExamPicker() {
     preview.textContent = `Arquivo selecionado: ${file.name}`;
     void analyzeDermExam(button);
   });
+}
+
+function bindDermCompletenessControls() {
+  const form = app.querySelector("#consult-form");
+  if (!form?.querySelector("[data-derm-history-readiness]")) return;
+  const refresh = () => {
+    for (const select of form.querySelectorAll("[data-derm-readiness-select], [data-derm-red-flag-select]")) {
+      const state = select.value;
+      const row = select.closest(".derm-readiness-item");
+      const followUp = row?.querySelector("[data-derm-readiness-note]");
+      if (!followUp) continue;
+      const required = select.hasAttribute("data-derm-readiness-select")
+        ? ["supplemented", "not_applicable"].includes(state)
+        : ["present", "not_applicable"].includes(state);
+      followUp.hidden = !required;
+      const prompt = followUp.querySelector("[data-derm-note-label]");
+      if (prompt) prompt.textContent = state === "not_applicable" ? "Justifique por que não se aplica"
+        : select.hasAttribute("data-derm-red-flag-select") ? "Achado e avaliação/disposição médica" : "Resposta complementar";
+    }
+    const readiness = dermatologyHistoryReadiness(formToObject(form), entriesForPatient(selectedPatientId));
+    const status = form.querySelector("[data-derm-history-readiness]");
+    status.textContent = readiness.complete
+      ? "Conferência concluída. Os dados estão prontos para compor a história clínica."
+      : `${readiness.missing.length} pendência(s): ${readiness.missing.slice(0, 4).map(item => `${item.label} (${item.reason})`).join("; ")}${readiness.missing.length > 4 ? "; …" : ""}`;
+  };
+  form.addEventListener("change", refresh);
+  form.addEventListener("input", refresh);
+  refresh();
 }
 
 function bindAutoExpandingTextareas() {
@@ -1832,6 +1862,13 @@ async function generateDermatologyProposal(button) {
   const status = button.closest(".clinical-card")?.querySelector("[data-derm-ai-status]");
   if (!textarea || !status) return;
   let source = "";
+  if (kind === "history") {
+    const readiness = dermatologyHistoryReadiness(target, priorEntries);
+    if (!readiness.complete) {
+      status.textContent = `História bloqueada: ${readiness.missing.map(item => `${item.label} — ${item.reason}`).join("; ")}`;
+      return;
+    }
+  }
   if (kind === "hypotheses") {
     if (!historyIsCurrent(target, patient, priorEntries)) { status.textContent = "Salve uma história clínica atualizada antes de gerar a HD."; return; }
     source = target.dermHistoryApproved;
@@ -1851,7 +1888,7 @@ async function generateDermatologyProposal(button) {
       status.textContent = "O texto foi alterado durante a geração. A proposta não substituiu sua edição.";
       return;
     }
-    textarea.value = proposal;
+    textarea.value = kind === "history" ? dermatologyHistoryWithChecklist(proposal, target) : proposal;
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
     status.textContent = "Proposta pronta. Revise, modifique e salve antes de avançar.";
   } catch (error) {
@@ -1877,6 +1914,13 @@ async function approveDermatologyReview(button) {
     alert("Revise ou escreva o texto desta etapa antes de salvá-lo.");
     return;
   }
+  if (field === "dermHistoryApproved") {
+    const readiness = dermatologyHistoryReadiness(target, priorEntries);
+    if (!readiness.complete) {
+      alert(`Não é possível salvar a história clínica. Resolva: ${readiness.missing.map(item => `${item.label} — ${item.reason}`).join("; ")}`);
+      return;
+    }
+  }
   if (field === "dermHdApproved" && !historyIsCurrent(target, patient, priorEntries)) {
     alert("A história clínica precisa estar salva e atualizada antes da HD.");
     return;
@@ -1885,8 +1929,11 @@ async function approveDermatologyReview(button) {
     alert("A HD precisa estar salva e atualizada antes da conduta.");
     return;
   }
-  target[field] = text;
-  if (field === "dermHistoryApproved") target.dermHistorySource = dermatologySourceText(target, patient, priorEntries);
+  target[field] = field === "dermHistoryApproved" ? dermatologyHistoryWithChecklist(text, target) : text;
+  if (field === "dermHistoryApproved") {
+    target.dermHistorySource = dermatologySourceText(target, patient, priorEntries);
+    target.dermHistoryGateVersion = 1;
+  }
   if (field === "dermHdApproved") target.dermHdSource = target.dermHistoryApproved;
   if (field === "dermPlanApproved") target.dermPlanSource = target.dermHdApproved;
   unsavedWork.tocou(draftScopeOfForm(form));
@@ -2132,7 +2179,10 @@ async function saveCurrentPageAndAdvance(element) {
   const patient = getPatient() || {};
   const priorEntries = entriesForPatient(selectedPatientId);
   if (completedPage === "evolucao" && !historyIsCurrent(target, patient, priorEntries)) {
-    alert("Salve a história clínica estruturada e atualizada antes de avançar para a HD.");
+    const readiness = dermatologyHistoryReadiness(target, priorEntries);
+    alert(readiness.complete
+      ? "Salve a história clínica estruturada e atualizada antes de avançar para a HD."
+      : `Não avance para a HD. Resolva antes da história: ${readiness.missing.map(item => `${item.label} — ${item.reason}`).join("; ")}`);
     return;
   }
   if (completedPage === "diagnostico" && !hdIsCurrent(target, patient, priorEntries)) {

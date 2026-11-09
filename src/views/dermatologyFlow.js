@@ -1,6 +1,7 @@
 import { chips, textarea, voiceTextarea } from "../ui/controls.js";
 import { escapeAttr, escapeHtml } from "../ui/html.js";
 import { chronological, dermatologySourceText, hdIsCurrent, historyIsCurrent, planIsCurrent } from "../clinical/dermatologyPipeline.js";
+import { DERMATOLOGY_HISTORY_DOMAINS, DERMATOLOGY_RED_FLAGS, dermatologyHistoryReadiness } from "../specialties/dermatologia/historyReadiness.js";
 import {
   DERMATOLOGY_ANAMNESIS_FIELDS, DERMATOLOGY_HISTORY_FIELDS,
   DERMATOLOGY_PHYSICAL_EXAM_FIELDS, DERMATOLOGY_SYSTEMS_FIELDS, DERMATOLOGY_ASSESSMENT_FIELDS,
@@ -124,6 +125,43 @@ function reviewCard(title, kind, field, approved, source, current) {
   </div>`;
 }
 
+function historyReadinessCard(form, priorEntries) {
+  const readiness = dermatologyHistoryReadiness(form, priorEntries);
+  const status = readiness.complete
+    ? "Conferência concluída. Os dados estão prontos para compor a história clínica."
+    : `${readiness.missing.length} pendência(s): ${readiness.missing.slice(0, 4).map(item => item.label).join("; ")}${readiness.missing.length > 4 ? "; …" : ""}`;
+  const domainRows = DERMATOLOGY_HISTORY_DOMAINS.map(item => {
+    const name = `dermCompleteness__${item.id}`;
+    const note = `dermCompletenessNote__${item.id}`;
+    const value = form[name] || "";
+    const noteVisible = ["supplemented", "not_applicable"].includes(value);
+    return `<div class="clinical-card derm-readiness-item"><label>${escapeHtml(item.question)}<select name="${name}" data-derm-readiness-select="${item.id}">
+      <option value=""${value === "" ? " selected" : ""}>Pendente</option>
+      <option value="covered"${value === "covered" ? " selected" : ""}>Conferido na transcrição ou exame</option>
+      <option value="supplemented"${value === "supplemented" ? " selected" : ""}>Complementado nesta revisão</option>
+      <option value="not_applicable"${value === "not_applicable" ? " selected" : ""}>Não se aplica</option>
+    </select></label><div data-derm-readiness-note="${item.id}"${noteVisible ? "" : " hidden"}><label><span data-derm-note-label>${value === "not_applicable" ? "Justifique por que não se aplica" : "Resposta complementar"}</span><textarea name="${note}" class="auto-expand" data-auto-expand="true" rows="1">${escapeHtml(form[note] || "")}</textarea></label></div></div>`;
+  }).join("");
+  const redFlagRows = DERMATOLOGY_RED_FLAGS.map(item => {
+    const name = `dermRedFlag__${item.id}`;
+    const note = `dermRedFlagNote__${item.id}`;
+    const value = form[name] || "";
+    const noteVisible = ["present", "not_applicable"].includes(value);
+    return `<div class="clinical-card derm-readiness-item"><label>${escapeHtml(item.question)}<select name="${name}" data-derm-red-flag-select="${item.id}">
+      <option value=""${value === "" ? " selected" : ""}>Pendente — investigar</option>
+      <option value="negative"${value === "negative" ? " selected" : ""}>Investigado — ausente</option>
+      <option value="present"${value === "present" ? " selected" : ""}>Presente — registrar avaliação médica</option>
+      <option value="not_applicable"${value === "not_applicable" ? " selected" : ""}>Não se aplica</option>
+    </select></label><div data-derm-readiness-note="${item.id}"${noteVisible ? "" : " hidden"}><label><span data-derm-note-label>${value === "not_applicable" ? "Justifique por que não se aplica" : "Achado e avaliação/disposição médica"}</span><textarea name="${note}" class="auto-expand" data-auto-expand="true" rows="1">${escapeHtml(form[note] || "")}</textarea></label></div></div>`;
+  }).join("");
+  return `<div class="clinical-card"><h4>Conferência obrigatória antes da história clínica</h4>
+    <p class="field-hint">A checagem é determinística: a IA não decide se faltam dados nem libera esta etapa. Confirme cada domínio com base na anamnese e no exame; complemente lacunas ou justifique o que não se aplica. Investigue todos os sinais de alarme abaixo. Um sinal presente exige registro da avaliação/disposição médica.</p>
+    <p class="field-hint" role="status" aria-live="polite" data-derm-history-readiness>${escapeHtml(status)}</p>
+    <details open><summary>Dados dermatológicos essenciais (${DERMATOLOGY_HISTORY_DOMAINS.length})</summary>${domainRows}</details>
+    <details open><summary>Sinais de alarme (${DERMATOLOGY_RED_FLAGS.length})</summary>${redFlagRows}</details>
+  </div>`;
+}
+
 export function dermatologyConsultationPage(page, form = {}, patient = {}, priorEntries = []) {
   form = dermatologyFormValues(form);
   if (page === "anamnese") return `<div class="clinical-card"><h4>Transcrição de voz por IA</h4>
@@ -139,7 +177,7 @@ export function dermatologyConsultationPage(page, form = {}, patient = {}, prior
   ], form, "dermR_")
     + choices("Sinais de alarme", "dermAlarmes", DERMATOLOGY_ALARM_OPTIONS, form)
     + questionCard(form, "refinement");
-  if (page === "evolucao") return reviewCard("História clínica estruturada", "history", "dermHistoryApproved",
+  if (page === "evolucao") return historyReadinessCard(form, priorEntries) + reviewCard("História clínica estruturada", "history", "dermHistoryApproved",
     form.dermHistoryApproved, dermatologySourceText(form, patient, priorEntries), historyIsCurrent(form, patient, priorEntries));
   if (page === "diagnostico") return reviewCard("Hipóteses diagnósticas", "hypotheses", "dermHdApproved",
     form.dermHdApproved, historyIsCurrent(form, patient, priorEntries) ? form.dermHistoryApproved : "", hdIsCurrent(form, patient, priorEntries))

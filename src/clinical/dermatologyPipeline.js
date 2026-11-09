@@ -2,6 +2,7 @@ import {
   DERMATOLOGY_ANAMNESIS_FIELDS, DERMATOLOGY_HISTORY_FIELDS,
   DERMATOLOGY_PHYSICAL_EXAM_FIELDS, DERMATOLOGY_SYSTEMS_FIELDS
 } from "../specialties/dermatologia/index.js";
+import { dermatologyHistoryReadiness, dermatologyHistoryReadinessText } from "../specialties/dermatologia/historyReadiness.js";
 
 export function chronological(items = []) {
   return [...(Array.isArray(items) ? items : [])].sort((a, b) =>
@@ -9,6 +10,13 @@ export function chronological(items = []) {
 }
 
 const list = value => Array.isArray(value) ? value.join(", ") : String(value || "").trim();
+
+export function dermatologyHistoryWithChecklist(history, form = {}) {
+  const marker = "Conferência determinística — dados essenciais e sinais de alarme";
+  const cleanHistory = String(history || "").split(`\n\n${marker}`)[0].trim();
+  const checklist = dermatologyHistoryReadinessText(form);
+  return checklist ? `${cleanHistory}\n\n${marker}:\n${checklist}` : cleanHistory;
+}
 
 export function dermatologySourceText(form = {}, patient = {}, priorEntries = []) {
   const lines = [];
@@ -37,6 +45,8 @@ export function dermatologySourceText(form = {}, patient = {}, priorEntries = []
     const previousImages = Array.isArray(entry.dermImages) ? entry.dermImages
       : entry.dermApprovedDescription ? [{ date: String(entry.createdAt || "").slice(0, 10), description: entry.dermApprovedDescription }] : [];
     for (const item of chronological(previousImages)) add(`Imagem anterior de ${item.date || "data não informada"} (${entry.label || "atendimento anterior"})`, item.description);
+    for (const item of chronological(entry.dermExams))
+      add(`Exame complementar anterior de ${item.date || "data não informada"} (${item.type || "tipo não informado"}; ${entry.label || "atendimento anterior"})`, item.description);
   }
   for (const item of chronological(form.dermExams)) add(`Exame complementar de ${item.date || "data não informada"} (${item.type || "tipo não informado"})`, item.description);
   for (const [key, label] of [
@@ -52,11 +62,16 @@ export function dermatologySourceText(form = {}, patient = {}, priorEntries = []
   ]) add(label, form[`dermR_${key}`]);
   add("Sinais de alarme", form.dermAlarmes);
   add("Perguntas de refinamento e respostas", form.dermRefinementApproved);
+  add("Conferência determinística antes da história clínica", dermatologyHistoryReadinessText(form));
   return lines.join("\n");
 }
 
 export function historyIsCurrent(form = {}, patient = {}, priorEntries = []) {
-  return Boolean(form.dermHistoryApproved && form.dermHistorySource === dermatologySourceText(form, patient, priorEntries));
+  const sourceMatches = Boolean(form.dermHistoryApproved && form.dermHistorySource === dermatologySourceText(form, patient, priorEntries));
+  if (!sourceMatches) return false;
+  // Histórias já salvas antes do checklist continuam válidas; toda história
+  // nova precisa carregar a revisão determinística completa.
+  return !form.dermHistoryGateVersion || dermatologyHistoryReadiness(form, priorEntries).complete;
 }
 
 export function hdIsCurrent(form = {}, patient = {}, priorEntries = []) {
