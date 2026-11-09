@@ -1,14 +1,10 @@
-import { chips, textarea } from "../ui/controls.js";
+import { chips, textarea, voiceTextarea } from "../ui/controls.js";
 import { escapeAttr, escapeHtml } from "../ui/html.js";
 import { chronological, dermatologySourceText, hdIsCurrent, historyIsCurrent, planIsCurrent } from "../clinical/dermatologyPipeline.js";
 import {
   DERMATOLOGY_ANAMNESIS_FIELDS, DERMATOLOGY_HISTORY_FIELDS,
   DERMATOLOGY_PHYSICAL_EXAM_FIELDS, DERMATOLOGY_SYSTEMS_FIELDS, DERMATOLOGY_ASSESSMENT_FIELDS,
-  DERMATOLOGY_PLAN_FIELDS, DERMATOLOGY_SYMPTOM_OPTIONS,
-  DERMATOLOGY_ONSET_OPTIONS, DERMATOLOGY_EXPOSURE_OPTIONS,
-  DERMATOLOGY_ALARM_OPTIONS, LESION_MORPHOLOGY,
-  LESION_DISTRIBUTIONS, LESION_ARRANGEMENTS, LESION_COLORS,
-  LESION_SURFACE, LESION_PALPATION
+  DERMATOLOGY_PLAN_FIELDS, DERMATOLOGY_ALARM_OPTIONS
 } from "../specialties/dermatologia/index.js";
 
 const section = (title, fields, form, prefix) => `<div class="clinical-card"><h4>${title}</h4>${fields.map(([key, label]) =>
@@ -54,23 +50,14 @@ export function dermatologyFormValues(record = {}) {
   return values;
 }
 
-function lesionEditor(form) {
-  const lesions = form.dermLesions || [];
-  return `<div class="clinical-card"><h4>Lesões individualizadas</h4>${lesions.map((lesion, index) =>
-    `<div class="clinical-card"><h5>${escapeHtml(lesion.label || `Lesão ${index + 1}`)}</h5>
-    ${textarea(`dermLesion__${index}__localizacao`, "Localização", lesion.localizacao || "", "", 2)}
-    ${textarea(`dermLesion__${index}__dimensoes`, "Dimensões", lesion.dimensoes || "", "", 2)}
-    ${textarea(`dermLesion__${index}__evolucao`, "Evolução", lesion.evolucao || "", "", 2)}
-    <button type="button" class="secondary" data-action="remove-derm-lesion" data-index="${index}">Remover lesão</button></div>`).join("")}
-    <button type="button" class="secondary" data-action="add-derm-lesion">Adicionar lesão</button></div>`;
-}
-
 function photographicExam(form, priorEntries = []) {
   const images = chronological(form.dermImages);
   const previousImages = priorEntries.filter(entry => entry.id !== form.id).flatMap(entry =>
     chronological(dermatologyFormValues(entry).dermImages).map(item => ({ ...item, visit: entry.label || "Atendimento anterior" })));
-  return `<div class="clinical-card"><h4>Imagens da lesão em ordem cronológica</h4>
-    <p class="field-hint">Adicione uma imagem por vez, inclusive de datas anteriores. A foto é enviada à OpenAI somente ao clicar em Analisar imagem. O prontuário guarda a data e a descrição aprovada, não o arquivo original.</p>
+  const today = new Date();
+  const todayLocal = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  return `<div class="clinical-card"><h4>Fotos da pele e das lesões</h4>
+    <p class="field-hint">Adicione fotos pela galeria, câmera ou arquivos. Ao escolher a imagem, a IA prepara uma descrição semiológica estruturada para sua revisão. O prontuário guarda a data e a descrição aprovada, não o arquivo original.</p>
     ${previousImages.length ? `<details><summary>Descrições de imagens de atendimentos anteriores (${previousImages.length})</summary>
       ${chronological(previousImages).map(item => `<p><strong>${escapeHtml(item.date || "Sem data")} — ${escapeHtml(item.visit)}:</strong> ${escapeHtml(item.description || "")}</p>`).join("")}
     </details>` : ""}
@@ -80,13 +67,13 @@ function photographicExam(form, priorEntries = []) {
       ${textarea(`dermImage__${index}__description`, "Descrição revisada", item.description || "")}
       <button type="button" class="secondary" data-action="remove-derm-image" data-index="${index}">Excluir registro da imagem</button>
     </div>`).join("")}
-    <label>Data da nova imagem<input type="date" data-derm-photo-date></label>
-    <label>Foto da lesão (JPEG, PNG ou WebP; até 10 MB)<input type="file" accept="image/jpeg,image/png,image/webp" data-derm-photo></label>
+    <input type="hidden" data-derm-photo-date value="${todayLocal}">
+    <input type="file" accept="image/*" data-derm-photo hidden>
+    <div class="actions"><button type="button" class="secondary" data-action="pick-derm-photo" aria-label="Adicionar foto da pele">＋ Adicionar foto</button></div>
     <div data-derm-photo-preview aria-live="polite"></div>
-    <div class="actions"><button type="button" class="secondary" data-action="analyze-derm-photo">Analisar imagem</button></div>
     <p data-derm-photo-status class="field-hint" role="status" aria-live="polite"></p>
-    <label>Nova descrição para revisão<textarea data-derm-description class="auto-expand" data-auto-expand="true" rows="1" placeholder="Localização, número, distribuição, morfologia, forma, limites, cor, superfície e achados visíveis. Palpação e dermatoscopia exigem exame próprio."></textarea></label>
-    <div class="actions"><button type="button" class="primary" data-action="approve-derm-description">Adicionar descrição revisada</button>
+    <label>Descrição estruturada da imagem — revise antes de salvar<textarea data-derm-description class="auto-expand" data-auto-expand="true" rows="1" placeholder="A descrição proposta pela IA aparecerá aqui para revisão médica."></textarea></label>
+    <div class="actions"><button type="button" class="primary" data-action="approve-derm-description">Salvar descrição da imagem</button>
     <button type="button" class="secondary" data-action="remove-derm-description">Descartar proposta</button></div>
   </div>`;
 }
@@ -135,20 +122,10 @@ function reviewCard(title, kind, field, approved, source, current) {
 
 export function dermatologyConsultationPage(page, form = {}, patient = {}, priorEntries = []) {
   form = dermatologyFormValues(form);
-  if (page === "anamnese") return section("Queixa e história", DERMATOLOGY_ANAMNESIS_FIELDS, form, "dermA_")
-    + choices("Sintomas", "dermSintomas", DERMATOLOGY_SYMPTOM_OPTIONS, form)
-    + choices("Padrão temporal", "dermInicio", DERMATOLOGY_ONSET_OPTIONS, form)
-    + choices("Exposições", "dermExposicoes", DERMATOLOGY_EXPOSURE_OPTIONS, form)
-    + section("Antecedentes", DERMATOLOGY_HISTORY_FIELDS, form, "dermH_")
-    + section("Inspeção cutânea", DERMATOLOGY_PHYSICAL_EXAM_FIELDS, form, "dermE_")
-    + choices("Morfologia", "dermMorfologia", LESION_MORPHOLOGY, form)
-    + choices("Distribuição", "dermDistribuicao", LESION_DISTRIBUTIONS, form)
-    + choices("Arranjo", "dermArranjo", LESION_ARRANGEMENTS, form)
-    + choices("Cor", "dermCor", LESION_COLORS, form)
-    + choices("Superfície", "dermSuperficie", LESION_SURFACE, form)
-    + choices("Palpação", "dermPalpacao", LESION_PALPATION, form)
-    + textarea("dermExameComplementar", "Unhas, cabelos, mucosas e dermatoscopia", form.dermExameComplementar || "", "", 4)
-    + lesionEditor(form) + photographicExam(form, priorEntries) + questionCard(form, "lesion");
+  if (page === "anamnese") return `<div class="clinical-card"><h4>Transcrição de voz por IA</h4>
+    <p class="field-hint">Grave a conversa para transcrevê-la. Confira e edite o texto: ele será considerado na história clínica estruturada.</p>
+    ${voiceTextarea("dermVoiceTranscript", "Transcrição da consulta", form.dermVoiceTranscript || "")}
+  </div>` + photographicExam(form, priorEntries);
   if (page === "psiquico") return examUploads(form)
     + section("Exame físico por aparelhos", DERMATOLOGY_SYSTEMS_FIELDS, form, "dermS_")
     + textarea("dermSystemsExam", "Exame físico por aparelhos e sinais sistêmicos", form.dermSystemsExam || "", "", 5)
@@ -212,6 +189,7 @@ export function dermatologySummary(form = {}, patient = {}, priorEntries = []) {
 export function dermatologyReportText(form = {}, patient = {}, priorEntries = []) {
   form = dermatologyFormValues(form);
   const fields = [
+    ["Transcrição de voz revisada", "dermVoiceTranscript"],
     ["Queixa", "dermA_queixaPrincipal"], ["História", "dermA_historiaDoencaAtual"],
     ["Inspeção cutânea", "dermE_localizacao"], ["Morfologia", "dermMorfologia"],
     ["Exame por aparelhos", "dermSystemsExam"],

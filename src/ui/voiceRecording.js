@@ -152,12 +152,14 @@ export function createVoiceRecording({ app, getDraft, updateDraftFromForm, defau
           const transcription = await requestConsultationTranscription(audio);
           const transcript = formatDiarizedTranscript(transcription.segments);
           fieldElement.value = transcript;
+          fieldElement.dispatchEvent(new Event("input", { bubbles: true }));
           updateDraftFromForm(fieldElement.closest("form"));
           const draft = getDraft();
           // "relatoRetorno" e a mesma gravacao da conversa inteira, so que na
           // tela do retorno: mesmo fluxo de permissao/blob/transcricao, o que
           // muda e o rascunho que recebe o texto e quem processa em seguida.
           const isReturnField = targetName === "relatoRetorno";
+          const isDermatologyField = targetName === "dermVoiceTranscript";
           const target = isReturnField ? (draft.return || defaultReturn()) : (draft.consultation || defaultConsultation());
           target[targetName] = transcript;
           target.transcriptionSegments = transcription.segments;
@@ -165,6 +167,8 @@ export function createVoiceRecording({ app, getDraft, updateDraftFromForm, defau
           target.transcribedAt = new Date().toISOString();
           if (isReturnField) {
             draft.return = target;
+          } else if (isDermatologyField) {
+            draft.consultation = target;
           } else {
             target.anamnesisInputMode = "microphone";
             target.anamnesisDoctorTextOverrides = { ...(target.anamnesisDoctorTextOverrides || {}), qphda: false };
@@ -173,10 +177,10 @@ export function createVoiceRecording({ app, getDraft, updateDraftFromForm, defau
             target.multipleSpeakersDetected = countDistinctSpeakers(transcription.segments) > 2;
             draft.consultation = target;
           }
-          setVoiceStatus(button, isReturnField ? "Transcrição concluída. Analisando a evolução com a literatura…" : "Transcrição concluída. Analisando a anamnese com a literatura…", "requesting");
+          setVoiceStatus(button, isDermatologyField ? "Transcrição por IA concluída. Revise o texto e salve o atendimento." : isReturnField ? "Transcrição concluída. Analisando a evolução com a literatura…" : "Transcrição concluída. Analisando a anamnese com a literatura…", isDermatologyField ? "done" : "requesting");
           if (isReturnField) await processReturnTranscriptSilently(transcript, { preserveFocus: false });
-          else await processAnamnesisTranscriptSilently(transcript, { preserveFocus: false });
-          setVoiceStatus(app.querySelector(`[data-action='voice'][data-target='${targetName}']`), "Conversa transcrita e campos atualizados. Revise antes de salvar.", "done");
+          else if (!isDermatologyField) await processAnamnesisTranscriptSilently(transcript, { preserveFocus: false });
+          if (!isDermatologyField) setVoiceStatus(app.querySelector(`[data-action='voice'][data-target='${targetName}']`), isReturnField ? "Conversa transcrita e avaliação atualizada. Revise antes de salvar." : "Conversa transcrita e campos atualizados. Revise antes de salvar.", "done");
         } catch (error) {
           setVoiceStatus(button, error.message || "Não foi possível transcrever a conversa", "error");
           alert(error.message || "Não foi possível transcrever a conversa.");

@@ -14,6 +14,7 @@ export function dermatologySourceText(form = {}, patient = {}, priorEntries = []
   const lines = [];
   const add = (label, value) => { const text = list(value); if (text) lines.push(`${label}: ${text}`); };
   add("Fototipo de Fitzpatrick", patient.fototipoFitzpatrick);
+  add("Transcrição de voz revisada", form.dermVoiceTranscript);
   for (const [prefix, fields] of [
     ["dermA_", DERMATOLOGY_ANAMNESIS_FIELDS],
     ["dermH_", DERMATOLOGY_HISTORY_FIELDS],

@@ -541,9 +541,12 @@ function returnForm() {
 // consentimento do paciente registrado; o local onde ele esta e o dado que se
 // precisa para encaminhar a uma emergencia no meio do atendimento.
 function consultationModeCard(form = {}) {
-  const remoto = ["TELECONSULTATION", "HYBRID"].includes(form.consultationMode);
+  const remoto = form.consultationMode === "TELECONSULTATION" || form.consultationMode === "HYBRID";
+  const modalidade = form.consultationMode === "HYBRID"
+    ? `<label>Modalidade da consulta<select name="consultationMode"><option value="HYBRID" selected disabled>Híbrida (registro anterior)</option><option value="IN_PERSON">Presencial</option><option value="TELECONSULTATION">Teleconsulta</option></select></label>`
+    : selectField("consultationMode", "Modalidade da consulta", ["IN_PERSON", "TELECONSULTATION"], form.consultationMode || "IN_PERSON");
   return `<div class="clinical-card consultation-mode-card">
-    ${selectField("consultationMode", "Modalidade da consulta", ["IN_PERSON", "TELECONSULTATION", "HYBRID"], form.consultationMode || "IN_PERSON")}
+    ${modalidade}
     ${remoto ? `${chips("teleconsultaConsentimento", "Consentimento", [TELECONSULTA_CONSENTIMENTO], form.teleconsultaConsentimento)}
     ${field("teleconsultaLocalPaciente", "Onde o paciente está durante o atendimento (cidade/UF)", form.teleconsultaLocalPaciente || "")}` : ""}
   </div>`;
@@ -1135,6 +1138,8 @@ function bindDermPhotoPreview() {
     image.src = url;
     image.addEventListener("load", () => URL.revokeObjectURL(url), { once: true });
     preview.replaceChildren(image);
+    const analyzeButton = app.querySelector("[data-action='pick-derm-photo']");
+    if (analyzeButton) void analyzeDermPhoto(analyzeButton);
   });
 }
 
@@ -1586,6 +1591,14 @@ function bindActions() {
       const action = element.dataset.action;
       if (["dashboard", "toggle-theme", "select-patient", "edit-patient"].includes(action)) return;
       if (action === "form-page") switchFormPage(element);
+      if (action === "pick-derm-photo") {
+        const form = element.closest("form");
+        if (form?.querySelector("[data-derm-description]")?.value.trim()) {
+          alert("Revise e salve ou descarte a descrição atual antes de escolher outra foto.");
+          return;
+        }
+        form?.querySelector("[data-derm-photo]")?.click();
+      }
       if (action === "analyze-derm-photo") await analyzeDermPhoto(element);
       if (action === "analyze-derm-exam") await analyzeDermExam(element);
       if (action === "generate-derm-questions" || action === "generate-derm-stage") await generateDermatologyProposal(element);
@@ -1595,6 +1608,11 @@ function bindActions() {
         if (action === "remove-derm-description") {
           const pending = form?.querySelector("[data-derm-description]");
           if (pending) pending.value = "";
+          const photo = form?.querySelector("[data-derm-photo]");
+          if (photo) photo.value = "";
+          form?.querySelector("[data-derm-photo-preview]")?.replaceChildren();
+          const status = form?.querySelector("[data-derm-photo-status]");
+          if (status) status.textContent = "Foto e proposta descartadas.";
         } else {
           const description = (form?.querySelector("[data-derm-description]")?.value || "").trim();
           if (!description) { alert("Revise ou escreva a descrição antes de adicionar a imagem."); return; }
@@ -2145,6 +2163,8 @@ function dermPendingReviewMessage(form, target = {}, ignored = "") {
   if (!form) return "";
   if (ignored !== "photo" && form.querySelector("[data-derm-description]")?.value.trim())
     return "Há uma descrição de imagem ainda não adicionada. Revise e adicione ou descarte a proposta.";
+  if (ignored !== "photo" && form.querySelector("[data-derm-photo]")?.files?.length)
+    return "Há uma foto selecionada. Aguarde a análise e salve a descrição ou descarte a proposta antes de avançar.";
   if (ignored !== "exam" && form.querySelector("[data-derm-exam-description]")?.value.trim())
     return "Há uma descrição de exame ainda não adicionada. Revise e adicione ou descarte o texto.";
   for (const input of form.querySelectorAll("[data-derm-review]")) {
