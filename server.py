@@ -26,7 +26,7 @@ from ai_openai import extract_web_sources, search_web_sources
 from ai_response_policy import usable_web_findings
 from observability import decision_message
 from ai_vector_store import fit_sources, rag_context, vector_store_search
-from dermatology_local_notes import retrieve_plan_notes
+from dermatology_local_notes import retrieve_plan_notes, saved_hypothesis_names
 from ai_source_policy import (
     GUIDELINES_ENV_KEY, KINDS_ACCEPTING_PATIENT_SCOPE, KINDS_REQUIRING_MENTION,
     RAG_ALWAYS_MAX_RESULTS, RAG_ALWAYS_SCOPE_BY_KIND, RAG_PATIENT_SCOPES,
@@ -2378,10 +2378,13 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                         self.send_json(400, {"error": "Fonte de hipóteses inválida."})
                         return
                 if kind == "plan":
-                    notes = retrieve_plan_notes(str(payload.get("source") or ""))
+                    hd_text = str(payload.get("source") or "")
+                    notes = retrieve_plan_notes(hd_text)
                     if not notes:
                         self.send_json(422, {"error": "Nenhuma nota local corresponde exatamente à HD salva. Redija a conduta manualmente ou confira o nome da hipótese e o acervo local."})
                         return
+                    uncovered = [name for name in saved_hypothesis_names(hd_text)
+                                 if name not in {note["hypothesis"] for note in notes}]
                     evidence_context = "\n\n".join(
                         f"NOTA LOCAL: {note['title']} | arquivo: {note['filename']} | SHA-256: {note['sha256']}\n"
                         "Nota fornecida pelo usuário, sem data, versão ou licença verificadas. "
@@ -2390,6 +2393,9 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                     )
                     consulted_sources = [{"type": "local_note", "title": note["title"],
                                           "filename": note["filename"], "sha256": note["sha256"]} for note in notes]
+                    if uncovered:
+                        evidence_context += ("\n\nHIPÓTESES SEM NOTA: " + "; ".join(uncovered[:8])
+                                             + ". Não proponha tratamento específico para elas; declare a lacuna.")
                 result = propose_dermatology_stage(
                     kind, payload.get("source"), api_key,
                     os.environ.get("OPENAI_DERMATOLOGY_TEXT_MODEL", DEFAULT_MODEL),
@@ -2398,6 +2404,9 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 if kind in {"hypotheses", "plan"}:
                     result["source_mode"] = source_mode
                     result["sources"] = consulted_sources
+                if kind == "plan" and uncovered:
+                    warning = "Sem nota local correspondente para: " + "; ".join(uncovered[:8]) + "."
+                    result["uncertainties"] = (result.get("uncertainties", "").strip() + "\n" + warning).strip()[:3000]
                 self.send_json(200, {"proposal": result})
             except (ValueError, UnicodeDecodeError, TypeError) as error:
                 self.send_json(400, {"error": str(error) if isinstance(error, ValueError) else "Requisição inválida."})

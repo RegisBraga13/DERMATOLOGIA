@@ -82,6 +82,34 @@ class DermatologyWorkflowTests(unittest.TestCase):
                     httpd.server_close()
                     thread.join(timeout=3)
 
+    def test_plan_route_reports_hypotheses_without_local_notes(self):
+        from server import PrototypeHandler
+
+        note = {"title": "Tinea corporis", "hypothesis": "Tinea corporis",
+                "filename": "Tinea_Corporis.md", "sha256": "a" * 64,
+                "text": "## Tratamento\nConteúdo de teste."}
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key", "APP_MODE": "local", "HOST": "127.0.0.1", "SUPABASE_URL": "", "SUPABASE_PUBLISHABLE_KEY": ""}):
+            with patch("server.retrieve_plan_notes", return_value=[note]), patch(
+                "server.propose_dermatology_stage", return_value={"text": "Revisar", "uncertainties": "Checar alergias"}
+            ) as proposer:
+                httpd = ThreadingHTTPServer(("127.0.0.1", 0), PrototypeHandler)
+                thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+                thread.start()
+                try:
+                    request = urllib.request.Request(
+                        f"http://127.0.0.1:{httpd.server_port}/api/dermatology-workflow",
+                        data=json.dumps({"kind": "plan", "source": "1. Tinea corporis\n2. Hipótese sem nota"}).encode(),
+                        headers={"Content-Type": "application/json"})
+                    with urllib.request.urlopen(request, timeout=3) as response:
+                        proposal = json.load(response)["proposal"]
+                    self.assertIn("Hipótese sem nota", proposal["uncertainties"])
+                    self.assertEqual(proposal["sources"][0]["filename"], "Tinea_Corporis.md")
+                    self.assertIn("HIPÓTESES SEM NOTA", proposer.call_args.kwargs["evidence_context"])
+                finally:
+                    httpd.shutdown()
+                    httpd.server_close()
+                    thread.join(timeout=3)
+
 
 if __name__ == "__main__":
     unittest.main()

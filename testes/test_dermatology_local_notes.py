@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from dermatology_local_notes import retrieve_plan_notes
+from dermatology_local_notes import retrieve_plan_notes, saved_hypothesis_names
 
 
 class LocalNoteRetrievalTests(unittest.TestCase):
@@ -20,6 +20,7 @@ class LocalNoteRetrievalTests(unittest.TestCase):
             self.assertEqual([item["filename"] for item in found], ["Tinea_Corporis.md"])
             self.assertIn("## Tratamento", found[0]["text"])
             self.assertEqual(len(found[0]["sha256"]), 64)
+            self.assertEqual(saved_hypothesis_names(hd), ["Tinea corporis", "Psoríase"])
 
 
 if __name__ == "__main__":
