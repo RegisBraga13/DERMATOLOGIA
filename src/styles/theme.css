@@ -2178,6 +2178,24 @@ label { font-weight: var(--w-strong); }
   max-width: 100%;
 }
 
+/* Fototipo e estado civil usam opcoes curtas; nao precisam ocupar toda a coluna. */
+#patient-form select[name="fototipoFitzpatrick"],
+#patient-form select[name="estadoCivil"] {
+  width: 190px;
+  min-width: 0;
+}
+
+/* O e-mail costuma ser longo e ganha a largura de duas colunas no desktop. */
+#patient-form .patient-grid > label:has(input[name="email"]) {
+  grid-column: span 2;
+}
+
+@media (max-width: 640px) {
+  #patient-form .patient-grid > label:has(input[name="email"]) {
+    grid-column: span 1;
+  }
+}
+
 /* Fone/WhatsApp e curto; no bloco de endereco quem manda na largura e o
    .address-grid (span de colunas), sem max-width por campo. O atalho do
    WhatsApp fica dentro da caixa, a direita, e o texto nao passa por baixo. */
