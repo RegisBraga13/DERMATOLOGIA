@@ -1,6 +1,6 @@
 # Pendências atuais
 
-Estado em 05/11/2026. Esta abertura corrige o quadro que aparecia na tela: a
+Estado em 09/11/2026. Esta abertura corrige o quadro que aparecia na tela: a
 PR #3 e a PR #4 já estão na `main`; P6, P7, P12 e a gravação local já foram
 implementados. O restante deste documento conserva o histórico detalhado.
 
@@ -30,6 +30,16 @@ apontada pelo assessor do Supabase e deve ser conferida no painel, sem assumir
 contratação de plano.
 
 ### Concluído nesta correção
+
+A história clínica dermatológica agora separa relato, exame presencial, foto,
+exames por data, revisão de sistemas e dados não avaliados; a instrução proíbe
+inferir normalidade ou exame físico a partir de fotografia. A página de HD
+permite escolher IA, RAG dermatológico ou consulta manual no OpenEvidence e no
+Medscape. OpenEvidence/Medscape não recebem o prontuário: a integração pede que
+o médico abra o serviço, informe a URL consultada e cole apenas síntese e
+referência sem identificadores. O RAG permanece indisponível até haver acervo
+próprio validado e configurado. A conduta continua bloqueada até revisão das
+fontes dermatológicas.
 
 P12 agora mantém no `AI_SOURCE_REGISTRY` as etapas permitidas, o acervo, os
 escopos RAG, contratos e respostas de recusa. Busca e validação consultam esse

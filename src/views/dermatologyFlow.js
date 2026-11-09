@@ -6,7 +6,9 @@ import { dermatologySourcesAreReady } from "../specialties/dermatologia/sources.
 import {
   DERMATOLOGY_ANAMNESIS_FIELDS, DERMATOLOGY_HISTORY_FIELDS,
   DERMATOLOGY_PHYSICAL_EXAM_FIELDS, DERMATOLOGY_SYSTEMS_FIELDS, DERMATOLOGY_ASSESSMENT_FIELDS,
-  DERMATOLOGY_PLAN_FIELDS, DERMATOLOGY_ALARM_OPTIONS
+  DERMATOLOGY_PLAN_FIELDS, DERMATOLOGY_ALARM_OPTIONS, LESION_MORPHOLOGY,
+  LESION_DISTRIBUTIONS, LESION_ARRANGEMENTS, LESION_COLORS, LESION_SURFACE,
+  DERMATOLOGY_SYMPTOM_OPTIONS
 } from "../specialties/dermatologia/index.js";
 
 const section = (title, fields, form, prefix) => `<div class="clinical-card"><h4>${title}</h4>${fields.map(([key, label]) =>
@@ -115,12 +117,43 @@ function questionCard(form, phase) {
   </div>`;
 }
 
-function reviewCard(title, kind, field, approved, source, current) {
+export function dermatologyRagQuery(form = {}) {
+  const vocabularies = [
+    ["dermMorfologia", LESION_MORPHOLOGY], ["dermDistribuicao", LESION_DISTRIBUTIONS],
+    ["dermArranjo", LESION_ARRANGEMENTS], ["dermCor", LESION_COLORS],
+    ["dermSuperficie", LESION_SURFACE], ["dermSintomas", DERMATOLOGY_SYMPTOM_OPTIONS]
+  ];
+  const terms = vocabularies.flatMap(([key, allowed]) => {
+    const values = Array.isArray(form[key]) ? form[key] : [form[key]];
+    return values.filter(value => allowed.includes(value));
+  });
+  return [...new Set(terms)].length
+    ? `Dermatologia: hipóteses diferenciais, critérios clínicos e avaliação complementar para lesões com ${[...new Set(terms)].join(", ")}`
+    : "";
+}
+
+function reviewCard(title, kind, field, approved, source, current, form = {}) {
   const requiredScope = kind === "hypotheses" ? "diagnostico" : kind === "plan" ? "conduta" : "";
-  const generationBlocked = Boolean(requiredScope && !dermatologySourcesAreReady(requiredScope));
+  const ragReady = kind === "hypotheses" && dermatologySourcesAreReady("diagnostico");
+  const selectedMode = form.dermHdSourceMode || "ai";
+  const generationBlocked = kind === "plan" && Boolean(requiredScope && !dermatologySourcesAreReady(requiredScope));
+  const sourceChoice = kind === "hypotheses" ? `<fieldset class="ai-mode-selector derm-hypothesis-sources"><legend>Fonte das hipóteses</legend>
+    <label><input type="radio" name="dermHdSourceMode" value="ai"${selectedMode === "ai" ? " checked" : ""}><span>IA</span></label>
+    <label class="${ragReady ? "" : "disabled"}"><input type="radio" name="dermHdSourceMode" value="rag"${selectedMode === "rag" ? " checked" : ""}${ragReady ? "" : " disabled"}><span>RAG Dermatologia</span></label>
+    <label><input type="radio" name="dermHdSourceMode" value="openevidence"${selectedMode === "openevidence" ? " checked" : ""}><span>OpenEvidence</span></label>
+    <label><input type="radio" name="dermHdSourceMode" value="medscape"${selectedMode === "medscape" ? " checked" : ""}><span>Medscape</span></label>
+  </fieldset>
+  <p class="field-hint">A IA elabora diferenciais a partir da história salva, sem consulta bibliográfica automática; revise e remova as hipóteses que não adotar antes de salvar. O RAG só fica disponível com acervo dermatológico validado. OpenEvidence e Medscape abrem para consulta manual, sem enviar dados do prontuário; cole abaixo somente a referência e os achados relevantes, sem identificadores ou texto do paciente.</p>
+  ${!ragReady ? '<p class="warning">RAG indisponível: o catálogo dermatológico ainda não tem fontes validadas para diagnóstico.</p>' : ""}
+  <details class="clinical-card"><summary>Referências externas consultadas manualmente</summary>
+    <div class="actions"><a class="secondary" href="https://www.openevidence.com/" target="_blank" rel="noopener noreferrer">Abrir OpenEvidence</a><a class="secondary" href="https://www.medscape.com/" target="_blank" rel="noopener noreferrer">Abrir Medscape</a></div>
+    <label>URL da referência consultada<input name="dermHdExternalUrl" type="url" value="${escapeAttr(form.dermHdExternalUrl || "")}" placeholder="https://..."></label>
+    ${textarea("dermHdExternalEvidence", "Síntese e referência (sem dados do paciente)", form.dermHdExternalEvidence || "", "", 4)}
+  </details>` : "";
   return `<div class="clinical-card"><h4>${title}</h4>
     ${current === false && approved ? `<p class="warning">A etapa anterior mudou. Revise e salve novamente este texto antes de avançar.</p>` : ""}
     ${generationBlocked ? '<p class="warning">Geração por IA indisponível até validar fontes dermatológicas próprias. Você ainda pode redigir e salvar a avaliação médica manualmente.</p>' : ""}
+    ${sourceChoice}
     <details><summary>Material de entrada desta etapa</summary><pre class="field-hint">${escapeHtml(source || "Sem dados aprovados.")}</pre></details>
     <div class="actions"><button type="button" class="secondary" data-action="generate-derm-stage" data-kind="${kind}"${generationBlocked ? " disabled" : ""}>Gerar proposta</button></div>
     <p data-derm-ai-status class="field-hint" role="status" aria-live="polite"></p>
@@ -182,13 +215,13 @@ export function dermatologyConsultationPage(page, form = {}, patient = {}, prior
     + choices("Sinais de alarme", "dermAlarmes", DERMATOLOGY_ALARM_OPTIONS, form)
     + questionCard(form, "refinement");
   if (page === "evolucao") return historyReadinessCard(form, priorEntries) + reviewCard("História clínica estruturada", "history", "dermHistoryApproved",
-    form.dermHistoryApproved, dermatologySourceText(form, patient, priorEntries), historyIsCurrent(form, patient, priorEntries));
+    form.dermHistoryApproved, dermatologySourceText(form, patient, priorEntries), historyIsCurrent(form, patient, priorEntries), form);
   if (page === "diagnostico") return reviewCard("Hipóteses diagnósticas", "hypotheses", "dermHdApproved",
-    form.dermHdApproved, historyIsCurrent(form, patient, priorEntries) ? form.dermHistoryApproved : "", hdIsCurrent(form, patient, priorEntries))
+    form.dermHdApproved, historyIsCurrent(form, patient, priorEntries) ? form.dermHistoryApproved : "", hdIsCurrent(form, patient, priorEntries), form)
     + (DERMATOLOGY_ASSESSMENT_FIELDS.some(([key]) => form[`dermD_${key}`])
       ? `<details class="clinical-card"><summary>Dados diagnósticos de registros anteriores</summary>${section("Avaliação anterior", DERMATOLOGY_ASSESSMENT_FIELDS, form, "dermD_")}</details>` : "");
   if (page === "tratamento") return reviewCard("Conduta e tratamento", "plan", "dermPlanApproved",
-    form.dermPlanApproved, hdIsCurrent(form, patient, priorEntries) ? form.dermHdApproved : "", planIsCurrent(form, patient, priorEntries))
+    form.dermPlanApproved, hdIsCurrent(form, patient, priorEntries) ? form.dermHdApproved : "", planIsCurrent(form, patient, priorEntries), form)
     + (DERMATOLOGY_PLAN_FIELDS.some(([key]) => form[`dermP_${key}`])
       ? `<details class="clinical-card"><summary>Conduta de registros anteriores</summary>${section("Conduta anterior", DERMATOLOGY_PLAN_FIELDS, form, "dermP_")}</details>` : "");
   if (page === "resumo") return dermatologySummary(form, patient, priorEntries);

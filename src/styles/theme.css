@@ -689,6 +689,16 @@ input[type="radio"]:focus-visible {
 }
 
 .ai-mode-selector span { color: var(--text); font-weight: 700; }
+.derm-hypothesis-sources label.disabled { opacity: .55; cursor: not-allowed; }
+.derm-hypothesis-sources a.secondary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  text-decoration: none;
+}
 
 /* Fica logo abaixo do botao Gerar, discreta: e procedencia, nao resultado. */
 .rag-consulted { margin: 10px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }

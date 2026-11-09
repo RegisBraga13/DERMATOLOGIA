@@ -15,7 +15,7 @@ Aplicativo independente para documentação clínica em Dermatologia. Ele reutil
 
 ## Fontes clínicas
 
-As fontes dermatológicas não são copiadas do acervo psiquiátrico. O catálogo inicial está em `src/specialties/dermatologia/index.js` e só pode sair de `draft` depois de uma ingestão revisada, com versão, licença, escopo e data de atualização. Enquanto isso, geração de hipóteses e conduta por IA fica bloqueada no cliente e no servidor; o médico ainda pode registrar sua própria avaliação. O servidor só aceita essas etapas quando `DERMATOLOGY_RECOMMENDATIONS_ENABLED=true` e as fontes correspondentes estiverem ativas no catálogo do cliente.
+As fontes dermatológicas não são copiadas do acervo psiquiátrico. O catálogo inicial está em `src/specialties/dermatologia/index.js` e só pode sair de `draft` depois de uma ingestão revisada, com versão, licença, escopo e data de atualização. Em Hipóteses, o médico escolhe IA generativa, RAG Dermatologia ou consulta manual no OpenEvidence/Medscape; a IA não envia o prontuário a esses sites, e o médico informa a URL e a síntese da fonte consultada. O modo RAG exige store próprio e validado (`DERMATOLOGY_RAG_ENABLED=true` e `OPENAI_DERMATOLOGY_RAG_VECTOR_STORE_ID`). A geração de conduta/tratamento continua bloqueada até habilitar fontes revisadas com `DERMATOLOGY_RECOMMENDATIONS_ENABLED=true` e escopo correspondente ativo. Toda hipótese fica para revisão e escolha do médico.
 
 ## Supabase sem custo adicional
 

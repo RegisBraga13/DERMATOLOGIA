@@ -2330,7 +2330,7 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
         if self.path == "/api/dermatology-workflow":
             try:
                 length = int(self.headers.get("Content-Length", "0"))
-                if length <= 0 or length > 64 * 1024:
+                if length <= 0 or length > 96 * 1024:
                     self.send_json(413, {"error": "Material de entrada ausente ou acima do limite."})
                     return
                 payload = json.loads(self.rfile.read(length).decode("utf-8"))
@@ -2338,16 +2338,58 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                     self.send_json(400, {"error": "Requisição inválida."})
                     return
                 kind = payload.get("kind")
+                source_mode = str(payload.get("sourceMode") or "ai").strip().lower()
+                evidence_context = ""
+                consulted_sources = []
+                if kind == "hypotheses":
+                    if source_mode == "rag":
+                        rag_enabled = os.environ.get("DERMATOLOGY_RAG_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+                        vector_store_id = os.environ.get("OPENAI_DERMATOLOGY_RAG_VECTOR_STORE_ID", "").strip()
+                        query = str(payload.get("ragQuery") or "").strip()[:1200]
+                        if not rag_enabled or not vector_store_id:
+                            self.send_json(503, {"error": "RAG dermatológico indisponível: falta acervo próprio ingerido e validado."})
+                            return
+                        if not query:
+                            self.send_json(400, {"error": "A consulta clínica estruturada do RAG está vazia."})
+                            return
+                        rag_sources = vector_store_search(vector_store_id, query, api_key)
+                        if not rag_sources:
+                            self.send_json(422, {"error": "O RAG dermatológico não encontrou fontes suficientes; nenhuma hipótese foi gerada."})
+                            return
+                        evidence_context = "Fontes recuperadas do RAG dermatológico:\n" + rag_context(rag_sources)
+                        consulted_sources = [{"type": "rag", "title": item.get("filename", "Fonte dermatológica"), "score": item.get("score")} for item in rag_sources]
+                    elif source_mode in {"openevidence", "medscape"}:
+                        external_text = str(payload.get("externalEvidence") or "").strip()
+                        external_url = str(payload.get("externalUrl") or "").strip()
+                        parsed_url = urllib.parse.urlparse(external_url)
+                        allowed_host = "openevidence.com" if source_mode == "openevidence" else "medscape.com"
+                        hostname = (parsed_url.hostname or "").lower()
+                        if not (hostname == allowed_host or hostname.endswith("." + allowed_host)) or parsed_url.scheme != "https":
+                            self.send_json(400, {"error": "Informe a URL https da fonte externa selecionada."})
+                            return
+                        if not external_text or len(external_text) > 15000:
+                            self.send_json(400, {"error": "Cole uma síntese clínica e referências da fonte externa (até 15.000 caracteres)."})
+                            return
+                        provider = "OpenEvidence" if source_mode == "openevidence" else "Medscape"
+                        evidence_context = f"Material colado pelo médico após consulta manual a {provider}. Não foi verificado automaticamente. URL informada: {external_url}\n{external_text}"
+                        consulted_sources = [{"type": "external", "title": provider, "url": external_url}]
+                    elif source_mode != "ai":
+                        self.send_json(400, {"error": "Fonte de hipóteses inválida."})
+                        return
                 recommendation_enabled = os.environ.get(
                     "DERMATOLOGY_RECOMMENDATIONS_ENABLED", "false"
                 ).strip().lower() in {"1", "true", "yes", "on"}
-                if kind in {"hypotheses", "plan"} and not recommendation_enabled:
+                if kind == "plan" and not recommendation_enabled:
                     self.send_json(503, {"error": "Recomendações dermatológicas por IA permanecem desativadas até validar e habilitar fontes clínicas próprias."})
                     return
                 result = propose_dermatology_stage(
                     kind, payload.get("source"), api_key,
                     os.environ.get("OPENAI_DERMATOLOGY_TEXT_MODEL", DEFAULT_MODEL),
+                    evidence_context=evidence_context,
                 )
+                if kind == "hypotheses":
+                    result["source_mode"] = source_mode
+                    result["sources"] = consulted_sources
                 self.send_json(200, {"proposal": result})
             except (ValueError, UnicodeDecodeError, TypeError) as error:
                 self.send_json(400, {"error": str(error) if isinstance(error, ValueError) else "Requisição inválida."})

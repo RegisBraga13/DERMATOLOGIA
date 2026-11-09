@@ -75,7 +75,15 @@ export function historyIsCurrent(form = {}, patient = {}, priorEntries = []) {
 }
 
 export function hdIsCurrent(form = {}, patient = {}, priorEntries = []) {
-  return historyIsCurrent(form, patient, priorEntries) && Boolean(form.dermHdApproved && form.dermHdSource === form.dermHistoryApproved);
+  const sourceMode = form.dermHdSourceModeUsed;
+  const generatedModeIsCurrent = !sourceMode || sourceMode === "manual"
+    || (sourceMode === (form.dermHdSourceMode || "ai")
+      && (!["openevidence", "medscape"].includes(sourceMode)
+        || (form.dermHdExternalUrlUsed === (form.dermHdExternalUrl || "")
+          && form.dermHdExternalEvidenceUsed === (form.dermHdExternalEvidence || ""))));
+  return historyIsCurrent(form, patient, priorEntries)
+    && Boolean(form.dermHdApproved && form.dermHdSource === form.dermHistoryApproved)
+    && generatedModeIsCurrent;
 }
 
 export function planIsCurrent(form = {}, patient = {}, priorEntries = []) {

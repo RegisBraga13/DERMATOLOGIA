@@ -47,7 +47,7 @@ import { finalizationNote, finalizedNotice, recordStatusLine, versionsView } fro
 import { scaleById } from "./data/scales.js";
 import { caseViewForReturn, groupCases } from "./clinical/caseTimeline.js";
 import { caseSummaryView } from "./views/caseSummary.js";
-import { dermatologyConsultationPage, dermatologyReturnPage, dermatologyReportText, dermatologyFormValues } from "./views/dermatologyFlow.js";
+import { dermatologyConsultationPage, dermatologyReturnPage, dermatologyReportText, dermatologyFormValues, dermatologyRagQuery } from "./views/dermatologyFlow.js";
 import { prepareDermatologyDocument, prepareDermatologyImage, requestDermatologyDocument, requestDermatologyImageDescription } from "./services/dermatologyImageService.js";
 import { requestDermatologyStage } from "./services/dermatologyWorkflowService.js";
 import { chronological, dermatologyHistoryWithChecklist, dermatologySourceText, hdIsCurrent, historyIsCurrent, planIsCurrent } from "./clinical/dermatologyPipeline.js";
@@ -1870,10 +1870,6 @@ async function generateDermatologyProposal(button) {
       return;
     }
   }
-  if (kind === "hypotheses" && !dermatologySourcesAreReady("diagnostico")) {
-    status.textContent = "Geração de hipóteses por IA desativada: as fontes dermatológicas ainda não foram validadas. Registre a avaliação médica manualmente.";
-    return;
-  }
   if (kind === "plan" && !dermatologySourcesAreReady("conduta")) {
     status.textContent = "Geração de conduta por IA desativada: as fontes dermatológicas ainda não foram validadas. Registre a decisão médica manualmente.";
     return;
@@ -1886,18 +1882,39 @@ async function generateDermatologyProposal(button) {
     source = target.dermHdApproved;
   } else source = dermatologySourceText(target, patient, priorEntries);
   if (!source.trim()) { status.textContent = "Registre os dados clínicos desta etapa antes de pedir uma proposta."; return; }
+  const sourceMode = kind === "hypotheses" ? target.dermHdSourceMode || "ai" : "ai";
+  const generationOptions = kind === "hypotheses" ? {
+    sourceMode,
+    ragQuery: sourceMode === "rag" ? dermatologyRagQuery(target) : "",
+    externalEvidence: ["openevidence", "medscape"].includes(sourceMode) ? target.dermHdExternalEvidence || "" : "",
+    externalUrl: ["openevidence", "medscape"].includes(sourceMode) ? target.dermHdExternalUrl || "" : ""
+  } : {};
+  if (kind === "hypotheses" && sourceMode === "rag" && !generationOptions.ragQuery) {
+    status.textContent = "Selecione os achados dermatológicos estruturados antes de consultar o RAG.";
+    return;
+  }
+  if (kind === "hypotheses" && ["openevidence", "medscape"].includes(sourceMode)
+      && (!generationOptions.externalEvidence.trim() || !generationOptions.externalUrl.trim())) {
+    status.textContent = "Consulte a fonte externa, informe a URL e cole a síntese e as referências sem dados do paciente.";
+    return;
+  }
   const previousText = textarea.value;
   const stillCurrent = draftGuard.capture();
   button.disabled = true;
   status.textContent = "Gerando proposta para revisão…";
   try {
-    const proposal = await requestDermatologyStage(kind, source);
+    const proposal = await requestDermatologyStage(kind, source, generationOptions);
     if (!stillCurrent() || !form.isConnected) return;
     if (textarea.value !== previousText) {
       status.textContent = "O texto foi alterado durante a geração. A proposta não substituiu sua edição.";
       return;
     }
     textarea.value = kind === "history" ? dermatologyHistoryWithChecklist(proposal, target) : proposal;
+    if (kind === "hypotheses") {
+      target.dermHdGeneratedWithMode = sourceMode;
+      target.dermHdGeneratedExternalUrl = generationOptions.externalUrl || "";
+      target.dermHdGeneratedExternalEvidence = generationOptions.externalEvidence || "";
+    }
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
     status.textContent = "Proposta pronta. Revise, modifique e salve antes de avançar.";
   } catch (error) {
@@ -1943,7 +1960,12 @@ async function approveDermatologyReview(button) {
     target.dermHistorySource = dermatologySourceText(target, patient, priorEntries);
     target.dermHistoryGateVersion = 1;
   }
-  if (field === "dermHdApproved") target.dermHdSource = target.dermHistoryApproved;
+  if (field === "dermHdApproved") {
+    target.dermHdSource = target.dermHistoryApproved;
+    target.dermHdSourceModeUsed = target.dermHdGeneratedWithMode || "manual";
+    target.dermHdExternalUrlUsed = target.dermHdGeneratedExternalUrl || "";
+    target.dermHdExternalEvidenceUsed = target.dermHdGeneratedExternalEvidence || "";
+  }
   if (field === "dermPlanApproved") target.dermPlanSource = target.dermHdApproved;
   unsavedWork.tocou(draftScopeOfForm(form));
   if (await saveClinicalRecord(draftScopeOfForm(form))) render();

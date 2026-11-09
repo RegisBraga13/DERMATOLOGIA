@@ -10,15 +10,26 @@ export function formatDermatologyQuestions(proposal = {}) {
   ].filter(Boolean).join("\n")).join("\n\n");
 }
 
-export async function requestDermatologyStage(kind, source) {
-  const requiredScope = kind === "hypotheses" ? "diagnostico" : kind === "plan" ? "conduta" : "";
+export async function requestDermatologyStage(kind, source, options = {}) {
+  const sourceMode = kind === "hypotheses" ? options.sourceMode || "ai" : "ai";
+  const requiredScope = kind === "plan" ? "conduta" : "";
   if (requiredScope && !dermatologySourcesAreReady(requiredScope)) {
     throw new Error("Geração por IA indisponível até validar fontes dermatológicas próprias.");
+  }
+  if (kind === "hypotheses" && sourceMode === "rag" && !dermatologySourcesAreReady("diagnostico")) {
+    throw new Error("O RAG dermatológico ainda não tem fontes validadas para diagnóstico.");
   }
   const response = await fetch("/api/dermatology-workflow", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-    body: JSON.stringify({ kind, source })
+    body: JSON.stringify({
+      kind,
+      source,
+      sourceMode,
+      ragQuery: options.ragQuery || "",
+      externalEvidence: options.externalEvidence || "",
+      externalUrl: options.externalUrl || ""
+    })
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(result.error || "Falha ao gerar proposta clínica.");
@@ -27,5 +38,13 @@ export async function requestDermatologyStage(kind, source) {
   const text = String(proposal.text || "").trim();
   const uncertainty = String(proposal.uncertainties || "").trim();
   if (!text) throw new Error("A proposta clínica veio vazia.");
-  return uncertainty ? `${text}\n\nIncertezas a conferir: ${uncertainty}` : text;
+  const sources = Array.isArray(proposal.sources) ? proposal.sources : [];
+  const sourceText = sources.map(item => {
+    const title = String(item?.title || "Fonte consultada").trim();
+    const url = String(item?.url || "").trim();
+    const score = Number.isFinite(Number(item?.score)) ? ` (relevância ${Math.round(Number(item.score) * 100)}%)` : "";
+    return `- ${title}${score}${url ? ` — ${url}` : ""}`;
+  });
+  return [text, uncertainty ? `Incertezas a conferir: ${uncertainty}` : "",
+    sourceText.length ? `Fontes para conferência médica:\n${sourceText.join("\n")}` : ""].filter(Boolean).join("\n\n");
 }
