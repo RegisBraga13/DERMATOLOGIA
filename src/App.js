@@ -423,7 +423,7 @@ function patientForm() {
     <form id="patient-form">
       <div class="grid patient-grid">
         ${field("nome", "Nome completo", patient.nome)}
-        ${field("nomeSocial", "Nome social / como prefere ser chamado(a)", patient.nomeSocial, "text", Boolean(marcas.nomeSocial))}
+        ${field("nomeSocial", "Nome social", patient.nomeSocial, "text", Boolean(marcas.nomeSocial))}
         ${selectField("sexo", "Sexo", optionGroups.sexo, patient.sexo)}
         ${selectField("genero", "Identidade de gênero", optionGroups.genero, patient.genero)}
         ${selectField("fototipoFitzpatrick", "Fototipo (escala de Fitzpatrick)", ["I", "II", "III", "IV", "V", "VI"], patient.fototipoFitzpatrick)}

@@ -2143,7 +2143,8 @@ label { font-weight: var(--w-strong); }
    Sem isso, um rotulo que quebra em 2 linhas empurra a propria caixa mais
    para baixo que as caixas vizinhas de rotulo curto, desalinhando a linha. */
 #patient-form label {
-  grid-template-rows: minmax(50px, auto) auto;
+  grid-template-rows: minmax(28px, auto) auto;
+  row-gap: 8px;
 }
 
 #patient-form input,
