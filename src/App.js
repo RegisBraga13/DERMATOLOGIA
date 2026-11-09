@@ -1117,6 +1117,7 @@ function bindViewEvents() {
   bindRecord();
   bindActions();
   bindDermPhotoPreview();
+  bindDermExamPicker();
 }
 
 function bindDermPhotoPreview() {
@@ -1140,6 +1141,19 @@ function bindDermPhotoPreview() {
     preview.replaceChildren(image);
     const analyzeButton = app.querySelector("[data-action='pick-derm-photo']");
     if (analyzeButton) void analyzeDermPhoto(analyzeButton);
+  });
+}
+
+function bindDermExamPicker() {
+  const input = app.querySelector("[data-derm-exam-file]");
+  if (!input) return;
+  input.addEventListener("change", () => {
+    const file = input.files?.[0];
+    const preview = app.querySelector("[data-derm-exam-preview]");
+    const button = app.querySelector("[data-action='pick-derm-exam']");
+    if (!file || !preview || !button) return;
+    preview.textContent = `Arquivo selecionado: ${file.name}`;
+    void analyzeDermExam(button);
   });
 }
 
@@ -1599,6 +1613,14 @@ function bindActions() {
         }
         form?.querySelector("[data-derm-photo]")?.click();
       }
+      if (action === "pick-derm-exam") {
+        const form = element.closest("form");
+        if (form?.querySelector("[data-derm-exam-description]")?.value.trim()) {
+          alert("Revise e salve ou descarte o exame atual antes de escolher outro arquivo.");
+          return;
+        }
+        form?.querySelector("[data-derm-exam-file]")?.click();
+      }
       if (action === "analyze-derm-photo") await analyzeDermPhoto(element);
       if (action === "analyze-derm-exam") await analyzeDermExam(element);
       if (action === "generate-derm-questions" || action === "generate-derm-stage") await generateDermatologyProposal(element);
@@ -1652,9 +1674,21 @@ function bindActions() {
         target.dermExams = chronological(target.dermExams || []);
         target.dermExams.push({ id: uid("derm-exam"), date: form?.querySelector("[data-derm-exam-date]")?.value || "",
           type: (form?.querySelector("[data-derm-exam-type]")?.value || "").trim(), description });
+        target.dermExams = chronological(target.dermExams);
         unsavedWork.tocou(draftScopeOfForm(form));
         form.querySelector("[data-derm-exam-description]").value = "";
         if (await saveClinicalRecord(draftScopeOfForm(form))) render();
+      }
+      if (action === "discard-derm-exam") {
+        const form = element.closest("form");
+        if (!form) return;
+        form.querySelector("[data-derm-exam-file]").value = "";
+        form.querySelector("[data-derm-exam-description]").value = "";
+        form.querySelector("[data-derm-exam-date]").value = "";
+        form.querySelector("[data-derm-exam-type]").value = "";
+        form.querySelector("[data-derm-exam-meta]").hidden = true;
+        form.querySelector("[data-derm-exam-preview]").textContent = "";
+        form.querySelector("[data-derm-exam-status]").textContent = "Arquivo e proposta descartados.";
       }
       if (action === "add-derm-lesion" || action === "remove-derm-lesion") {
         const form = element.closest("form");
@@ -1749,6 +1783,9 @@ async function analyzeDermExam(button) {
   const file = input?.files?.[0];
   const description = form?.querySelector("[data-derm-exam-description]");
   const status = form?.querySelector("[data-derm-exam-status]");
+  const meta = form?.querySelector("[data-derm-exam-meta]");
+  const date = form?.querySelector("[data-derm-exam-date]");
+  const type = form?.querySelector("[data-derm-exam-type]");
   if (!description || !status) return;
   if (!file) { status.textContent = "Selecione um exame antes de analisar."; return; }
   const previousText = description.value;
@@ -1763,9 +1800,13 @@ async function analyzeDermExam(button) {
       status.textContent = "O arquivo ou a descrição mudou durante a análise. Execute novamente se desejar.";
       return;
     }
-    description.value = proposal;
+    description.value = proposal.description;
     description.dispatchEvent(new Event("input", { bubbles: true }));
-    status.textContent = "Extração pronta. Confira o arquivo original, edite os achados e clique em Adicionar exame revisado.";
+    if (date) date.value = proposal.date;
+    if (type) type.value = proposal.type;
+    if (meta) meta.hidden = false;
+    const identifiedDate = proposal.date || proposal.dateText || "não identificada";
+    status.textContent = `IA identificou: ${proposal.type || "tipo não identificado"} · data ${identifiedDate}. Confira o arquivo original e salve os dados revisados.`;
   } catch (error) {
     if (stillCurrent() && form.isConnected) status.textContent = error.message || "Falha ao analisar o exame.";
   } finally {
@@ -2167,6 +2208,8 @@ function dermPendingReviewMessage(form, target = {}, ignored = "") {
     return "Há uma foto selecionada. Aguarde a análise e salve a descrição ou descarte a proposta antes de avançar.";
   if (ignored !== "exam" && form.querySelector("[data-derm-exam-description]")?.value.trim())
     return "Há uma descrição de exame ainda não adicionada. Revise e adicione ou descarte o texto.";
+  if (ignored !== "exam" && form.querySelector("[data-derm-exam-file]")?.files?.length)
+    return "Há um exame selecionado. Aguarde a análise e salve os dados revisados ou descarte a proposta antes de avançar.";
   for (const input of form.querySelectorAll("[data-derm-review]")) {
     const field = input.dataset.dermReview;
     if (field !== ignored && input.value.trim() !== String(target[field] || "").trim())

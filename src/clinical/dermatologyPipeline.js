@@ -5,7 +5,7 @@ import {
 
 export function chronological(items = []) {
   return [...(Array.isArray(items) ? items : [])].sort((a, b) =>
-    String(a.date || "").localeCompare(String(b.date || "")) || String(a.id || "").localeCompare(String(b.id || "")));
+    String(a.date || "9999-99-99").localeCompare(String(b.date || "9999-99-99")) || String(a.id || "").localeCompare(String(b.id || "")));
 }
 
 const list = value => Array.isArray(value) ? value.join(", ") : String(value || "").trim();

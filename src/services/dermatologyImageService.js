@@ -80,11 +80,31 @@ export async function requestDermatologyDocument(dataUrl) {
   const result = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(result.error || "Falha ao analisar o exame.");
   const document = result.document || {};
-  return [
-    ["Tipo indicado no documento", document.tipo],
-    ["Data indicada no documento", document.data_no_documento],
+  const dateText = String(document.data_no_documento || "").trim();
+  return {
+    type: String(document.tipo || "").trim(),
+    date: normalizeDocumentDate(dateText),
+    dateText,
+    description: [
+    ...(dateText && !normalizeDocumentDate(dateText) ? [["Data transcrita do documento (confira)", dateText]] : []),
     ["Achados extraídos", document.achados],
     ["Incertezas e trechos ilegíveis", document.incertezas]
-  ].filter(([, value]) => typeof value === "string" && value.trim())
-    .map(([label, value]) => `${label}: ${value.trim()}`).join("\n");
+    ].filter(([, value]) => typeof value === "string" && value.trim())
+      .map(([label, value]) => `${label}: ${value.trim()}`).join("\n")
+  };
+}
+
+function normalizeDocumentDate(value) {
+  const candidate = String(value || "").trim();
+  let year, month, day;
+  let match = candidate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) [, year, month, day] = match;
+  else {
+    match = candidate.match(/^(\d{2})[/.\-](\d{2})[/.\-](\d{4})$/);
+    if (match) [, day, month, year] = match;
+  }
+  if (!year) return "";
+  const iso = `${year}-${month}-${day}`;
+  const parsed = new Date(`${iso}T00:00:00Z`);
+  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === iso ? iso : "";
 }

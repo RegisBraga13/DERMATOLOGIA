@@ -80,20 +80,24 @@ function photographicExam(form, priorEntries = []) {
 
 function examUploads(form) {
   return `<div class="clinical-card"><h4>Exames trazidos pelo paciente</h4>
-    <p class="field-hint">Imagens e laudos PDF podem ser analisados para extração preliminar. Confira o documento original. O prontuário guarda somente a descrição aprovada.</p>
-    ${chronological(form.dermExams).map((item, index) => `<div class="clinical-card"><h5>Exame ${index + 1}</h5>
+    <p class="field-hint">Adicione fotos ou PDFs pela galeria, câmera ou arquivos. A IA identifica o tipo, a data e os achados estruturados; não é preciso digitar esses dados. Confira a extração antes de salvar. Os exames ficam organizados pela data reconhecida. O prontuário guarda os dados revisados, não o arquivo original.</p>
+    ${chronological(form.dermExams).map((item, index) => `<div class="clinical-card"><h5>Exame ${index + 1} — ${escapeHtml(item.type || "Tipo não identificado")} — ${escapeHtml(item.date ? item.date.split("-").reverse().join("/") : "Data não identificada")}</h5>
       <label>Data do exame<input type="date" name="dermExam__${index}__date" value="${escapeAttr(item.date || "")}"></label>
       <label>Tipo<input name="dermExam__${index}__type" value="${escapeAttr(item.type || "")}"></label>
       ${textarea(`dermExam__${index}__description`, "Achados conferidos", item.description || "")}
       <button type="button" class="secondary" data-action="remove-derm-exam" data-index="${index}">Excluir registro do exame</button>
     </div>`).join("")}
-    <label>Data do novo exame<input type="date" data-derm-exam-date></label>
-    <label>Tipo do exame<input type="text" data-derm-exam-type placeholder="Ex.: histopatológico, laboratoriais, dermatoscopia"></label>
-    <label>Arquivo (imagem até 10 MB ou PDF até 8 MB)<input type="file" data-derm-exam-file accept="image/jpeg,image/png,image/webp,application/pdf"></label>
-    <div class="actions"><button type="button" class="secondary" data-action="analyze-derm-exam">Analisar arquivo</button></div>
+    <input type="file" data-derm-exam-file accept="image/*,application/pdf" hidden>
+    <div class="actions"><button type="button" class="secondary" data-action="pick-derm-exam" aria-label="Adicionar exame">＋ Adicionar exame</button></div>
+    <div data-derm-exam-preview aria-live="polite"></div>
+    <div data-derm-exam-meta hidden>
+      <label>Data identificada pela IA<input type="date" data-derm-exam-date></label>
+      <label>Tipo identificado pela IA<input type="text" data-derm-exam-type></label>
+    </div>
     <p data-derm-exam-status class="field-hint" role="status" aria-live="polite"></p>
-    <label>Descrição do exame para revisão<textarea data-derm-exam-description class="auto-expand" data-auto-expand="true" rows="1"></textarea></label>
-    <button type="button" class="primary" data-action="approve-derm-exam">Adicionar exame revisado</button>
+    <label>Descrição estruturada do exame — revise antes de salvar<textarea data-derm-exam-description class="auto-expand" data-auto-expand="true" rows="1" placeholder="A extração estruturada da IA aparecerá aqui para revisão."></textarea></label>
+    <div class="actions"><button type="button" class="primary" data-action="approve-derm-exam">Salvar exame revisado</button>
+    <button type="button" class="secondary" data-action="discard-derm-exam">Descartar exame</button></div>
   </div>`;
 }
 
