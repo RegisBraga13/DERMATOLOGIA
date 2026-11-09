@@ -52,6 +52,7 @@ import { prepareDermatologyDocument, prepareDermatologyImage, requestDermatology
 import { requestDermatologyStage } from "./services/dermatologyWorkflowService.js";
 import { chronological, dermatologyHistoryWithChecklist, dermatologySourceText, hdIsCurrent, historyIsCurrent, planIsCurrent } from "./clinical/dermatologyPipeline.js";
 import { dermatologyHistoryReadiness } from "./specialties/dermatologia/historyReadiness.js";
+import { dermatologySourcesAreReady } from "./specialties/dermatologia/sources.js";
 
 const app = document.querySelector("#app");
 // Vazio ate a leitura do aparelho terminar: desde 14/09/2026 o estado mora no
@@ -1868,6 +1869,14 @@ async function generateDermatologyProposal(button) {
       status.textContent = `História bloqueada: ${readiness.missing.map(item => `${item.label} — ${item.reason}`).join("; ")}`;
       return;
     }
+  }
+  if (kind === "hypotheses" && !dermatologySourcesAreReady("diagnostico")) {
+    status.textContent = "Geração de hipóteses por IA desativada: as fontes dermatológicas ainda não foram validadas. Registre a avaliação médica manualmente.";
+    return;
+  }
+  if (kind === "plan" && !dermatologySourcesAreReady("conduta")) {
+    status.textContent = "Geração de conduta por IA desativada: as fontes dermatológicas ainda não foram validadas. Registre a decisão médica manualmente.";
+    return;
   }
   if (kind === "hypotheses") {
     if (!historyIsCurrent(target, patient, priorEntries)) { status.textContent = "Salve uma história clínica atualizada antes de gerar a HD."; return; }

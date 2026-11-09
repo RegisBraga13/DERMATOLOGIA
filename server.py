@@ -2337,8 +2337,15 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                 if not isinstance(payload, dict):
                     self.send_json(400, {"error": "Requisição inválida."})
                     return
+                kind = payload.get("kind")
+                recommendation_enabled = os.environ.get(
+                    "DERMATOLOGY_RECOMMENDATIONS_ENABLED", "false"
+                ).strip().lower() in {"1", "true", "yes", "on"}
+                if kind in {"hypotheses", "plan"} and not recommendation_enabled:
+                    self.send_json(503, {"error": "Recomendações dermatológicas por IA permanecem desativadas até validar e habilitar fontes clínicas próprias."})
+                    return
                 result = propose_dermatology_stage(
-                    payload.get("kind"), payload.get("source"), api_key,
+                    kind, payload.get("source"), api_key,
                     os.environ.get("OPENAI_DERMATOLOGY_TEXT_MODEL", DEFAULT_MODEL),
                 )
                 self.send_json(200, {"proposal": result})

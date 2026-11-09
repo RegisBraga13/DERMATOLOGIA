@@ -1,4 +1,5 @@
 import { authHeaders } from "./supabaseService.js";
+import { dermatologySourcesAreReady } from "../specialties/dermatologia/sources.js";
 
 export function formatDermatologyQuestions(proposal = {}) {
   const questions = Array.isArray(proposal.questions) ? proposal.questions : [];
@@ -10,6 +11,10 @@ export function formatDermatologyQuestions(proposal = {}) {
 }
 
 export async function requestDermatologyStage(kind, source) {
+  const requiredScope = kind === "hypotheses" ? "diagnostico" : kind === "plan" ? "conduta" : "";
+  if (requiredScope && !dermatologySourcesAreReady(requiredScope)) {
+    throw new Error("Geração por IA indisponível até validar fontes dermatológicas próprias.");
+  }
   const response = await fetch("/api/dermatology-workflow", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(await authHeaders()) },

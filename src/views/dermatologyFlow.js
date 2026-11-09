@@ -2,6 +2,7 @@ import { chips, textarea, voiceTextarea } from "../ui/controls.js";
 import { escapeAttr, escapeHtml } from "../ui/html.js";
 import { chronological, dermatologySourceText, hdIsCurrent, historyIsCurrent, planIsCurrent } from "../clinical/dermatologyPipeline.js";
 import { DERMATOLOGY_HISTORY_DOMAINS, DERMATOLOGY_RED_FLAGS, dermatologyHistoryReadiness } from "../specialties/dermatologia/historyReadiness.js";
+import { dermatologySourcesAreReady } from "../specialties/dermatologia/sources.js";
 import {
   DERMATOLOGY_ANAMNESIS_FIELDS, DERMATOLOGY_HISTORY_FIELDS,
   DERMATOLOGY_PHYSICAL_EXAM_FIELDS, DERMATOLOGY_SYSTEMS_FIELDS, DERMATOLOGY_ASSESSMENT_FIELDS,
@@ -115,10 +116,13 @@ function questionCard(form, phase) {
 }
 
 function reviewCard(title, kind, field, approved, source, current) {
+  const requiredScope = kind === "hypotheses" ? "diagnostico" : kind === "plan" ? "conduta" : "";
+  const generationBlocked = Boolean(requiredScope && !dermatologySourcesAreReady(requiredScope));
   return `<div class="clinical-card"><h4>${title}</h4>
     ${current === false && approved ? `<p class="warning">A etapa anterior mudou. Revise e salve novamente este texto antes de avançar.</p>` : ""}
+    ${generationBlocked ? '<p class="warning">Geração por IA indisponível até validar fontes dermatológicas próprias. Você ainda pode redigir e salvar a avaliação médica manualmente.</p>' : ""}
     <details><summary>Material de entrada desta etapa</summary><pre class="field-hint">${escapeHtml(source || "Sem dados aprovados.")}</pre></details>
-    <div class="actions"><button type="button" class="secondary" data-action="generate-derm-stage" data-kind="${kind}">Gerar proposta</button></div>
+    <div class="actions"><button type="button" class="secondary" data-action="generate-derm-stage" data-kind="${kind}"${generationBlocked ? " disabled" : ""}>Gerar proposta</button></div>
     <p data-derm-ai-status class="field-hint" role="status" aria-live="polite"></p>
     <label>Texto para revisão médica<textarea data-derm-review="${field}" class="auto-expand" data-auto-expand="true" rows="1">${escapeHtml(approved || "")}</textarea></label>
     <button type="button" class="primary" data-action="approve-derm-review" data-field="${field}">Salvar texto revisado</button>

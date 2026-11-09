@@ -15,7 +15,7 @@ Aplicativo independente para documentação clínica em Dermatologia. Ele reutil
 
 ## Fontes clínicas
 
-As fontes dermatológicas não são copiadas do acervo psiquiátrico. O catálogo inicial está em `src/specialties/dermatologia/index.js` e só pode sair de `draft` depois de uma ingestão revisada, com versão, licença, escopo e data de atualização. O aplicativo não apresenta uma recomendação de IA dermatológica enquanto esse acervo não estiver validado.
+As fontes dermatológicas não são copiadas do acervo psiquiátrico. O catálogo inicial está em `src/specialties/dermatologia/index.js` e só pode sair de `draft` depois de uma ingestão revisada, com versão, licença, escopo e data de atualização. Enquanto isso, geração de hipóteses e conduta por IA fica bloqueada no cliente e no servidor; o médico ainda pode registrar sua própria avaliação. O servidor só aceita essas etapas quando `DERMATOLOGY_RECOMMENDATIONS_ENABLED=true` e as fontes correspondentes estiverem ativas no catálogo do cliente.
 
 ## Supabase sem custo adicional
 
