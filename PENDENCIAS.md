@@ -19,6 +19,10 @@ implementados. O restante deste documento conserva o histórico detalhado.
   de um médico.
 - **Validação visual:** conferir Safari em iPhone/iPad e o reinício do servidor
   após a publicação.
+- **Fontes dermatológicas:** revisar autoria, licença, edição, data e conteúdo das
+  197 notas locais antes de tratá-las como diretrizes ou habilitar RAG. A geração
+  de conduta consulta somente notas com correspondência exata à HD salva e
+  permanece sujeita à revisão médica; o acervo não integra o Git ou Supabase.
 
 ### Supabase no plano gratuito
 
@@ -38,8 +42,9 @@ permite escolher IA, RAG dermatológico ou consulta manual no OpenEvidence e no
 Medscape. OpenEvidence/Medscape não recebem o prontuário: a integração pede que
 o médico abra o serviço, informe a URL consultada e cole apenas síntese e
 referência sem identificadores. O RAG permanece indisponível até haver acervo
-próprio validado e configurado. A conduta continua bloqueada até revisão das
-fontes dermatológicas.
+próprio validado e configurado. A conduta pode consultar notas locais do usuário
+por correspondência exata de título, com arquivo e hash apresentados para
+conferência, sem promovê-las a diretrizes validadas.
 
 P12 agora mantém no `AI_SOURCE_REGISTRY` as etapas permitidas, o acervo, os
 escopos RAG, contratos e respostas de recusa. Busca e validação consultam esse

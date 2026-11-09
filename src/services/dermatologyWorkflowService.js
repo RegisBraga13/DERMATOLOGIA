@@ -12,10 +12,6 @@ export function formatDermatologyQuestions(proposal = {}) {
 
 export async function requestDermatologyStage(kind, source, options = {}) {
   const sourceMode = kind === "hypotheses" ? options.sourceMode || "ai" : "ai";
-  const requiredScope = kind === "plan" ? "conduta" : "";
-  if (requiredScope && !dermatologySourcesAreReady(requiredScope)) {
-    throw new Error("Geração por IA indisponível até validar fontes dermatológicas próprias.");
-  }
   if (kind === "hypotheses" && sourceMode === "rag" && !dermatologySourcesAreReady("diagnostico")) {
     throw new Error("O RAG dermatológico ainda não tem fontes validadas para diagnóstico.");
   }
@@ -43,7 +39,9 @@ export async function requestDermatologyStage(kind, source, options = {}) {
     const title = String(item?.title || "Fonte consultada").trim();
     const url = String(item?.url || "").trim();
     const score = Number.isFinite(Number(item?.score)) ? ` (relevância ${Math.round(Number(item.score) * 100)}%)` : "";
-    return `- ${title}${score}${url ? ` — ${url}` : ""}`;
+    const filename = String(item?.filename || "").trim();
+    const hash = String(item?.sha256 || "").trim();
+    return `- ${title}${score}${url ? ` — ${url}` : ""}${filename ? ` — ${filename}` : ""}${hash ? ` — SHA-256 ${hash}` : ""}`;
   });
   return [text, uncertainty ? `Incertezas a conferir: ${uncertainty}` : "",
     sourceText.length ? `Fontes para conferência médica:\n${sourceText.join("\n")}` : ""].filter(Boolean).join("\n\n");

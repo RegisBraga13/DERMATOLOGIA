@@ -26,7 +26,7 @@ Cada documento deverá registrar: título, entidade publicadora, versão, data d
 
 ## Estado atual
 
-O catálogo está em `draft`. A próxima etapa é selecionar fontes dermatológicas licenciadas e criar o pipeline de ingestão, avaliação por especialistas e testes de ancoragem antes de habilitar RAG. A conduta permanece desativada até a mesma validação. O modo de hipóteses por IA generativa pode ser usado como apoio não referenciado, sob revisão do médico.
+O catálogo está em `draft`. A próxima etapa é selecionar fontes dermatológicas licenciadas e criar o pipeline de ingestão, avaliação por especialistas e testes de ancoragem antes de habilitar RAG. As notas locais fornecidas pelo usuário são sínteses clínicas sem versão, data ou licença verificadas. Elas não ativam o RAG nem são tratadas como guidelines: apenas podem apoiar uma proposta de conduta quando o título do arquivo corresponde exatamente à HD salva. O servidor apresenta o nome e SHA-256 de cada nota usada, recusa a geração sem correspondência e exige revisão médica. O modo de hipóteses por IA generativa pode ser usado como apoio não referenciado, sob revisão do médico.
 
 ## Referências de semiologia para o catálogo de campos
 

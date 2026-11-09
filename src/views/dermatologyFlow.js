@@ -133,10 +133,8 @@ export function dermatologyRagQuery(form = {}) {
 }
 
 function reviewCard(title, kind, field, approved, source, current, form = {}) {
-  const requiredScope = kind === "hypotheses" ? "diagnostico" : kind === "plan" ? "conduta" : "";
   const ragReady = kind === "hypotheses" && dermatologySourcesAreReady("diagnostico");
   const selectedMode = form.dermHdSourceMode || "ai";
-  const generationBlocked = kind === "plan" && Boolean(requiredScope && !dermatologySourcesAreReady(requiredScope));
   const sourceChoice = kind === "hypotheses" ? `<fieldset class="ai-mode-selector derm-hypothesis-sources"><legend>Fonte das hipóteses</legend>
     <label><input type="radio" name="dermHdSourceMode" value="ai"${selectedMode === "ai" ? " checked" : ""}><span>IA</span></label>
     <label class="${ragReady ? "" : "disabled"}"><input type="radio" name="dermHdSourceMode" value="rag"${selectedMode === "rag" ? " checked" : ""}${ragReady ? "" : " disabled"}><span>RAG Dermatologia</span></label>
@@ -152,10 +150,10 @@ function reviewCard(title, kind, field, approved, source, current, form = {}) {
   </details>` : "";
   return `<div class="clinical-card"><h4>${title}</h4>
     ${current === false && approved ? `<p class="warning">A etapa anterior mudou. Revise e salve novamente este texto antes de avançar.</p>` : ""}
-    ${generationBlocked ? '<p class="warning">Geração por IA indisponível até validar fontes dermatológicas próprias. Você ainda pode redigir e salvar a avaliação médica manualmente.</p>' : ""}
+    ${kind === "plan" ? '<p class="field-hint">A proposta consulta notas dermatológicas locais cujo nome corresponda exatamente à HD salva. São sínteses sem data, versão e licença verificadas. Confira a fonte e a atualidade antes de salvar a decisão médica.</p>' : ""}
     ${sourceChoice}
     <details><summary>Material de entrada desta etapa</summary><pre class="field-hint">${escapeHtml(source || "Sem dados aprovados.")}</pre></details>
-    <div class="actions"><button type="button" class="secondary" data-action="generate-derm-stage" data-kind="${kind}"${generationBlocked ? " disabled" : ""}>Gerar proposta</button></div>
+    <div class="actions"><button type="button" class="secondary" data-action="generate-derm-stage" data-kind="${kind}">Gerar proposta</button></div>
     <p data-derm-ai-status class="field-hint" role="status" aria-live="polite"></p>
     <label>Texto para revisão médica<textarea data-derm-review="${field}" class="auto-expand" data-auto-expand="true" rows="1">${escapeHtml(approved || "")}</textarea></label>
     <button type="button" class="primary" data-action="approve-derm-review" data-field="${field}">Salvar texto revisado</button>

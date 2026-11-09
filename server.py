@@ -26,6 +26,7 @@ from ai_openai import extract_web_sources, search_web_sources
 from ai_response_policy import usable_web_findings
 from observability import decision_message
 from ai_vector_store import fit_sources, rag_context, vector_store_search
+from dermatology_local_notes import retrieve_plan_notes
 from ai_source_policy import (
     GUIDELINES_ENV_KEY, KINDS_ACCEPTING_PATIENT_SCOPE, KINDS_REQUIRING_MENTION,
     RAG_ALWAYS_MAX_RESULTS, RAG_ALWAYS_SCOPE_BY_KIND, RAG_PATIENT_SCOPES,
@@ -2376,18 +2377,25 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                     elif source_mode != "ai":
                         self.send_json(400, {"error": "Fonte de hipóteses inválida."})
                         return
-                recommendation_enabled = os.environ.get(
-                    "DERMATOLOGY_RECOMMENDATIONS_ENABLED", "false"
-                ).strip().lower() in {"1", "true", "yes", "on"}
-                if kind == "plan" and not recommendation_enabled:
-                    self.send_json(503, {"error": "Recomendações dermatológicas por IA permanecem desativadas até validar e habilitar fontes clínicas próprias."})
-                    return
+                if kind == "plan":
+                    notes = retrieve_plan_notes(str(payload.get("source") or ""))
+                    if not notes:
+                        self.send_json(422, {"error": "Nenhuma nota local corresponde exatamente à HD salva. Redija a conduta manualmente ou confira o nome da hipótese e o acervo local."})
+                        return
+                    evidence_context = "\n\n".join(
+                        f"NOTA LOCAL: {note['title']} | arquivo: {note['filename']} | SHA-256: {note['sha256']}\n"
+                        "Nota fornecida pelo usuário, sem data, versão ou licença verificadas. "
+                        "Use somente para proposta sob revisão médica; confira atualidade, contraindicações e normas locais.\n"
+                        + note["text"] for note in notes
+                    )
+                    consulted_sources = [{"type": "local_note", "title": note["title"],
+                                          "filename": note["filename"], "sha256": note["sha256"]} for note in notes]
                 result = propose_dermatology_stage(
                     kind, payload.get("source"), api_key,
                     os.environ.get("OPENAI_DERMATOLOGY_TEXT_MODEL", DEFAULT_MODEL),
                     evidence_context=evidence_context,
                 )
-                if kind == "hypotheses":
+                if kind in {"hypotheses", "plan"}:
                     result["source_mode"] = source_mode
                     result["sources"] = consulted_sources
                 self.send_json(200, {"proposal": result})
