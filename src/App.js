@@ -428,9 +428,9 @@ function patientForm() {
         ${selectField("genero", "Identidade de gênero", optionGroups.genero, patient.genero)}
         ${selectField("fototipoFitzpatrick", "Fototipo (escala de Fitzpatrick)", ["I", "II", "III", "IV", "V", "VI"], patient.fototipoFitzpatrick)}
         ${field("nascimento", "Data de nascimento", patient.nascimento, "date", Boolean(marcas.nascimento))}
-        ${selectField("estadoCivil", "Estado civil", optionGroups.estadoCivil, patient.estadoCivil, Boolean(marcas.estadoCivil))}
         ${field("ocupacao", "Ocupacao", patient.ocupacao, "text", Boolean(marcas.ocupacao))}
         ${selectField("escolaridade", "Escolaridade", optionGroups.escolaridade, patient.escolaridade)}
+        ${selectField("estadoCivil", "Estado civil", optionGroups.estadoCivil, patient.estadoCivil, Boolean(marcas.estadoCivil))}
         ${selectField("religiao", "Religiao", optionGroups.religiao, patient.religiao, Boolean(marcas.religiao))}
         ${field("email", "E-mail", patient.email, "email")}
         ${phoneField("telefone", "Fone/WhatsApp", patient.telefone)}
