@@ -78,7 +78,8 @@ INSTRUCTIONS = {
     "plan": (
         "A partir EXCLUSIVAMENTE das hipóteses diagnósticas fornecidas, proponha conduta para revisão médica. "
         "Use apenas as notas locais recuperadas como apoio. Identifique quando a nota não contempla um ponto; "
-        "não invente recomendação, fonte, data ou atualização. Estas notas não são diretrizes validadas e podem estar desatualizadas. "
+        "não invente recomendação, fonte, data ou atualização. A revisão clínica das notas foi declarada pelo médico usuário, "
+        "mas não auditada pelo aplicativo; não as apresente como diretrizes oficiais. "
         "Priorize confirmação diagnóstica, segurança e seguimento. Se faltarem dados de alergia, gestação, "
         "comorbidades ou gravidade, declare a lacuna e não forneça dose ou prescrição específica. "
         "Não trate hipótese como diagnóstico confirmado."

@@ -86,7 +86,7 @@ class DermatologyWorkflowTests(unittest.TestCase):
         from server import PrototypeHandler
 
         note = {"title": "Tinea corporis", "hypothesis": "Tinea corporis",
-                "filename": "Tinea_Corporis.md", "sha256": "a" * 64,
+                "filename": "Tinea_Corporis.md", "sha256": "a" * 64, "validated_at": "2026-11-09",
                 "text": "## Tratamento\nConteúdo de teste."}
         with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key", "APP_MODE": "local", "HOST": "127.0.0.1", "SUPABASE_URL": "", "SUPABASE_PUBLISHABLE_KEY": ""}):
             with patch("server.retrieve_plan_notes", return_value=[note]), patch(

@@ -150,7 +150,7 @@ function reviewCard(title, kind, field, approved, source, current, form = {}) {
   </details>` : "";
   return `<div class="clinical-card"><h4>${title}</h4>
     ${current === false && approved ? `<p class="warning">A etapa anterior mudou. Revise e salve novamente este texto antes de avançar.</p>` : ""}
-    ${kind === "plan" ? '<p class="field-hint">A proposta consulta notas dermatológicas locais cujo nome corresponda exatamente à HD salva. São sínteses sem data, versão e licença verificadas. Confira a fonte e a atualidade antes de salvar a decisão médica.</p>' : ""}
+    ${kind === "plan" ? '<p class="field-hint">A proposta consulta notas locais revisadas pelo médico usuário, com versões vinculadas a hash. A revisão foi declarada pelo usuário; o aplicativo não a auditou. Confira contraindicações e normas locais antes de salvar a decisão médica.</p>' : ""}
     ${sourceChoice}
     <details><summary>Material de entrada desta etapa</summary><pre class="field-hint">${escapeHtml(source || "Sem dados aprovados.")}</pre></details>
     <div class="actions"><button type="button" class="secondary" data-action="generate-derm-stage" data-kind="${kind}">Gerar proposta</button></div>

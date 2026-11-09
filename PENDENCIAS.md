@@ -19,10 +19,12 @@ implementados. O restante deste documento conserva o histórico detalhado.
   de um médico.
 - **Validação visual:** conferir Safari em iPhone/iPad e o reinício do servidor
   após a publicação.
-- **Fontes dermatológicas:** revisar autoria, licença, edição, data e conteúdo das
-  197 notas locais antes de tratá-las como diretrizes ou habilitar RAG. A geração
-  de conduta consulta somente notas com correspondência exata à HD salva e
-  permanece sujeita à revisão médica; o acervo não integra o Git ou Supabase.
+- **Fontes dermatológicas:** o médico usuário declarou revisão e atualização
+  clínica das 197 notas em 09/11/2026; os hashes atestados estão no manifesto.
+  Ainda é necessário conferir autoria, licença, edição e data editorial antes
+  de tratá-las como diretrizes oficiais ou enviá-las a uma store RAG. A conduta
+  usa somente versões atestadas e correspondentes à HD salva; o conteúdo do
+  acervo não integra o Git ou Supabase.
 
 ### Supabase no plano gratuito
 

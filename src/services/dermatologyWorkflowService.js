@@ -41,7 +41,8 @@ export async function requestDermatologyStage(kind, source, options = {}) {
     const score = Number.isFinite(Number(item?.score)) ? ` (relevância ${Math.round(Number(item.score) * 100)}%)` : "";
     const filename = String(item?.filename || "").trim();
     const hash = String(item?.sha256 || "").trim();
-    return `- ${title}${score}${url ? ` — ${url}` : ""}${filename ? ` — ${filename}` : ""}${hash ? ` — SHA-256 ${hash}` : ""}`;
+    const validatedAt = String(item?.validated_at || "").trim();
+    return `- ${title}${score}${url ? ` — ${url}` : ""}${filename ? ` — ${filename}` : ""}${hash ? ` — SHA-256 ${hash}` : ""}${validatedAt ? ` — revisão declarada em ${validatedAt}` : ""}`;
   });
   return [text, uncertainty ? `Incertezas a conferir: ${uncertainty}` : "",
     sourceText.length ? `Fontes para conferência médica:\n${sourceText.join("\n")}` : ""].filter(Boolean).join("\n\n");

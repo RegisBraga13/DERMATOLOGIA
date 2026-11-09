@@ -2381,18 +2381,20 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
                     hd_text = str(payload.get("source") or "")
                     notes = retrieve_plan_notes(hd_text)
                     if not notes:
-                        self.send_json(422, {"error": "Nenhuma nota local corresponde exatamente à HD salva. Redija a conduta manualmente ou confira o nome da hipótese e o acervo local."})
+                        self.send_json(422, {"error": "Nenhuma nota validada e inalterada corresponde exatamente à HD salva. Confira o nome da hipótese, a pasta local e o manifesto de validação."})
                         return
                     uncovered = [name for name in saved_hypothesis_names(hd_text)
                                  if name not in {note["hypothesis"] for note in notes}]
                     evidence_context = "\n\n".join(
                         f"NOTA LOCAL: {note['title']} | arquivo: {note['filename']} | SHA-256: {note['sha256']}\n"
-                        "Nota fornecida pelo usuário, sem data, versão ou licença verificadas. "
-                        "Use somente para proposta sob revisão médica; confira atualidade, contraindicações e normas locais.\n"
+                        f"Revisão clínica declarada pelo médico usuário em {note['validated_at']}; versão vinculada ao hash. "
+                        "O aplicativo não auditou a revisão nem verificou licença editorial. "
+                        "Use somente para proposta sob revisão médica; confira contraindicações e normas locais.\n"
                         + note["text"] for note in notes
                     )
                     consulted_sources = [{"type": "local_note", "title": note["title"],
-                                          "filename": note["filename"], "sha256": note["sha256"]} for note in notes]
+                                          "filename": note["filename"], "sha256": note["sha256"],
+                                          "validated_at": note["validated_at"]} for note in notes]
                     if uncovered:
                         evidence_context += ("\n\nHIPÓTESES SEM NOTA: " + "; ".join(uncovered[:8])
                                              + ". Não proponha tratamento específico para elas; declare a lacuna.")

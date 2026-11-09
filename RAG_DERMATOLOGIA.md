@@ -26,7 +26,7 @@ Cada documento deverá registrar: título, entidade publicadora, versão, data d
 
 ## Estado atual
 
-O catálogo está em `draft`. A próxima etapa é selecionar fontes dermatológicas licenciadas e criar o pipeline de ingestão, avaliação por especialistas e testes de ancoragem antes de habilitar RAG. As notas locais fornecidas pelo usuário são sínteses clínicas sem versão, data ou licença verificadas. Elas não ativam o RAG nem são tratadas como guidelines: apenas podem apoiar uma proposta de conduta quando o título do arquivo corresponde exatamente à HD salva. O servidor apresenta o nome e SHA-256 de cada nota usada, recusa a geração sem correspondência e exige revisão médica. O modo de hipóteses por IA generativa pode ser usado como apoio não referenciado, sob revisão do médico.
+O catálogo de RAG/guidelines continua em `draft`. O médico usuário declarou em 09/11/2026 que revisou e atualizou as 197 notas locais. `dermatology_notes_validation.json` registra os hashes das versões atestadas, sem copiar seu conteúdo. Uma nota alterada deixa de ser recuperada até nova atestação explícita. Essa declaração valida o conteúdo clínico para apoio local à proposta de conduta; não é auditoria independente nem licença para publicar ou enviar o acervo a uma store externa. As notas não são apresentadas como diretrizes oficiais. A próxima etapa para RAG é conferir origem, licença, escopo e metadados editoriais antes de ingestão. O servidor apresenta nome, hash e data da atestação, recusa a geração sem nota correspondente e exige revisão médica da proposta.
 
 ## Referências de semiologia para o catálogo de campos
 
